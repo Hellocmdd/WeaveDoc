@@ -50,7 +50,7 @@ public static class OpenXmlStyleCorrector
     {
         using var doc = WordprocessingDocument.Open(docxPath, true);
         var body = doc.MainDocumentPart!.Document.Body!;
-        var sectPr = body.Elements<SectionProperties>().FirstOrDefault()
+        var sectPr = body.Elements<SectionProperties>().LastOrDefault()
                       ?? body.AppendChild(new SectionProperties());
 
         if (defaults.PageSize != null)
@@ -90,7 +90,7 @@ public static class OpenXmlStyleCorrector
         using var doc = WordprocessingDocument.Open(docxPath, true);
         var mainPart = doc.MainDocumentPart!;
         var body = mainPart.Document.Body!;
-        var sectPr = body.Elements<SectionProperties>().FirstOrDefault()
+        var sectPr = body.Elements<SectionProperties>().LastOrDefault()
                       ?? body.AppendChild(new SectionProperties());
 
         // 确保 HeaderReference / FooterReference 存在
