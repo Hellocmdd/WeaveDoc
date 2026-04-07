@@ -1,0 +1,45 @@
+{
+  "$schema": "https://weavedoc.dev/schemas/afd-template-v1.json",
+  "meta": {
+    "templateName": "默认学术论文",
+    "version": "1.0.0",
+    "author": "WeaveDoc",
+    "description": "默认学术论文学位论文模板"
+  },
+  "defaults": {
+    "fontFamily": "宋体",
+    "fontSize": 12,
+    "lineSpacing": 1.5,
+    "pageSize": { "width": 210, "height": 297 },
+    "margins": { "top": 25, "bottom": 25, "left": 30, "right": 30 }
+  },
+  "styles": {
+    "heading1": {
+      "displayName": "标题 1",
+      "fontFamily": "黑体",
+      "fontSize": 16,
+      "bold": true,
+      "alignment": "center",
+      "spaceBefore": 24,
+      "spaceAfter": 18,
+      "lineSpacing": 1.5
+    },
+    "heading2": {
+      "displayName": "标题 2",
+      "fontFamily": "黑体",
+      "fontSize": 14,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 18,
+      "spaceAfter": 12,
+      "lineSpacing": 1.5
+    },
+    "body": {
+      "displayName": "正文",
+      "fontFamily": "宋体",
+      "fontSize": 12,
+      "firstLineIndent": 24,
+      "lineSpacing": 1.5
+    }
+  }
+}

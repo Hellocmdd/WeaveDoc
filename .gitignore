@@ -1,0 +1,31 @@
+## Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+
+## IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+## OS
+Thumbs.db
+.DS_Store
+
+## Tools (Pandoc portable binary, ~40MB)
+tools/pandoc-*/
+
+## Test artifacts
+tools/test_output.docx
+tools/docx_inspect/
+
+## NuGet
+*.nupkg
+packages/
+
+## Misc
+*.log
+.claude/
