@@ -1,6 +1,9 @@
 using System.Text.Json;
 using Xunit;
 using WeaveDoc.Converter.Pandoc;
+using WeaveDoc.Converter.Afd.Models;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace WeaveDoc.Converter.Tests;
 
@@ -79,6 +82,76 @@ public class PandocPipelineTests
         finally
         {
             File.Delete(mdPath);
+        }
+    }
+
+    private static AfdTemplate CreateTestTemplate() => new()
+    {
+        Meta = new AfdMeta { TemplateName = "测试模板" },
+        Defaults = new AfdDefaults
+        {
+            FontFamily = "宋体",
+            FontSize = 12,
+            LineSpacing = 1.5,
+            PageSize = new AfdPageSize { Width = 210, Height = 297 },
+            Margins = new AfdMargins { Top = 25, Bottom = 25, Left = 30, Right = 30 }
+        },
+        Styles = new Dictionary<string, AfdStyleDefinition>
+        {
+            ["heading1"] = new()
+            {
+                DisplayName = "标题 1",
+                FontFamily = "黑体",
+                FontSize = 16,
+                Bold = true,
+                Alignment = "center",
+                SpaceBefore = 24,
+                SpaceAfter = 18,
+                LineSpacing = 1.5
+            },
+            ["body"] = new()
+            {
+                DisplayName = "正文",
+                FontFamily = "宋体",
+                FontSize = 12,
+                FirstLineIndent = 24,
+                LineSpacing = 1.5
+            }
+        }
+    };
+
+    [Fact]
+    public void ReferenceDocBuilder_Build_CreatesValidDocx()
+    {
+        var template = CreateTestTemplate();
+        var outputPath = Path.Combine(Path.GetTempPath(), $"ref-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(outputPath, template);
+
+            Assert.True(File.Exists(outputPath));
+
+            using var doc = WordprocessingDocument.Open(outputPath, false);
+            var stylesPart = doc.MainDocumentPart?.StyleDefinitionsPart;
+            Assert.NotNull(stylesPart);
+            Assert.NotNull(stylesPart.Styles);
+
+            // 验证 Heading1 样式存在且字体为黑体
+            var heading1 = stylesPart.Styles.Elements<Style>()
+                .FirstOrDefault(s => s.StyleId == "Heading1");
+            Assert.NotNull(heading1);
+
+            var rPr = heading1.Elements<StyleRunProperties>().First();
+            var fonts = rPr.Elements<RunFonts>().First();
+            Assert.Equal("黑体", fonts.EastAsia?.Value);
+
+            var fontSize = rPr.Elements<FontSize>().First();
+            Assert.Equal("32", fontSize.Val?.Value); // 16pt = 32 half-points
+        }
+        finally
+        {
+            if (File.Exists(outputPath)) File.Delete(outputPath);
         }
     }
 }
