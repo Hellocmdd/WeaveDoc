@@ -132,4 +132,69 @@ public class AfdParserTests
         }
         throw new InvalidOperationException("无法找到解决方案根目录");
     }
+
+    // --- Task 5: Validate 结构校验 ---
+
+    private static AfdTemplate MakeValidTemplate() => new()
+    {
+        Meta = new AfdMeta { TemplateName = "测试" },
+        Defaults = new AfdDefaults(),
+        Styles = new Dictionary<string, AfdStyleDefinition>
+        {
+            ["body"] = new() { DisplayName = "正文" }
+        }
+    };
+
+    [Fact]
+    public void Validate_ValidTemplate_ReturnsTrue()
+    {
+        var parser = new AfdParser();
+        Assert.True(parser.Validate(MakeValidTemplate()));
+    }
+
+    [Fact]
+    public void Validate_NullMeta_ThrowsAfdParseException()
+    {
+        var template = MakeValidTemplate() with { Meta = null! };
+        var parser = new AfdParser();
+        Action act = () => parser.Validate(template);
+        var ex = Assert.IsType<AfdParseException>(Record.Exception(act));
+        Assert.Contains("meta", ex.Message);
+    }
+
+    [Fact]
+    public void Validate_EmptyTemplateName_ThrowsAfdParseException()
+    {
+        var template = MakeValidTemplate() with { Meta = new AfdMeta { TemplateName = "" } };
+        var parser = new AfdParser();
+        Action act = () => parser.Validate(template);
+        var ex = Assert.IsType<AfdParseException>(Record.Exception(act));
+        Assert.Contains("templateName", ex.Message);
+    }
+
+    [Fact]
+    public void Validate_EmptyStyles_ThrowsAfdParseException()
+    {
+        var template = MakeValidTemplate() with { Styles = new Dictionary<string, AfdStyleDefinition>() };
+        var parser = new AfdParser();
+        Action act = () => parser.Validate(template);
+        var ex = Assert.IsType<AfdParseException>(Record.Exception(act));
+        Assert.Contains("styles", ex.Message);
+    }
+
+    [Fact]
+    public void Validate_NegativeFontSize_ThrowsAfdParseException()
+    {
+        var template = MakeValidTemplate() with
+        {
+            Styles = new Dictionary<string, AfdStyleDefinition>
+            {
+                ["body"] = new() { FontSize = -1 }
+            }
+        };
+        var parser = new AfdParser();
+        Action act = () => parser.Validate(template);
+        var ex = Assert.IsType<AfdParseException>(Record.Exception(act));
+        Assert.Contains("fontSize", ex.Message);
+    }
 }
