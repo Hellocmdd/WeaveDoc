@@ -65,6 +65,14 @@ public class DocumentConversionEngine
             {
                 await _pandoc.ToPdfAsync(rawDocxPath, outputPath, ct);
             }
+            else
+            {
+                return new ConversionResult
+                {
+                    Success = false,
+                    ErrorMessage = $"不支持的输出格式: {outputFormat}"
+                };
+            }
 
             return new ConversionResult
             {
@@ -78,7 +86,7 @@ public class DocumentConversionEngine
             return new ConversionResult
             {
                 Success = false,
-                ErrorMessage = ex.Message
+                ErrorMessage = ex.ToString()
             };
         }
         finally
