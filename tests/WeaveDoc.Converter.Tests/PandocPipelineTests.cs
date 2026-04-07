@@ -154,4 +154,97 @@ public class PandocPipelineTests
             if (File.Exists(outputPath)) File.Delete(outputPath);
         }
     }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyAfdStyles_ModifiesDocx()
+    {
+        var template = CreateTestTemplate();
+        var docxPath = Path.Combine(Path.GetTempPath(), $"style-test-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            // 先用 ReferenceDocBuilder 生成含 Heading1 的 docx
+            ReferenceDocBuilder.Build(docxPath, template);
+
+            // 在已生成的 docx 上添加内容段落来测试修正
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+                var p = new Paragraph();
+                p.AppendChild(new ParagraphProperties(
+                    new ParagraphStyleId { Val = "Heading1" }));
+                p.AppendChild(new Run(new Text("测试标题")));
+                body.AppendChild(p);
+
+                var bodyP = new Paragraph();
+                bodyP.AppendChild(new ParagraphProperties(
+                    new ParagraphStyleId { Val = "Normal" }));
+                bodyP.AppendChild(new Run(new Text("正文内容")));
+                body.AppendChild(bodyP);
+
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            // 执行修正
+            OpenXmlStyleCorrector.ApplyAfdStyles(docxPath, template);
+
+            // 验证 Heading1 段落的字体和字号
+            using (var doc = WordprocessingDocument.Open(docxPath, false))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+                var heading = body.Elements<Paragraph>()
+                    .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
+
+                var run = heading.Elements<Run>().First();
+                var rPr = run.RunProperties;
+                Assert.NotNull(rPr);
+
+                var fonts = rPr.Elements<RunFonts>().First();
+                Assert.Equal("黑体", fonts.EastAsia?.Value);
+
+                var fontSize = rPr.Elements<FontSize>().First();
+                Assert.Equal("32", fontSize.Val?.Value); // 16pt = 32 half-points
+            }
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyPageSettings_SetsDimensions()
+    {
+        var docxPath = Path.Combine(Path.GetTempPath(), $"page-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, CreateTestTemplate());
+
+            var defaults = new AfdDefaults
+            {
+                PageSize = new AfdPageSize { Width = 210, Height = 297 },
+                Margins = new AfdMargins { Top = 25, Bottom = 25, Left = 30, Right = 30 }
+            };
+
+            OpenXmlStyleCorrector.ApplyPageSettings(docxPath, defaults);
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var sectPr = doc.MainDocumentPart!.Document.Body!.Elements<SectionProperties>().First();
+            var pgSz = sectPr.Elements<PageSize>().First();
+
+            // 210mm * 567 = 119070, 297mm * 567 = 168399
+            Assert.Equal(119070u, pgSz.Width?.Value);
+            Assert.Equal(168399u, pgSz.Height?.Value);
+
+            var pgMar = sectPr.Elements<PageMargin>().First();
+            // 25mm * 567 = 14175, 30mm * 567 = 17010
+            Assert.Equal(14175, pgMar.Top?.Value);
+            Assert.Equal((uint)17010, pgMar.Left?.Value);
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
 }
