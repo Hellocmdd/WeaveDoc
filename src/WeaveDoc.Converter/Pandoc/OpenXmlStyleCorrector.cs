@@ -168,6 +168,11 @@ public static class OpenXmlStyleCorrector
             }
 
             footerPart.Footer = footer;
+
+            if (headerFooter.Footer.StartPage != 1)
+            {
+                sectPr.AppendChild(new PageNumberType { Start = headerFooter.Footer.StartPage });
+            }
         }
 
         doc.MainDocumentPart.Document.Save();
