@@ -249,7 +249,7 @@ public class PandocPipelineTests
     }
 
     [Fact]
-    public async Task DocumentConversionEngine_ConvertAsync_ProducesDocx()
+    public async Task FullPipeline_ReferenceDoc_ToDocx_StyleCorrection_ProducesValidDocx()
     {
         var root = FindSolutionRoot();
         var pandocPath = Path.Combine(root, "tools", "pandoc-3.9.0.2", "pandoc.exe");
@@ -260,13 +260,9 @@ public class PandocPipelineTests
         var parser = new Afd.AfdParser();
         var template = parser.Parse(templatePath);
 
-        // 用 Mock ConfigManager（直接返回解析好的模板）
-        var configManager = new Config.ConfigManager("unused.db");
-        // ConfigManager 还是 stub，直接构造引擎用 PandocPipeline + 手动模板
+        // ConfigManager 还是 stub，直接测试管线各组件串联
         var pipeline = new PandocPipeline(pandocPath);
-        var engine = new DocumentConversionEngine(pipeline, configManager);
 
-        // 手动准备 MD 文件
         var mdContent = "# 测试论文标题\n\n这是正文段落，用于测试。\n\n## 二级标题\n\n更多内容。\n";
         var mdPath = Path.Combine(Path.GetTempPath(), $"e2e-{Guid.NewGuid():N}.md");
         var outputDir = Path.Combine(Path.GetTempPath(), $"e2e-out-{Guid.NewGuid():N}");
