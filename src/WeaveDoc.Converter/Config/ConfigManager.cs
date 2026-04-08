@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using WeaveDoc.Converter.Afd;
 using WeaveDoc.Converter.Afd.Models;
 
 namespace WeaveDoc.Converter.Config;
@@ -7,10 +10,57 @@ namespace WeaveDoc.Converter.Config;
 /// </summary>
 public class ConfigManager
 {
-    public ConfigManager(string dbPath) { }
+    private readonly TemplateRepository _repository;
+    private readonly AfdParser _parser;
+    private readonly string _templatesDir;
 
-    public Task<AfdTemplate?> GetTemplateAsync(string templateId) => throw new NotImplementedException();
-    public Task<List<AfdMeta>> ListTemplatesAsync() => throw new NotImplementedException();
-    public Task SaveTemplateAsync(string templateId, AfdTemplate template) => throw new NotImplementedException();
-    public Task DeleteTemplateAsync(string templateId) => throw new NotImplementedException();
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        WriteIndented = true
+    };
+
+    public ConfigManager(string dbPath)
+    {
+        _repository = new TemplateRepository(dbPath);
+        _parser = new AfdParser();
+        _templatesDir = Path.Combine(
+            Path.GetDirectoryName(dbPath) ?? ".", "templates");
+    }
+
+    public async Task<AfdTemplate?> GetTemplateAsync(string templateId)
+    {
+        var jsonPath = await _repository.GetJsonPathAsync(templateId);
+        if (jsonPath == null || !File.Exists(jsonPath))
+            return null;
+
+        return _parser.Parse(jsonPath);
+    }
+
+    public async Task<List<AfdMeta>> ListTemplatesAsync()
+    {
+        return await _repository.GetAllMetasAsync();
+    }
+
+    public async Task SaveTemplateAsync(string templateId, AfdTemplate template)
+    {
+        Directory.CreateDirectory(_templatesDir);
+
+        var jsonPath = Path.Combine(_templatesDir, $"{templateId}.json");
+        var json = JsonSerializer.Serialize(template, _jsonOptions);
+        await File.WriteAllTextAsync(jsonPath, json);
+
+        await _repository.UpsertAsync(templateId, template.Meta, jsonPath);
+    }
+
+    public async Task DeleteTemplateAsync(string templateId)
+    {
+        var jsonPath = await _repository.GetJsonPathAsync(templateId);
+
+        await _repository.DeleteAsync(templateId);
+
+        if (jsonPath != null && File.Exists(jsonPath))
+            File.Delete(jsonPath);
+    }
 }
