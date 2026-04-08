@@ -1,9 +1,12 @@
 using System.Text.Json;
 using Xunit;
+using WeaveDoc.Converter;
+using WeaveDoc.Converter.Config;
 using WeaveDoc.Converter.Pandoc;
 using WeaveDoc.Converter.Afd.Models;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Data.Sqlite;
 
 namespace WeaveDoc.Converter.Tests;
 
@@ -292,6 +295,50 @@ public class PandocPipelineTests
         {
             File.Delete(mdPath);
             try { Directory.Delete(outputDir, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task DocumentConversionEngine_ConvertAsync_Docx()
+    {
+        var root = FindSolutionRoot();
+        var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
+        var dbPath = Path.Combine(Path.GetTempPath(), $"dce-test-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var configManager = new Config.ConfigManager(dbPath);
+            var template = CreateTestTemplate();
+            await configManager.SaveTemplateAsync("test-tpl", template);
+
+            var pipeline = new PandocPipeline(pandocPath);
+            var engine = new DocumentConversionEngine(pipeline, configManager);
+
+            var mdPath = Path.Combine(Path.GetTempPath(), $"dce-{Guid.NewGuid():N}.md");
+            File.WriteAllText(mdPath, "# 测试标题\n\n正文内容。\n");
+
+            try
+            {
+                var result = await engine.ConvertAsync(mdPath, "test-tpl", "docx");
+
+                Assert.True(result.Success, $"转换失败: {result.ErrorMessage}");
+                Assert.True(File.Exists(result.OutputPath), "输出文件不存在");
+
+                using var doc = WordprocessingDocument.Open(result.OutputPath, false);
+                Assert.NotNull(doc.MainDocumentPart);
+                Assert.NotNull(doc.MainDocumentPart.Document.Body);
+            }
+            finally
+            {
+                File.Delete(mdPath);
+                if (File.Exists(Path.ChangeExtension(mdPath, "docx")))
+                    File.Delete(Path.ChangeExtension(mdPath, "docx"));
+            }
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath)) File.Delete(dbPath);
         }
     }
 }
