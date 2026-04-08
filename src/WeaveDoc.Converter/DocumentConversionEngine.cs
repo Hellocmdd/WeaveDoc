@@ -63,7 +63,7 @@ public class DocumentConversionEngine
             }
             else if (outputFormat == "pdf")
             {
-                await _pandoc.ToPdfAsync(rawDocxPath, outputPath, ct);
+                await _pandoc.ToPdfAsync(markdownPath, outputPath, ct);
             }
             else
             {
