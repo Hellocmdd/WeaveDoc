@@ -24,7 +24,7 @@ public class PandocPipelineTests
     private static PandocPipeline CreatePipeline()
     {
         var root = FindSolutionRoot();
-        var pandocPath = Path.Combine(root, "tools", "pandoc-3.9.0.2", "pandoc.exe");
+        var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
         return new PandocPipeline(pandocPath);
     }
 
@@ -252,7 +252,7 @@ public class PandocPipelineTests
     public async Task FullPipeline_ReferenceDoc_ToDocx_StyleCorrection_ProducesValidDocx()
     {
         var root = FindSolutionRoot();
-        var pandocPath = Path.Combine(root, "tools", "pandoc-3.9.0.2", "pandoc.exe");
+        var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
         var templatePath = Path.Combine(root,
             "src", "WeaveDoc.Converter", "Config", "TemplateSchemas", "default-thesis.json");
 
