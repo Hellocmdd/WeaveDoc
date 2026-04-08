@@ -341,4 +341,77 @@ public class PandocPipelineTests
             if (File.Exists(dbPath)) File.Delete(dbPath);
         }
     }
+
+    [Fact]
+    public async Task DocumentConversionEngine_ConvertAsync_MissingTemplate()
+    {
+        var root = FindSolutionRoot();
+        var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
+        var dbPath = Path.Combine(Path.GetTempPath(), $"dce-missing-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var configManager = new ConfigManager(dbPath);
+            var pipeline = new PandocPipeline(pandocPath);
+            var engine = new DocumentConversionEngine(pipeline, configManager);
+
+            var mdPath = Path.Combine(Path.GetTempPath(), $"dce-missing-{Guid.NewGuid():N}.md");
+            File.WriteAllText(mdPath, "# 测试\n");
+
+            try
+            {
+                var result = await engine.ConvertAsync(mdPath, "nonexistent-tpl", "docx");
+
+                Assert.False(result.Success);
+                Assert.Contains("nonexistent-tpl", result.ErrorMessage);
+            }
+            finally
+            {
+                File.Delete(mdPath);
+            }
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
+
+    [Fact]
+    public async Task DocumentConversionEngine_ConvertAsync_UnsupportedFormat()
+    {
+        var root = FindSolutionRoot();
+        var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
+        var dbPath = Path.Combine(Path.GetTempPath(), $"dce-unsup-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var configManager = new ConfigManager(dbPath);
+            var template = CreateTestTemplate();
+            await configManager.SaveTemplateAsync("test-tpl", template);
+
+            var pipeline = new PandocPipeline(pandocPath);
+            var engine = new DocumentConversionEngine(pipeline, configManager);
+
+            var mdPath = Path.Combine(Path.GetTempPath(), $"dce-unsup-{Guid.NewGuid():N}.md");
+            File.WriteAllText(mdPath, "# 测试\n");
+
+            try
+            {
+                var result = await engine.ConvertAsync(mdPath, "test-tpl", "html");
+
+                Assert.False(result.Success);
+                Assert.Contains("html", result.ErrorMessage);
+            }
+            finally
+            {
+                File.Delete(mdPath);
+            }
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
 }
