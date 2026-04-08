@@ -414,4 +414,114 @@ public class PandocPipelineTests
             if (File.Exists(dbPath)) File.Delete(dbPath);
         }
     }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyHeaderFooter()
+    {
+        var template = CreateTestTemplate();
+        var docxPath = Path.Combine(Path.GetTempPath(), $"hf-test-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, template);
+
+            var headerFooter = new AfdHeaderFooter
+            {
+                Header = new AfdHeaderContent
+                {
+                    Text = "测试页眉",
+                    FontFamily = "宋体",
+                    FontSize = 9,
+                    Alignment = "center"
+                },
+                Footer = new AfdFooterContent
+                {
+                    PageNumbering = true,
+                    Alignment = "center",
+                    StartPage = 1
+                }
+            };
+
+            OpenXmlStyleCorrector.ApplyHeaderFooter(docxPath, headerFooter);
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var mainPart = doc.MainDocumentPart!;
+            var sectPr = mainPart.Document.Body!.Elements<SectionProperties>().Last();
+
+            // 验证 HeaderPart 存在且包含指定文本
+            var headerRefs = sectPr.Elements<HeaderReference>().ToList();
+            Assert.Single(headerRefs);
+
+            var headerId = headerRefs[0].Id!.Value!;
+            var headerPart = (HeaderPart)mainPart.GetPartById(headerId);
+            Assert.NotNull(headerPart.Header);
+
+            var headerPara = headerPart.Header.Elements<Paragraph>().First();
+            var headerRun = headerPara.Elements<Run>().First();
+            Assert.Equal("测试页眉", headerRun.GetFirstChild<Text>()?.Text);
+
+            // 验证字体
+            var rPr = headerRun.RunProperties;
+            Assert.NotNull(rPr);
+            var fonts = rPr.Elements<RunFonts>().First();
+            Assert.Equal("宋体", fonts.EastAsia?.Value);
+            var fontSize = rPr.Elements<FontSize>().First();
+            Assert.Equal("18", fontSize.Val?.Value); // 9pt = 18 half-points
+
+            // 验证 FooterPart 存在且包含 PAGE 字段
+            var footerRefs = sectPr.Elements<FooterReference>().ToList();
+            Assert.Single(footerRefs);
+
+            var footerId = footerRefs[0].Id!.Value!;
+            var footerPart = (FooterPart)mainPart.GetPartById(footerId);
+            Assert.NotNull(footerPart.Footer);
+
+            var footerParas = footerPart.Footer.Elements<Paragraph>().ToList();
+            Assert.NotEmpty(footerParas);
+            var footerPara = footerParas.First();
+            var fieldCodes = footerPara.Elements<Run>()
+                .SelectMany(r => r.Elements<FieldCode>())
+                .ToList();
+            Assert.Contains(fieldCodes, fc => fc.Text?.Contains("PAGE") == true);
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyHeaderFooter_StartPage()
+    {
+        var template = CreateTestTemplate();
+        var docxPath = Path.Combine(Path.GetTempPath(), $"hf-start-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, template);
+
+            var headerFooter = new AfdHeaderFooter
+            {
+                Footer = new AfdFooterContent
+                {
+                    PageNumbering = true,
+                    Alignment = "center",
+                    StartPage = 3
+                }
+            };
+
+            OpenXmlStyleCorrector.ApplyHeaderFooter(docxPath, headerFooter);
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var sectPr = doc.MainDocumentPart!.Document.Body!.Elements<SectionProperties>().Last();
+
+            var pgNumType = sectPr.Elements<PageNumberType>().FirstOrDefault();
+            Assert.NotNull(pgNumType);
+            Assert.Equal(3, pgNumType.Start?.Value);
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
 }
