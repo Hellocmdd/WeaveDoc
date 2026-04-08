@@ -15,8 +15,9 @@ obj/
 Thumbs.db
 .DS_Store
 
-## Tools (Pandoc portable binary, ~40MB)
-tools/pandoc-*/
+## Tools (portable binaries, downloaded via setup-tools.ps1)
+tools/pandoc/
+tools/tectonic/
 
 ## Test artifacts
 tools/test_output.docx
