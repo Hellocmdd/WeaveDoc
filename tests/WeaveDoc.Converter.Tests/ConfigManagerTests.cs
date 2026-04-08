@@ -61,4 +61,48 @@ public class ConfigManagerTests : IDisposable
         Assert.Equal("测试模板", result.Meta.TemplateName);
         Assert.Equal("黑体", result.Styles["heading1"].FontFamily);
     }
+
+    [Fact]
+    public async Task GetTemplate_NotExist_ReturnsNull()
+    {
+        var result = await _manager.GetTemplateAsync("nonexistent");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ListTemplates_ReturnsAll()
+    {
+        await _manager.SaveTemplateAsync("tpl-a", CreateTestTemplate("模板A"));
+        await _manager.SaveTemplateAsync("tpl-b", CreateTestTemplate("模板B"));
+
+        var list = await _manager.ListTemplatesAsync();
+
+        Assert.Equal(2, list.Count);
+        Assert.Contains(list, m => m.TemplateName == "模板A");
+        Assert.Contains(list, m => m.TemplateName == "模板B");
+    }
+
+    [Fact]
+    public async Task DeleteTemplate_RemovesFromDbAndFile()
+    {
+        await _manager.SaveTemplateAsync("to-delete", CreateTestTemplate());
+        var before = await _manager.GetTemplateAsync("to-delete");
+        Assert.NotNull(before);
+
+        await _manager.DeleteTemplateAsync("to-delete");
+
+        var after = await _manager.GetTemplateAsync("to-delete");
+        Assert.Null(after);
+    }
+
+    [Fact]
+    public async Task SaveTemplate_OverwritesExisting()
+    {
+        await _manager.SaveTemplateAsync("overwrite", CreateTestTemplate("V1"));
+        await _manager.SaveTemplateAsync("overwrite", CreateTestTemplate("V2"));
+
+        var result = await _manager.GetTemplateAsync("overwrite");
+        Assert.NotNull(result);
+        Assert.Equal("V2", result.Meta.TemplateName);
+    }
 }
