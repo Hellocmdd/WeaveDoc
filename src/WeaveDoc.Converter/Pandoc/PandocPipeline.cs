@@ -8,11 +8,16 @@ namespace WeaveDoc.Converter.Pandoc;
 public class PandocPipeline
 {
     private readonly string _pandocPath;
+    private readonly string _tectonicDir;
 
-    public PandocPipeline(string? pandocPath = null)
+    /// <param name="pandocPath">Pandoc 可执行文件路径，默认 tools/pandoc/pandoc.exe</param>
+    /// <param name="tectonicDir">Tectonic 所在目录，默认 tools/tectonic/</param>
+    public PandocPipeline(string? pandocPath = null, string? tectonicDir = null)
     {
         _pandocPath = pandocPath
-            ?? Path.Combine(AppContext.BaseDirectory, "tools", "pandoc-3.9.0.2", "pandoc.exe");
+            ?? Path.Combine(AppContext.BaseDirectory, "tools", "pandoc", "pandoc.exe");
+        _tectonicDir = tectonicDir
+            ?? Path.Combine(AppContext.BaseDirectory, "tools", "tectonic");
     }
 
     /// <summary>Markdown → DOCX</summary>
@@ -38,7 +43,7 @@ public class PandocPipeline
         return await RunAsync(args, ct);
     }
 
-    /// <summary>Markdown → PDF（XeLaTeX 中文支持）</summary>
+    /// <summary>Markdown → PDF（Tectonic 引擎，基于 XeTeX 自动管理 TeX 依赖）</summary>
     public async Task<string> ToPdfAsync(
         string inputPath, string outputPath,
         CancellationToken ct = default)
@@ -47,8 +52,10 @@ public class PandocPipeline
         {
             Quote(inputPath),
             "-f", "markdown+tex_math_dollars+pipe_tables",
-            "--pdf-engine", "xelatex",
-            "-V", "CJKmainfont=宋体",
+            "--pdf-engine", "tectonic",
+            "-V", "mainfont=SimSun",
+            "-V", "CJKmainfont=SimSun",
+            "-V", "monofont=SimSun",
             "-o", Quote(outputPath)
         };
 
@@ -74,6 +81,13 @@ public class PandocPipeline
             UseShellExecute = false,
             CreateNoWindow = true
         };
+
+        // 将 Tectonic 目录注入子进程 PATH，使 Pandoc 能找到 tectonic 可执行文件
+        if (Directory.Exists(_tectonicDir))
+        {
+            var existingPath = Environment.GetEnvironmentVariable("PATH") ?? "";
+            psi.EnvironmentVariables["PATH"] = $"{_tectonicDir}{Path.PathSeparator}{existingPath}";
+        }
 
         using var process = Process.Start(psi)
             ?? throw new InvalidOperationException($"无法启动 Pandoc: {_pandocPath}");
