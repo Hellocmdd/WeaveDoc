@@ -14,8 +14,8 @@
 
 | 文件 | 职责 | 操作 |
 |------|------|------|
-| `src/WeaveDoc.Converter/WeaveDoc.Converter.csproj` | 添加 Microsoft.Data.Sqlite 包 | 修改 |
-| `src/WeaveDoc.Converter/Config/TemplateRepository.cs` | SQLite 元信息 CRUD（internal） | 重写 |
+| `src/WeaveDoc.Converter/WeaveDoc.Converter.csproj` | 添加 Microsoft.Data.Sqlite 包 | ✅ 已完成 |
+| `src/WeaveDoc.Converter/Config/TemplateRepository.cs` | SQLite 元信息 CRUD（internal） | ✅ 已完成 |
 | `src/WeaveDoc.Converter/Config/ConfigManager.cs` | 公共 API：模板库 CRUD + 文件管理 | 重写 |
 | `src/WeaveDoc.Converter/Config/BibtexParser.cs` | BibTeX 文本解析 | 重写 |
 | `tests/WeaveDoc.Converter.Tests/ConfigManagerTests.cs` | ConfigManager CRUD 测试 | 重写 |
@@ -23,229 +23,98 @@
 
 ---
 
-## Task 1: 添加 NuGet 依赖
+## 已完成的任务
 
-**Files:**
-- Modify: `src/WeaveDoc.Converter/WeaveDoc.Converter.csproj`
+### ~~Task 1: 添加 NuGet 依赖~~ ✅ (commit: cc41617)
 
-- [ ] **Step 1: 添加 Microsoft.Data.Sqlite 包**
-
-Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet add src/WeaveDoc.Converter/WeaveDoc.Converter.csproj package Microsoft.Data.Sqlite`
-
-- [ ] **Step 2: 验证构建通过**
-
-Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet build src/WeaveDoc.Converter/WeaveDoc.Converter.csproj`
-Expected: `Build succeeded. 0 Error(s)`
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add src/WeaveDoc.Converter/WeaveDoc.Converter.csproj
-git commit -m "chore(converter): add Microsoft.Data.Sqlite package for Task 3.3"
-```
+### ~~Task 2: 实现 TemplateRepository~~ ✅ (commit: 2dcd9af)
 
 ---
 
-## Task 2: 实现 TemplateRepository
+## Task 3: ConfigManager — Save 和 Get（TDD）
 
 **Files:**
-- Rewrite: `src/WeaveDoc.Converter/Config/TemplateRepository.cs`
+- Rewrite: `tests/WeaveDoc.Converter.Tests/ConfigManagerTests.cs`
+- Rewrite: `src/WeaveDoc.Converter/Config/ConfigManager.cs`
 
-- [ ] **Step 1: 实现 TemplateRepository**
+- [ ] **Step 1: 编写失败测试 — SaveAndGetTemplate_RoundTrips**
 
-Replace entire content of `src/WeaveDoc.Converter/Config/TemplateRepository.cs` with:
+替换 `tests/WeaveDoc.Converter.Tests/ConfigManagerTests.cs` 全部内容：
 
 ```csharp
-using Microsoft.Data.Sqlite;
 using WeaveDoc.Converter.Afd.Models;
+using WeaveDoc.Converter.Config;
 
-namespace WeaveDoc.Converter.Config;
+namespace WeaveDoc.Converter.Tests;
 
-/// <summary>
-/// 模板仓储：SQLite 存储 AFD 模板元信息和文件路径
-/// </summary>
-internal class TemplateRepository
+public class ConfigManagerTests : IDisposable
 {
-    private readonly string _dbPath;
-    private bool _initialized;
+    private readonly string _tempDir;
+    private readonly ConfigManager _manager;
 
-    public TemplateRepository(string dbPath)
+    public ConfigManagerTests()
     {
-        _dbPath = dbPath;
+        _tempDir = Path.Combine(Path.GetTempPath(), $"config-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempDir);
+        var dbPath = Path.Combine(_tempDir, "test.db");
+        _manager = new ConfigManager(dbPath);
     }
 
-    public async Task InitializeAsync()
+    public void Dispose()
     {
-        if (_initialized) return;
-
-        var dir = Path.GetDirectoryName(_dbPath);
-        if (!string.IsNullOrEmpty(dir))
-            Directory.CreateDirectory(dir);
-
-        using var conn = new SqliteConnection($"Data Source={_dbPath}");
-        await conn.OpenAsync();
-
-        var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            CREATE TABLE IF NOT EXISTS templates (
-                template_id  TEXT PRIMARY KEY,
-                name         TEXT NOT NULL,
-                version      TEXT NOT NULL,
-                author       TEXT NOT NULL,
-                description  TEXT NOT NULL,
-                json_path    TEXT NOT NULL,
-                created_at   TEXT NOT NULL,
-                updated_at   TEXT NOT NULL
-            )
-            """;
-        await cmd.ExecuteNonQueryAsync();
-        _initialized = true;
+        try { Directory.Delete(_tempDir, true); } catch { }
     }
 
-    private async Task EnsureInitializedAsync()
+    private static AfdTemplate CreateTestTemplate(string name = "测试模板") => new()
     {
-        if (!_initialized)
-            await InitializeAsync();
-    }
-
-    public async Task<AfdMeta?> GetMetaAsync(string templateId)
-    {
-        await EnsureInitializedAsync();
-
-        using var conn = new SqliteConnection($"Data Source={_dbPath}");
-        await conn.OpenAsync();
-
-        var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            SELECT template_id, name, version, author, description, json_path
-            FROM templates WHERE template_id = @id
-            """;
-        cmd.Parameters.AddWithValue("@id", templateId);
-
-        using var reader = await cmd.ExecuteReaderAsync();
-        if (await reader.ReadAsync())
+        Meta = new AfdMeta
         {
-            return new AfdMeta
-            {
-                TemplateName = reader.GetString(1),
-                Version = reader.GetString(2),
-                Author = reader.GetString(3),
-                Description = reader.GetString(4)
-            };
-        }
-
-        return null;
-    }
-
-    public async Task<string?> GetJsonPathAsync(string templateId)
-    {
-        await EnsureInitializedAsync();
-
-        using var conn = new SqliteConnection($"Data Source={_dbPath}");
-        await conn.OpenAsync();
-
-        var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT json_path FROM templates WHERE template_id = @id";
-        cmd.Parameters.AddWithValue("@id", templateId);
-
-        var result = await cmd.ExecuteScalarAsync();
-        return result as string;
-    }
-
-    public async Task<List<AfdMeta>> GetAllMetasAsync()
-    {
-        await EnsureInitializedAsync();
-
-        using var conn = new SqliteConnection($"Data Source={_dbPath}");
-        await conn.OpenAsync();
-
-        var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            SELECT template_id, name, version, author, description
-            FROM templates ORDER BY name
-            """;
-
-        var metas = new List<AfdMeta>();
-        using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+            TemplateName = name,
+            Version = "1.0.0",
+            Author = "Test",
+            Description = "测试用模板"
+        },
+        Defaults = new AfdDefaults
         {
-            metas.Add(new AfdMeta
+            FontFamily = "宋体",
+            FontSize = 12,
+            LineSpacing = 1.5
+        },
+        Styles = new Dictionary<string, AfdStyleDefinition>
+        {
+            ["heading1"] = new()
             {
-                TemplateName = reader.GetString(1),
-                Version = reader.GetString(2),
-                Author = reader.GetString(3),
-                Description = reader.GetString(4)
-            });
+                DisplayName = "标题 1",
+                FontFamily = "黑体",
+                FontSize = 16,
+                Bold = true
+            }
         }
+    };
 
-        return metas;
-    }
-
-    public async Task UpsertAsync(string templateId, AfdMeta meta, string jsonPath)
+    [Fact]
+    public async Task SaveAndGetTemplate_RoundTrips()
     {
-        await EnsureInitializedAsync();
+        var template = CreateTestTemplate();
 
-        using var conn = new SqliteConnection($"Data Source={_dbPath}");
-        await conn.OpenAsync();
+        await _manager.SaveTemplateAsync("test-tpl", template);
+        var result = await _manager.GetTemplateAsync("test-tpl");
 
-        var now = DateTime.UtcNow.ToString("o");
-        var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            INSERT OR REPLACE INTO templates
-                (template_id, name, version, author, description, json_path, created_at, updated_at)
-            VALUES
-                (@id, @name, @version, @author, @description, @jsonPath,
-                 COALESCE((SELECT created_at FROM templates WHERE template_id = @id), @now), @now)
-            """;
-        cmd.Parameters.AddWithValue("@id", templateId);
-        cmd.Parameters.AddWithValue("@name", meta.TemplateName);
-        cmd.Parameters.AddWithValue("@version", meta.Version);
-        cmd.Parameters.AddWithValue("@author", meta.Author);
-        cmd.Parameters.AddWithValue("@description", meta.Description);
-        cmd.Parameters.AddWithValue("@jsonPath", jsonPath);
-        cmd.Parameters.AddWithValue("@now", now);
-
-        await cmd.ExecuteNonQueryAsync();
-    }
-
-    public async Task DeleteAsync(string templateId)
-    {
-        await EnsureInitializedAsync();
-
-        using var conn = new SqliteConnection($"Data Source={_dbPath}");
-        await conn.OpenAsync();
-
-        var cmd = conn.CreateCommand();
-        cmd.CommandText = "DELETE FROM templates WHERE template_id = @id";
-        cmd.Parameters.AddWithValue("@id", templateId);
-
-        await cmd.ExecuteNonQueryAsync();
+        Assert.NotNull(result);
+        Assert.Equal("测试模板", result.Meta.TemplateName);
+        Assert.Equal("黑体", result.Styles["heading1"].FontFamily);
     }
 }
 ```
 
-- [ ] **Step 2: 验证构建通过**
+- [ ] **Step 2: 运行测试，验证失败**
 
-Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet build src/WeaveDoc.Converter/WeaveDoc.Converter.csproj`
-Expected: `Build succeeded. 0 Error(s)`
+Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet test tests/WeaveDoc.Converter.Tests --filter "ConfigManagerTests" --no-restore -v n`
+Expected: FAIL — `SaveTemplateAsync` 抛出 `NotImplementedException`
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: 实现 ConfigManager（完整版）**
 
-```bash
-git add src/WeaveDoc.Converter/Config/TemplateRepository.cs
-git commit -m "feat(config): implement TemplateRepository with SQLite metadata storage"
-```
-
----
-
-## Task 3: 实现 ConfigManager
-
-**Files:**
-- Rewrite: `src/WeaveDoc.Converter/Config/ConfigManager.cs`
-
-- [ ] **Step 1: 实现 ConfigManager**
-
-Replace entire content of `src/WeaveDoc.Converter/Config/ConfigManager.cs` with:
+替换 `src/WeaveDoc.Converter/Config/ConfigManager.cs` 全部内容：
 
 ```csharp
 using System.Text.Json;
@@ -316,28 +185,188 @@ public class ConfigManager
 }
 ```
 
-- [ ] **Step 2: 验证构建通过**
+- [ ] **Step 4: 运行测试，验证通过**
 
-Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet build src/WeaveDoc.Converter/WeaveDoc.Converter.csproj`
-Expected: `Build succeeded. 0 Error(s)`
+Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet test tests/WeaveDoc.Converter.Tests --filter "ConfigManagerTests" --no-restore -v n`
+Expected: 1 test PASS
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/WeaveDoc.Converter/Config/ConfigManager.cs
-git commit -m "feat(config): implement ConfigManager with template CRUD and JSON file management"
+cd "/d/Code All/WorkProgram/WeaveDoc"
+git add tests/WeaveDoc.Converter.Tests/ConfigManagerTests.cs src/WeaveDoc.Converter/Config/ConfigManager.cs
+git commit -m "feat(config): implement ConfigManager Save/Get with TDD test"
 ```
 
 ---
 
-## Task 4: 实现 BibtexParser
+## Task 4: ConfigManager — List、Delete、Overwrite（TDD）
 
 **Files:**
+- Rewrite: `tests/WeaveDoc.Converter.Tests/ConfigManagerTests.cs`
+- Modify: `src/WeaveDoc.Converter/Config/ConfigManager.cs`（如需修复）
+
+- [ ] **Step 1: 添加失败测试 — List、Delete、Overwrite、NotExist**
+
+在 `tests/WeaveDoc.Converter.Tests/ConfigManagerTests.cs` 末尾（`SaveAndGetTemplate_RoundTrips` 方法后、类闭合 `}` 前）追加：
+
+```csharp
+    [Fact]
+    public async Task GetTemplate_NotExist_ReturnsNull()
+    {
+        var result = await _manager.GetTemplateAsync("nonexistent");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ListTemplates_ReturnsAll()
+    {
+        await _manager.SaveTemplateAsync("tpl-a", CreateTestTemplate("模板A"));
+        await _manager.SaveTemplateAsync("tpl-b", CreateTestTemplate("模板B"));
+
+        var list = await _manager.ListTemplatesAsync();
+
+        Assert.Equal(2, list.Count);
+        Assert.Contains(list, m => m.TemplateName == "模板A");
+        Assert.Contains(list, m => m.TemplateName == "模板B");
+    }
+
+    [Fact]
+    public async Task DeleteTemplate_RemovesFromDbAndFile()
+    {
+        await _manager.SaveTemplateAsync("to-delete", CreateTestTemplate());
+        var before = await _manager.GetTemplateAsync("to-delete");
+        Assert.NotNull(before);
+
+        await _manager.DeleteTemplateAsync("to-delete");
+
+        var after = await _manager.GetTemplateAsync("to-delete");
+        Assert.Null(after);
+    }
+
+    [Fact]
+    public async Task SaveTemplate_OverwritesExisting()
+    {
+        await _manager.SaveTemplateAsync("overwrite", CreateTestTemplate("V1"));
+        await _manager.SaveTemplateAsync("overwrite", CreateTestTemplate("V2"));
+
+        var result = await _manager.GetTemplateAsync("overwrite");
+        Assert.NotNull(result);
+        Assert.Equal("V2", result.Meta.TemplateName);
+    }
+```
+
+- [ ] **Step 2: 运行测试，验证行为**
+
+Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet test tests/WeaveDoc.Converter.Tests --filter "ConfigManagerTests" --no-restore -v n`
+Expected: 5 tests PASS（实现已在 Task 3 完成，这些测试验证剩余行为）
+
+- [ ] **Step 3: Commit**
+
+```bash
+cd "/d/Code All/WorkProgram/WeaveDoc"
+git add tests/WeaveDoc.Converter.Tests/ConfigManagerTests.cs
+git commit -m "test(config): add ConfigManager List/Delete/Overwrite/NotExist tests"
+```
+
+---
+
+## Task 5: BibtexParser — 基础解析（TDD）
+
+**Files:**
+- Create: `tests/WeaveDoc.Converter.Tests/BibtexParserTests.cs`
 - Rewrite: `src/WeaveDoc.Converter/Config/BibtexParser.cs`
 
-- [ ] **Step 1: 实现 BibtexParser**
+- [ ] **Step 1: 编写失败测试 — 基础解析**
 
-Replace entire content of `src/WeaveDoc.Converter/Config/BibtexParser.cs` with:
+创建 `tests/WeaveDoc.Converter.Tests/BibtexParserTests.cs`：
+
+```csharp
+using WeaveDoc.Converter.Config;
+
+namespace WeaveDoc.Converter.Tests;
+
+public class BibtexParserTests
+{
+    [Fact]
+    public void Parse_BasicArticle_ExtractsFields()
+    {
+        var bib = """
+            @article{smith2024,
+              author = {John Smith and Jane Doe},
+              title = {A Study on AI},
+              journal = {Nature},
+              year = {2024},
+              volume = {10},
+              pages = {1--20}
+            }
+            """;
+
+        var entries = new BibtexParser().Parse(bib);
+
+        Assert.Single(entries);
+        var entry = entries[0];
+        Assert.Equal("article", entry.EntryType);
+        Assert.Equal("smith2024", entry.CitationKey);
+        Assert.Equal("John Smith and Jane Doe", entry.Fields["author"]);
+        Assert.Equal("A Study on AI", entry.Fields["title"]);
+        Assert.Equal("2024", entry.Fields["year"]);
+    }
+
+    [Fact]
+    public void Parse_MultipleEntries_ReturnsAll()
+    {
+        var bib = """
+            @article{first, title = {First}}
+            @book{second, title = {Second}}
+            @inproceedings{third, title = {Third}}
+            """;
+
+        var entries = new BibtexParser().Parse(bib);
+
+        Assert.Equal(3, entries.Count);
+        Assert.Equal("first", entries[0].CitationKey);
+        Assert.Equal("second", entries[1].CitationKey);
+        Assert.Equal("third", entries[2].CitationKey);
+    }
+
+    [Fact]
+    public void Parse_EmptyInput_ReturnsEmptyList()
+    {
+        var entries = new BibtexParser().Parse("");
+        Assert.Empty(entries);
+    }
+
+    [Fact]
+    public void ParseSingle_ReturnsFirstEntry()
+    {
+        var bib = """
+            @article{single, title = {Only One}}
+            """;
+
+        var entry = new BibtexParser().ParseSingle(bib);
+
+        Assert.NotNull(entry);
+        Assert.Equal("single", entry.CitationKey);
+    }
+
+    [Fact]
+    public void ParseSingle_NoEntry_ReturnsNull()
+    {
+        var entry = new BibtexParser().ParseSingle("no entries here");
+        Assert.Null(entry);
+    }
+}
+```
+
+- [ ] **Step 2: 运行测试，验证失败**
+
+Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet test tests/WeaveDoc.Converter.Tests --filter "BibtexParserTests" --no-restore -v n`
+Expected: FAIL — `Parse` 和 `ParseSingle` 抛出 `NotImplementedException`
+
+- [ ] **Step 3: 实现 BibtexParser（完整版）**
+
+替换 `src/WeaveDoc.Converter/Config/BibtexParser.cs` 全部内容：
 
 ```csharp
 namespace WeaveDoc.Converter.Config;
@@ -580,194 +609,32 @@ public record BibtexEntry
 }
 ```
 
-- [ ] **Step 2: 验证构建通过**
+- [ ] **Step 4: 运行测试，验证通过**
 
-Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet build src/WeaveDoc.Converter/WeaveDoc.Converter.csproj`
-Expected: `Build succeeded. 0 Error(s)`
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add src/WeaveDoc.Converter/Config/BibtexParser.cs
-git commit -m "feat(config): implement BibtexParser with string abbreviation and nested brace support"
-```
-
----
-
-## Task 5: 编写 ConfigManager 测试
-
-**Files:**
-- Rewrite: `tests/WeaveDoc.Converter.Tests/ConfigManagerTests.cs`
-
-- [ ] **Step 1: 编写 ConfigManager CRUD 测试**
-
-Replace entire content of `tests/WeaveDoc.Converter.Tests/ConfigManagerTests.cs` with:
-
-```csharp
-using WeaveDoc.Converter.Afd.Models;
-using WeaveDoc.Converter.Config;
-
-namespace WeaveDoc.Converter.Tests;
-
-public class ConfigManagerTests : IDisposable
-{
-    private readonly string _tempDir;
-    private readonly ConfigManager _manager;
-
-    public ConfigManagerTests()
-    {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"config-test-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-        var dbPath = Path.Combine(_tempDir, "test.db");
-        _manager = new ConfigManager(dbPath);
-    }
-
-    public void Dispose()
-    {
-        try { Directory.Delete(_tempDir, true); } catch { }
-    }
-
-    private static AfdTemplate CreateTestTemplate(string name = "测试模板") => new()
-    {
-        Meta = new AfdMeta
-        {
-            TemplateName = name,
-            Version = "1.0.0",
-            Author = "Test",
-            Description = "测试用模板"
-        },
-        Defaults = new AfdDefaults
-        {
-            FontFamily = "宋体",
-            FontSize = 12,
-            LineSpacing = 1.5
-        },
-        Styles = new Dictionary<string, AfdStyleDefinition>
-        {
-            ["heading1"] = new()
-            {
-                DisplayName = "标题 1",
-                FontFamily = "黑体",
-                FontSize = 16,
-                Bold = true
-            }
-        }
-    };
-
-    [Fact]
-    public async Task SaveAndGetTemplate_RoundTrips()
-    {
-        var template = CreateTestTemplate();
-
-        await _manager.SaveTemplateAsync("test-tpl", template);
-        var result = await _manager.GetTemplateAsync("test-tpl");
-
-        Assert.NotNull(result);
-        Assert.Equal("测试模板", result.Meta.TemplateName);
-        Assert.Equal("黑体", result.Styles["heading1"].FontFamily);
-    }
-
-    [Fact]
-    public async Task GetTemplate_NotExist_ReturnsNull()
-    {
-        var result = await _manager.GetTemplateAsync("nonexistent");
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task ListTemplates_ReturnsAll()
-    {
-        await _manager.SaveTemplateAsync("tpl-a", CreateTestTemplate("模板A"));
-        await _manager.SaveTemplateAsync("tpl-b", CreateTestTemplate("模板B"));
-
-        var list = await _manager.ListTemplatesAsync();
-
-        Assert.Equal(2, list.Count);
-        Assert.Contains(list, m => m.TemplateName == "模板A");
-        Assert.Contains(list, m => m.TemplateName == "模板B");
-    }
-
-    [Fact]
-    public async Task DeleteTemplate_RemovesFromDbAndFile()
-    {
-        await _manager.SaveTemplateAsync("to-delete", CreateTestTemplate());
-        var before = await _manager.GetTemplateAsync("to-delete");
-        Assert.NotNull(before);
-
-        await _manager.DeleteTemplateAsync("to-delete");
-
-        var after = await _manager.GetTemplateAsync("to-delete");
-        Assert.Null(after);
-    }
-
-    [Fact]
-    public async Task SaveTemplate_OverwritesExisting()
-    {
-        await _manager.SaveTemplateAsync("overwrite", CreateTestTemplate("V1"));
-        await _manager.SaveTemplateAsync("overwrite", CreateTestTemplate("V2"));
-
-        var result = await _manager.GetTemplateAsync("overwrite");
-        Assert.NotNull(result);
-        Assert.Equal("V2", result.Meta.TemplateName);
-    }
-}
-```
-
-- [ ] **Step 2: 运行测试**
-
-Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet test tests/WeaveDoc.Converter.Tests --filter "ConfigManagerTests" --no-restore -v n`
+Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet test tests/WeaveDoc.Converter.Tests --filter "BibtexParserTests" --no-restore -v n`
 Expected: 5 tests PASS
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add tests/WeaveDoc.Converter.Tests/ConfigManagerTests.cs
-git commit -m "test(config): add ConfigManager CRUD tests with real SQLite"
+cd "/d/Code All/WorkProgram/WeaveDoc"
+git add tests/WeaveDoc.Converter.Tests/BibtexParserTests.cs src/WeaveDoc.Converter/Config/BibtexParser.cs
+git commit -m "feat(config): implement BibtexParser with TDD tests for basic parsing"
 ```
 
 ---
 
-## Task 6: 编写 BibtexParser 测试
+## Task 6: BibtexParser — 高级特性（TDD）
 
 **Files:**
-- Create: `tests/WeaveDoc.Converter.Tests/BibtexParserTests.cs`
+- Rewrite: `tests/WeaveDoc.Converter.Tests/BibtexParserTests.cs`
+- Modify: `src/WeaveDoc.Converter/Config/BibtexParser.cs`（如需修复）
 
-- [ ] **Step 1: 编写 BibtexParser 测试**
+- [ ] **Step 1: 添加失败测试 — 嵌套括号、缩写、引号、跳过、畸形**
 
-Create `tests/WeaveDoc.Converter.Tests/BibtexParserTests.cs` with:
+在 `tests/WeaveDoc.Converter.Tests/BibtexParserTests.cs` 末尾（`ParseSingle_NoEntry_ReturnsNull` 方法后、类闭合 `}` 前）追加：
 
 ```csharp
-using WeaveDoc.Converter.Config;
-
-namespace WeaveDoc.Converter.Tests;
-
-public class BibtexParserTests
-{
-    [Fact]
-    public void Parse_BasicArticle_ExtractsFields()
-    {
-        var bib = """
-            @article{smith2024,
-              author = {John Smith and Jane Doe},
-              title = {A Study on AI},
-              journal = {Nature},
-              year = {2024},
-              volume = {10},
-              pages = {1--20}
-            }
-            """;
-
-        var entries = new BibtexParser().Parse(bib);
-
-        Assert.Single(entries);
-        var entry = entries[0];
-        Assert.Equal("article", entry.EntryType);
-        Assert.Equal("smith2024", entry.CitationKey);
-        Assert.Equal("John Smith and Jane Doe", entry.Fields["author"]);
-        Assert.Equal("A Study on AI", entry.Fields["title"]);
-        Assert.Equal("2024", entry.Fields["year"]);
-    }
-
     [Fact]
     public void Parse_NestedBraces_ExtractsCorrectly()
     {
@@ -819,23 +686,6 @@ public class BibtexParserTests
     }
 
     [Fact]
-    public void Parse_MultipleEntries_ReturnsAll()
-    {
-        var bib = """
-            @article{first, title = {First}}
-            @book{second, title = {Second}}
-            @inproceedings{third, title = {Third}}
-            """;
-
-        var entries = new BibtexParser().Parse(bib);
-
-        Assert.Equal(3, entries.Count);
-        Assert.Equal("first", entries[0].CitationKey);
-        Assert.Equal("second", entries[1].CitationKey);
-        Assert.Equal("third", entries[2].CitationKey);
-    }
-
-    [Fact]
     public void Parse_SkipsCommentAndPreamble()
     {
         var bib = """
@@ -848,13 +698,6 @@ public class BibtexParserTests
 
         Assert.Single(entries);
         Assert.Equal("kept", entries[0].CitationKey);
-    }
-
-    [Fact]
-    public void Parse_EmptyInput_ReturnsEmptyList()
-    {
-        var entries = new BibtexParser().Parse("");
-        Assert.Empty(entries);
     }
 
     [Fact]
@@ -871,39 +714,19 @@ public class BibtexParserTests
         Assert.Single(entries);
         Assert.Equal("valid", entries[0].CitationKey);
     }
-
-    [Fact]
-    public void ParseSingle_ReturnsFirstEntry()
-    {
-        var bib = """
-            @article{single, title = {Only One}}
-            """;
-
-        var entry = new BibtexParser().ParseSingle(bib);
-
-        Assert.NotNull(entry);
-        Assert.Equal("single", entry.CitationKey);
-    }
-
-    [Fact]
-    public void ParseSingle_NoEntry_ReturnsNull()
-    {
-        var entry = new BibtexParser().ParseSingle("no entries here");
-        Assert.Null(entry);
-    }
-}
 ```
 
-- [ ] **Step 2: 运行测试**
+- [ ] **Step 2: 运行测试，验证行为**
 
 Run: `cd "/d/Code All/WorkProgram/WeaveDoc" && dotnet test tests/WeaveDoc.Converter.Tests --filter "BibtexParserTests" --no-restore -v n`
-Expected: 10 tests PASS
+Expected: 10 tests PASS（实现已在 Task 5 完成，这些测试验证高级特性）
 
 - [ ] **Step 3: Commit**
 
 ```bash
+cd "/d/Code All/WorkProgram/WeaveDoc"
 git add tests/WeaveDoc.Converter.Tests/BibtexParserTests.cs
-git commit -m "test(config): add BibtexParser tests covering abbreviation, nesting, and edge cases"
+git commit -m "test(config): add BibtexParser tests for nesting, abbreviations, edge cases"
 ```
 
 ---
@@ -923,6 +746,7 @@ Expected: `Build succeeded. 0 Error(s)`
 - [ ] **Step 3: Final commit (if any remaining changes)**
 
 ```bash
+cd "/d/Code All/WorkProgram/WeaveDoc"
 git add -A
 git status
 # 如果有未提交的更改，commit 之
