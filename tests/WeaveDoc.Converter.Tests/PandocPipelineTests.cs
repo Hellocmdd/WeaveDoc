@@ -326,6 +326,104 @@ public class PandocPipelineTests
         }
     }
 
+    /// <summary>
+    /// 参数化完整管线测试：验证每个 AFD 模板都能走通 Parse → RefDoc → Pandoc → StyleCorrector → PageSettings → HeaderFooter。
+    /// </summary>
+    [Theory]
+    [InlineData("course-report.json", "课程报告", 16, 25, 25, "课程报告", 10.5)]
+    [InlineData("lab-report.json", "实验报告", 18, 25.4, 31.7, "实验报告", 9)]
+    public async Task FullPipeline_NewTemplate_ProducesValidDocx(
+        string templateFile, string expectedTemplateName,
+        int heading1FontSize, double marginTopMm, double marginLeftMm,
+        string expectedHeaderText, double expectedHeaderFontSize)
+    {
+        var root = FindSolutionRoot();
+        var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
+        var templatePath = Path.Combine(root,
+            "src", "WeaveDoc.Converter", "Config", "TemplateSchemas", templateFile);
+
+        // 1. 解析模板
+        var parser = new Afd.AfdParser();
+        var template = parser.Parse(templatePath);
+        Assert.Equal(expectedTemplateName, template.Meta.TemplateName);
+
+        var pipeline = new PandocPipeline(pandocPath);
+        var mdContent = "# 测试标题\n\n正文段落。\n\n## 二级标题\n\n更多内容。\n";
+        var mdPath = Path.Combine(Path.GetTempPath(), $"tpl-e2e-{Guid.NewGuid():N}.md");
+        var outputDir = Path.Combine(Path.GetTempPath(), $"tpl-e2e-out-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(mdPath, mdContent);
+
+        try
+        {
+            // 2. 构建参考文档
+            var refDocPath = Path.Combine(outputDir, "reference.docx");
+            ReferenceDocBuilder.Build(refDocPath, template);
+
+            // 3. Pandoc 转换
+            var rawDocxPath = Path.Combine(outputDir, "raw.docx");
+            await pipeline.ToDocxAsync(mdPath, rawDocxPath, refDocPath);
+
+            // 4. 样式修正 + 页面设置 + 页眉页脚
+            OpenXmlStyleCorrector.ApplyAfdStyles(rawDocxPath, template);
+            OpenXmlStyleCorrector.ApplyPageSettings(rawDocxPath, template.Defaults);
+            if (template.HeaderFooter != null)
+                OpenXmlStyleCorrector.ApplyHeaderFooter(rawDocxPath, template.HeaderFooter);
+
+            // 5. 验证 DOCX
+            Assert.True(File.Exists(rawDocxPath));
+
+            using var doc = WordprocessingDocument.Open(rawDocxPath, false);
+            var body = doc.MainDocumentPart!.Document.Body!;
+
+            // 验证 Heading1 字体和字号
+            var heading = body.Descendants<Paragraph>()
+                .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
+            var run = heading.Elements<Run>().First();
+            var rPr = run.RunProperties;
+            Assert.NotNull(rPr);
+            Assert.Equal("黑体", rPr.Elements<RunFonts>().First().EastAsia?.Value);
+            Assert.Equal((heading1FontSize * 2).ToString(), rPr.Elements<FontSize>().First().Val?.Value);
+
+            // 验证页面尺寸（A4: 210×297mm）
+            var sectPr = body.Elements<SectionProperties>().First();
+            var pgSz = sectPr.Elements<PageSize>().First();
+            Assert.Equal(119070u, pgSz.Width?.Value);
+            Assert.Equal(168399u, pgSz.Height?.Value);
+
+            // 验证页边距
+            var pgMar = sectPr.Elements<PageMargin>().First();
+            Assert.Equal((int)(marginTopMm * 567), pgMar.Top?.Value);
+            Assert.Equal((uint)(marginLeftMm * 567), pgMar.Left?.Value);
+
+            // 验证页眉
+            var headerRefs = sectPr.Elements<HeaderReference>().ToList();
+            Assert.Single(headerRefs);
+            var headerId = headerRefs[0].Id!.Value!;
+            var headerPart = (HeaderPart)doc.MainDocumentPart.GetPartById(headerId);
+            var headerPara = headerPart.Header.Elements<Paragraph>().First();
+            var headerRun = headerPara.Elements<Run>().First();
+            Assert.Equal(expectedHeaderText, headerRun.GetFirstChild<Text>()?.Text);
+            var headerFontSize = headerRun.RunProperties!.Elements<FontSize>().First();
+            Assert.Equal(((int)(expectedHeaderFontSize * 2)).ToString(), headerFontSize.Val?.Value);
+
+            // 验证页脚包含 PAGE 字段
+            var footerRefs = sectPr.Elements<FooterReference>().ToList();
+            Assert.Single(footerRefs);
+            var footerId = footerRefs[0].Id!.Value!;
+            var footerPart = (FooterPart)doc.MainDocumentPart.GetPartById(footerId);
+            var fieldCodes = footerPart.Footer.Elements<Paragraph>()
+                .SelectMany(p => p.Elements<Run>())
+                .SelectMany(r => r.Elements<FieldCode>());
+            Assert.Contains(fieldCodes, fc => fc.Text?.Contains("PAGE") == true);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            try { Directory.Delete(outputDir, true); } catch { }
+        }
+    }
+
     [Fact]
     public async Task DocumentConversionEngine_ConvertAsync_Docx()
     {
