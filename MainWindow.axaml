@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TestApp.MainWindow"
+        Title="Gemma 本地对话" Width="860" Height="620" MinWidth="700" MinHeight="500"
+        Background="#FFF4F7FB">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" ColumnDefinitions="*">
+    <Border Grid.Row="0" CornerRadius="12" Background="#FFFFFFFF" BorderBrush="#FFE2E8F0" BorderThickness="1" Padding="14">
+      <StackPanel>
+        <TextBlock Text="输入提示" FontWeight="SemiBold" FontSize="15" Foreground="#FF1F2937"/>
+        <TextBox Name="InputBox" Margin="0,8,0,0" Height="40" Watermark="在此输入提示，然后点击 Send"
+                 Background="#FFFCFDFF" BorderBrush="#FFCBD5E1" Foreground="#FF0F172A" FontSize="14"/>
+      </StackPanel>
+    </Border>
+
+    <Border Grid.Row="1" Margin="0,10,0,0" CornerRadius="12" Background="#FFFFFFFF" BorderBrush="#FFE2E8F0" BorderThickness="1" Padding="14">
+      <StackPanel>
+        <TextBlock Text="模型路径 (本地 GGUF 文件)" FontWeight="SemiBold" FontSize="15" Foreground="#FF1F2937"/>
+        <TextBox Name="ModelBox" Margin="0,8,0,0" Height="36" Text="models/gemma-3-4b-it.gguf"
+                 Watermark="例如: models/gemma-3-4b-it.gguf" Background="#FFFCFDFF" BorderBrush="#FFCBD5E1" Foreground="#FF0F172A"/>
+      </StackPanel>
+    </Border>
+
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0" Spacing="10">
+      <Button Name="RunButton" Content="Send" Width="160" Height="42" Background="#FF0EA5E9" Foreground="White"/>
+      <Button Name="ClearButton" Content="Clear" Width="96" Height="42" Background="#FFE2E8F0" Foreground="#FF1F2937"/>
+    </StackPanel>
+
+    <Border Grid.Row="3" Margin="0,12,0,0" CornerRadius="12" Background="#FFFFFFFF" BorderBrush="#FFE2E8F0" BorderThickness="1" Padding="14">
+      <StackPanel Spacing="8">
+        <TextBlock Text="RAG 数据管理" FontWeight="SemiBold" FontSize="15" Foreground="#FF1F2937"/>
+        <TextBlock Text="先点“浏览文件”，再执行导入/查看/删除。" FontSize="12" Foreground="#FF64748B"/>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBox Name="SourceBox" Height="36" Width="560" Watermark="已选来源会自动填充到这里"
+                 Background="#FFFCFDFF" BorderBrush="#FFCBD5E1" Foreground="#FF0F172A"/>
+          <Button Name="PickSourceButton" Content="浏览文件" Width="120" Height="36" Background="#FFF59E0B" Foreground="White"/>
+        </StackPanel>
+        <WrapPanel Orientation="Horizontal" ItemHeight="36" ItemWidth="120" Margin="0,2,0,0">
+          <Button Name="RagReadButton" Content="查看所选来源" Height="36" Margin="0,0,8,8" Background="#FFE2E8F0" Foreground="#FF1F2937"/>
+          <Button Name="RagUpsertButton" Content="导入/更新来源" Height="36" Margin="0,0,8,8" Background="#FF0EA5E9" Foreground="White"/>
+          <Button Name="RagDeleteButton" Content="删除所选来源" Height="36" Margin="0,0,8,8" Background="#FFEF4444" Foreground="White"/>
+          <Button Name="RagRebuildButton" Content="重建全部索引" Height="36" Margin="0,0,8,8" Background="#FF22C55E" Foreground="White"/>
+          <Button Name="RagCountButton" Content="查看索引统计" Height="36" Margin="0,0,8,8" Background="#FF6366F1" Foreground="White"/>
+        </WrapPanel>
+      </StackPanel>
+    </Border>
+
+    <TextBlock Grid.Row="4" Text="输出" FontWeight="SemiBold" FontSize="15" Margin="0,14,0,6" Foreground="#FF1F2937"/>
+
+    <Border Grid.Row="5" CornerRadius="12" Background="#FFFFFFFF" BorderBrush="#FFD6DEE8" BorderThickness="1" Padding="10">
+      <TextBox Name="OutputBlock" Text="Result will appear here" TextWrapping="Wrap" AcceptsReturn="True" IsReadOnly="True"
+               VerticalAlignment="Stretch" HorizontalAlignment="Stretch" MinHeight="260"
+               Background="#FFFBFDFF" BorderBrush="#FFE2E8F0" Foreground="#FF0F172A"/>
+    </Border>
+  </Grid>
+</Window>

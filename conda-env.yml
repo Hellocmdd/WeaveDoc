@@ -1,0 +1,26 @@
+name: llama-cpp
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - cmake
+  - git
+  - make
+  - pkg-config
+  - libffi
+  - openssl
+  - zlib
+  - pip:
+    - transformers>=4.36.0
+    - safetensors
+    - accelerate
+    - huggingface-hub
+    - sentencepiece
+    - tokenizers
+    - numpy
+    - wheel
+    - typing-extensions
+    - pypdf
+    - python-docx

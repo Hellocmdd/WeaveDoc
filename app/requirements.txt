@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+jinja2
+langchain
+transformers
+sentence-transformers
+torch
+accelerate
+faiss-cpu
+python-multipart
+sqlite-utils
+pypdf
+python-docx

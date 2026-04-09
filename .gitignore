@@ -1,0 +1,22 @@
+# obj
+[oO]bj/
+# bin
+[bB]in/
+# log
+[Ll]og/
+# temp
+[Tt]emp/
+# Visual Studio Code
+.vscode/
+# Visual Studio
+.vs/
+
+# conda
+.conda/
+
+# llama.cpp 
+llama.cpp/
+
+# models
+models/
+Qwen3.5-4B/
