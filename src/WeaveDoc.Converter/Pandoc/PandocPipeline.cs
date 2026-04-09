@@ -10,14 +10,60 @@ public class PandocPipeline
     private readonly string _pandocPath;
     private readonly string _tectonicDir;
 
-    /// <param name="pandocPath">Pandoc 可执行文件路径，默认 tools/pandoc/pandoc.exe</param>
+    /// <param name="pandocPath">Pandoc 可执行文件路径，默认依次查找 tools/pandoc/pandoc.exe、系统 PATH</param>
     /// <param name="tectonicDir">Tectonic 所在目录，默认 tools/tectonic/</param>
     public PandocPipeline(string? pandocPath = null, string? tectonicDir = null)
     {
         _pandocPath = pandocPath
-            ?? Path.Combine(AppContext.BaseDirectory, "tools", "pandoc", "pandoc.exe");
-        _tectonicDir = tectonicDir
-            ?? Path.Combine(AppContext.BaseDirectory, "tools", "tectonic");
+            ?? ResolvePandocPath();
+        _tectonicDir = tectonicDir ?? ResolveToolsDir("tectonic");
+    }
+
+    private static string ResolveToolsDir(string toolName)
+    {
+        var localPath = Path.Combine(AppContext.BaseDirectory, "tools", toolName);
+        if (Directory.Exists(localPath))
+            return localPath;
+
+        var dir = AppContext.BaseDirectory;
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir, "tools", toolName);
+            if (Directory.Exists(candidate))
+                return candidate;
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        return Path.Combine(AppContext.BaseDirectory, "tools", toolName);
+    }
+
+    private static string ResolvePandocPath()
+    {
+        // 1. 构建输出目录下的 tools/pandoc
+        var localPath = Path.Combine(AppContext.BaseDirectory, "tools", "pandoc", "pandoc.exe");
+        if (File.Exists(localPath))
+            return localPath;
+
+        // 2. 从 BaseDirectory 向上查找 tools/pandoc（开发时定位仓库根目录）
+        var dir = AppContext.BaseDirectory;
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir, "tools", "pandoc", "pandoc.exe");
+            if (File.Exists(candidate))
+                return candidate;
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        // 3. 系统 PATH
+        var pathVar = Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var p in pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var candidate = Path.Combine(p, "pandoc.exe");
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        return localPath;
     }
 
     /// <summary>Markdown → DOCX</summary>
