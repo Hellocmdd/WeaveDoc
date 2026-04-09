@@ -105,4 +105,52 @@ public class ConfigManagerTests : IDisposable
         Assert.NotNull(result);
         Assert.Equal("V2", result.Meta.TemplateName);
     }
+
+    [Fact]
+    public async Task EnsureSeedTemplatesAsync_WithEmptyDb_SeedsAllTemplates()
+    {
+        await _manager.EnsureSeedTemplatesAsync();
+
+        var courseReport = await _manager.GetTemplateAsync("course-report");
+        Assert.NotNull(courseReport);
+        Assert.Equal("课程报告", courseReport.Meta.TemplateName);
+
+        var labReport = await _manager.GetTemplateAsync("lab-report");
+        Assert.NotNull(labReport);
+        Assert.Equal("实验报告", labReport.Meta.TemplateName);
+
+        var thesis = await _manager.GetTemplateAsync("default-thesis");
+        Assert.NotNull(thesis);
+        Assert.Equal("默认学术论文", thesis.Meta.TemplateName);
+    }
+
+    [Fact]
+    public async Task EnsureSeedTemplatesAsync_SkipsExistingTemplates()
+    {
+        // 先保存一个修改版的 course-report（Description 不同）
+        var modified = CreateTestTemplate("课程报告");
+        modified = modified with
+        {
+            Meta = modified.Meta with { Description = "用户自定义版" }
+        };
+        await _manager.SaveTemplateAsync("course-report", modified);
+
+        await _manager.EnsureSeedTemplatesAsync();
+
+        var result = await _manager.GetTemplateAsync("course-report");
+        Assert.NotNull(result);
+        // 验证是用户自定义版，不是内置版（内置版 Description = "高校课程报告通用模板"）
+        Assert.Equal("用户自定义版", result.Meta.Description);
+    }
+
+    [Fact]
+    public async Task EnsureSeedTemplatesAsync_Idempotent()
+    {
+        await _manager.EnsureSeedTemplatesAsync();
+        await _manager.EnsureSeedTemplatesAsync();
+
+        var result = await _manager.GetTemplateAsync("course-report");
+        Assert.NotNull(result);
+        Assert.Equal("课程报告", result.Meta.TemplateName);
+    }
 }
