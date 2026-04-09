@@ -1,2 +1,2 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿// 程序主体待实现
 Console.WriteLine("Hello, World!");
