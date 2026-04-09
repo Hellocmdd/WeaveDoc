@@ -524,4 +524,52 @@ public class PandocPipelineTests
             if (File.Exists(docxPath)) File.Delete(docxPath);
         }
     }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyAfdStyles_StylesTableCellParagraphs()
+    {
+        var template = CreateTestTemplate();
+        var docxPath = Path.Combine(Path.GetTempPath(), $"table-style-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, template);
+
+            // 创建含表格的 DOCX，表格单元格内放置带 Heading1 样式的段落
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+                var table = new Table(
+                    new TableProperties(new TableStyle { Val = "TableGrid" }),
+                    new TableRow(
+                        new TableCell(
+                            new Paragraph(
+                                new ParagraphProperties(new ParagraphStyleId { Val = "Heading1" }),
+                                new Run(new Text("表格内标题"))))));
+                body.AppendChild(table);
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            OpenXmlStyleCorrector.ApplyAfdStyles(docxPath, template);
+
+            using (var doc = WordprocessingDocument.Open(docxPath, false))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+                var tablePara = body.Descendants<Paragraph>()
+                    .First(p => p.InnerText == "表格内标题");
+
+                var run = tablePara.Elements<Run>().First();
+                var rPr = run.RunProperties;
+                Assert.NotNull(rPr);
+
+                // heading1 对应黑体
+                var fonts = rPr.Elements<RunFonts>().First();
+                Assert.Equal("黑体", fonts.EastAsia?.Value);
+            }
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
 }
