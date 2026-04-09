@@ -11,6 +11,8 @@ namespace WeaveDoc.Converter.Pandoc;
 /// </summary>
 public static class ReferenceDocBuilder
 {
+    private const double MmToTwips = 1440.0 / 25.4; // ≈ 56.693
+
     public static void Build(string outputPath, AfdTemplate template)
     {
         using var doc = WordprocessingDocument.Create(outputPath, WordprocessingDocumentType.Document);
@@ -85,18 +87,18 @@ public static class ReferenceDocBuilder
         {
             sectPr.AppendChild(new PageSize
             {
-                Width = (uint)(template.Defaults.PageSize.Width * 567),
-                Height = (uint)(template.Defaults.PageSize.Height * 567)
+                Width = (uint)(template.Defaults.PageSize.Width * MmToTwips),
+                Height = (uint)(template.Defaults.PageSize.Height * MmToTwips)
             });
         }
         if (template.Defaults.Margins != null)
         {
             sectPr.AppendChild(new PageMargin
             {
-                Top = (int)(template.Defaults.Margins.Top * 567),
-                Bottom = (int)(template.Defaults.Margins.Bottom * 567),
-                Left = (uint)(template.Defaults.Margins.Left * 567),
-                Right = (uint)(template.Defaults.Margins.Right * 567)
+                Top = (int)(template.Defaults.Margins.Top * MmToTwips),
+                Bottom = (int)(template.Defaults.Margins.Bottom * MmToTwips),
+                Left = (uint)(template.Defaults.Margins.Left * MmToTwips),
+                Right = (uint)(template.Defaults.Margins.Right * MmToTwips)
             });
         }
 

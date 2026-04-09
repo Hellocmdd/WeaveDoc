@@ -250,14 +250,14 @@ public class PandocPipelineTests
             var sectPr = doc.MainDocumentPart!.Document.Body!.Elements<SectionProperties>().First();
             var pgSz = sectPr.Elements<PageSize>().First();
 
-            // 210mm * 567 = 119070, 297mm * 567 = 168399
-            Assert.Equal(119070u, pgSz.Width?.Value);
-            Assert.Equal(168399u, pgSz.Height?.Value);
+            // 210mm × (1440/25.4) ≈ 11905, 297mm × (1440/25.4) ≈ 16837
+            Assert.Equal(11905u, pgSz.Width?.Value);
+            Assert.Equal(16837u, pgSz.Height?.Value);
 
             var pgMar = sectPr.Elements<PageMargin>().First();
-            // 25mm * 567 = 14175, 30mm * 567 = 17010
-            Assert.Equal(14175, pgMar.Top?.Value);
-            Assert.Equal((uint)17010, pgMar.Left?.Value);
+            // 25mm × (1440/25.4) ≈ 1417, 30mm × (1440/25.4) ≈ 1700
+            Assert.Equal(1417, pgMar.Top?.Value);
+            Assert.Equal((uint)1700, pgMar.Left?.Value);
         }
         finally
         {
@@ -313,11 +313,11 @@ public class PandocPipelineTests
             Assert.Equal("黑体", rPr.Elements<RunFonts>().First().EastAsia?.Value);
             Assert.Equal("32", rPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
 
-            // 验证页面尺寸（210mm × 297mm × 567 = twips）
+            // 验证页面尺寸（A4: 210×297mm → twips）
             var sectPr = body.Elements<SectionProperties>().First();
             var pgSz = sectPr.Elements<PageSize>().First();
-            Assert.Equal(119070u, pgSz.Width?.Value);
-            Assert.Equal(168399u, pgSz.Height?.Value);
+            Assert.Equal(11905u, pgSz.Width?.Value);
+            Assert.Equal(16837u, pgSz.Height?.Value);
         }
         finally
         {
@@ -388,13 +388,13 @@ public class PandocPipelineTests
             // 验证页面尺寸（A4: 210×297mm）
             var sectPr = body.Elements<SectionProperties>().First();
             var pgSz = sectPr.Elements<PageSize>().First();
-            Assert.Equal(119070u, pgSz.Width?.Value);
-            Assert.Equal(168399u, pgSz.Height?.Value);
+            Assert.Equal(11905u, pgSz.Width?.Value);
+            Assert.Equal(16837u, pgSz.Height?.Value);
 
             // 验证页边距
             var pgMar = sectPr.Elements<PageMargin>().First();
-            Assert.Equal((int)(marginTopMm * 567), pgMar.Top?.Value);
-            Assert.Equal((uint)(marginLeftMm * 567), pgMar.Left?.Value);
+            Assert.Equal((int)(marginTopMm * 1440.0 / 25.4), pgMar.Top?.Value);
+            Assert.Equal((uint)(marginLeftMm * 1440.0 / 25.4), pgMar.Left?.Value);
 
             // 验证页眉
             var headerRefs = sectPr.Elements<HeaderReference>().ToList();
