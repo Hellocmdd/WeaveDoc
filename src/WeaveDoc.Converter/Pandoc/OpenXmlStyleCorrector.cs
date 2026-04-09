@@ -20,7 +20,7 @@ public static class OpenXmlStyleCorrector
         using var doc = WordprocessingDocument.Open(docxPath, true);
         var body = doc.MainDocumentPart!.Document.Body!;
 
-        foreach (var paragraph in body.Elements<Paragraph>())
+        foreach (var paragraph in body.Descendants<Paragraph>())
         {
             var pPr = paragraph.GetFirstChild<ParagraphProperties>();
             var styleId = pPr?.ParagraphStyleId?.Val?.Value;
