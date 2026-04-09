@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="WeaveDoc.Converter.Ui.Views.ConvertTab">
+    <ScrollViewer Margin="10">
+        <StackPanel Spacing="12">
+            <!-- Step 1: Select Markdown file -->
+            <Border BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4" Padding="10">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="步骤 1: 选择 Markdown 文件" FontWeight="Bold" FontSize="14" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox x:Name="MdPathBox" Grid.Column="0" IsReadOnly="True"
+                                 Watermark="请选择 Markdown 文件..." />
+                        <Button x:Name="BrowseMdButton" Grid.Column="1" Content="浏览..." Margin="8,0,0,0" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Step 2: Select template -->
+            <Border BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4" Padding="10">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="步骤 2: 选择模板" FontWeight="Bold" FontSize="14" />
+                    <ComboBox x:Name="TemplateCombo" DisplayMemberBinding="{Binding TemplateName}"
+                              HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Border>
+
+            <!-- Step 3: Export format -->
+            <Border BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4" Padding="10">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="步骤 3: 导出格式" FontWeight="Bold" FontSize="14" />
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <RadioButton x:Name="FormatDocx" Content="DOCX" IsChecked="True" GroupName="Format" />
+                        <RadioButton x:Name="FormatPdf" Content="PDF" GroupName="Format" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Output directory -->
+            <Border BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4" Padding="10">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="输出目录" FontWeight="Bold" FontSize="14" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox x:Name="OutputDirBox" Grid.Column="0" IsReadOnly="True"
+                                 Watermark="请选择输出目录..." />
+                        <Button x:Name="BrowseOutputButton" Grid.Column="1" Content="浏览..." Margin="8,0,0,0" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Convert button -->
+            <Button x:Name="ConvertButton" Content="开始转换"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Height="36" />
+
+            <!-- Status label -->
+            <TextBlock x:Name="StatusLabel" Text="状态: 就绪" Foreground="Gray" FontSize="13" />
+
+            <!-- Log box -->
+            <TextBox x:Name="LogBox"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     Height="150"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
