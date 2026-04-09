@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WeaveDoc.Converter.Tests/WeaveDoc.Converter.Tests.csproj" />
+    <Project Path="tests/WeaveDoc.Converter.Ui.Tests/WeaveDoc.Converter.Ui.Tests.csproj" />
   </Folder>
   <Project Path="../WeaveDoc/WeaveDoc.csproj" />
 </Solution>

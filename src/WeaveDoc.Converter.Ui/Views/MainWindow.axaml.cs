@@ -10,5 +10,7 @@ public partial class MainWindow : Window
     public MainWindow(ConfigManager configManager, DocumentConversionEngine engine)
     {
         InitializeComponent();
+        var templateTab = this.FindControl<TemplateTab>("TemplateTabControl");
+        templateTab?.SetConfigManager(configManager);
     }
 }

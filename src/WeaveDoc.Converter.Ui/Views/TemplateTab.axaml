@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="WeaveDoc.Converter.Ui.Views.TemplateTab">
+    <DockPanel Margin="10">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
+            <Button x:Name="RefreshButton" Content="刷新" />
+            <Button x:Name="SeedButton" Content="种子模板" />
+            <Button x:Name="ImportButton" Content="导入" />
+            <Button x:Name="DeleteButton" Content="删除" />
+        </StackPanel>
+        <TextBlock x:Name="StatusBar" DockPanel.Dock="Bottom" Margin="0,8,0,0" />
+        <DataGrid x:Name="TemplateGrid"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  SelectionMode="Single">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" Binding="{Binding TemplateId}" Width="*" />
+                <DataGridTextColumn Header="名称" Binding="{Binding TemplateName}" Width="*" />
+                <DataGridTextColumn Header="版本" Binding="{Binding Version}" Width="80" />
+                <DataGridTextColumn Header="作者" Binding="{Binding Author}" Width="100" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>
