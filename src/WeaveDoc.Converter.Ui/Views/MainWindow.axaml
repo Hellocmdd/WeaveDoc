@@ -10,7 +10,7 @@
             <views:TemplateTab x:Name="TemplateTabControl" />
         </TabItem>
         <TabItem Header="文档转换">
-            <TextBlock Text="文档转换（Task 3 实现）" Margin="10" />
+            <views:ConvertTab x:Name="ConvertTabControl" />
         </TabItem>
     </TabControl>
 </Window>
