@@ -305,7 +305,8 @@ public class PandocPipelineTests
 
             // 验证 Heading1 段落样式（default-thesis.json: 黑体、16pt）
             var heading = body.Descendants<Paragraph>()
-                .First(p => p.InnerText == "测试论文标题");
+                .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
+            Assert.Contains("测试论文标题", heading.InnerText);
             var run = heading.Elements<Run>().First();
             var rPr = run.RunProperties;
             Assert.NotNull(rPr);
