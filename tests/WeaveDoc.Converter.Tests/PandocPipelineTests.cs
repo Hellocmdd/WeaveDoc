@@ -598,8 +598,7 @@ public class PandocPipelineTests
             await pipeline.FromDocxToPdfAsync(docxPath, pdfPath,
                 mainFont: "SimSun", cjkMainFont: "SimSun", monoFont: "SimSun");
 
-            Assert.True(File.Exists(pdfPath));
-            Assert.True(new FileInfo(pdfPath).Length > 0);
+            AssertIsPdf(pdfPath);
         }
         finally
         {
@@ -636,7 +635,7 @@ public class PandocPipelineTests
                 Assert.True(result.Success, $"PDF 转换失败: {result.ErrorMessage}");
                 Assert.True(File.Exists(result.OutputPath), "PDF 输出文件不存在");
                 Assert.EndsWith(".pdf", result.OutputPath);
-                Assert.True(new FileInfo(result.OutputPath).Length > 0, "PDF 文件为空");
+                AssertIsPdf(result.OutputPath);
             }
             finally
             {
@@ -650,5 +649,17 @@ public class PandocPipelineTests
             SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath)) File.Delete(dbPath);
         }
+    }
+
+    private static void AssertIsPdf(string path)
+    {
+        Assert.True(File.Exists(path), $"PDF 文件不存在: {path}");
+        Assert.True(new FileInfo(path).Length > 1024, "PDF 文件过小，可能无效");
+
+        using var stream = File.OpenRead(path);
+        var header = new byte[5];
+        stream.Read(header, 0, 5);
+        var magic = System.Text.Encoding.ASCII.GetString(header);
+        Assert.Equal("%PDF-", magic);
     }
 }
