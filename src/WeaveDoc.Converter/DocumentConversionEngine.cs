@@ -63,7 +63,8 @@ public class DocumentConversionEngine
             }
             else if (outputFormat == "pdf")
             {
-                await _pandoc.ToPdfAsync(markdownPath, outputPath, ct);
+                var font = template.Defaults.FontFamily;
+                await _pandoc.FromDocxToPdfAsync(rawDocxPath, outputPath, font, font, font, ct);
             }
             else
             {
