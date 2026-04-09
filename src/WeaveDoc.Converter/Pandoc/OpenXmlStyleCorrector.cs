@@ -11,6 +11,8 @@ namespace WeaveDoc.Converter.Pandoc;
 /// </summary>
 public static class OpenXmlStyleCorrector
 {
+    private const double MmToTwips = 1440.0 / 25.4; // ≈ 56.693
+
     /// <summary>
     /// 遍历文档中所有段落，根据其 styleId 查找对应 AFD 样式，
     /// 将字体、字号等属性直接写入每个 Run 的 RunProperties。
@@ -61,8 +63,8 @@ public static class OpenXmlStyleCorrector
                 pgSz = new PageSize();
                 sectPr.AppendChild(pgSz);
             }
-            pgSz.Width = (uint)(defaults.PageSize.Width * 567);
-            pgSz.Height = (uint)(defaults.PageSize.Height * 567);
+            pgSz.Width = (uint)(defaults.PageSize.Width * MmToTwips);
+            pgSz.Height = (uint)(defaults.PageSize.Height * MmToTwips);
         }
 
         if (defaults.Margins != null)
@@ -73,10 +75,12 @@ public static class OpenXmlStyleCorrector
                 pgMar = new PageMargin();
                 sectPr.AppendChild(pgMar);
             }
-            pgMar.Top = (int)(defaults.Margins.Top * 567);
-            pgMar.Bottom = (int)(defaults.Margins.Bottom * 567);
-            pgMar.Left = (uint)(defaults.Margins.Left * 567);
-            pgMar.Right = (uint)(defaults.Margins.Right * 567);
+            pgMar.Top = (int)(defaults.Margins.Top * MmToTwips);
+            pgMar.Bottom = (int)(defaults.Margins.Bottom * MmToTwips);
+            pgMar.Left = (uint)(defaults.Margins.Left * MmToTwips);
+            pgMar.Right = (uint)(defaults.Margins.Right * MmToTwips);
+            pgMar.Header = (uint)(12.7 * MmToTwips); // 页眉距边缘 12.7mm
+            pgMar.Footer = (uint)(12.7 * MmToTwips); // 页脚距边缘 12.7mm
         }
 
         doc.MainDocumentPart.Document.Save();
