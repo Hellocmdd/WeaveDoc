@@ -608,4 +608,47 @@ public class PandocPipelineTests
             if (File.Exists(pdfPath)) File.Delete(pdfPath);
         }
     }
+
+    [Fact]
+    public async Task DocumentConversionEngine_ConvertAsync_Pdf()
+    {
+        var root = FindSolutionRoot();
+        var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
+        var tectonicDir = Path.Combine(root, "tools", "tectonic");
+        var dbPath = Path.Combine(Path.GetTempPath(), $"dce-pdf-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var configManager = new ConfigManager(dbPath);
+            var template = CreateTestTemplate();
+            await configManager.SaveTemplateAsync("test-tpl", template);
+
+            var pipeline = new PandocPipeline(pandocPath, tectonicDir);
+            var engine = new DocumentConversionEngine(pipeline, configManager);
+
+            var mdPath = Path.Combine(Path.GetTempPath(), $"dce-pdf-{Guid.NewGuid():N}.md");
+            File.WriteAllText(mdPath, "# PDF测试标题\n\n这是PDF正文内容。\n");
+
+            try
+            {
+                var result = await engine.ConvertAsync(mdPath, "test-tpl", "pdf");
+
+                Assert.True(result.Success, $"PDF 转换失败: {result.ErrorMessage}");
+                Assert.True(File.Exists(result.OutputPath), "PDF 输出文件不存在");
+                Assert.EndsWith(".pdf", result.OutputPath);
+                Assert.True(new FileInfo(result.OutputPath).Length > 0, "PDF 文件为空");
+            }
+            finally
+            {
+                File.Delete(mdPath);
+                if (File.Exists(Path.ChangeExtension(mdPath, "pdf")))
+                    File.Delete(Path.ChangeExtension(mdPath, "pdf"));
+            }
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
 }
