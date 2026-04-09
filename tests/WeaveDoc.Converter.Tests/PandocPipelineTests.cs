@@ -28,7 +28,8 @@ public class PandocPipelineTests
     {
         var root = FindSolutionRoot();
         var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
-        return new PandocPipeline(pandocPath);
+        var tectonicDir = Path.Combine(root, "tools", "tectonic");
+        return new PandocPipeline(pandocPath, tectonicDir);
     }
 
     private static string CreateTempMarkdown(string content)
@@ -578,6 +579,33 @@ public class PandocPipelineTests
         finally
         {
             if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public async Task FromDocxToPdfAsync_WithDocxInput_ProducesPdf()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown("# PDF测试\n\n从DOCX生成PDF。\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"pdf-src-{Guid.NewGuid():N}.docx");
+        var pdfPath = Path.Combine(Path.GetTempPath(), $"pdf-out-{Guid.NewGuid():N}.pdf");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+            Assert.True(File.Exists(docxPath));
+
+            await pipeline.FromDocxToPdfAsync(docxPath, pdfPath,
+                mainFont: "SimSun", cjkMainFont: "SimSun", monoFont: "SimSun");
+
+            Assert.True(File.Exists(pdfPath));
+            Assert.True(new FileInfo(pdfPath).Length > 0);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+            if (File.Exists(pdfPath)) File.Delete(pdfPath);
         }
     }
 }

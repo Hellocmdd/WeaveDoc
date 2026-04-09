@@ -62,6 +62,30 @@ public class PandocPipeline
         return await RunAsync(args, ct);
     }
 
+    /// <summary>DOCX → PDF（基于已修正的 DOCX，保留 AFD 样式）</summary>
+    public async Task<string> FromDocxToPdfAsync(
+        string docxInputPath, string outputPath,
+        string? mainFont = null, string? cjkMainFont = null, string? monoFont = null,
+        CancellationToken ct = default)
+    {
+        var args = new List<string>
+        {
+            Quote(docxInputPath),
+            "-f", "docx",
+            "--pdf-engine", "tectonic",
+            "-o", Quote(outputPath)
+        };
+
+        if (mainFont != null)
+            args.AddRange(new[] { "-V", $"mainfont={mainFont}" });
+        if (cjkMainFont != null)
+            args.AddRange(new[] { "-V", $"CJKmainfont={cjkMainFont}" });
+        if (monoFont != null)
+            args.AddRange(new[] { "-V", $"monofont={monoFont}" });
+
+        return await RunAsync(args, ct);
+    }
+
     /// <summary>导出 AST JSON</summary>
     public async Task<string> ToAstJsonAsync(
         string inputPath, CancellationToken ct = default)
