@@ -61,7 +61,12 @@ public class PandocPipelineTests
             await pipeline.ToDocxAsync(mdPath, docxPath);
 
             Assert.True(File.Exists(docxPath));
-            Assert.True(new FileInfo(docxPath).Length > 0);
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var body = doc.MainDocumentPart!.Document.Body!;
+            var paragraphs = body.Descendants<Paragraph>().ToList();
+            Assert.Contains(paragraphs, p => p.InnerText.Contains("测试标题"));
+            Assert.Contains(paragraphs, p => p.InnerText.Contains("正文段落"));
         }
         finally
         {
@@ -295,10 +300,23 @@ public class PandocPipelineTests
 
             Assert.True(File.Exists(rawDocxPath));
 
-            // 验证输出可以被 OpenXML 正确打开
             using var doc = WordprocessingDocument.Open(rawDocxPath, false);
-            Assert.NotNull(doc.MainDocumentPart);
-            Assert.NotNull(doc.MainDocumentPart.Document.Body);
+            var body = doc.MainDocumentPart!.Document.Body!;
+
+            // 验证 Heading1 段落样式（default-thesis.json: 黑体、16pt）
+            var heading = body.Descendants<Paragraph>()
+                .First(p => p.InnerText == "测试论文标题");
+            var run = heading.Elements<Run>().First();
+            var rPr = run.RunProperties;
+            Assert.NotNull(rPr);
+            Assert.Equal("黑体", rPr.Elements<RunFonts>().First().EastAsia?.Value);
+            Assert.Equal("32", rPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
+
+            // 验证页面尺寸（210mm × 297mm × 567 = twips）
+            var sectPr = body.Elements<SectionProperties>().First();
+            var pgSz = sectPr.Elements<PageSize>().First();
+            Assert.Equal(119070u, pgSz.Width?.Value);
+            Assert.Equal(168399u, pgSz.Height?.Value);
         }
         finally
         {
@@ -334,8 +352,16 @@ public class PandocPipelineTests
                 Assert.True(File.Exists(result.OutputPath), "输出文件不存在");
 
                 using var doc = WordprocessingDocument.Open(result.OutputPath, false);
-                Assert.NotNull(doc.MainDocumentPart);
-                Assert.NotNull(doc.MainDocumentPart.Document.Body);
+                var body = doc.MainDocumentPart!.Document.Body!;
+
+                // 验证 Heading1 段落样式（CreateTestTemplate: 黑体、16pt）
+                var heading = body.Descendants<Paragraph>()
+                    .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
+                var headingRun = heading.Elements<Run>().First();
+                var headingRPr = headingRun.RunProperties;
+                Assert.NotNull(headingRPr);
+                Assert.Equal("黑体", headingRPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("32", headingRPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
             }
             finally
             {
