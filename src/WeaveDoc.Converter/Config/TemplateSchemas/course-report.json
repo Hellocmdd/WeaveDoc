@@ -1,0 +1,69 @@
+{
+  "$schema": "https://weavedoc.dev/schemas/afd-template-v1.json",
+  "meta": {
+    "templateName": "课程报告",
+    "version": "1.0.0",
+    "author": "WeaveDoc",
+    "description": "高校课程报告通用模板"
+  },
+  "defaults": {
+    "fontFamily": "宋体",
+    "fontSize": 12,
+    "lineSpacing": 1.5,
+    "pageSize": { "width": 210, "height": 297 },
+    "margins": { "top": 25, "bottom": 25, "left": 25, "right": 25 }
+  },
+  "styles": {
+    "heading1": {
+      "displayName": "标题 1",
+      "fontFamily": "黑体",
+      "fontSize": 16,
+      "bold": true,
+      "alignment": "center",
+      "spaceBefore": 24,
+      "spaceAfter": 18,
+      "lineSpacing": 1.5
+    },
+    "heading2": {
+      "displayName": "标题 2",
+      "fontFamily": "黑体",
+      "fontSize": 15,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 18,
+      "spaceAfter": 12,
+      "lineSpacing": 1.5
+    },
+    "heading3": {
+      "displayName": "标题 3",
+      "fontFamily": "黑体",
+      "fontSize": 14,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 12,
+      "spaceAfter": 6,
+      "lineSpacing": 1.5
+    },
+    "body": {
+      "displayName": "正文",
+      "fontFamily": "宋体",
+      "fontSize": 12,
+      "firstLineIndent": 24,
+      "lineSpacing": 1.5
+    }
+  },
+  "headerFooter": {
+    "header": {
+      "text": "课程报告",
+      "fontFamily": "宋体",
+      "fontSize": 10.5,
+      "alignment": "center"
+    },
+    "footer": {
+      "pageNumbering": true,
+      "format": "arabic",
+      "alignment": "center",
+      "startPage": 1
+    }
+  }
+}
