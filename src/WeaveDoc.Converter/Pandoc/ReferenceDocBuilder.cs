@@ -20,6 +20,25 @@ public static class ReferenceDocBuilder
         var stylePart = mainPart.AddNewPart<StyleDefinitionsPart>();
         stylePart.Styles = new Styles();
 
+        // 先创建 Normal（默认段落）样式，确保 Pandoc 生成的正文段落有样式基准
+        var normalStyle = new Style
+        {
+            Type = StyleValues.Paragraph,
+            StyleId = "Normal"
+        };
+        normalStyle.Append(new StyleName { Val = "Normal" });
+        var normalRPr = new StyleRunProperties();
+        normalRPr.Append(CreateRunFonts(template.Defaults.FontFamily));
+        if (template.Defaults.FontSize != null)
+        {
+            var hp = ((int)(template.Defaults.FontSize.Value * 2)).ToString();
+            normalRPr.Append(new FontSize { Val = hp });
+            normalRPr.Append(new FontSizeComplexScript { Val = hp });
+        }
+        normalStyle.Append(normalRPr);
+        stylePart.Styles.Append(normalStyle);
+
+        // 再创建模板中定义的各样式
         foreach (var (afdKey, styleDef) in template.Styles)
         {
             var styleId = AfdStyleMapper.MapToOpenXmlStyleId(afdKey);

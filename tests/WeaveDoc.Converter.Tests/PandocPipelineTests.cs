@@ -151,6 +151,14 @@ public class PandocPipelineTests
 
             var fontSize = rPr.Elements<FontSize>().First();
             Assert.Equal("32", fontSize.Val?.Value); // 16pt = 32 half-points
+
+            // 验证 Normal 样式存在且使用模板默认字体
+            var normal = stylesPart.Styles!.Elements<Style>()
+                .FirstOrDefault(s => s.StyleId == "Normal");
+            Assert.NotNull(normal);
+            var normalRPr = normal.Elements<StyleRunProperties>().First();
+            var normalFonts = normalRPr.Elements<RunFonts>().First();
+            Assert.Equal("宋体", normalFonts.EastAsia?.Value);
         }
         finally
         {
