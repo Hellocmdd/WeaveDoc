@@ -81,6 +81,24 @@
       "fontSize": 12,
       "firstLineIndent": 24,
       "lineSpacing": 1.5
+    },
+    "blockquote": {
+      "displayName": "引用块",
+      "fontFamily": "宋体",
+      "fontSize": 12,
+      "lineSpacing": 1.5
+    },
+    "list": {
+      "displayName": "列表段落",
+      "fontFamily": "宋体",
+      "fontSize": 12,
+      "lineSpacing": 1.5
+    },
+    "codeblock": {
+      "displayName": "代码块",
+      "fontFamily": "Consolas",
+      "fontSize": 10,
+      "lineSpacing": 1.0
     }
   },
   "headerFooter": {
