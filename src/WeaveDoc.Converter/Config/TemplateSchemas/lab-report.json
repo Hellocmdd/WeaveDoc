@@ -44,6 +44,37 @@
       "spaceAfter": 6,
       "lineSpacing": 1.5
     },
+    "heading4": {
+      "displayName": "标题 4",
+      "fontFamily": "黑体",
+      "fontSize": 13,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 12,
+      "spaceAfter": 6,
+      "lineSpacing": 1.5
+    },
+    "heading5": {
+      "displayName": "标题 5",
+      "fontFamily": "黑体",
+      "fontSize": 12,
+      "bold": true,
+      "italic": true,
+      "alignment": "left",
+      "spaceBefore": 6,
+      "spaceAfter": 3,
+      "lineSpacing": 1.5
+    },
+    "heading6": {
+      "displayName": "标题 6",
+      "fontFamily": "黑体",
+      "fontSize": 12,
+      "italic": true,
+      "alignment": "left",
+      "spaceBefore": 6,
+      "spaceAfter": 3,
+      "lineSpacing": 1.5
+    },
     "body": {
       "displayName": "正文",
       "fontFamily": "宋体",
