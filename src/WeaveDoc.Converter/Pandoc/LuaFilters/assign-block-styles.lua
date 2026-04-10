@@ -15,6 +15,24 @@ end
 
 function CodeBlock(el)
   if FORMAT:match('docx') then
-    return pandoc.Div({el}, pandoc.Attr("", {}, {["custom-style"] = "CodeBlock"}))
+    -- CodeBlock 作为独立元素时，Pandoc DOCX writer 使用 "SourceCode" 样式，
+    -- 外层 Div 的 custom-style 无法覆盖。因此先将 CodeBlock 转为 Para，
+    -- 再用 Div 包裹以使 custom-style 生效。
+    local inlines = {}
+    local first = true
+    for line in (el.text .. "\n"):gmatch("(.-)\n") do
+      if not first then
+        table.insert(inlines, pandoc.LineBreak())
+      end
+      first = false
+      table.insert(inlines, pandoc.Str(line))
+    end
+    if #inlines == 0 then
+      inlines = { pandoc.Str("") }
+    end
+    return pandoc.Div(
+      { pandoc.Para(inlines) },
+      pandoc.Attr("", {}, { ["custom-style"] = "CodeBlock" })
+    )
   end
 end

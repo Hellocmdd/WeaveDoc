@@ -776,6 +776,66 @@ public class PandocPipelineTests
         }
     }
 
+    [Fact]
+    public async Task ToDocxAsync_Blockquote_AppliesBlockquoteStyle()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown("# 标题\n\n> 这是引用块内容\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"bq-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+            Assert.True(File.Exists(docxPath));
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var body = doc.MainDocumentPart!.Document.Body!;
+
+            // Lua filter 将 BlockQuote 包裹在 custom-style="Blockquote" 的 Div 中，
+            // Pandoc DOCX writer 会输出 pStyle="Blockquote" 的段落
+            var paragraphs = body.Descendants<Paragraph>().ToList();
+            var bqParagraph = paragraphs.FirstOrDefault(p =>
+                p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Blockquote");
+            Assert.NotNull(bqParagraph);
+            Assert.Contains("引用块内容", bqParagraph.InnerText);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public async Task ToDocxAsync_CodeBlock_AppliesCodeBlockStyle()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown("# 标题\n\n```\nvar x = 1;\n```\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"cb-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+            Assert.True(File.Exists(docxPath));
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var body = doc.MainDocumentPart!.Document.Body!;
+
+            // Lua filter 将 CodeBlock 转为 Para 并包裹在 custom-style="CodeBlock" 的 Div 中，
+            // Pandoc DOCX writer 输出 pStyle="CodeBlock" 的段落
+            var paragraphs = body.Descendants<Paragraph>().ToList();
+            var cbParagraph = paragraphs.FirstOrDefault(p =>
+                p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "CodeBlock");
+            Assert.NotNull(cbParagraph);
+            Assert.Contains("var x = 1;", cbParagraph.InnerText);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
     private static void AssertIsPdf(string path)
     {
         Assert.True(File.Exists(path), $"PDF 文件不存在: {path}");
