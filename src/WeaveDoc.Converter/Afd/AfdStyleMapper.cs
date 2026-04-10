@@ -17,7 +17,10 @@ public static class AfdStyleMapper
         ["caption"]  = "Caption",
         ["footnote"] = "FootnoteText",
         ["reference"] = "Reference",
-        ["abstract"] = "Abstract"
+        ["abstract"] = "Abstract",
+        ["blockquote"] = "Blockquote",
+        ["list"]       = "ListParagraph",
+        ["codeblock"]  = "CodeBlock"
     };
 
     /// <summary>
