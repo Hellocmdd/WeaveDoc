@@ -10,6 +10,9 @@ public class AfdStyleMapperTests
     [InlineData("heading1", "Heading1")]
     [InlineData("heading2", "Heading2")]
     [InlineData("heading3", "Heading3")]
+    [InlineData("heading4", "Heading4")]
+    [InlineData("heading5", "Heading5")]
+    [InlineData("heading6", "Heading6")]
     [InlineData("body", "Normal")]
     [InlineData("caption", "Caption")]
     [InlineData("footnote", "FootnoteText")]
@@ -31,6 +34,9 @@ public class AfdStyleMapperTests
     [InlineData("Heading1", "heading1")]
     [InlineData("Heading2", "heading2")]
     [InlineData("Heading3", "heading3")]
+    [InlineData("Heading4", "heading4")]
+    [InlineData("Heading5", "heading5")]
+    [InlineData("Heading6", "heading6")]
     [InlineData("Normal", "body")]
     public void MapToAfdStyleKey_KnownId_ReturnsCorrectKey(string openXmlId, string expectedAfdKey)
     {
