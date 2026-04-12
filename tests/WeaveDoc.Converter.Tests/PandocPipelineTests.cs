@@ -787,6 +787,92 @@ public class PandocPipelineTests
     }
 
     [Fact]
+    public void OpenXmlStyleCorrector_ApplyAfdStyles_StripsRedundantInline()
+    {
+        var template = CreateTestTemplate();
+        var docxPath = Path.Combine(Path.GetTempPath(), $"strip-test-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, template);
+
+            // 创建一个带有冗余内联属性的 Heading1 段落
+            // 模拟 Pandoc 生成的情况：pStyle="Heading1" 但 Run 上有内联字体/字号
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+
+                var p = new Paragraph();
+                p.AppendChild(new ParagraphProperties(
+                    new ParagraphStyleId { Val = "Heading1" },
+                    new Justification { Val = JustificationValues.Center }));
+
+                var run = new Run(new Text("带内联的标题"));
+                var rPr = new RunProperties();
+                rPr.AppendChild(new RunFonts { Ascii = "黑体", EastAsia = "黑体", HighAnsi = "黑体" });
+                rPr.AppendChild(new FontSize { Val = "32" });
+                rPr.AppendChild(new FontSizeComplexScript { Val = "32" });
+                rPr.AppendChild(new Bold());
+                run.AppendChild(rPr);
+                p.AppendChild(run);
+                body.AppendChild(p);
+
+                // 正文段落中有一个用户有意加粗的 Run
+                var bodyP = new Paragraph();
+                bodyP.AppendChild(new ParagraphProperties(
+                    new ParagraphStyleId { Val = "Normal" },
+                    new Indentation { FirstLine = "480" }));
+                var normalRun = new Run(new Text("正常文本"));
+                normalRun.AppendChild(new RunProperties(
+                    new RunFonts { Ascii = "宋体", EastAsia = "宋体", HighAnsi = "宋体" },
+                    new FontSize { Val = "24" }));
+                bodyP.AppendChild(normalRun);
+                var boldRun = new Run(new Text("用户加粗"));
+                boldRun.AppendChild(new RunProperties(new Bold()));
+                bodyP.AppendChild(boldRun);
+                body.AppendChild(bodyP);
+
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            OpenXmlStyleCorrector.ApplyAfdStyles(docxPath, template);
+
+            using (var doc = WordprocessingDocument.Open(docxPath, false))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+
+                // Heading1 段落的 Run 不应有冗余字体/字号内联
+                var heading = body.Descendants<Paragraph>()
+                    .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
+                var headingRun = heading.Elements<Run>().First();
+                // 字体和字号内联应被清除（样式定义中已有）
+                Assert.Empty(headingRun.RunProperties?.Elements<RunFonts>() ?? []);
+                Assert.Empty(headingRun.RunProperties?.Elements<FontSize>() ?? []);
+
+                // heading1.Bold==true，Bold 也应被移除
+                Assert.Empty(headingRun.RunProperties?.Elements<Bold>() ?? []);
+
+                // Normal 段落中，字体/字号内联应被清除
+                var normalPara = body.Descendants<Paragraph>()
+                    .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Normal");
+                var normalRuns = normalPara.Elements<Run>().ToList();
+                var firstRun = normalRuns[0];
+                Assert.Empty(firstRun.RunProperties?.Elements<RunFonts>() ?? []);
+                Assert.Empty(firstRun.RunProperties?.Elements<FontSize>() ?? []);
+
+                // 但用户有意的行内加粗应保留（body 样式的 Bold 不是 true）
+                var secondRun = normalRuns[1];
+                Assert.NotNull(secondRun.RunProperties);
+                Assert.NotEmpty(secondRun.RunProperties.Elements<Bold>());
+            }
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
     public async Task FromDocxToPdfAsync_WithDocxInput_ProducesPdf()
     {
         var pipeline = CreatePipeline();
