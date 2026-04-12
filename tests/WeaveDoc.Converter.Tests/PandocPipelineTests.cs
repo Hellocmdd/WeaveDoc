@@ -335,6 +335,7 @@ public class PandocPipelineTests
     /// 参数化完整管线测试：验证每个 AFD 模板都能走通 Parse → RefDoc → Pandoc → StyleCorrector → PageSettings → HeaderFooter。
     /// </summary>
     [Theory]
+    [InlineData("default-thesis.json", "默认学术论文", 16, 25, 30, "学位论文", 10.5)]
     [InlineData("course-report.json", "课程报告", 16, 25, 25, "课程报告", 10.5)]
     [InlineData("lab-report.json", "实验报告", 18, 25.4, 31.7, "实验报告", 9)]
     public async Task FullPipeline_NewTemplate_ProducesValidDocx(
