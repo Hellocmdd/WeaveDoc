@@ -14,35 +14,114 @@ public static class OpenXmlStyleCorrector
     private const double MmToTwips = 1440.0 / 25.4; // ≈ 56.693
 
     /// <summary>
-    /// 遍历文档中所有段落，根据其 styleId 查找对应 AFD 样式，
-    /// 将字体、字号等属性直接写入每个 Run 的 RunProperties。
+    /// 遍历模板样式，将 AFD 属性写入文档的样式定义（styles.xml），
+    /// 并清除匹配段落中与样式定义重复的内联属性。
     /// </summary>
     public static void ApplyAfdStyles(string docxPath, AfdTemplate template)
     {
         using var doc = WordprocessingDocument.Open(docxPath, true);
-        var body = doc.MainDocumentPart!.Document.Body!;
+        var mainPart = doc.MainDocumentPart!;
 
-        foreach (var paragraph in body.Descendants<Paragraph>())
+        // Phase 1: 将 AFD 属性写入样式定义
+        WriteStyleDefinitions(mainPart, template);
+
+        // Phase 2 & 3: 清除冗余内联属性，保留用户有意的行内格式
+        StripRedundantInline(mainPart.Document.Body!, template);
+
+        mainPart.Document.Save();
+    }
+
+    /// <summary>
+    /// 将 AFD 模板中的样式属性写入 StyleDefinitionsPart 中的 Style 元素
+    /// </summary>
+    private static void WriteStyleDefinitions(MainDocumentPart mainPart, AfdTemplate template)
+    {
+        var stylesPart = mainPart.StyleDefinitionsPart
+            ?? mainPart.AddNewPart<StyleDefinitionsPart>();
+
+        if (stylesPart.Styles == null)
+            stylesPart.Styles = new Styles();
+
+        var styles = stylesPart.Styles;
+
+        foreach (var (afdKey, styleDef) in template.Styles)
         {
-            var pPr = paragraph.GetFirstChild<ParagraphProperties>();
-            var styleId = pPr?.ParagraphStyleId?.Val?.Value;
-            if (styleId == null) continue;
+            var styleId = AfdStyleMapper.MapToOpenXmlStyleId(afdKey);
 
-            // 将 OpenXML styleId 反向映射为 AFD 样式键
-            var afdKey = AfdStyleMapper.MapToAfdStyleKey(styleId);
-            if (afdKey == null || !template.Styles.TryGetValue(afdKey, out var styleDef)) continue;
+            // 查找或创建 Style 元素
+            var style = styles.Elements<Style>()
+                .FirstOrDefault(s => s.StyleId == styleId);
 
-            // 应用段落属性（对齐、间距、缩进）
-            ApplyParagraphProperties(paragraph, pPr!, styleDef);
-
-            // 将字符属性写入每个 Run
-            foreach (var run in paragraph.Elements<Run>())
+            if (style == null)
             {
-                ApplyRunProperties(run, styleDef);
+                style = new Style
+                {
+                    Type = StyleValues.Paragraph,
+                    StyleId = styleId
+                };
+                style.AppendChild(new StyleName { Val = styleDef.DisplayName ?? afdKey });
+                styles.AppendChild(style);
             }
+
+            // 清除旧的 StyleRunProperties 和 StyleParagraphProperties
+            style.RemoveAllChildren<StyleRunProperties>();
+            style.RemoveAllChildren<StyleParagraphProperties>();
+
+            // 写入字符属性
+            ApplyStyleRunProperties(style, styleDef);
+
+            // 写入段落属性
+            ApplyStyleParagraphProperties(style, styleDef);
+        }
+    }
+
+    private static void ApplyStyleRunProperties(Style style, AfdStyleDefinition styleDef)
+    {
+        var rPr = new StyleRunProperties();
+
+        if (styleDef.FontFamily != null)
+            rPr.AppendChild(CreateRunFonts(styleDef.FontFamily));
+
+        if (styleDef.FontSize != null)
+        {
+            var hp = ((int)(styleDef.FontSize.Value * 2)).ToString();
+            rPr.AppendChild(new FontSize { Val = hp });
+            rPr.AppendChild(new FontSizeComplexScript { Val = hp });
         }
 
-        doc.MainDocumentPart.Document.Save();
+        if (styleDef.Bold == true)
+            rPr.AppendChild(new Bold());
+
+        if (styleDef.Italic == true)
+            rPr.AppendChild(new Italic());
+
+        if (rPr.HasChildren)
+            style.AppendChild(rPr);
+    }
+
+    private static void ApplyStyleParagraphProperties(Style style, AfdStyleDefinition styleDef)
+    {
+        var pPr = new StyleParagraphProperties();
+
+        if (styleDef.Alignment != null)
+            pPr.AppendChild(CreateJustification(styleDef.Alignment));
+
+        if (styleDef.SpaceBefore != null || styleDef.SpaceAfter != null || styleDef.LineSpacing != null)
+            pPr.AppendChild(CreateSpacing(styleDef));
+
+        if (styleDef.FirstLineIndent != null || styleDef.HangingIndent != null)
+            pPr.AppendChild(CreateIndentation(styleDef));
+
+        if (pPr.HasChildren)
+            style.AppendChild(pPr);
+    }
+
+    /// <summary>
+    /// 清除匹配段落中与样式定义重复的内联属性（Phase 2 & 3 占位，将在 Task 5 中完整实现）
+    /// </summary>
+    private static void StripRedundantInline(Body body, AfdTemplate template)
+    {
+        // TODO: Task 5 将实现完整逻辑
     }
 
     /// <summary>

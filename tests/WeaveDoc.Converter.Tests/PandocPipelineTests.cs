@@ -205,16 +205,17 @@ public class PandocPipelineTests
             // 执行修正
             OpenXmlStyleCorrector.ApplyAfdStyles(docxPath, template);
 
-            // 验证 Heading1 段落的字体和字号
+            // 验证样式定义中的字体和字号
             using (var doc = WordprocessingDocument.Open(docxPath, false))
             {
-                var body = doc.MainDocumentPart!.Document.Body!;
-                var heading = body.Elements<Paragraph>()
-                    .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
+                var stylesPart = doc.MainDocumentPart!.StyleDefinitionsPart;
+                Assert.NotNull(stylesPart);
+                var styles = stylesPart.Styles;
+                Assert.NotNull(styles);
 
-                var run = heading.Elements<Run>().First();
-                var rPr = run.RunProperties;
-                Assert.NotNull(rPr);
+                var heading1Style = styles.Elements<Style>()
+                    .First(s => s.StyleId == "Heading1");
+                var rPr = heading1Style.Elements<StyleRunProperties>().First();
 
                 var fonts = rPr.Elements<RunFonts>().First();
                 Assert.Equal("黑体", fonts.EastAsia?.Value);
@@ -303,13 +304,17 @@ public class PandocPipelineTests
             using var doc = WordprocessingDocument.Open(rawDocxPath, false);
             var body = doc.MainDocumentPart!.Document.Body!;
 
-            // 验证 Heading1 段落样式（default-thesis.json: 黑体、16pt）
+            // 验证 Heading1 段落存在
             var heading = body.Descendants<Paragraph>()
                 .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
             Assert.Contains("测试论文标题", heading.InnerText);
-            var run = heading.Elements<Run>().First();
-            var rPr = run.RunProperties;
-            Assert.NotNull(rPr);
+
+            // 验证 Heading1 样式定义（default-thesis.json: 黑体、16pt）
+            var stylesPart = doc.MainDocumentPart.StyleDefinitionsPart;
+            Assert.NotNull(stylesPart);
+            var heading1Style = stylesPart.Styles!.Elements<Style>()
+                .First(s => s.StyleId == "Heading1");
+            var rPr = heading1Style.Elements<StyleRunProperties>().First();
             Assert.Equal("黑体", rPr.Elements<RunFonts>().First().EastAsia?.Value);
             Assert.Equal("32", rPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
 
@@ -376,12 +381,16 @@ public class PandocPipelineTests
             using var doc = WordprocessingDocument.Open(rawDocxPath, false);
             var body = doc.MainDocumentPart!.Document.Body!;
 
-            // 验证 Heading1 字体和字号
+            // 验证 Heading1 样式定义中的字体和字号
             var heading = body.Descendants<Paragraph>()
                 .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
-            var run = heading.Elements<Run>().First();
-            var rPr = run.RunProperties;
-            Assert.NotNull(rPr);
+            Assert.NotNull(heading);
+
+            var stylesPart = doc.MainDocumentPart.StyleDefinitionsPart;
+            Assert.NotNull(stylesPart);
+            var heading1Style = stylesPart.Styles!.Elements<Style>()
+                .First(s => s.StyleId == "Heading1");
+            var rPr = heading1Style.Elements<StyleRunProperties>().First();
             Assert.Equal("黑体", rPr.Elements<RunFonts>().First().EastAsia?.Value);
             Assert.Equal((heading1FontSize * 2).ToString(), rPr.Elements<FontSize>().First().Val?.Value);
 
@@ -453,12 +462,16 @@ public class PandocPipelineTests
                 using var doc = WordprocessingDocument.Open(result.OutputPath, false);
                 var body = doc.MainDocumentPart!.Document.Body!;
 
-                // 验证 Heading1 段落样式（CreateTestTemplate: 黑体、16pt）
+                // 验证 Heading1 样式定义（CreateTestTemplate: 黑体、16pt）
                 var heading = body.Descendants<Paragraph>()
                     .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
-                var headingRun = heading.Elements<Run>().First();
-                var headingRPr = headingRun.RunProperties;
-                Assert.NotNull(headingRPr);
+                Assert.NotNull(heading);
+
+                var stylesPart = doc.MainDocumentPart.StyleDefinitionsPart;
+                Assert.NotNull(stylesPart);
+                var heading1Style = stylesPart.Styles!.Elements<Style>()
+                    .First(s => s.StyleId == "Heading1");
+                var headingRPr = heading1Style.Elements<StyleRunProperties>().First();
                 Assert.Equal("黑体", headingRPr.Elements<RunFonts>().First().EastAsia?.Value);
                 Assert.Equal("32", headingRPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
             }
@@ -688,17 +701,83 @@ public class PandocPipelineTests
 
             using (var doc = WordprocessingDocument.Open(docxPath, false))
             {
-                var body = doc.MainDocumentPart!.Document.Body!;
-                var tablePara = body.Descendants<Paragraph>()
-                    .First(p => p.InnerText == "表格内标题");
+                // 验证 Heading1 样式定义中的字体
+                var stylesPart = doc.MainDocumentPart!.StyleDefinitionsPart;
+                Assert.NotNull(stylesPart);
+                var styles = stylesPart.Styles;
+                Assert.NotNull(styles);
 
-                var run = tablePara.Elements<Run>().First();
-                var rPr = run.RunProperties;
-                Assert.NotNull(rPr);
-
+                var heading1Style = styles.Elements<Style>()
+                    .First(s => s.StyleId == "Heading1");
+                var rPr = heading1Style.Elements<StyleRunProperties>().First();
                 // heading1 对应黑体
                 var fonts = rPr.Elements<RunFonts>().First();
                 Assert.Equal("黑体", fonts.EastAsia?.Value);
+            }
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyAfdStyles_WritesStyleDefinitions()
+    {
+        var template = CreateTestTemplate();
+        var docxPath = Path.Combine(Path.GetTempPath(), $"sd-test-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            // 构建含内容段落的 docx
+            ReferenceDocBuilder.Build(docxPath, template);
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+
+                var p = new Paragraph();
+                p.AppendChild(new ParagraphProperties(
+                    new ParagraphStyleId { Val = "Heading1" }));
+                p.AppendChild(new Run(new Text("测试标题")));
+                body.AppendChild(p);
+
+                var bodyP = new Paragraph();
+                bodyP.AppendChild(new ParagraphProperties(
+                    new ParagraphStyleId { Val = "Normal" }));
+                bodyP.AppendChild(new Run(new Text("正文内容")));
+                body.AppendChild(bodyP);
+
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            // 执行修正
+            OpenXmlStyleCorrector.ApplyAfdStyles(docxPath, template);
+
+            // 验证样式定义（而非内联属性）
+            using (var doc = WordprocessingDocument.Open(docxPath, false))
+            {
+                var stylesPart = doc.MainDocumentPart!.StyleDefinitionsPart;
+                Assert.NotNull(stylesPart);
+                var styles = stylesPart.Styles;
+                Assert.NotNull(styles);
+
+                // Heading1 样式定义：黑体 16pt 加粗居中
+                var heading1Style = styles.Elements<Style>()
+                    .First(s => s.StyleId == "Heading1");
+                var h1RPr = heading1Style.Elements<StyleRunProperties>().First();
+                Assert.Equal("黑体", h1RPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("32", h1RPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
+                Assert.Contains(h1RPr.Elements<Bold>(), b => b != null);
+
+                var h1PPr = heading1Style.Elements<StyleParagraphProperties>().First();
+                Assert.Equal(JustificationValues.Center, h1PPr.Elements<Justification>().First().Val?.Value);
+
+                // Normal（body）样式定义：宋体 12pt
+                var normalStyle = styles.Elements<Style>()
+                    .First(s => s.StyleId == "Normal");
+                var normalRPr = normalStyle.Elements<StyleRunProperties>().First();
+                Assert.Equal("宋体", normalRPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("24", normalRPr.Elements<FontSize>().First().Val?.Value); // 12pt = 24 half-points
             }
         }
         finally
