@@ -205,16 +205,17 @@ public class PandocPipelineTests
             // 执行修正
             OpenXmlStyleCorrector.ApplyAfdStyles(docxPath, template);
 
-            // 验证 Heading1 段落的字体和字号
+            // 验证样式定义中的字体和字号
             using (var doc = WordprocessingDocument.Open(docxPath, false))
             {
-                var body = doc.MainDocumentPart!.Document.Body!;
-                var heading = body.Elements<Paragraph>()
-                    .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
+                var stylesPart = doc.MainDocumentPart!.StyleDefinitionsPart;
+                Assert.NotNull(stylesPart);
+                var styles = stylesPart.Styles;
+                Assert.NotNull(styles);
 
-                var run = heading.Elements<Run>().First();
-                var rPr = run.RunProperties;
-                Assert.NotNull(rPr);
+                var heading1Style = styles.Elements<Style>()
+                    .First(s => s.StyleId == "Heading1");
+                var rPr = heading1Style.Elements<StyleRunProperties>().First();
 
                 var fonts = rPr.Elements<RunFonts>().First();
                 Assert.Equal("黑体", fonts.EastAsia?.Value);
@@ -303,13 +304,17 @@ public class PandocPipelineTests
             using var doc = WordprocessingDocument.Open(rawDocxPath, false);
             var body = doc.MainDocumentPart!.Document.Body!;
 
-            // 验证 Heading1 段落样式（default-thesis.json: 黑体、16pt）
+            // 验证 Heading1 段落存在
             var heading = body.Descendants<Paragraph>()
                 .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
             Assert.Contains("测试论文标题", heading.InnerText);
-            var run = heading.Elements<Run>().First();
-            var rPr = run.RunProperties;
-            Assert.NotNull(rPr);
+
+            // 验证 Heading1 样式定义（default-thesis.json: 黑体、16pt）
+            var stylesPart = doc.MainDocumentPart.StyleDefinitionsPart;
+            Assert.NotNull(stylesPart);
+            var heading1Style = stylesPart.Styles!.Elements<Style>()
+                .First(s => s.StyleId == "Heading1");
+            var rPr = heading1Style.Elements<StyleRunProperties>().First();
             Assert.Equal("黑体", rPr.Elements<RunFonts>().First().EastAsia?.Value);
             Assert.Equal("32", rPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
 
@@ -330,6 +335,7 @@ public class PandocPipelineTests
     /// 参数化完整管线测试：验证每个 AFD 模板都能走通 Parse → RefDoc → Pandoc → StyleCorrector → PageSettings → HeaderFooter。
     /// </summary>
     [Theory]
+    [InlineData("default-thesis.json", "默认学术论文", 16, 25, 30, "学位论文", 10.5)]
     [InlineData("course-report.json", "课程报告", 16, 25, 25, "课程报告", 10.5)]
     [InlineData("lab-report.json", "实验报告", 18, 25.4, 31.7, "实验报告", 9)]
     public async Task FullPipeline_NewTemplate_ProducesValidDocx(
@@ -376,12 +382,16 @@ public class PandocPipelineTests
             using var doc = WordprocessingDocument.Open(rawDocxPath, false);
             var body = doc.MainDocumentPart!.Document.Body!;
 
-            // 验证 Heading1 字体和字号
+            // 验证 Heading1 样式定义中的字体和字号
             var heading = body.Descendants<Paragraph>()
                 .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
-            var run = heading.Elements<Run>().First();
-            var rPr = run.RunProperties;
-            Assert.NotNull(rPr);
+            Assert.NotNull(heading);
+
+            var stylesPart = doc.MainDocumentPart.StyleDefinitionsPart;
+            Assert.NotNull(stylesPart);
+            var heading1Style = stylesPart.Styles!.Elements<Style>()
+                .First(s => s.StyleId == "Heading1");
+            var rPr = heading1Style.Elements<StyleRunProperties>().First();
             Assert.Equal("黑体", rPr.Elements<RunFonts>().First().EastAsia?.Value);
             Assert.Equal((heading1FontSize * 2).ToString(), rPr.Elements<FontSize>().First().Val?.Value);
 
@@ -453,12 +463,16 @@ public class PandocPipelineTests
                 using var doc = WordprocessingDocument.Open(result.OutputPath, false);
                 var body = doc.MainDocumentPart!.Document.Body!;
 
-                // 验证 Heading1 段落样式（CreateTestTemplate: 黑体、16pt）
+                // 验证 Heading1 样式定义（CreateTestTemplate: 黑体、16pt）
                 var heading = body.Descendants<Paragraph>()
                     .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
-                var headingRun = heading.Elements<Run>().First();
-                var headingRPr = headingRun.RunProperties;
-                Assert.NotNull(headingRPr);
+                Assert.NotNull(heading);
+
+                var stylesPart = doc.MainDocumentPart.StyleDefinitionsPart;
+                Assert.NotNull(stylesPart);
+                var heading1Style = stylesPart.Styles!.Elements<Style>()
+                    .First(s => s.StyleId == "Heading1");
+                var headingRPr = heading1Style.Elements<StyleRunProperties>().First();
                 Assert.Equal("黑体", headingRPr.Elements<RunFonts>().First().EastAsia?.Value);
                 Assert.Equal("32", headingRPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
             }
@@ -688,17 +702,169 @@ public class PandocPipelineTests
 
             using (var doc = WordprocessingDocument.Open(docxPath, false))
             {
-                var body = doc.MainDocumentPart!.Document.Body!;
-                var tablePara = body.Descendants<Paragraph>()
-                    .First(p => p.InnerText == "表格内标题");
+                // 验证 Heading1 样式定义中的字体
+                var stylesPart = doc.MainDocumentPart!.StyleDefinitionsPart;
+                Assert.NotNull(stylesPart);
+                var styles = stylesPart.Styles;
+                Assert.NotNull(styles);
 
-                var run = tablePara.Elements<Run>().First();
-                var rPr = run.RunProperties;
-                Assert.NotNull(rPr);
-
+                var heading1Style = styles.Elements<Style>()
+                    .First(s => s.StyleId == "Heading1");
+                var rPr = heading1Style.Elements<StyleRunProperties>().First();
                 // heading1 对应黑体
                 var fonts = rPr.Elements<RunFonts>().First();
                 Assert.Equal("黑体", fonts.EastAsia?.Value);
+            }
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyAfdStyles_WritesStyleDefinitions()
+    {
+        var template = CreateTestTemplate();
+        var docxPath = Path.Combine(Path.GetTempPath(), $"sd-test-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            // 构建含内容段落的 docx
+            ReferenceDocBuilder.Build(docxPath, template);
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+
+                var p = new Paragraph();
+                p.AppendChild(new ParagraphProperties(
+                    new ParagraphStyleId { Val = "Heading1" }));
+                p.AppendChild(new Run(new Text("测试标题")));
+                body.AppendChild(p);
+
+                var bodyP = new Paragraph();
+                bodyP.AppendChild(new ParagraphProperties(
+                    new ParagraphStyleId { Val = "Normal" }));
+                bodyP.AppendChild(new Run(new Text("正文内容")));
+                body.AppendChild(bodyP);
+
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            // 执行修正
+            OpenXmlStyleCorrector.ApplyAfdStyles(docxPath, template);
+
+            // 验证样式定义（而非内联属性）
+            using (var doc = WordprocessingDocument.Open(docxPath, false))
+            {
+                var stylesPart = doc.MainDocumentPart!.StyleDefinitionsPart;
+                Assert.NotNull(stylesPart);
+                var styles = stylesPart.Styles;
+                Assert.NotNull(styles);
+
+                // Heading1 样式定义：黑体 16pt 加粗居中
+                var heading1Style = styles.Elements<Style>()
+                    .First(s => s.StyleId == "Heading1");
+                var h1RPr = heading1Style.Elements<StyleRunProperties>().First();
+                Assert.Equal("黑体", h1RPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("32", h1RPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
+                Assert.Contains(h1RPr.Elements<Bold>(), b => b != null);
+
+                var h1PPr = heading1Style.Elements<StyleParagraphProperties>().First();
+                Assert.Equal(JustificationValues.Center, h1PPr.Elements<Justification>().First().Val?.Value);
+
+                // Normal（body）样式定义：宋体 12pt
+                var normalStyle = styles.Elements<Style>()
+                    .First(s => s.StyleId == "Normal");
+                var normalRPr = normalStyle.Elements<StyleRunProperties>().First();
+                Assert.Equal("宋体", normalRPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("24", normalRPr.Elements<FontSize>().First().Val?.Value); // 12pt = 24 half-points
+            }
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyAfdStyles_StripsRedundantInline()
+    {
+        var template = CreateTestTemplate();
+        var docxPath = Path.Combine(Path.GetTempPath(), $"strip-test-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, template);
+
+            // 创建一个带有冗余内联属性的 Heading1 段落
+            // 模拟 Pandoc 生成的情况：pStyle="Heading1" 但 Run 上有内联字体/字号
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+
+                var p = new Paragraph();
+                p.AppendChild(new ParagraphProperties(
+                    new ParagraphStyleId { Val = "Heading1" },
+                    new Justification { Val = JustificationValues.Center }));
+
+                var run = new Run(new Text("带内联的标题"));
+                var rPr = new RunProperties();
+                rPr.AppendChild(new RunFonts { Ascii = "黑体", EastAsia = "黑体", HighAnsi = "黑体" });
+                rPr.AppendChild(new FontSize { Val = "32" });
+                rPr.AppendChild(new FontSizeComplexScript { Val = "32" });
+                rPr.AppendChild(new Bold());
+                run.AppendChild(rPr);
+                p.AppendChild(run);
+                body.AppendChild(p);
+
+                // 正文段落中有一个用户有意加粗的 Run
+                var bodyP = new Paragraph();
+                bodyP.AppendChild(new ParagraphProperties(
+                    new ParagraphStyleId { Val = "Normal" },
+                    new Indentation { FirstLine = "480" }));
+                var normalRun = new Run(new Text("正常文本"));
+                normalRun.AppendChild(new RunProperties(
+                    new RunFonts { Ascii = "宋体", EastAsia = "宋体", HighAnsi = "宋体" },
+                    new FontSize { Val = "24" }));
+                bodyP.AppendChild(normalRun);
+                var boldRun = new Run(new Text("用户加粗"));
+                boldRun.AppendChild(new RunProperties(new Bold()));
+                bodyP.AppendChild(boldRun);
+                body.AppendChild(bodyP);
+
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            OpenXmlStyleCorrector.ApplyAfdStyles(docxPath, template);
+
+            using (var doc = WordprocessingDocument.Open(docxPath, false))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+
+                // Heading1 段落的 Run 不应有冗余字体/字号内联
+                var heading = body.Descendants<Paragraph>()
+                    .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Heading1");
+                var headingRun = heading.Elements<Run>().First();
+                // 字体和字号内联应被清除（样式定义中已有）
+                Assert.Empty(headingRun.RunProperties?.Elements<RunFonts>() ?? []);
+                Assert.Empty(headingRun.RunProperties?.Elements<FontSize>() ?? []);
+
+                // heading1.Bold==true，Bold 也应被移除
+                Assert.Empty(headingRun.RunProperties?.Elements<Bold>() ?? []);
+
+                // Normal 段落中，字体/字号内联应被清除
+                var normalPara = body.Descendants<Paragraph>()
+                    .First(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Normal");
+                var normalRuns = normalPara.Elements<Run>().ToList();
+                var firstRun = normalRuns[0];
+                Assert.Empty(firstRun.RunProperties?.Elements<RunFonts>() ?? []);
+                Assert.Empty(firstRun.RunProperties?.Elements<FontSize>() ?? []);
+
+                // 但用户有意的行内加粗应保留（body 样式的 Bold 不是 true）
+                var secondRun = normalRuns[1];
+                Assert.NotNull(secondRun.RunProperties);
+                Assert.NotEmpty(secondRun.RunProperties.Elements<Bold>());
             }
         }
         finally
@@ -773,6 +939,66 @@ public class PandocPipelineTests
         {
             SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
+
+    [Fact]
+    public async Task ToDocxAsync_Blockquote_AppliesBlockquoteStyle()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown("# 标题\n\n> 这是引用块内容\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"bq-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+            Assert.True(File.Exists(docxPath));
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var body = doc.MainDocumentPart!.Document.Body!;
+
+            // Lua filter 将 BlockQuote 包裹在 custom-style="Blockquote" 的 Div 中，
+            // Pandoc DOCX writer 会输出 pStyle="Blockquote" 的段落
+            var paragraphs = body.Descendants<Paragraph>().ToList();
+            var bqParagraph = paragraphs.FirstOrDefault(p =>
+                p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "Blockquote");
+            Assert.NotNull(bqParagraph);
+            Assert.Contains("引用块内容", bqParagraph.InnerText);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public async Task ToDocxAsync_CodeBlock_AppliesCodeBlockStyle()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown("# 标题\n\n```\nvar x = 1;\n```\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"cb-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+            Assert.True(File.Exists(docxPath));
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var body = doc.MainDocumentPart!.Document.Body!;
+
+            // Lua filter 将 CodeBlock 转为 Para 并包裹在 custom-style="CodeBlock" 的 Div 中，
+            // Pandoc DOCX writer 输出 pStyle="CodeBlock" 的段落
+            var paragraphs = body.Descendants<Paragraph>().ToList();
+            var cbParagraph = paragraphs.FirstOrDefault(p =>
+                p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "CodeBlock");
+            Assert.NotNull(cbParagraph);
+            Assert.Contains("var x = 1;", cbParagraph.InnerText);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
         }
     }
 

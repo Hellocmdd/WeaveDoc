@@ -16,4 +16,10 @@
     <EmbeddedResource Include="Config\TemplateSchemas\**\*.json" />
   </ItemGroup>
 
+  <Import Project="..\..\tools\DownloadExternalTools.targets" />
+  <ItemGroup>
+    <Content Include="..\..\tools\pandoc\**\*" LinkBase="tools\pandoc" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\tools\tectonic\**\*" LinkBase="tools\tectonic" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

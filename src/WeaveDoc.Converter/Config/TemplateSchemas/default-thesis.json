@@ -34,12 +34,85 @@
       "spaceAfter": 12,
       "lineSpacing": 1.5
     },
+    "heading3": {
+      "displayName": "标题 3",
+      "fontFamily": "黑体",
+      "fontSize": 13,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 12,
+      "spaceAfter": 6,
+      "lineSpacing": 1.5
+    },
+    "heading4": {
+      "displayName": "标题 4",
+      "fontFamily": "黑体",
+      "fontSize": 12,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 12,
+      "spaceAfter": 6,
+      "lineSpacing": 1.5
+    },
+    "heading5": {
+      "displayName": "标题 5",
+      "fontFamily": "黑体",
+      "fontSize": 12,
+      "bold": true,
+      "italic": true,
+      "alignment": "left",
+      "spaceBefore": 6,
+      "spaceAfter": 3,
+      "lineSpacing": 1.5
+    },
+    "heading6": {
+      "displayName": "标题 6",
+      "fontFamily": "黑体",
+      "fontSize": 12,
+      "italic": true,
+      "alignment": "left",
+      "spaceBefore": 6,
+      "spaceAfter": 3,
+      "lineSpacing": 1.5
+    },
     "body": {
       "displayName": "正文",
       "fontFamily": "宋体",
       "fontSize": 12,
       "firstLineIndent": 24,
       "lineSpacing": 1.5
+    },
+    "blockquote": {
+      "displayName": "引用块",
+      "fontFamily": "宋体",
+      "fontSize": 12,
+      "lineSpacing": 1.5
+    },
+    "list": {
+      "displayName": "列表段落",
+      "fontFamily": "宋体",
+      "fontSize": 12,
+      "lineSpacing": 1.5
+    },
+    "codeblock": {
+      "displayName": "代码块",
+      "fontFamily": "Consolas",
+      "fontSize": 10,
+      "lineSpacing": 1.0
+    }
+  },
+  "headerFooter": {
+    "header": {
+      "text": "学位论文",
+      "fontFamily": "宋体",
+      "fontSize": 10.5,
+      "alignment": "center"
+    },
+    "footer": {
+      "pageNumbering": true,
+      "format": "arabic",
+      "alignment": "center",
+      "startPage": 1
     }
   }
 }
