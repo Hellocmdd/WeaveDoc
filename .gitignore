@@ -31,3 +31,4 @@ packages/
 *.log
 .claude/
 docs/superpowers/
+docs/待优化项清单.md

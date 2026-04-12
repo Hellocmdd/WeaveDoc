@@ -86,6 +86,12 @@ public class PandocPipeline
         if (luaFilter != null)
             args.AddRange(new[] { "--lua-filter", Quote(luaFilter) });
 
+        // 自动发现并附加 Lua Filters（custom-style 注入等）
+        foreach (var filter in DiscoverLuaFilters())
+        {
+            args.AddRange(new[] { "--lua-filter", Quote(filter) });
+        }
+
         return await RunAsync(args, ct);
     }
 
@@ -173,6 +179,42 @@ public class PandocPipeline
             throw new Exception($"Pandoc 退出码 {process.ExitCode}: {stderr}");
 
         return stdout;
+    }
+
+    /// <summary>
+    /// 自动发现 LuaFilters 目录下的所有 .lua 文件
+    /// </summary>
+    private static List<string> DiscoverLuaFilters()
+    {
+        var filters = new List<string>();
+
+        // 1. 构建输出目录下的 LuaFilters
+        var filterDir = Path.Combine(AppContext.BaseDirectory, "LuaFilters");
+        if (!Directory.Exists(filterDir))
+        {
+            // 2. 从 BaseDirectory 向上查找（开发时定位源码目录）
+            var dir = AppContext.BaseDirectory;
+            while (dir != null)
+            {
+                var candidate = Path.Combine(dir, "src", "WeaveDoc.Converter", "Pandoc", "LuaFilters");
+                if (Directory.Exists(candidate))
+                {
+                    filterDir = candidate;
+                    break;
+                }
+                dir = Directory.GetParent(dir)?.FullName;
+            }
+        }
+
+        if (Directory.Exists(filterDir))
+        {
+            foreach (var luaFile in Directory.GetFiles(filterDir, "*.lua"))
+            {
+                filters.Add(luaFile);
+            }
+        }
+
+        return filters;
     }
 
     private static string Quote(string path) =>

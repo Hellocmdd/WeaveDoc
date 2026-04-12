@@ -14,35 +14,161 @@ public static class OpenXmlStyleCorrector
     private const double MmToTwips = 1440.0 / 25.4; // ≈ 56.693
 
     /// <summary>
-    /// 遍历文档中所有段落，根据其 styleId 查找对应 AFD 样式，
-    /// 将字体、字号等属性直接写入每个 Run 的 RunProperties。
+    /// 遍历模板样式，将 AFD 属性写入文档的样式定义（styles.xml），
+    /// 并清除匹配段落中与样式定义重复的内联属性。
     /// </summary>
     public static void ApplyAfdStyles(string docxPath, AfdTemplate template)
     {
         using var doc = WordprocessingDocument.Open(docxPath, true);
-        var body = doc.MainDocumentPart!.Document.Body!;
+        var mainPart = doc.MainDocumentPart!;
 
+        // Phase 1: 将 AFD 属性写入样式定义
+        WriteStyleDefinitions(mainPart, template);
+
+        // Phase 2 & 3: 清除冗余内联属性，保留用户有意的行内格式
+        StripRedundantInline(mainPart.Document.Body!, template);
+
+        mainPart.Document.Save();
+    }
+
+    /// <summary>
+    /// 将 AFD 模板中的样式属性写入 StyleDefinitionsPart 中的 Style 元素
+    /// </summary>
+    private static void WriteStyleDefinitions(MainDocumentPart mainPart, AfdTemplate template)
+    {
+        var stylesPart = mainPart.StyleDefinitionsPart
+            ?? mainPart.AddNewPart<StyleDefinitionsPart>();
+
+        if (stylesPart.Styles == null)
+            stylesPart.Styles = new Styles();
+
+        var styles = stylesPart.Styles;
+
+        foreach (var (afdKey, styleDef) in template.Styles)
+        {
+            var styleId = AfdStyleMapper.MapToOpenXmlStyleId(afdKey);
+
+            // 查找或创建 Style 元素
+            var style = styles.Elements<Style>()
+                .FirstOrDefault(s => s.StyleId == styleId);
+
+            if (style == null)
+            {
+                style = new Style
+                {
+                    Type = StyleValues.Paragraph,
+                    StyleId = styleId
+                };
+                style.AppendChild(new StyleName { Val = styleDef.DisplayName ?? afdKey });
+                styles.AppendChild(style);
+            }
+
+            // 清除旧的 StyleRunProperties 和 StyleParagraphProperties
+            style.RemoveAllChildren<StyleRunProperties>();
+            style.RemoveAllChildren<StyleParagraphProperties>();
+
+            // 写入字符属性
+            ApplyStyleRunProperties(style, styleDef);
+
+            // 写入段落属性
+            ApplyStyleParagraphProperties(style, styleDef);
+        }
+    }
+
+    private static void ApplyStyleRunProperties(Style style, AfdStyleDefinition styleDef)
+    {
+        var rPr = new StyleRunProperties();
+
+        if (styleDef.FontFamily != null)
+            rPr.AppendChild(CreateRunFonts(styleDef.FontFamily));
+
+        if (styleDef.FontSize != null)
+        {
+            var hp = ((int)(styleDef.FontSize.Value * 2)).ToString();
+            rPr.AppendChild(new FontSize { Val = hp });
+            rPr.AppendChild(new FontSizeComplexScript { Val = hp });
+        }
+
+        if (styleDef.Bold == true)
+            rPr.AppendChild(new Bold());
+
+        if (styleDef.Italic == true)
+            rPr.AppendChild(new Italic());
+
+        if (rPr.HasChildren)
+            style.AppendChild(rPr);
+    }
+
+    private static void ApplyStyleParagraphProperties(Style style, AfdStyleDefinition styleDef)
+    {
+        var pPr = new StyleParagraphProperties();
+
+        if (styleDef.Alignment != null)
+            pPr.AppendChild(CreateJustification(styleDef.Alignment));
+
+        if (styleDef.SpaceBefore != null || styleDef.SpaceAfter != null || styleDef.LineSpacing != null)
+            pPr.AppendChild(CreateSpacing(styleDef));
+
+        if (styleDef.FirstLineIndent != null || styleDef.HangingIndent != null)
+            pPr.AppendChild(CreateIndentation(styleDef));
+
+        if (pPr.HasChildren)
+            style.AppendChild(pPr);
+    }
+
+    /// <summary>
+    /// 清除与样式定义重复的内联属性：
+    /// - 字体、字号：始终从内联中移除（已写入样式定义）
+    /// - Bold：仅当样式定义中 Bold==true 时移除
+    /// - Italic：仅当样式定义中 Italic==true 时移除
+    /// 保留用户有意的行内格式（如正文中的加粗/斜体）
+    /// </summary>
+    private static void StripRedundantInline(Body body, AfdTemplate template)
+    {
         foreach (var paragraph in body.Descendants<Paragraph>())
         {
             var pPr = paragraph.GetFirstChild<ParagraphProperties>();
             var styleId = pPr?.ParagraphStyleId?.Val?.Value;
             if (styleId == null) continue;
 
-            // 将 OpenXML styleId 反向映射为 AFD 样式键
             var afdKey = AfdStyleMapper.MapToAfdStyleKey(styleId);
             if (afdKey == null || !template.Styles.TryGetValue(afdKey, out var styleDef)) continue;
 
-            // 应用段落属性（对齐、间距、缩进）
-            ApplyParagraphProperties(paragraph, pPr!, styleDef);
+            // 清除段落级冗余内联属性
+            if (pPr != null)
+            {
+                if (styleDef.Alignment != null)
+                    pPr.RemoveAllChildren<Justification>();
+                if (styleDef.SpaceBefore != null || styleDef.SpaceAfter != null || styleDef.LineSpacing != null)
+                    pPr.RemoveAllChildren<SpacingBetweenLines>();
+                if (styleDef.FirstLineIndent != null || styleDef.HangingIndent != null)
+                    pPr.RemoveAllChildren<Indentation>();
+            }
 
-            // 将字符属性写入每个 Run
+            // 清除 Run 级冗余内联属性
             foreach (var run in paragraph.Elements<Run>())
             {
-                ApplyRunProperties(run, styleDef);
+                var rPr = run.RunProperties;
+                if (rPr == null) continue;
+
+                // 字体和字号：始终移除（已写入样式定义）
+                rPr.RemoveAllChildren<RunFonts>();
+                rPr.RemoveAllChildren<FontSize>();
+                rPr.RemoveAllChildren<FontSizeComplexScript>();
+
+                // Bold：仅当样式定义要求加粗时移除
+                if (styleDef.Bold == true)
+                    rPr.RemoveAllChildren<Bold>();
+
+                // Italic：仅当样式定义要求斜体时移除
+                if (styleDef.Italic == true)
+                    rPr.RemoveAllChildren<Italic>();
+
+                // 如果 RunProperties 变空了，移除整个元素
+                if (!rPr.HasChildren)
+                    rPr.Remove();
             }
         }
-
-        doc.MainDocumentPart.Document.Save();
     }
 
     /// <summary>
@@ -183,112 +309,6 @@ public static class OpenXmlStyleCorrector
     }
 
     #region Private helpers
-
-    private static void ApplyParagraphProperties(Paragraph paragraph, ParagraphProperties pPr, AfdStyleDefinition styleDef)
-    {
-        if (styleDef.Alignment != null)
-        {
-            var justification = pPr.GetFirstChild<Justification>();
-            if (justification == null)
-            {
-                justification = CreateJustification(styleDef.Alignment);
-                pPr.AppendChild(justification);
-            }
-            else
-            {
-                justification.Val = CreateJustification(styleDef.Alignment).Val;
-            }
-        }
-
-        if (styleDef.SpaceBefore != null || styleDef.SpaceAfter != null || styleDef.LineSpacing != null)
-        {
-            var spacing = pPr.GetFirstChild<SpacingBetweenLines>();
-            if (spacing == null)
-            {
-                spacing = CreateSpacing(styleDef);
-                pPr.AppendChild(spacing);
-            }
-            else
-            {
-                if (styleDef.SpaceBefore != null)
-                    spacing.Before = ((int)(styleDef.SpaceBefore.Value * 20)).ToString();
-                if (styleDef.SpaceAfter != null)
-                    spacing.After = ((int)(styleDef.SpaceAfter.Value * 20)).ToString();
-                if (styleDef.LineSpacing != null)
-                {
-                    spacing.Line = ((int)(styleDef.LineSpacing.Value * 240)).ToString();
-                    spacing.LineRule = LineSpacingRuleValues.Auto;
-                }
-            }
-        }
-
-        if (styleDef.FirstLineIndent != null || styleDef.HangingIndent != null)
-        {
-            var indent = pPr.GetFirstChild<Indentation>();
-            if (indent == null)
-            {
-                indent = CreateIndentation(styleDef);
-                pPr.AppendChild(indent);
-            }
-            else
-            {
-                if (styleDef.FirstLineIndent != null)
-                    indent.FirstLine = ((int)(styleDef.FirstLineIndent.Value * 20)).ToString();
-                if (styleDef.HangingIndent != null)
-                    indent.Hanging = ((int)(styleDef.HangingIndent.Value * 20)).ToString();
-            }
-        }
-    }
-
-    private static void ApplyRunProperties(Run run, AfdStyleDefinition styleDef)
-    {
-        var rPr = run.GetFirstChild<RunProperties>() ?? run.AppendChild(new RunProperties());
-
-        if (styleDef.FontFamily != null)
-        {
-            var fonts = rPr.GetFirstChild<RunFonts>();
-            if (fonts == null)
-            {
-                fonts = CreateRunFonts(styleDef.FontFamily);
-                rPr.AppendChild(fonts);
-            }
-            else
-            {
-                fonts.Ascii = styleDef.FontFamily;
-                fonts.EastAsia = styleDef.FontFamily;
-                fonts.HighAnsi = styleDef.FontFamily;
-            }
-        }
-
-        if (styleDef.FontSize != null)
-        {
-            var hp = ((int)(styleDef.FontSize.Value * 2)).ToString();
-            var fontSize = rPr.GetFirstChild<FontSize>();
-            if (fontSize == null)
-            {
-                rPr.AppendChild(new FontSize { Val = hp });
-            }
-            else
-            {
-                fontSize.Val = hp;
-            }
-            var fontSizeCs = rPr.GetFirstChild<FontSizeComplexScript>();
-            if (fontSizeCs == null)
-            {
-                rPr.AppendChild(new FontSizeComplexScript { Val = hp });
-            }
-            else
-            {
-                fontSizeCs.Val = hp;
-            }
-        }
-
-        if (styleDef.Bold == true && rPr.GetFirstChild<Bold>() == null)
-            rPr.AppendChild(new Bold());
-
-        if (styleDef.Italic == true && rPr.GetFirstChild<Italic>() == null)
-            rPr.AppendChild(new Italic());
-    }
 
     private static Justification CreateJustification(string alignment) => alignment switch
     {
