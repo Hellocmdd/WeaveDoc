@@ -114,6 +114,11 @@ public class ConvertTabTests : IDisposable
         var engine = new DocumentConversionEngine(pipeline, _configManager);
         tab.SetServices(_configManager, engine);
 
+        // Get the first template name for expected output path
+        var templates = await _configManager.ListTemplatesAsync();
+        Assert.NotEmpty(templates);
+        var templateName = templates[0].TemplateName;
+
         // Create a test Markdown file
         var mdPath = Path.Combine(_tempDir, "test.md");
         await File.WriteAllTextAsync(mdPath, "# 测试标题\n\n正文内容\n");
@@ -138,7 +143,7 @@ public class ConvertTabTests : IDisposable
         });
 
         // Wait for the async void handler to complete and produce output
-        var outputFile = Path.Combine(outputDir, "test-docx.docx");
+        var outputFile = Path.Combine(outputDir, $"test-{templateName}.docx");
         var waited = 0;
         while (!File.Exists(outputFile) && waited < 10000)
         {
