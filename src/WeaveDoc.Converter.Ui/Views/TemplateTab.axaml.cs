@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ namespace WeaveDoc.Converter.Ui.Views;
 public partial class TemplateTab : UserControl
 {
     private ConfigManager? _configManager;
+    private string? _pendingDeleteId;
 
     public TemplateTab()
     {
@@ -63,15 +65,28 @@ public partial class TemplateTab : UserControl
         var file = files.FirstOrDefault();
         if (file == null) return;
 
-        await using var stream = await file.OpenReadAsync();
-        using var reader = new StreamReader(stream);
-        var json = await reader.ReadToEndAsync();
+        try
+        {
+            await using var stream = await file.OpenReadAsync();
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
 
-        var template = new AfdParser().ParseJson(json);
-        var templateId = Path.GetFileNameWithoutExtension(file.Name);
+            var parser = new AfdParser();
+            var template = parser.ParseJson(json);
+            parser.Validate(template);
 
-        await _configManager.SaveTemplateAsync(templateId, template);
-        await LoadTemplatesAsync();
+            var templateId = Path.GetFileNameWithoutExtension(file.Name);
+            await _configManager.SaveTemplateAsync(templateId, template);
+            await LoadTemplatesAsync();
+        }
+        catch (AfdParseException ex)
+        {
+            StatusBar.Text = $"导入失败: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            StatusBar.Text = $"导入失败: {ex.Message}";
+        }
     }
 
     private async void OnDelete(object? sender, RoutedEventArgs e)
@@ -81,6 +96,14 @@ public partial class TemplateTab : UserControl
         var selected = TemplateGrid.SelectedItem as AfdMeta;
         if (selected == null) return;
 
+        if (_pendingDeleteId != selected.TemplateId)
+        {
+            _pendingDeleteId = selected.TemplateId;
+            StatusBar.Text = $"再次点击删除以确认: {selected.TemplateName}";
+            return;
+        }
+
+        _pendingDeleteId = null;
         await _configManager.DeleteTemplateAsync(selected.TemplateId);
         await LoadTemplatesAsync();
     }
