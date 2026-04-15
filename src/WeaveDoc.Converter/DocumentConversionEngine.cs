@@ -59,7 +59,7 @@ public class DocumentConversionEngine
             var ext = outputFormat.ToLowerInvariant();
             var outputPath = Path.Combine(
                 Path.GetDirectoryName(markdownPath) ?? "",
-                $"{Path.GetFileNameWithoutExtension(markdownPath)}-{ext}.{ext}");
+                $"{Path.GetFileNameWithoutExtension(markdownPath)}-{template.Meta.TemplateName}.{ext}");
             if (string.Equals(outputFormat, "docx", StringComparison.OrdinalIgnoreCase))
             {
                 File.Copy(rawDocxPath, outputPath, overwrite: true);
