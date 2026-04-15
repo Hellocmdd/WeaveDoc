@@ -56,7 +56,10 @@ public class DocumentConversionEngine
                 OpenXmlStyleCorrector.ApplyHeaderFooter(rawDocxPath, template.HeaderFooter);
 
             // Step 4: 输出
-            var outputPath = Path.ChangeExtension(markdownPath, outputFormat);
+            var ext = outputFormat.ToLowerInvariant();
+            var outputPath = Path.Combine(
+                Path.GetDirectoryName(markdownPath) ?? "",
+                $"{Path.GetFileNameWithoutExtension(markdownPath)}-{ext}.{ext}");
             if (string.Equals(outputFormat, "docx", StringComparison.OrdinalIgnoreCase))
             {
                 File.Copy(rawDocxPath, outputPath, overwrite: true);
