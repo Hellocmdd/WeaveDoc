@@ -479,7 +479,7 @@ public class PandocPipelineTests
             finally
             {
                 File.Delete(mdPath);
-                var docxCleanup = Path.Combine(Path.GetDirectoryName(mdPath)!, $"{Path.GetFileNameWithoutExtension(mdPath)}-docx.docx");
+                var docxCleanup = Path.Combine(Path.GetDirectoryName(mdPath)!, $"{Path.GetFileNameWithoutExtension(mdPath)}-测试模板.docx");
                 if (File.Exists(docxCleanup))
                     File.Delete(docxCleanup);
             }
@@ -932,7 +932,7 @@ public class PandocPipelineTests
             finally
             {
                 File.Delete(mdPath);
-                var pdfCleanup = Path.Combine(Path.GetDirectoryName(mdPath)!, $"{Path.GetFileNameWithoutExtension(mdPath)}-pdf.pdf");
+                var pdfCleanup = Path.Combine(Path.GetDirectoryName(mdPath)!, $"{Path.GetFileNameWithoutExtension(mdPath)}-测试模板.pdf");
                 if (File.Exists(pdfCleanup))
                     File.Delete(pdfCleanup);
             }
