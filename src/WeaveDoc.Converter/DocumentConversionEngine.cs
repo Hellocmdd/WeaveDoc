@@ -57,11 +57,11 @@ public class DocumentConversionEngine
 
             // Step 4: 输出
             var outputPath = Path.ChangeExtension(markdownPath, outputFormat);
-            if (outputFormat == "docx")
+            if (string.Equals(outputFormat, "docx", StringComparison.OrdinalIgnoreCase))
             {
                 File.Copy(rawDocxPath, outputPath, overwrite: true);
             }
-            else if (outputFormat == "pdf")
+            else if (string.Equals(outputFormat, "pdf", StringComparison.OrdinalIgnoreCase))
             {
                 var font = template.Defaults.FontFamily;
                 await _pandoc.FromDocxToPdfAsync(rawDocxPath, outputPath, font, font, font, ct);
@@ -79,7 +79,7 @@ public class DocumentConversionEngine
             {
                 Success = true,
                 OutputPath = outputPath,
-                Format = outputFormat
+                Format = outputFormat.ToLowerInvariant()
             };
         }
         catch (Exception ex)
