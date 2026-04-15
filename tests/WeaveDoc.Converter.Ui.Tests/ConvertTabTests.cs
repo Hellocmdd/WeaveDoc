@@ -138,7 +138,7 @@ public class ConvertTabTests : IDisposable
         });
 
         // Wait for the async void handler to complete and produce output
-        var outputFile = Path.Combine(outputDir, "test.docx");
+        var outputFile = Path.Combine(outputDir, "test-docx.docx");
         var waited = 0;
         while (!File.Exists(outputFile) && waited < 10000)
         {

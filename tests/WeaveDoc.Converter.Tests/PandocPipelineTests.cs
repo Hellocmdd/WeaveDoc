@@ -479,8 +479,9 @@ public class PandocPipelineTests
             finally
             {
                 File.Delete(mdPath);
-                if (File.Exists(Path.ChangeExtension(mdPath, "docx")))
-                    File.Delete(Path.ChangeExtension(mdPath, "docx"));
+                var docxCleanup = Path.Combine(Path.GetDirectoryName(mdPath)!, $"{Path.GetFileNameWithoutExtension(mdPath)}-docx.docx");
+                if (File.Exists(docxCleanup))
+                    File.Delete(docxCleanup);
             }
         }
         finally
@@ -931,8 +932,9 @@ public class PandocPipelineTests
             finally
             {
                 File.Delete(mdPath);
-                if (File.Exists(Path.ChangeExtension(mdPath, "pdf")))
-                    File.Delete(Path.ChangeExtension(mdPath, "pdf"));
+                var pdfCleanup = Path.Combine(Path.GetDirectoryName(mdPath)!, $"{Path.GetFileNameWithoutExtension(mdPath)}-pdf.pdf");
+                if (File.Exists(pdfCleanup))
+                    File.Delete(pdfCleanup);
             }
         }
         finally

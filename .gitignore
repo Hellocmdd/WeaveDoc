@@ -22,6 +22,7 @@ tools/tectonic/
 ## Test artifacts
 tools/test_output.docx
 tools/docx_inspect/
+tests/test-output/
 
 ## NuGet
 *.nupkg
