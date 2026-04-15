@@ -69,6 +69,7 @@ internal class TemplateRepository
         {
             return new AfdMeta
             {
+                TemplateId = reader.GetString(0),
                 TemplateName = reader.GetString(1),
                 Version = reader.GetString(2),
                 Author = reader.GetString(3),
