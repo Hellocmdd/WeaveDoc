@@ -875,8 +875,11 @@ public class PandocPipelineTests
     }
 
     [Fact]
-    public async Task FromDocxToPdfAsync_WithDocxInput_ProducesPdf()
+    public async Task SyncfusionPdfConverter_ConvertToPdf_ProducesPdf()
     {
+        Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(
+            "Ngo9BigBOggjHTQxAR8/V1JHaF5cWWdCekx0Rnxbf1x2ZFFMY15bRXFPMyBoS35RcEVnWHledHdXR2dYVkZyVEFe");
+
         var pipeline = CreatePipeline();
         var mdPath = CreateTempMarkdown("# PDF测试\n\n从DOCX生成PDF。\n");
         var docxPath = Path.Combine(Path.GetTempPath(), $"pdf-src-{Guid.NewGuid():N}.docx");
@@ -887,8 +890,8 @@ public class PandocPipelineTests
             await pipeline.ToDocxAsync(mdPath, docxPath);
             Assert.True(File.Exists(docxPath));
 
-            await pipeline.FromDocxToPdfAsync(docxPath, pdfPath,
-                mainFont: "SimSun", cjkMainFont: "SimSun", monoFont: "SimSun");
+            var converter = new SyncfusionPdfConverter();
+            converter.ConvertToPdf(docxPath, pdfPath);
 
             AssertIsPdf(pdfPath);
         }
@@ -1084,5 +1087,41 @@ public class PandocPipelineTests
         stream.Read(header, 0, 5);
         var magic = System.Text.Encoding.ASCII.GetString(header);
         Assert.Equal("%PDF-", magic);
+    }
+
+    /// <summary>
+    /// Demo: 用 Syncfusion DocIO 将 test-full.md 转为 PDF，输出到 tests/test-output/
+    /// </summary>
+    [Fact]
+    public async Task Syncfusion_Demo_TestFull_ToPdf()
+    {
+        var root = FindSolutionRoot();
+        var mdPath = Path.Combine(root, "tests", "test-full.md");
+        Assert.True(File.Exists(mdPath), $"测试文件不存在: {mdPath}");
+
+        var outputDir = Path.Combine(root, "tests", "test-output");
+        Directory.CreateDirectory(outputDir);
+
+        var docxPath = Path.Combine(outputDir, "test-full-syncfusion.docx");
+        var pdfPath = Path.Combine(outputDir, "test-full-syncfusion.pdf");
+
+        // Step 1: MD → DOCX (Pandoc + OpenXML 样式修正)
+        var pipeline = CreatePipeline();
+        await pipeline.ToDocxAsync(mdPath, docxPath);
+        Assert.True(File.Exists(docxPath), $"DOCX 未生成: {docxPath}");
+        Console.WriteLine($"[Demo] DOCX: {docxPath} ({new FileInfo(docxPath).Length} bytes)");
+
+        // Step 2: Syncfusion DocIO → PDF
+        Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(
+            "Ngo9BigBOggjHTQxAR8/V1JHaF5cWWdCekx0Rnxbf1x2ZFFMY15bRXFPMyBoS35RcEVnWHledHdXR2dYVkZyVEFe");
+        using var wordDoc = new Syncfusion.DocIO.DLS.WordDocument(docxPath);
+        using var renderer = new Syncfusion.DocIORenderer.DocIORenderer();
+        using var pdfDoc = renderer.ConvertToPDF(wordDoc);
+        pdfDoc.Save(pdfPath);
+
+        // Step 3: 验证
+        AssertIsPdf(pdfPath);
+        Console.WriteLine($"[Demo] PDF:  {pdfPath} ({new FileInfo(pdfPath).Length} bytes)");
+        Console.WriteLine("[Demo] 转换完成，请手动打开 PDF 检查样式");
     }
 }
