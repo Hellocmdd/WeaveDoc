@@ -60,6 +60,16 @@ public static class ReferenceDocBuilder
                 pPr.Append(CreateSpacing(styleDef));
             if (styleDef.FirstLineIndent != null || styleDef.HangingIndent != null)
                 pPr.Append(CreateIndentation(styleDef));
+            if (styleId == "CodeBlock")
+            {
+                pPr.AppendChild(new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = "F2F2F2" });
+                pPr.AppendChild(new ParagraphBorders(
+                    new TopBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" },
+                    new BottomBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" },
+                    new LeftBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" },
+                    new RightBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" }
+                ));
+            }
             style.Append(pPr);
 
             // 字符属性
