@@ -1004,6 +1004,76 @@ public class PandocPipelineTests
         }
     }
 
+    [Fact]
+    public async Task DocumentConversionEngine_CodeBlock_ProducesDocxWithContent()
+    {
+        var root = FindSolutionRoot();
+        var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
+        var tectonicDir = Path.Combine(root, "tools", "tectonic");
+
+        var dbPath = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid():N}", "test.db");
+        Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+        var configManager = new ConfigManager(dbPath);
+        await configManager.EnsureSeedTemplatesAsync();
+
+        var pipeline = new PandocPipeline(pandocPath, tectonicDir);
+        var engine = new DocumentConversionEngine(pipeline, configManager);
+
+        var mdContent = "# 测试标题\n\n正文段落\n\n```python\nprint(\"hello\")\nx = 42\n```\n\n更多正文\n";
+        var mdPath = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid():N}.md");
+        File.WriteAllText(mdPath, mdContent);
+
+        ConversionResult? result = null;
+        try
+        {
+            var templates = await configManager.ListTemplatesAsync();
+            Assert.NotEmpty(templates);
+            result = await engine.ConvertAsync(mdPath, templates[0].TemplateId, "docx");
+
+            Assert.True(result.Success, $"Conversion failed: {result.ErrorMessage}");
+            Assert.True(File.Exists(result.OutputPath), $"Output file not found: {result.OutputPath}");
+
+            using var doc = WordprocessingDocument.Open(result.OutputPath, false);
+            var body = doc.MainDocumentPart!.Document.Body!;
+            var allText = body.InnerText;
+
+            // Check code block content exists
+            Assert.Contains("print(\"hello\")", allText);
+            Assert.Contains("x = 42", allText);
+
+            // Check CodeBlock paragraph exists
+            var cbParagraph = body.Descendants<Paragraph>()
+                .FirstOrDefault(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value == "CodeBlock");
+            Assert.True(cbParagraph != null, $"No CodeBlock paragraph found. All styles: {string.Join(", ", body.Descendants<Paragraph>().Select(p => p.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId?.Val?.Value ?? "(none)").Distinct())}");
+
+            // 验证 CodeBlock 样式包含灰色背景和边框
+            var stylesPart = doc.MainDocumentPart.StyleDefinitionsPart;
+            Assert.NotNull(stylesPart);
+            var cbStyle = stylesPart.Styles!.Elements<Style>()
+                .FirstOrDefault(s => s.StyleId == "CodeBlock");
+            Assert.NotNull(cbStyle);
+
+            var cbPPr = cbStyle.StyleParagraphProperties;
+            Assert.NotNull(cbPPr);
+
+            var shading = cbPPr.Shading;
+            Assert.NotNull(shading);
+            Assert.Equal("F2F2F2", shading.Fill?.Value);
+
+            var borders = cbPPr.ParagraphBorders;
+            Assert.NotNull(borders);
+            Assert.NotNull(borders.TopBorder);
+            Assert.Equal("BFBFBF", borders.TopBorder.Color?.Value);
+            Assert.Equal(BorderValues.Single, borders.TopBorder.Val?.Value);
+        }
+        finally
+        {
+            try { File.Delete(mdPath); } catch { }
+            try { if (File.Exists(result?.OutputPath ?? "")) File.Delete(result!.OutputPath); } catch { }
+            try { Directory.Delete(Path.GetDirectoryName(dbPath)!, true); } catch { }
+        }
+    }
+
     private static void AssertIsPdf(string path)
     {
         Assert.True(File.Exists(path), $"PDF 文件不存在: {path}");

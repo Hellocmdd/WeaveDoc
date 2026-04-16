@@ -23,7 +23,7 @@ tools/tectonic/
 tools/test_output.docx
 tools/docx_inspect/
 tests/test-output/
-
+_debug/
 ## NuGet
 *.nupkg
 packages/
@@ -32,4 +32,5 @@ packages/
 *.log
 .claude/
 docs/superpowers/
+.superpowers/
 docs/待优化项清单.md
