@@ -101,7 +101,7 @@ WeaveDoc.Converter.Ui/
 ### 启动流程（Program.cs）
 
 1. 初始化 SQLite 数据库（`data/weavedoc.db`）
-2. 创建 `ConfigManager` + `PandocPipeline` + `DocumentConversionEngine`
+2. 创建 `ConfigManager` + `PandocPipeline` + `SyncfusionPdfConverter` + `DocumentConversionEngine`
 3. 执行 `EnsureSeedTemplatesAsync()`，发现内置模板
 4. 启动 Avalonia 应用
 
@@ -110,7 +110,7 @@ WeaveDoc.Converter.Ui/
 ## 快速使用
 
 ```bash
-# 构建（自动下载 Pandoc/Tectonic）
+# 构建（自动下载 Pandoc）
 dotnet build src/WeaveDoc.Converter.Ui
 
 # 运行

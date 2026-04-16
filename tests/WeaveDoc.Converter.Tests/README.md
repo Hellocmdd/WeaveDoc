@@ -81,7 +81,7 @@ WeaveDoc.Converter.Tests/
 | `DocumentConversionEngine_ConvertAsync_MissingTemplate` | 模板不存在时返回错误 |
 | `DocumentConversionEngine_ConvertAsync_UnsupportedFormat` | 不支持的格式返回错误 |
 | `DocumentConversionEngine_ConvertAsync_Pdf` | DCE PDF 端到端 |
-| `FromDocxToPdfAsync_WithDocxInput_ProducesPdf` | DOCX → PDF 生成有效 PDF 文件 |
+| `SyncfusionPdfConverter_ConvertToPdf_ProducesPdf` | Syncfusion DocIO DOCX → PDF 生成有效 PDF 文件 |
 | `ToDocxAsync_Blockquote_AppliesBlockquoteStyle` | Lua Filter 注入 Blockquote 样式 |
 | `ToDocxAsync_CodeBlock_AppliesCodeBlockStyle` | Lua Filter 注入 CodeBlock 样式 |
 
