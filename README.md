@@ -78,12 +78,13 @@ Markdown ──→ [Pandoc + LuaFilters + reference.docx] ──→ raw.docx
                    └── ApplyHeaderFooter        (页眉页脚)
                             │
                             ↓
-                     修正后 DOCX ──→ 输出或经由 Pandoc+Tectonic 生成 PDF
+                     修正后 DOCX ──→ 输出为 DOCX 或由 Syncfusion DocIO 生成 PDF
 ```
 
 | 组件 | 职责 |
 | --- | --- |
-| `PandocPipeline.cs` | Pandoc CLI 封装：ToDocxAsync / FromDocxToPdfAsync / ToAstJsonAsync + Lua Filter 自动发现 |
+| `PandocPipeline.cs` | Pandoc CLI 封装：ToDocxAsync / ToAstJsonAsync + Lua Filter 自动发现 |
+| `SyncfusionPdfConverter.cs` | Syncfusion DocIO 封装：DOCX → PDF（保留全部 OpenXML 样式） |
 | `ReferenceDocBuilder.cs` | AFD 模板 → reference.docx，预置样式定义 |
 | `OpenXmlStyleCorrector.cs` | Docx 后处理：写入样式定义、清除冗余内联、页面设置、页眉页脚 |
 | `LuaFilters/` | Pandoc 运行时自动加载的 Lua 过滤器（blockquote/codeblock 自定义样式注入） |
@@ -142,10 +143,9 @@ WeaveDoc/
 │   ├── WeaveDoc.Converter.Tests/           # 核心库测试（79 个）
 │   └── WeaveDoc.Converter.Ui.Tests/        # Headless UI 测试（6 个）
 ├── tools/
-│   ├── DownloadExternalTools.targets       # MSBuild 自动下载 Pandoc/Tectonic
+│   ├── DownloadExternalTools.targets       # MSBuild 自动下载 Pandoc
 │   ├── setup-tools.ps1                     # 下载脚本
-│   ├── pandoc/                             # Pandoc 二进制（自动下载）
-│   └── tectonic/                           # Tectonic 二进制（自动下载）
+│   └── pandoc/                             # Pandoc 二进制（自动下载）
 └── docs/
     ├── 软件计划项目书/                      # 项目计划书 + 图片
     ├── technical-reference/                 # 技术参考文档
@@ -166,7 +166,7 @@ WeaveDoc/
 | xUnit | 2 | 测试框架 |
 | Avalonia.Headless | 11.* | 无头 UI 测试 |
 | Pandoc | 3.9+ | 底层格式转换引擎（构建时自动下载） |
-| Tectonic | — | XeTeX 渲染引擎，PDF 输出所需（构建时自动下载） |
+| Syncfusion DocIO | 33.1.49 | DOCX→PDF 渲染引擎，保留 OpenXML 样式（社区许可证） |
 
 ---
 
@@ -180,14 +180,14 @@ WeaveDoc/
 ### 构建与运行
 
 ```bash
-# 构建（首次自动下载 Pandoc + Tectonic，约 100MB）
+# 构建（首次自动下载 Pandoc）
 dotnet build
 
 # 运行 UI 应用
 dotnet run --project src/WeaveDoc.Converter.Ui
 ```
 
-Pandoc 和 Tectonic 通过 MSBuild Target 在首次构建时自动下载，无需手动安装。
+Pandoc 通过 MSBuild Target 在首次构建时自动下载，无需手动安装。
 
 ### 运行测试
 
