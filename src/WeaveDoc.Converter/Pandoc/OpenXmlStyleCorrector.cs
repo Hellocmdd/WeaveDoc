@@ -71,7 +71,7 @@ public static class OpenXmlStyleCorrector
             ApplyStyleRunProperties(style, styleDef);
 
             // 写入段落属性
-            ApplyStyleParagraphProperties(style, styleDef);
+            ApplyStyleParagraphProperties(style, styleDef, styleId);
         }
     }
 
@@ -99,7 +99,7 @@ public static class OpenXmlStyleCorrector
             style.AppendChild(rPr);
     }
 
-    private static void ApplyStyleParagraphProperties(Style style, AfdStyleDefinition styleDef)
+    private static void ApplyStyleParagraphProperties(Style style, AfdStyleDefinition styleDef, string styleId)
     {
         var pPr = new StyleParagraphProperties();
 
@@ -111,6 +111,17 @@ public static class OpenXmlStyleCorrector
 
         if (styleDef.FirstLineIndent != null || styleDef.HangingIndent != null)
             pPr.AppendChild(CreateIndentation(styleDef));
+
+        if (styleId == "CodeBlock")
+        {
+            pPr.AppendChild(new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = "F2F2F2" });
+            pPr.AppendChild(new ParagraphBorders(
+                new TopBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" },
+                new BottomBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" },
+                new LeftBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" },
+                new RightBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" }
+            ));
+        }
 
         if (pPr.HasChildren)
             style.AppendChild(pPr);
