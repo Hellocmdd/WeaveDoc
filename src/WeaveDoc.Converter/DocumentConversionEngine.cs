@@ -11,11 +11,13 @@ namespace WeaveDoc.Converter;
 public class DocumentConversionEngine
 {
     private readonly PandocPipeline _pandoc;
+    private readonly SyncfusionPdfConverter _pdfConverter;
     private readonly ConfigManager _configManager;
 
-    public DocumentConversionEngine(PandocPipeline pandoc, ConfigManager configManager)
+    public DocumentConversionEngine(PandocPipeline pandoc, SyncfusionPdfConverter pdfConverter, ConfigManager configManager)
     {
         _pandoc = pandoc;
+        _pdfConverter = pdfConverter;
         _configManager = configManager;
     }
 
@@ -66,8 +68,7 @@ public class DocumentConversionEngine
             }
             else if (string.Equals(outputFormat, "pdf", StringComparison.OrdinalIgnoreCase))
             {
-                var font = template.Defaults.FontFamily;
-                await _pandoc.FromDocxToPdfAsync(rawDocxPath, outputPath, font, font, font, ct);
+                _pdfConverter.ConvertToPdf(rawDocxPath, outputPath);
             }
             else
             {
