@@ -28,8 +28,7 @@ public class PandocPipelineTests
     {
         var root = FindSolutionRoot();
         var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
-        var tectonicDir = Path.Combine(root, "tools", "tectonic");
-        return new PandocPipeline(pandocPath, tectonicDir);
+        return new PandocPipeline(pandocPath);
     }
 
     private static string CreateTempMarkdown(string content)
@@ -448,7 +447,7 @@ public class PandocPipelineTests
             await configManager.SaveTemplateAsync("test-tpl", template);
 
             var pipeline = new PandocPipeline(pandocPath);
-            var engine = new DocumentConversionEngine(pipeline, configManager);
+            var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), configManager);
 
             var mdPath = Path.Combine(Path.GetTempPath(), $"dce-{Guid.NewGuid():N}.md");
             File.WriteAllText(mdPath, "# 测试标题\n\n正文内容。\n");
@@ -502,7 +501,7 @@ public class PandocPipelineTests
         {
             var configManager = new ConfigManager(dbPath);
             var pipeline = new PandocPipeline(pandocPath);
-            var engine = new DocumentConversionEngine(pipeline, configManager);
+            var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), configManager);
 
             var mdPath = Path.Combine(Path.GetTempPath(), $"dce-missing-{Guid.NewGuid():N}.md");
             File.WriteAllText(mdPath, "# 测试\n");
@@ -540,7 +539,7 @@ public class PandocPipelineTests
             await configManager.SaveTemplateAsync("test-tpl", template);
 
             var pipeline = new PandocPipeline(pandocPath);
-            var engine = new DocumentConversionEngine(pipeline, configManager);
+            var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), configManager);
 
             var mdPath = Path.Combine(Path.GetTempPath(), $"dce-unsup-{Guid.NewGuid():N}.md");
             File.WriteAllText(mdPath, "# 测试\n");
@@ -908,17 +907,19 @@ public class PandocPipelineTests
     {
         var root = FindSolutionRoot();
         var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
-        var tectonicDir = Path.Combine(root, "tools", "tectonic");
         var dbPath = Path.Combine(Path.GetTempPath(), $"dce-pdf-{Guid.NewGuid():N}.db");
 
         try
         {
+            Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(
+                "Ngo9BigBOggjHTQxAR8/V1JHaF5cWWdCekx0Rnxbf1x2ZFFMY15bRXFPMyBoS35RcEVnWHledHdXR2dYVkZyVEFe");
+
             var configManager = new ConfigManager(dbPath);
             var template = CreateTestTemplate();
             await configManager.SaveTemplateAsync("test-tpl", template);
 
-            var pipeline = new PandocPipeline(pandocPath, tectonicDir);
-            var engine = new DocumentConversionEngine(pipeline, configManager);
+            var pipeline = new PandocPipeline(pandocPath);
+            var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), configManager);
 
             var mdPath = Path.Combine(Path.GetTempPath(), $"dce-pdf-{Guid.NewGuid():N}.md");
             File.WriteAllText(mdPath, "# PDF测试标题\n\n这是PDF正文内容。\n");
@@ -1012,15 +1013,14 @@ public class PandocPipelineTests
     {
         var root = FindSolutionRoot();
         var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
-        var tectonicDir = Path.Combine(root, "tools", "tectonic");
 
         var dbPath = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid():N}", "test.db");
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
         var configManager = new ConfigManager(dbPath);
         await configManager.EnsureSeedTemplatesAsync();
 
-        var pipeline = new PandocPipeline(pandocPath, tectonicDir);
-        var engine = new DocumentConversionEngine(pipeline, configManager);
+        var pipeline = new PandocPipeline(pandocPath);
+        var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), configManager);
 
         var mdContent = "# 测试标题\n\n正文段落\n\n```python\nprint(\"hello\")\nx = 42\n```\n\n更多正文\n";
         var mdPath = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid():N}.md");

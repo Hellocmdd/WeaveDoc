@@ -40,7 +40,7 @@ public class ConvertTabTests : IDisposable
 
         // Create engine and set services
         var pipeline = new PandocPipeline();
-        var engine = new DocumentConversionEngine(pipeline, _configManager);
+        var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), _configManager);
         tab.SetServices(_configManager, engine);
 
         // Wait for async template loading
@@ -65,7 +65,7 @@ public class ConvertTabTests : IDisposable
         // Set up services (templates will load but no MD file selected)
         await _configManager.EnsureSeedTemplatesAsync();
         var pipeline = new PandocPipeline();
-        var engine = new DocumentConversionEngine(pipeline, _configManager);
+        var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), _configManager);
         tab.SetServices(_configManager, engine);
 
         await Dispatcher.UIThread.InvokeAsync(async () =>
@@ -111,7 +111,7 @@ public class ConvertTabTests : IDisposable
         // Seed templates
         await _configManager.EnsureSeedTemplatesAsync();
         var pipeline = new PandocPipeline();
-        var engine = new DocumentConversionEngine(pipeline, _configManager);
+        var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), _configManager);
         tab.SetServices(_configManager, engine);
 
         // Get the first template name for expected output path

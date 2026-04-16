@@ -5,8 +5,8 @@
 
   <Target Name="DownloadExternalTools"
           BeforeTargets="BeforeBuild"
-          Condition="'$(SkipExternalToolsDownload)' != 'true' And (!Exists('$(ExternalToolsDir)pandoc\pandoc.exe') Or !Exists('$(ExternalToolsDir)tectonic\tectonic.exe'))">
-    <Message Importance="High" Text="Downloading external tools (Pandoc + Tectonic)..." />
+          Condition="'$(SkipExternalToolsDownload)' != 'true' And !Exists('$(ExternalToolsDir)pandoc\pandoc.exe')">
+    <Message Importance="High" Text="Downloading external tools (Pandoc)..." />
     <Exec Command="powershell -ExecutionPolicy Bypass -NoProfile -File &quot;$(ExternalToolsDir)setup-tools.ps1&quot;"
           ConsoleToMSBuild="true"
           WorkingDirectory="$(ExternalToolsDir)" />
