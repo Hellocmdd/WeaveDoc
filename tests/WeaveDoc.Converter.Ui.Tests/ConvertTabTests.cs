@@ -83,7 +83,7 @@ public class ConvertTabTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task ConvertTab_FormatRadioButtons_DefaultIsDocx()
+    public async Task ConvertTab_FormatToggleButtons_Exist()
     {
         var tab = new ConvertTab();
         var window = new Window { Content = tab };
@@ -91,13 +91,13 @@ public class ConvertTabTests : IDisposable
 
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            var formatDocx = tab.FindControl<RadioButton>("FormatDocx");
-            var formatPdf = tab.FindControl<RadioButton>("FormatPdf");
+            var formatDocxBtn = tab.FindControl<Button>("FormatDocxBtn");
+            var formatPdfBtn = tab.FindControl<Button>("FormatPdfBtn");
 
-            Assert.NotNull(formatDocx);
-            Assert.NotNull(formatPdf);
-            Assert.True(formatDocx.IsChecked == true, "FormatDocx should be checked by default");
-            Assert.True(formatPdf.IsChecked == false, "FormatPdf should not be checked by default");
+            Assert.NotNull(formatDocxBtn);
+            Assert.NotNull(formatPdfBtn);
+            Assert.Equal("DOCX", formatDocxBtn.Content);
+            Assert.Equal("PDF", formatPdfBtn.Content);
         });
     }
 
