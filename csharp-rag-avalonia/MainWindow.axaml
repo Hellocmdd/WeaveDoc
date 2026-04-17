@@ -1,0 +1,267 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:RagAvalonia.ViewModels"
+        x:Class="RagAvalonia.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1180"
+        Height="820"
+        MinWidth="920"
+        MinHeight="680"
+        Title="RagAvalonia"
+        Background="#0B1220">
+  <Window.Resources>
+    <SolidColorBrush x:Key="PanelBackground" Color="#121A2B" />
+    <SolidColorBrush x:Key="PanelBorder" Color="#25314A" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#7DD3FC" />
+    <SolidColorBrush x:Key="AccentStrongBrush" Color="#38BDF8" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#9AA8C7" />
+    <SolidColorBrush x:Key="InteractiveSurfaceBrush" Color="#111B2E" />
+    <SolidColorBrush x:Key="InteractiveHoverBrush" Color="#162338" />
+    <SolidColorBrush x:Key="InteractiveSelectedBrush" Color="#1D3557" />
+  </Window.Resources>
+
+  <Window.Styles>
+    <Style Selector="TextBox:focus">
+      <Setter Property="Background" Value="{StaticResource InteractiveSurfaceBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource AccentStrongBrush}" />
+    </Style>
+
+    <Style Selector="ListBoxItem">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#E2E8F0" />
+    </Style>
+
+    <Style Selector="ListBoxItem:pointerover">
+      <Setter Property="Background" Value="{StaticResource InteractiveHoverBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ListBoxItem:selected">
+      <Setter Property="Background" Value="{StaticResource InteractiveSelectedBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ListBoxItem:selected:pointerover">
+      <Setter Property="Background" Value="{StaticResource InteractiveSelectedBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24" ColumnDefinitions="Auto,*" ColumnSpacing="16">
+    <Border Grid.RowSpan="3"
+            Grid.ColumnSpan="2"
+            CornerRadius="28"
+            Background="{StaticResource PanelBackground}"
+            BorderBrush="{StaticResource PanelBorder}"
+            BorderThickness="1"
+            BoxShadow="0 18 60 0 #00000080" />
+
+    <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="28,24,28,16" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <StackPanel Grid.Column="0" Spacing="8">
+        <TextBlock Text="本地 RAG 聊天"
+                   FontSize="30"
+                   FontWeight="SemiBold"
+                   Foreground="White" />
+        <TextBlock Text="混合检索（向量 + BM25 + 关键词）+ llama-server 本地聊天生成。"
+                   FontSize="14"
+                   Foreground="{StaticResource TextMutedBrush}" />
+        <Border HorizontalAlignment="Left"
+                CornerRadius="999"
+                Padding="14,6"
+                Background="#183153">
+          <TextBlock Text="{Binding StatusText}"
+                     FontSize="12"
+                     Foreground="{StaticResource AccentBrush}" />
+        </Border>
+      </StackPanel>
+
+      <Button Grid.Column="1"
+              VerticalAlignment="Top"
+              Content="{Binding DocumentPanelToggleText}"
+              Click="OnToggleDocumentsClick"
+              Background="#1E293B"
+              BorderBrush="#334155"
+              BorderThickness="1"
+              Foreground="#E2E8F0"
+              Padding="14,8" />
+    </Grid>
+
+    <Border Grid.Row="1"
+            Grid.Column="0"
+            Width="340"
+            Margin="28,0,0,20"
+            IsVisible="{Binding IsDocumentPanelExpanded}"
+            CornerRadius="18"
+            BorderThickness="1"
+            BorderBrush="#30415E"
+            Background="#0F1728"
+            Padding="14">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" RowSpacing="8">
+        <TextBlock Grid.Row="0"
+                   Text="RAG 文档管理"
+                   FontSize="13"
+                   FontWeight="SemiBold"
+                   Foreground="White" />
+
+        <TextBox Grid.Row="1"
+                 Text="{Binding NewDocumentPath, Mode=TwoWay}"
+                 Watermark="手动输入路径，或点击“选择导入”"
+                 BorderThickness="1"
+                 BorderBrush="#32405F"
+                 Background="#0D1424"
+                 Foreground="#E2E8F0"
+                 FontSize="12"
+                 Padding="10,8" />
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+          <Button Grid.Column="0"
+                  Content="选择导入"
+                  Click="OnPickDocumentClick"
+                  HorizontalAlignment="Stretch"
+                  Background="#B45309"
+                  Foreground="White"
+                  Padding="12,8"
+                  FontWeight="SemiBold" />
+          <Button Grid.Column="1"
+                  Content="添加文档"
+                  Click="OnAddDocumentClick"
+                  HorizontalAlignment="Stretch"
+                  Background="#1D4ED8"
+                  Foreground="White"
+                  Padding="12,8"
+                  FontWeight="SemiBold" />
+          <Button Grid.Column="2"
+                  Content="刷新索引"
+                  Click="OnRefreshCorpusClick"
+                  HorizontalAlignment="Stretch"
+                  Background="#0F766E"
+                  Foreground="White"
+                  Padding="12,8"
+                  FontWeight="SemiBold" />
+        </Grid>
+
+        <TextBlock Grid.Row="3"
+                   Text="已索引文档"
+                   Margin="0,4,0,0"
+                   FontSize="12"
+                   Foreground="{StaticResource TextMutedBrush}" />
+
+        <ListBox Grid.Row="4"
+                 ItemsSource="{Binding CorpusFiles}"
+                 SelectedItem="{Binding SelectedDocument, Mode=TwoWay}"
+                 BorderThickness="1"
+                 BorderBrush="#32405F"
+                 Background="#0D1424"
+                 Foreground="#E2E8F0"
+                 MinHeight="120" />
+
+        <Button Grid.Row="5"
+                Content="删除选中文档"
+                Click="OnDeleteDocumentClick"
+                HorizontalAlignment="Stretch"
+                Background="#7F1D1D"
+                Foreground="White"
+                Padding="12,8"
+                FontWeight="SemiBold" />
+
+        <TextBlock Grid.Row="6"
+                   Text="{Binding SourceText}"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   Foreground="{StaticResource TextMutedBrush}" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1"
+          Grid.Column="1"
+          Margin="0,0,28,20"
+          RowDefinitions="*,Auto"
+          RowSpacing="12">
+      <Border Grid.Row="0"
+              CornerRadius="22"
+              BorderThickness="1"
+              BorderBrush="{StaticResource PanelBorder}"
+              Background="#0D1424"
+              Padding="18">
+        <TextBox Text="{Binding ConversationText}"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 BorderThickness="0"
+                 Background="Transparent"
+                 Foreground="#E2E8F0"
+                 CaretBrush="Transparent"
+                 FontSize="14" />
+      </Border>
+
+      <Border Grid.Row="1"
+              CornerRadius="16"
+              BorderThickness="1"
+              BorderBrush="#30415E"
+              Background="#0F1728"
+              Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock Text="本次检索命中（调试）"
+                     FontSize="12"
+                     Foreground="{StaticResource TextMutedBrush}" />
+          <TextBox Text="{Binding RetrievalDebugText}"
+                   IsReadOnly="True"
+                   AcceptsReturn="True"
+                   TextWrapping="Wrap"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   MinHeight="74"
+                   MaxHeight="130"
+                   BorderThickness="1"
+                   BorderBrush="#32405F"
+                   Background="#0D1424"
+                   Foreground="#E2E8F0"
+                   FontSize="12"
+                   Padding="10" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Border Grid.Row="2"
+            Grid.ColumnSpan="2"
+            Margin="28,0,28,24"
+            CornerRadius="22"
+            BorderThickness="1"
+            BorderBrush="{StaticResource PanelBorder}"
+            Background="#0D1424"
+            Padding="16">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="14">
+        <TextBox Grid.Column="0"
+                 Name="InputBox"
+                 Text="{Binding InputText, Mode=TwoWay}"
+                 Watermark="输入问题，按 Enter 或点击发送"
+                 AcceptsReturn="False"
+                 TextWrapping="Wrap"
+                 BorderThickness="1"
+                 BorderBrush="#32405F"
+                 Background="#111B2E"
+                 Foreground="White"
+                 Padding="14,12"
+                 FontSize="15"
+                 KeyDown="OnInputKeyDown" />
+        <Button Grid.Column="1"
+                Content="清空会话"
+                Click="OnClearConversationClick"
+                Background="#374151"
+                Foreground="White"
+                Padding="18,12"
+                FontWeight="SemiBold" />
+        <Button Grid.Column="2"
+                Content="发送"
+                Click="OnSendClick"
+                Background="{StaticResource AccentStrongBrush}"
+                Foreground="White"
+                Padding="22,12"
+                FontWeight="SemiBold" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

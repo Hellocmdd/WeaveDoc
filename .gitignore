@@ -19,4 +19,8 @@ llama.cpp/
 
 # models
 models/
-Qwen3.5-4B/
+
+# local app cache
+.rag/
+rag_store.db
+.codex
