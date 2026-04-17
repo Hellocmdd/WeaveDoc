@@ -1,10 +1,15 @@
 # RagAvalonia
 
+English | [简体中文](README.zh-CN.md)
+
 A local Avalonia desktop RAG app.
+
+## Overview
 
 - Embedding and chunk indexing run locally with LLamaSharp.
 - Chat generation is delegated to a local `llama-server` (OpenAI-compatible endpoint).
-- Retrieval uses a staged pipeline: hybrid recall, query-aware reranking, and adjacent context windows.
+- Retrieval uses a staged pipeline: sparse prefilter, semantic scoring, lightweight reranking, and adjacent context windows.
+- Answers are expected to cite stable source labels such as `[doc/json/a.json | section name | c3]`.
 
 ## Models
 
@@ -21,9 +26,14 @@ And a chat model file that will be loaded by `llama-server`, for example:
 - Loads markdown, text, and JSON files from `doc/`
 - Creates local embeddings and semantic paragraph/section chunks
 - Reuses a local embedding cache at `.rag/embedding-cache.json`
-- Runs hybrid recall + rerank (vector + BM25 + keyword + title + coverage + neighbor support)
+- Runs hybrid recall + rerank:
+  sparse prefilter = BM25 + keyword + title + direct-hit bonus + noise penalty
+  semantic stage = vector similarity only on the filtered candidate pool, with fallback to full semantic scan when sparse evidence is weak
+  rerank stage = coverage + neighbor support + intent boost
 - Sends grounded prompts plus short chat history to `llama-server` for answer generation
 - Supports adding, deleting, and refreshing indexed `.md` / `.txt` / `.json` documents from the UI
+- Flattens JSON objects and arrays into titled plain-text sections before chunking
+- Avoids duplicating files when the imported document is already inside `doc/` or has identical content to an indexed file
 
 ## Run
 
@@ -87,6 +97,12 @@ The baseline runner prints:
 - retrieval debug information
 - simple expected-keyword coverage statistics
 
+The retrieval debug output now also shows:
+
+- sparse prefilter candidate count
+- semantic-stage candidate count
+- whether the query used sparse prefilter or fell back to full semantic scoring
+
 ## Environment Variables
 
 You can override runtime behavior with env vars:
@@ -114,3 +130,4 @@ You can override runtime behavior with env vars:
 - If `doc/` does not exist, the app creates it automatically and starts with an empty corpus.
 - The embedding cache is content-addressed by model name, chunk settings, file path, chunk index, and chunk text, so edited documents are re-embedded automatically.
 - JSON files are flattened into titled plain text sections before chunking, so nested objects and arrays can still participate in retrieval.
+- The answer prompt uses stable source labels instead of temporary context numbering, which makes citations more consistent across runs and context windows.
