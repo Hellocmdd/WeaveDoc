@@ -2,7 +2,7 @@
 
 WeaveDoc.Converter 的单元测试和集成测试项目，覆盖 AFD 模板解析、样式映射、Pandoc 管道、配置管理、BibTeX 解析和端到端转换。
 
-> **共 79 个测试，全部通过**
+> **共 80 个测试，全部通过**
 
 ## 技术栈
 
@@ -29,8 +29,8 @@ WeaveDoc.Converter.Tests/
 | 测试类 | 数量 | 类型 | 说明 |
 |--------|------|------|------|
 | AfdParserTests | 13 | 单元测试 | JSON 解析、文件解析、模板验证、异常处理、三模板解析验证 |
-| AfdStyleMapperTests | 5 | 单元测试 | AFD↔OpenXML 双向映射（`[Theory]` + `[InlineData]` 参数化，覆盖 14 个已知键 + 异常/null） |
-| PandocPipelineTests | 43 | 集成测试 | Pandoc CLI 调用、reference.docx 生成、样式定义写入、冗余内联清除、页眉页脚、DOCX→PDF、3 模板端到端 |
+| AfdStyleMapperTests | 4 | 单元测试 | AFD↔OpenXML 双向映射（`[Theory]` + `[InlineData]` 参数化，覆盖 14 个已知键 + 异常/null） |
+| PandocPipelineTests | 21 | 集成测试 | Pandoc CLI 调用、reference.docx 生成、样式定义写入、冗余内联清除、页眉页脚、DOCX→PDF、3 模板端到端 |
 | ConfigManagerTests | 8 | 单元测试 | 模板 CRUD、种子模板发现、幂等性 |
 | BibtexParserTests | 10 | 单元测试 | 基础解析、多条目、嵌套括号、缩写展开、引号值、注释跳过、畸形容错 |
 
@@ -118,7 +118,7 @@ WeaveDoc.Converter.Tests/
 ## 运行测试
 
 ```bash
-# 运行全部测试（79 个）
+# 运行全部测试（80 个）
 dotnet test tests/WeaveDoc.Converter.Tests -v n
 
 # 运行指定模块

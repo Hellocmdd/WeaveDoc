@@ -4,7 +4,7 @@
 
 > **负责人**：任逸青（文档转换开发岗 / 语义及文本转换组）
 > **计划书任务**：3.1 AFD 样式解析器 / 3.2 Pandoc 转换管道 / 3.3 本地配置管理
-> **当前状态**：85 个测试全部通过（Converter 79 + UI 6），0 构建错误
+> **当前状态**：87 个测试全部通过（Converter 80 + UI 7），0 构建错误
 
 ---
 
@@ -25,7 +25,7 @@
 
 | 编号 | 要求 | 验收方法 | 当前状态 |
 | --- | --- | --- | --- |
-| **F-02** | 根据 AFD 模板将 MD 导出为样式一致的 DOCX/PDF | 演示与对比 | **完全满足** |
+| **F-02** | 根据 AFD 模板将 MD 导出为样式一致的 DOCX/PDF | 演示与对比 | **满足** |
 | **F-04** | 导入/管理 BibTeX 文献，切换样式模板 | 检查功能 | 部分满足（BibTeX 解析器就绪，GUI 集成待对接） |
 
 ### 关联性能要求（计划书 2.3 节）
@@ -118,9 +118,9 @@ Markdown ──→ [Pandoc + LuaFilters + reference.docx] ──→ raw.docx
 
 | 页面 | 功能 |
 | --- | --- |
-| `TemplateTab` | DataGrid 模板列表 + 刷新/种子/导入/删除 + 状态栏 |
-| `ConvertTab` | 三步向导（选 MD → 选模板 → 选格式）+ 输出目录 + 转换按钮 + 日志 |
-| `MainWindow` | TabControl 双标签页布局，依赖注入 ConfigManager + DocumentConversionEngine |
+| `TemplateTab` | 标题区 + 圆角 DataGrid 卡片 + 刷新/种子/导入/行内删除 + 状态栏 |
+| `ConvertTab` | 三步卡片向导 + 格式切换按钮 + 输出目录 + 转换按钮 + 状态指示灯 + 日志 |
+| `MainWindow` | 900×580 窗口，TabControl（文档转换优先），品牌色 #4A6FA5 |
 
 ---
 
@@ -138,10 +138,10 @@ WeaveDoc/
 │   │   └── Config/                         #   配置管理 + BibTeX 解析 + 内置模板
 │   └── WeaveDoc.Converter.Ui/              # Avalonia UI 桌面应用
 │       ├── Program.cs                      #   启动入口
-│       └── Views/                          #   MainWindow + TemplateTab + ConvertTab
+│       └── Views/                          #   MainWindow(900×580) + TemplateTab + ConvertTab
 ├── tests/
-│   ├── WeaveDoc.Converter.Tests/           # 核心库测试（79 个）
-│   └── WeaveDoc.Converter.Ui.Tests/        # Headless UI 测试（6 个）
+│   ├── WeaveDoc.Converter.Tests/           # 核心库测试（80 个）
+│   └── WeaveDoc.Converter.Ui.Tests/        # Headless UI 测试（7 个）
 ├── tools/
 │   ├── DownloadExternalTools.targets       # MSBuild 自动下载 Pandoc
 │   ├── setup-tools.ps1                     # 下载脚本
@@ -192,13 +192,13 @@ Pandoc 通过 MSBuild Target 在首次构建时自动下载，无需手动安装
 ### 运行测试
 
 ```bash
-# 运行全部测试（85 个）
+# 运行全部测试（87 个）
 dotnet test -v n
 
-# 仅运行核心库测试（79 个）
+# 仅运行核心库测试（80 个）
 dotnet test tests/WeaveDoc.Converter.Tests -v n
 
-# 仅运行 UI 测试（6 个）
+# 仅运行 UI 测试（7 个）
 dotnet test tests/WeaveDoc.Converter.Ui.Tests -v n
 ```
 
@@ -208,8 +208,8 @@ dotnet test tests/WeaveDoc.Converter.Ui.Tests -v n
 
 | 测试项目 | 数量 | 覆盖范围 |
 | --- | --- | --- |
-| `WeaveDoc.Converter.Tests` | 79 | AFD 解析（13）、样式映射（5）、Pandoc 管道（43）、配置管理（8）、BibTeX 解析（10） |
-| `WeaveDoc.Converter.Ui.Tests` | 6 | DataGrid 绑定（3）、ComboBox 填充（3），Headless 模式 |
+| `WeaveDoc.Converter.Tests` | 80 | AFD 解析（13）、样式映射（4）、Pandoc 管道（21）、配置管理（8）、BibTeX 解析（10） |
+| `WeaveDoc.Converter.Ui.Tests` | 7 | DataGrid 绑定（3）、转换向导（4），Headless 模式 |
 
 端到端测试覆盖完整链路：`Parse → ReferenceDoc → Pandoc → StyleCorrector → PageSettings → HeaderFooter`，验证样式定义（非内联）包含正确的字体/字号属性。
 

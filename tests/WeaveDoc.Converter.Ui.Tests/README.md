@@ -2,7 +2,7 @@
 
 WeaveDoc.Converter.Ui 的 Headless UI 测试项目，在无图形环境下验证 Avalonia 控件的渲染和交互行为。
 
-> **共 6 个测试，全部通过**
+> **共 7 个测试，全部通过**
 
 ---
 
@@ -27,7 +27,7 @@ WeaveDoc.Converter.Ui 的 Headless UI 测试项目，在无图形环境下验证
 WeaveDoc.Converter.Ui.Tests/
 ├── TestAppBuilder.cs          # Headless 测试应用配置 + TestApp
 ├── TemplateTabTests.cs        # 模板管理标签页测试（3 个）
-├── ConvertTabTests.cs         # 文档转换向导标签页测试（3 个）
+├── ConvertTabTests.cs         # 文档转换向导标签页测试（4 个）
 └── WeaveDoc.Converter.Ui.Tests.csproj
 ```
 
@@ -38,7 +38,7 @@ WeaveDoc.Converter.Ui.Tests/
 | 测试类 | 数量 | 类型 | 说明 |
 | --- | --- | --- | --- |
 | TemplateTabTests | 3 | Headless UI 测试 | DataGrid 数据绑定、种子模板加载、状态栏 |
-| ConvertTabTests | 3 | Headless UI 测试 | ComboBox 模板填充、空输入验证、格式默认值 |
+| ConvertTabTests | 4 | Headless UI 测试 | ComboBox 模板填充、空输入验证、格式切换按钮、DOCX 端到端转换 |
 
 ### TemplateTabTests（3 个）
 
@@ -48,13 +48,14 @@ WeaveDoc.Converter.Ui.Tests/
 | `TemplateTab_SeedButton_SeedTemplates` | 执行种子模板后，DataGrid 包含至少 3 个内置模板 |
 | `TemplateTab_StatusBar_ShowsTemplateCount` | 空模板库时状态栏显示 "0" |
 
-### ConvertTabTests（3 个）
+### ConvertTabTests（4 个）
 
 | 测试 | 验证内容 |
 | --- | --- |
 | `ConvertTab_LoadTemplates_PopulatesComboBox` | 注入服务后 ComboBox 自动填充 >=3 个模板，且默认选中第一项 |
 | `ConvertTab_ConvertWithoutMd_ShowsErrorStatus` | 未选择 Markdown 文件时点击转换，状态标签显示"请选择" |
-| `ConvertTab_FormatRadioButtons_DefaultIsDocx` | DOCX 单选按钮默认选中，PDF 未选中 |
+| `ConvertTab_FormatToggleButtons_Exist` | DOCX/PDF 切换按钮存在，Content 分别为 "DOCX"/"PDF" |
+| `ConvertTab_ConvertDocx_EndToEnd` | 完整端到端：选 MD → 选模板 → 点击转换 → 验证 DOCX 输出文件存在且非空 |
 
 ---
 
