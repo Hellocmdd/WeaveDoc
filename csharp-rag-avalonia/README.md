@@ -64,6 +64,29 @@ dotnet restore csharp-rag-avalonia/RagAvalonia.csproj
 dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj
 ```
 
+## Evaluation
+
+Run the offline baseline with:
+
+```bash
+./scripts/eval_rag.sh
+```
+
+The evaluation script expects a reachable `llama-server` first. If the server is not up yet, start it with `./scripts/run_weavedoc.sh` or launch `llama-server` manually.
+
+Or provide a custom baseline file:
+
+```bash
+dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eval-baseline.json
+```
+
+The baseline runner prints:
+
+- each question
+- the generated answer
+- retrieval debug information
+- simple expected-keyword coverage statistics
+
 ## Environment Variables
 
 You can override runtime behavior with env vars:
@@ -74,6 +97,7 @@ You can override runtime behavior with env vars:
 - `LLAMA_SERVER_MAX_TOKENS` (default: `1536`)
 - `RAG_TOP_K` (default: `4`)
 - `RAG_CANDIDATE_POOL_SIZE` (default: `12`)
+- `RAG_SPARSE_CANDIDATE_POOL_SIZE` (default: `48`)
 - `RAG_CONTEXT_WINDOW_RADIUS` (default: `1`)
 - `RAG_VECTOR_WEIGHT` / `RAG_BM25_WEIGHT` / `RAG_KEYWORD_WEIGHT`
 - `RAG_TITLE_WEIGHT` / `RAG_COVERAGE_WEIGHT` / `RAG_NEIGHBOR_WEIGHT`

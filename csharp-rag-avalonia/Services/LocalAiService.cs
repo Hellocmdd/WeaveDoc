@@ -18,7 +18,7 @@ public sealed class LocalAiService : IDisposable
     private static readonly string[] SupportedDocumentExtensions = [".md", ".txt", ".json"];
 
     private static readonly Regex QueryTokenRegex = new("[a-z0-9]+|[\\u4e00-\\u9fff]{2,}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex CitationRegex = new("\\[\\d+\\]", RegexOptions.Compiled);
+    private static readonly Regex CitationRegex = new("\\[(?:\\d+|[^\\[\\]\\r\\n|]{1,160}\\s\\|\\s[^\\[\\]\\r\\n|]{1,160}\\s\\|\\sc\\d+)\\]", RegexOptions.Compiled);
     private static readonly Regex SentenceSplitRegex = new("(?<=[。！？!?])\\s+|(?<=\\.)\\s+", RegexOptions.Compiled);
     private static readonly Regex LeadingGreetingRegex = new("^(?:\\s*(?:你好|您好|嗨|哈喽|hello|hi|hey|请问|麻烦问一下|我想问一下|想请教一下|请教一下)\\s*[,，.。!！?？:：;；/+|、-]*)+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex BoundaryNoiseRegex = new("^[\\s,，.。!！?？:：;；/+|、-]+|[\\s,，.。!！?？:：;；/+|、-]+$", RegexOptions.Compiled);
@@ -371,37 +371,66 @@ public sealed class LocalAiService : IDisposable
             throw new InvalidOperationException("Embedding model is not initialized.");
         }
 
-        var questionVector = await GetEmbeddingVectorAsync(question, cancellationToken).ConfigureAwait(false);
         var queryTokens = ExtractQueryTokens(question);
         var queryProfile = BuildQueryProfile(question);
 
-        var components = _indexedChunks
+        var sparseComponents = _indexedChunks
             .Select(indexed =>
             {
-                var semanticScore = CosineSimilarity(questionVector, indexed.Embedding);
                 var bm25Raw = ComputeBm25(queryTokens, indexed);
                 var (keywordScore, hasDirectKeywordHit) = ComputeKeywordScore(queryTokens, indexed.Chunk.Text);
                 var titleScore = ComputeTitleScore(queryProfile.FocusTerms, indexed.Chunk);
+                var noisePenalty = ComputeNoisePenalty(indexed.Chunk);
 
-                return new RetrievalComponents(indexed.Chunk, semanticScore, bm25Raw, keywordScore, titleScore, hasDirectKeywordHit);
+                return new SparseRetrievalComponent(indexed, bm25Raw, keywordScore, titleScore, noisePenalty, hasDirectKeywordHit);
             })
             .ToArray();
 
-        var maxBm25 = components.Length == 0 ? 1f : Math.Max(1e-6f, components.Max(item => item.Bm25Raw));
-        var candidatePool = components
+        var maxBm25 = sparseComponents.Length == 0 ? 1f : Math.Max(1e-6f, sparseComponents.Max(item => item.Bm25Raw));
+        var sparseRanked = sparseComponents
             .Select(item =>
             {
                 var bm25Normalized = item.Bm25Raw / maxBm25;
-                var score = (item.SemanticScore * _options.VectorWeight)
-                    + (bm25Normalized * _options.Bm25Weight)
+                var sparseScore = (bm25Normalized * _options.Bm25Weight)
                     + (item.KeywordScore * _options.KeywordWeight)
                     + (item.TitleScore * _options.TitleWeight)
                     + (item.HasDirectKeywordHit ? _options.DirectKeywordBonus : 0f)
-                    - ComputeNoisePenalty(item.Chunk);
+                    - item.NoisePenalty;
 
-                return new ScoredChunk(item.Chunk, score, item.SemanticScore, bm25Normalized, item.KeywordScore, item.TitleScore, 0f, 0f, item.HasDirectKeywordHit);
+                return item with
+                {
+                    Bm25Score = bm25Normalized,
+                    SparseScore = sparseScore
+                };
+            })
+            .OrderByDescending(item => item.SparseScore)
+            .ThenByDescending(item => item.HasDirectKeywordHit)
+            .ThenBy(item => item.Indexed.Chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Indexed.Chunk.Index)
+            .ToArray();
+
+        var hasMeaningfulSparseEvidence = sparseRanked.Any(item =>
+            item.HasDirectKeywordHit
+            || item.KeywordScore > 0f
+            || item.TitleScore > 0f
+            || item.Bm25Raw > 0f);
+
+        var semanticInputs = hasMeaningfulSparseEvidence
+            ? sparseRanked.Take(Math.Min(_options.SparseCandidatePoolSize, sparseRanked.Length)).ToArray()
+            : sparseRanked;
+
+        var questionVector = await GetEmbeddingVectorAsync(question, cancellationToken).ConfigureAwait(false);
+        var candidatePool = semanticInputs
+            .Select(item =>
+            {
+                var semanticScore = CosineSimilarity(questionVector, item.Indexed.Embedding);
+                var score = (semanticScore * _options.VectorWeight) + item.SparseScore;
+
+                return new ScoredChunk(item.Indexed.Chunk, score, semanticScore, item.Bm25Score, item.KeywordScore, item.TitleScore, 0f, 0f, item.HasDirectKeywordHit);
             })
             .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Chunk.Index)
             .ToArray();
 
         var candidates = candidatePool
@@ -410,7 +439,13 @@ public sealed class LocalAiService : IDisposable
 
         var reranked = RerankCandidates(candidates, queryProfile, count);
         var contextChunks = BuildContextWindow(reranked);
-        return new RetrievalResult(reranked, contextChunks, queryProfile);
+        return new RetrievalResult(
+            reranked,
+            contextChunks,
+            queryProfile,
+            sparseRanked.Length,
+            semanticInputs.Length,
+            hasMeaningfulSparseEvidence);
     }
 
     private async Task<float[]> GetEmbeddingVectorAsync(string text, CancellationToken cancellationToken)
@@ -702,6 +737,10 @@ public sealed class LocalAiService : IDisposable
             builder.AppendLine($"焦点词: {string.Join(", ", retrieval.QueryProfile.FocusTerms)}");
         }
 
+        builder.AppendLine($"稀疏预筛候选: {retrieval.SparseCandidateCount} 条");
+        builder.AppendLine($"进入语义计算: {retrieval.SemanticCandidateCount} 条");
+        builder.AppendLine($"是否使用稀疏预筛: {(retrieval.UsedSparsePrefilter ? "是" : "否（回退全量语义）")}");
+
         if (retrieval.RankedChunks.Count == 0)
         {
             builder.AppendLine("命中: 0 条");
@@ -718,7 +757,7 @@ public sealed class LocalAiService : IDisposable
                 snippet = snippet[..120] + "...";
             }
 
-            builder.AppendLine($"[{index + 1}] score={item.Score:F3} (semantic={item.SemanticScore:F3}, bm25={item.Bm25Score:F3}, keyword={item.KeywordScore:F3}, title={item.TitleScore:F3}, coverage={item.CoverageScore:F3}, neighbor={item.NeighborScore:F3}, directHit={item.HasDirectKeywordHit}) | {item.Chunk.Source}#{item.Chunk.Index + 1}");
+            builder.AppendLine($"[{index + 1}] score={item.Score:F3} (semantic={item.SemanticScore:F3}, bm25={item.Bm25Score:F3}, keyword={item.KeywordScore:F3}, title={item.TitleScore:F3}, coverage={item.CoverageScore:F3}, neighbor={item.NeighborScore:F3}, directHit={item.HasDirectKeywordHit}) | {BuildStableCitation(item.Chunk)}");
             builder.AppendLine($"    {snippet}");
         }
 
@@ -1268,7 +1307,7 @@ public sealed class LocalAiService : IDisposable
         builder.AppendLine("你是一个本地文档问答助手。你必须严格基于下方“上下文”回答，不得使用外部常识扩写。");
         builder.AppendLine("回答规则：");
         builder.AppendLine("1) 若上下文不足或不包含答案，直接回答“我不知道（当前文档未覆盖）”。");
-        builder.AppendLine("2) 给出结论时，必须在句末标注来源编号，例如 [1]、[2]。");
+        builder.AppendLine("2) 给出结论时，必须在句末标注稳定来源标签，直接复制上下文中的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。禁止只写 [1]、[2] 这种临时编号。");
         builder.AppendLine($"3) {BuildAnswerStructureRule(queryProfile)}");
         builder.AppendLine("4) 禁止直接输出论文题目、作者名单、单位信息、HTML/Markdown 标题块。");
         builder.AppendLine("5) 如果多个来源能互相补充，要综合整理后回答，而不是逐条照抄。");
@@ -1281,7 +1320,7 @@ public sealed class LocalAiService : IDisposable
         for (var index = 0; index < rankedChunks.Count; index++)
         {
             var item = rankedChunks[index];
-            builder.AppendLine($"- [{index + 1}] {item.Chunk.DocumentTitle} / {item.Chunk.SectionTitle} / {item.Chunk.FilePath}#{item.Chunk.Index + 1}");
+            builder.AppendLine($"- {BuildStableCitation(item.Chunk)} {item.Chunk.DocumentTitle} / {item.Chunk.SectionTitle}");
         }
 
         builder.AppendLine();
@@ -1290,7 +1329,8 @@ public sealed class LocalAiService : IDisposable
         for (var index = 0; index < chunks.Count; index++)
         {
             var chunk = chunks[index];
-            builder.AppendLine($"[{index + 1}] 来源: {chunk.DocumentTitle} / {chunk.SectionTitle} ({chunk.FilePath}) # {chunk.Index + 1}");
+            builder.AppendLine($"来源标签: {BuildStableCitation(chunk)}");
+            builder.AppendLine($"来源说明: {chunk.DocumentTitle} / {chunk.SectionTitle} ({chunk.FilePath})");
             builder.AppendLine(SanitizeChunkForPrompt(chunk.Text));
             builder.AppendLine();
         }
@@ -1335,18 +1375,19 @@ public sealed class LocalAiService : IDisposable
         var builder = new StringBuilder();
         builder.AppendLine("你是本地文档问答助手。上一次回答偏离问题。现在必须重新回答。\n");
         builder.AppendLine("硬性要求：");
-        builder.AppendLine($"1) 仅依据下面上下文回答，不要输出与问题或者给定材料无关的题目模板、算法示例、代码题。\n2) 禁止输出论文题目、作者名单、单位信息、HTML/Markdown 标题块。\n3) 每句必须附来源编号 [1]/[2]。\n4) 回答语言必须与用户问题一致（中文问中文答）。\n5) {BuildAnswerStructureRule(queryProfile)}\n6) {BuildDomainGuidance(queryProfile)}\n7) 若上下文不足，仅输出：我不知道（当前文档未覆盖）。");
+        builder.AppendLine($"1) 仅依据下面上下文回答，不要输出与问题或者给定材料无关的题目模板、算法示例、代码题。\n2) 禁止输出论文题目、作者名单、单位信息、HTML/Markdown 标题块。\n3) 每句必须附稳定来源标签，直接复制上下文中的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。\n4) 回答语言必须与用户问题一致（中文问中文答）。\n5) {BuildAnswerStructureRule(queryProfile)}\n6) {BuildDomainGuidance(queryProfile)}\n7) 若上下文不足，仅输出：我不知道（当前文档未覆盖）。");
         builder.AppendLine($"当前问题类型: {DescribeIntent(queryProfile.Intent)}");
         if (rankedChunks.Count > 0)
         {
-            builder.AppendLine("优先参考高分证据: " + string.Join("；", rankedChunks.Select((item, index) => $"[{index + 1}] {item.Chunk.DocumentTitle}/{item.Chunk.SectionTitle}")));
+            builder.AppendLine("优先参考高分证据: " + string.Join("；", rankedChunks.Select(item => $"{BuildStableCitation(item.Chunk)} {item.Chunk.DocumentTitle}/{item.Chunk.SectionTitle}")));
         }
         builder.AppendLine();
         builder.AppendLine("上下文:");
         for (var index = 0; index < chunks.Count; index++)
         {
             var chunk = chunks[index];
-            builder.AppendLine($"[{index + 1}] 来源: {chunk.DocumentTitle} / {chunk.SectionTitle} ({chunk.FilePath}) # {chunk.Index + 1}");
+            builder.AppendLine($"来源标签: {BuildStableCitation(chunk)}");
+            builder.AppendLine($"来源说明: {chunk.DocumentTitle} / {chunk.SectionTitle} ({chunk.FilePath})");
             builder.AppendLine(SanitizeChunkForPrompt(chunk.Text));
             builder.AppendLine();
         }
@@ -1547,7 +1588,7 @@ public sealed class LocalAiService : IDisposable
         }
 
         var tokens = ExtractQueryTokens(question);
-        var candidates = new List<(int SourceIndex, string Sentence, int Score)>();
+        var candidates = new List<(DocumentChunk Chunk, string Sentence, int Score)>();
 
         for (var sourceIndex = 0; sourceIndex < chunks.Count; sourceIndex++)
         {
@@ -1568,7 +1609,7 @@ public sealed class LocalAiService : IDisposable
                 var score = tokens.Count(token => lowerSentence.Contains(token, StringComparison.Ordinal));
                 if (score > 0)
                 {
-                    candidates.Add((sourceIndex + 1, sentence, score));
+                    candidates.Add((chunk, sentence, score));
                 }
             }
         }
@@ -1580,7 +1621,8 @@ public sealed class LocalAiService : IDisposable
 
         var selected = candidates
             .OrderByDescending(item => item.Score)
-            .ThenBy(item => item.SourceIndex)
+            .ThenBy(item => item.Chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Chunk.Index)
             .Take(queryProfile.WantsDetailedAnswer ? Math.Max(_options.FallbackSentenceCount, 4) : _options.FallbackSentenceCount)
             .ToArray();
 
@@ -1593,7 +1635,7 @@ public sealed class LocalAiService : IDisposable
                 builder.AppendLine();
             }
 
-            builder.Append($"{item.Sentence} [{item.SourceIndex}]");
+            builder.Append($"{item.Sentence} {BuildStableCitation(item.Chunk)}");
         }
 
         return builder.ToString();
@@ -1780,7 +1822,7 @@ public sealed class LocalAiService : IDisposable
         builder.AppendLine($"根据文档，{subject} 的主要作用如下：");
         for (var i = 0; i < selected.Length; i++)
         {
-            builder.AppendLine($"{i + 1}. {selected[i].Sentence} [{i + 1}]");
+            builder.AppendLine($"{i + 1}. {selected[i].Sentence} {BuildStableCitation(selected[i].FilePath, selected[i].SectionTitle, selected[i].ChunkIndex)}");
         }
 
         return builder.ToString().TrimEnd();
@@ -1838,7 +1880,7 @@ public sealed class LocalAiService : IDisposable
                 score += usageSignalHits * 2;
                 score += architectureSignalHits;
 
-                candidates.Add(new UsageCandidate(sentence, chunk.FilePath, chunk.Index, score));
+                candidates.Add(new UsageCandidate(sentence, chunk.FilePath, chunk.SectionTitle, chunk.Index, score));
             }
         }
 
@@ -1970,6 +2012,37 @@ public sealed class LocalAiService : IDisposable
         return false;
     }
 
+    private static string BuildStableCitation(DocumentChunk chunk)
+    {
+        return BuildStableCitation(chunk.FilePath, chunk.SectionTitle, chunk.Index);
+    }
+
+    private static string BuildStableCitation(string filePath, string sectionTitle, int chunkIndex)
+    {
+        var normalizedFilePath = SanitizeCitationPart(string.IsNullOrWhiteSpace(filePath) ? "unknown" : filePath);
+        var normalizedSection = SanitizeCitationPart(string.IsNullOrWhiteSpace(sectionTitle) ? "正文" : sectionTitle);
+        return $"[{normalizedFilePath} | {normalizedSection} | c{chunkIndex + 1}]";
+    }
+
+    private static string SanitizeCitationPart(string text)
+    {
+        var normalized = text
+            .Replace("\r\n", " / ", StringComparison.Ordinal)
+            .Replace('\n', ' ')
+            .Replace('\r', ' ')
+            .Replace('[', '(')
+            .Replace(']', ')')
+            .Replace('|', '/')
+            .Trim();
+
+        if (normalized.Length > 120)
+        {
+            normalized = normalized[..120].TrimEnd() + "...";
+        }
+
+        return string.IsNullOrWhiteSpace(normalized) ? "正文" : normalized;
+    }
+
     private string BuildChunkCacheKey(DocumentChunk chunk)
     {
         var payload = $"{Path.GetFileName(EmbeddingModelPath)}|{_options.ChunkSize}|{_options.ChunkOverlap}|{chunk.FilePath}|{chunk.Index}|{chunk.Text}";
@@ -1991,7 +2064,15 @@ public sealed class LocalAiService : IDisposable
 
     private sealed record IndexedChunk(DocumentChunk Chunk, float[] Embedding, IReadOnlyDictionary<string, int> TokenFrequency, int TokenCount);
 
-    private sealed record RetrievalComponents(DocumentChunk Chunk, float SemanticScore, float Bm25Raw, float KeywordScore, float TitleScore, bool HasDirectKeywordHit);
+    private sealed record SparseRetrievalComponent(
+        IndexedChunk Indexed,
+        float Bm25Raw,
+        float KeywordScore,
+        float TitleScore,
+        float NoisePenalty,
+        bool HasDirectKeywordHit,
+        float Bm25Score = 0f,
+        float SparseScore = 0f);
 
     public sealed record AddDocumentResult(string StoredPath, bool ImportedNewFile, string StatusMessage);
 
@@ -2011,9 +2092,12 @@ public sealed class LocalAiService : IDisposable
     private sealed record RetrievalResult(
         IReadOnlyList<ScoredChunk> RankedChunks,
         IReadOnlyList<DocumentChunk> ContextChunks,
-        QueryProfile QueryProfile);
+        QueryProfile QueryProfile,
+        int SparseCandidateCount,
+        int SemanticCandidateCount,
+        bool UsedSparsePrefilter);
 
-    private sealed record UsageCandidate(string Sentence, string FilePath, int ChunkIndex, int Score);
+    private sealed record UsageCandidate(string Sentence, string FilePath, string SectionTitle, int ChunkIndex, int Score);
 
     private sealed class EmbeddingCache
     {

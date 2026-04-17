@@ -1,0 +1,55 @@
+{
+  "name": "weavedoc-rag-baseline",
+  "cases": [
+    {
+      "id": "stm32-summary",
+      "question": "总结一下基于STM32单片机的智能浇花系统设计这篇文档主要写了什么",
+      "expectedKeywords": [
+        "stm32",
+        "数据采集",
+        "决策控制",
+        "执行机构",
+        "交互显示"
+      ]
+    },
+    {
+      "id": "stm32-control",
+      "question": "这个智能浇花系统如何实现精准灌溉",
+      "expectedKeywords": [
+        "模糊pid",
+        "土壤湿度",
+        "电磁阀",
+        "动态调节"
+      ]
+    },
+    {
+      "id": "stm32-remote",
+      "question": "文档里远程状态显示及控制模块是怎么做的",
+      "expectedKeywords": [
+        "esp-01s",
+        "wifi",
+        "mqtt",
+        "远程"
+      ]
+    },
+    {
+      "id": "follow-up-detail",
+      "question": "详细一点",
+      "expectedKeywords": [
+        "模糊pid",
+        "电磁阀",
+        "土壤湿度"
+      ],
+      "history": [
+        {
+          "role": "用户",
+          "content": "这个智能浇花系统如何实现精准灌溉"
+        },
+        {
+          "role": "助手",
+          "content": "上一轮回答略。"
+        }
+      ]
+    }
+  ]
+}
