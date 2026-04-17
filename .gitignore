@@ -14,8 +14,7 @@
 # conda
 .conda/
 
-# llama.cpp 
-llama.cpp/
+# llama.cpp build artifacts are kept inside the submodule
 
 # models
 models/

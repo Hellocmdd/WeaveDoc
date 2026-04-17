@@ -30,6 +30,32 @@ And a chat model file that will be loaded by `llama-server`, for example:
 From the workspace root:
 
 ```bash
+./scripts/run_weavedoc.sh
+```
+
+If `llama.cpp/` is not present yet, initialize the submodule first:
+
+```bash
+git submodule update --init --recursive
+```
+
+The launcher script will:
+
+- build `llama.cpp` first if `llama-server` is missing
+- start `llama-server` on `127.0.0.1:8080` if it is not already running
+- reuse the existing server if one is already healthy
+- launch the Avalonia desktop app after the health check passes
+
+Useful overrides:
+
+```bash
+LLAMA_SERVER_MODEL=./models/your-chat-model.gguf ./scripts/run_weavedoc.sh
+LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
+```
+
+If you want to run the two processes manually instead, the equivalent flow is:
+
+```bash
 ./llama.cpp/build/bin/llama-server \
 	-m ./models/gemma-4-E2B-it.gguf \
 	--host 127.0.0.1 --port 8080
