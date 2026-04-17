@@ -15,6 +15,7 @@ public sealed class LocalAiService : IDisposable
     private const int EmbeddingContextSize = 512;
     private const int EmbeddingSafetyMargin = 64;
     private const int MaxEmbeddingTokens = EmbeddingContextSize - EmbeddingSafetyMargin;
+    private static readonly string[] SupportedDocumentExtensions = [".md", ".txt", ".json"];
 
     private static readonly Regex QueryTokenRegex = new("[a-z0-9]+|[\\u4e00-\\u9fff]{2,}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex CitationRegex = new("\\[\\d+\\]", RegexOptions.Compiled);
@@ -163,7 +164,7 @@ public sealed class LocalAiService : IDisposable
         return answer;
     }
 
-    public async Task AddDocumentAsync(string sourceFilePath, CancellationToken cancellationToken = default)
+    public async Task<AddDocumentResult> AddDocumentAsync(string sourceFilePath, CancellationToken cancellationToken = default)
     {
         await InitializeAsync(cancellationToken).ConfigureAwait(false);
 
@@ -175,10 +176,30 @@ public sealed class LocalAiService : IDisposable
         }
 
         var extension = Path.GetExtension(fullSourcePath);
-        if (!extension.Equals(".md", StringComparison.OrdinalIgnoreCase)
-            && !extension.Equals(".txt", StringComparison.OrdinalIgnoreCase))
+        if (!IsSupportedDocumentExtension(extension))
         {
-            throw new InvalidOperationException("仅支持 .md 或 .txt 文档。");
+            throw new InvalidOperationException("仅支持 .md、.txt 或 .json 文档。");
+        }
+
+        Directory.CreateDirectory(DocumentRoot);
+
+        var rootFullPath = Path.GetFullPath(DocumentRoot + Path.DirectorySeparatorChar);
+        if (fullSourcePath.StartsWith(rootFullPath, StringComparison.Ordinal))
+        {
+            await ReloadCorpusAsync(cancellationToken).ConfigureAwait(false);
+            var relativeExistingPath = Path.GetRelativePath(DocumentRoot, fullSourcePath).Replace('\\', '/');
+            return new AddDocumentResult(relativeExistingPath, false, "文档已在知识库目录中，已直接刷新索引。");
+        }
+
+        var existingDuplicate = Directory.EnumerateFiles(DocumentRoot, "*.*", SearchOption.AllDirectories)
+            .Where(path => IsSupportedDocumentExtension(Path.GetExtension(path)))
+            .FirstOrDefault(path => FilesHaveSameContent(fullSourcePath, path));
+
+        if (!string.IsNullOrWhiteSpace(existingDuplicate))
+        {
+            await ReloadCorpusAsync(cancellationToken).ConfigureAwait(false);
+            var relativeExistingPath = Path.GetRelativePath(DocumentRoot, existingDuplicate).Replace('\\', '/');
+            return new AddDocumentResult(relativeExistingPath, false, $"知识库中已存在相同内容的文档：{relativeExistingPath}");
         }
 
         var fileName = Path.GetFileName(fullSourcePath);
@@ -190,9 +211,9 @@ public sealed class LocalAiService : IDisposable
             targetPath = Path.Combine(DocumentRoot, $"{nameWithoutExtension}-{suffix}{extension}");
         }
 
-        Directory.CreateDirectory(DocumentRoot);
         File.Copy(fullSourcePath, targetPath, overwrite: false);
         await ReloadCorpusAsync(cancellationToken).ConfigureAwait(false);
+        return new AddDocumentResult(Path.GetRelativePath(DocumentRoot, targetPath).Replace('\\', '/'), true, "文档添加成功，索引已刷新。");
     }
 
     public async Task DeleteDocumentAsync(string relativePath, CancellationToken cancellationToken = default)
@@ -291,7 +312,7 @@ public sealed class LocalAiService : IDisposable
         var activeCacheKeys = new HashSet<string>(StringComparer.Ordinal);
 
         var corpusFiles = Directory.EnumerateFiles(docRoot, "*.*", SearchOption.AllDirectories)
-            .Where(path => path.EndsWith(".md", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+            .Where(path => IsSupportedDocumentExtension(Path.GetExtension(path)))
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -300,7 +321,7 @@ public sealed class LocalAiService : IDisposable
             var relativePath = Path.GetRelativePath(docRoot, file).Replace('\\', '/');
             _corpusFiles.Add(relativePath);
 
-            var content = await File.ReadAllTextAsync(file, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+            var content = await ReadDocumentContentAsync(file, cancellationToken).ConfigureAwait(false);
             foreach (var chunk in SplitIntoChunks(content, Path.GetFileName(file), relativePath))
             {
                 _chunks.Add(chunk);
@@ -402,6 +423,203 @@ public sealed class LocalAiService : IDisposable
         var embeddingText = PrepareTextForEmbedding(text);
         var embeddings = await _embedder.GetEmbeddings(embeddingText, cancellationToken).ConfigureAwait(false);
         return embeddings.FirstOrDefault() ?? Array.Empty<float>();
+    }
+
+    private static bool IsSupportedDocumentExtension(string extension)
+    {
+        return SupportedDocumentExtensions.Any(candidate => extension.Equals(candidate, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool FilesHaveSameContent(string leftPath, string rightPath)
+    {
+        var leftInfo = new FileInfo(leftPath);
+        var rightInfo = new FileInfo(rightPath);
+        if (leftInfo.Length != rightInfo.Length)
+        {
+            return false;
+        }
+
+        using var leftStream = File.OpenRead(leftPath);
+        using var rightStream = File.OpenRead(rightPath);
+        using var sha256 = SHA256.Create();
+        var leftHash = sha256.ComputeHash(leftStream);
+        rightStream.Position = 0;
+        var rightHash = sha256.ComputeHash(rightStream);
+        return leftHash.AsSpan().SequenceEqual(rightHash);
+    }
+
+    private static async Task<string> ReadDocumentContentAsync(string filePath, CancellationToken cancellationToken)
+    {
+        var raw = await File.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+        if (!Path.GetExtension(filePath).Equals(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            return raw;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(raw);
+            return ConvertJsonToText(document.RootElement, Path.GetFileNameWithoutExtension(filePath));
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException($"JSON 文档解析失败: {Path.GetFileName(filePath)}，{exception.Message}", exception);
+        }
+    }
+
+    private static string ConvertJsonToText(JsonElement root, string defaultTitle)
+    {
+        var builder = new StringBuilder();
+        var title = ExtractJsonTitle(root, defaultTitle);
+        builder.AppendLine($"# {title}");
+        builder.AppendLine();
+        AppendJsonElement(builder, root, title, 0);
+        return builder.ToString().Trim();
+    }
+
+    private static string ExtractJsonTitle(JsonElement root, string defaultTitle)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return defaultTitle;
+        }
+
+        foreach (var name in new[] { "title", "name", "documentTitle", "document_name" })
+        {
+            if (TryGetPropertyIgnoreCase(root, name, out var value))
+            {
+                var text = JsonScalarToString(value);
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    return text;
+                }
+            }
+        }
+
+        return defaultTitle;
+    }
+
+    private static void AppendJsonElement(StringBuilder builder, JsonElement element, string label, int depth)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                AppendJsonObject(builder, element, depth);
+                break;
+            case JsonValueKind.Array:
+                AppendJsonArray(builder, element, label, depth);
+                break;
+            default:
+                var text = JsonScalarToString(element);
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    builder.AppendLine(text);
+                    builder.AppendLine();
+                }
+                break;
+        }
+    }
+
+    private static void AppendJsonObject(StringBuilder builder, JsonElement element, int depth)
+    {
+        var scalarLines = new List<string>();
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+            {
+                FlushJsonScalarLines(builder, scalarLines);
+                AppendJsonHeading(builder, property.Name, depth + 1);
+                AppendJsonElement(builder, property.Value, property.Name, depth + 1);
+                continue;
+            }
+
+            var value = JsonScalarToString(property.Value);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                scalarLines.Add($"{property.Name}: {value}");
+            }
+        }
+
+        FlushJsonScalarLines(builder, scalarLines);
+    }
+
+    private static void AppendJsonArray(StringBuilder builder, JsonElement element, string label, int depth)
+    {
+        var index = 1;
+        foreach (var item in element.EnumerateArray())
+        {
+            if (item.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+            {
+                AppendJsonHeading(builder, $"{label}[{index}]", depth + 1);
+                AppendJsonElement(builder, item, $"{label}[{index}]", depth + 1);
+            }
+            else
+            {
+                var value = JsonScalarToString(item);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    builder.AppendLine($"- {value}");
+                }
+            }
+
+            index++;
+        }
+
+        if (index > 1)
+        {
+            builder.AppendLine();
+        }
+    }
+
+    private static void AppendJsonHeading(StringBuilder builder, string label, int depth)
+    {
+        var headingDepth = Math.Min(6, depth + 1);
+        builder.AppendLine($"{new string('#', headingDepth)} {label}");
+        builder.AppendLine();
+    }
+
+    private static void FlushJsonScalarLines(StringBuilder builder, List<string> scalarLines)
+    {
+        if (scalarLines.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var line in scalarLines)
+        {
+            builder.AppendLine(line);
+        }
+
+        builder.AppendLine();
+        scalarLines.Clear();
+    }
+
+    private static bool TryGetPropertyIgnoreCase(JsonElement element, string propertyName, out JsonElement value)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.NameEquals(propertyName) || property.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static string JsonScalarToString(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString() ?? string.Empty,
+            JsonValueKind.Number => element.GetRawText(),
+            JsonValueKind.True => "true",
+            JsonValueKind.False => "false",
+            JsonValueKind.Null => string.Empty,
+            _ => element.GetRawText()
+        };
     }
 
     private Dictionary<string, int> BuildTokenFrequency(string text)
@@ -1774,6 +1992,8 @@ public sealed class LocalAiService : IDisposable
     private sealed record IndexedChunk(DocumentChunk Chunk, float[] Embedding, IReadOnlyDictionary<string, int> TokenFrequency, int TokenCount);
 
     private sealed record RetrievalComponents(DocumentChunk Chunk, float SemanticScore, float Bm25Raw, float KeywordScore, float TitleScore, bool HasDirectKeywordHit);
+
+    public sealed record AddDocumentResult(string StoredPath, bool ImportedNewFile, string StatusMessage);
 
     private sealed record QueryProfile(string OriginalQuestion, IReadOnlyList<string> FocusTerms, string Intent, bool WantsDetailedAnswer);
 

@@ -174,10 +174,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         StatusText = "正在添加文档并重建索引...";
         try
         {
-            await _service.AddDocumentAsync(path);
+            var result = await _service.AddDocumentAsync(path);
             NewDocumentPath = string.Empty;
             RefreshCorpusState();
-            StatusText = "文档添加成功，索引已刷新。";
+            StatusText = result.StatusMessage;
         }
         catch (Exception exception)
         {

@@ -18,12 +18,12 @@ And a chat model file that will be loaded by `llama-server`, for example:
 
 ## What it does
 
-- Loads markdown and text files from `doc/`
+- Loads markdown, text, and JSON files from `doc/`
 - Creates local embeddings and semantic paragraph/section chunks
 - Reuses a local embedding cache at `.rag/embedding-cache.json`
 - Runs hybrid recall + rerank (vector + BM25 + keyword + title + coverage + neighbor support)
 - Sends grounded prompts plus short chat history to `llama-server` for answer generation
-- Supports adding, deleting, and refreshing indexed `.md` / `.txt` documents from the UI
+- Supports adding, deleting, and refreshing indexed `.md` / `.txt` / `.json` documents from the UI
 
 ## Run
 
@@ -89,3 +89,4 @@ You can override runtime behavior with env vars:
 - The workspace root is detected by walking upward from the app output directory until a `models/` directory is found.
 - If `doc/` does not exist, the app creates it automatically and starts with an empty corpus.
 - The embedding cache is content-addressed by model name, chunk settings, file path, chunk index, and chunk text, so edited documents are re-embedded automatically.
+- JSON files are flattened into titled plain text sections before chunking, so nested objects and arrays can still participate in retrieval.

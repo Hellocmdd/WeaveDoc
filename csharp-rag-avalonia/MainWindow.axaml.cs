@@ -47,9 +47,9 @@ public partial class MainWindow : Window
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("Markdown / Text")
+                new FilePickerFileType("Markdown / Text / JSON")
                 {
-                    Patterns = ["*.md", "*.txt"]
+                    Patterns = ["*.md", "*.txt", "*.json"]
                 }
             ]
         });
