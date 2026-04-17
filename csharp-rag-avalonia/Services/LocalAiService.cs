@@ -37,6 +37,20 @@ public sealed class LocalAiService : IDisposable
     private static readonly string[] ProcedureSignals = ["步骤", "流程", "首先", "然后", "最后", "实现", "方法", "过程"];
     private static readonly string[] UsageSignals = ["用于", "作用", "用途", "负责", "实现", "控制", "采集", "识别", "管理"];
     private static readonly string[] DetailSignals = ["详细", "具体", "展开", "细说", "详述", "全面", "细一点", "详细一点", "具体一点", "展开讲", "展开说", "多说", "讲讲", "说说"];
+    private static readonly HashSet<string> JsonIgnoredFieldNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "englishtitle", "englishaffiliation", "englishabstract", "englishkeywords",
+        "classificationnumber", "documentidentifier", "articlenumber", "doi"
+    };
+    private static readonly HashSet<string> JsonPriorityFieldNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "abstract", "summary", "content", "overview", "architecture", "workflow", "keywords"
+    };
+    private static readonly HashSet<string> JsonMetadataFieldNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "authors", "author", "affiliation", "englishaffiliation", "classificationnumber",
+        "documentidentifier", "articlenumber", "doi", "englishTitle", "englishAbstract", "englishKeywords"
+    };
 
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
     private readonly List<DocumentChunk> _chunks = [];
@@ -321,8 +335,8 @@ public sealed class LocalAiService : IDisposable
             var relativePath = Path.GetRelativePath(docRoot, file).Replace('\\', '/');
             _corpusFiles.Add(relativePath);
 
-            var content = await ReadDocumentContentAsync(file, cancellationToken).ConfigureAwait(false);
-            foreach (var chunk in SplitIntoChunks(content, Path.GetFileName(file), relativePath))
+            var chunks = await LoadChunksFromDocumentAsync(file, relativePath, cancellationToken).ConfigureAwait(false);
+            foreach (var chunk in chunks)
             {
                 _chunks.Add(chunk);
             }
@@ -330,17 +344,18 @@ public sealed class LocalAiService : IDisposable
 
         foreach (var chunk in _chunks)
         {
+            var retrievalText = BuildChunkRetrievalText(chunk);
             var cacheKey = BuildChunkCacheKey(chunk);
             activeCacheKeys.Add(cacheKey);
 
             if (!embeddingCache.TryGet(cacheKey, out var embedding))
             {
-                embedding = await GetEmbeddingVectorAsync(chunk.Text, cancellationToken).ConfigureAwait(false);
+                embedding = await GetEmbeddingVectorAsync(retrievalText, cancellationToken).ConfigureAwait(false);
                 embeddingCache.Set(cacheKey, embedding);
                 cacheChanged = true;
             }
 
-            var tokenFrequency = BuildTokenFrequency(chunk.Text);
+            var tokenFrequency = BuildTokenFrequency(retrievalText);
             _indexedChunks.Add(new IndexedChunk(chunk, embedding, tokenFrequency, tokenFrequency.Values.Sum()));
 
             foreach (var token in tokenFrequency.Keys)
@@ -378,7 +393,7 @@ public sealed class LocalAiService : IDisposable
             .Select(indexed =>
             {
                 var bm25Raw = ComputeBm25(queryTokens, indexed);
-                var (keywordScore, hasDirectKeywordHit) = ComputeKeywordScore(queryTokens, indexed.Chunk.Text);
+                var (keywordScore, hasDirectKeywordHit) = ComputeKeywordScore(queryTokens, BuildChunkRetrievalText(indexed.Chunk));
                 var titleScore = ComputeTitleScore(queryProfile.FocusTerms, indexed.Chunk);
                 var noisePenalty = ComputeNoisePenalty(indexed.Chunk);
 
@@ -483,23 +498,40 @@ public sealed class LocalAiService : IDisposable
         return leftHash.AsSpan().SequenceEqual(rightHash);
     }
 
-    private static async Task<string> ReadDocumentContentAsync(string filePath, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<DocumentChunk>> LoadChunksFromDocumentAsync(string filePath, string relativePath, CancellationToken cancellationToken)
     {
         var raw = await File.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
         if (!Path.GetExtension(filePath).Equals(".json", StringComparison.OrdinalIgnoreCase))
         {
-            return raw;
+            return SplitIntoChunks(raw, Path.GetFileName(filePath), relativePath);
         }
 
         try
         {
             using var document = JsonDocument.Parse(raw);
-            return ConvertJsonToText(document.RootElement, Path.GetFileNameWithoutExtension(filePath));
+            return BuildChunksFromJson(document.RootElement, Path.GetFileName(filePath), relativePath);
         }
         catch (JsonException exception)
         {
             throw new InvalidOperationException($"JSON 文档解析失败: {Path.GetFileName(filePath)}，{exception.Message}", exception);
         }
+    }
+
+    private IReadOnlyList<DocumentChunk> BuildChunksFromJson(JsonElement root, string sourceName, string relativePath)
+    {
+        var documentTitle = ExtractJsonTitle(root, Path.GetFileNameWithoutExtension(sourceName));
+        var chunks = new List<DocumentChunk>();
+        var chunkIndex = 0;
+
+        AppendJsonChunks(root, sourceName, relativePath, documentTitle, documentTitle, documentTitle, chunks, ref chunkIndex);
+
+        if (chunks.Count > 0)
+        {
+            return chunks;
+        }
+
+        var fallbackText = ConvertJsonToText(root, documentTitle);
+        return SplitIntoChunks(fallbackText, sourceName, relativePath);
     }
 
     private static string ConvertJsonToText(JsonElement root, string defaultTitle)
@@ -532,6 +564,296 @@ public sealed class LocalAiService : IDisposable
         }
 
         return defaultTitle;
+    }
+
+    private void AppendJsonChunks(
+        JsonElement element,
+        string sourceName,
+        string relativePath,
+        string documentTitle,
+        string sectionTitle,
+        string structurePath,
+        List<DocumentChunk> chunks,
+        ref int chunkIndex)
+    {
+        if (IsIgnoredJsonStructure(structurePath))
+        {
+            return;
+        }
+
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                AppendJsonObjectChunks(element, sourceName, relativePath, documentTitle, sectionTitle, structurePath, chunks, ref chunkIndex);
+                break;
+            case JsonValueKind.Array:
+                AppendJsonArrayChunks(element, sourceName, relativePath, documentTitle, sectionTitle, structurePath, chunks, ref chunkIndex);
+                break;
+            default:
+                AddStructuredChunk(chunks, sourceName, relativePath, documentTitle, sectionTitle, structurePath, "body", ref chunkIndex, JsonScalarToString(element));
+                break;
+        }
+    }
+
+    private void AppendJsonObjectChunks(
+        JsonElement element,
+        string sourceName,
+        string relativePath,
+        string documentTitle,
+        string sectionTitle,
+        string structurePath,
+        List<DocumentChunk> chunks,
+        ref int chunkIndex)
+    {
+        var scalarLines = new List<string>();
+
+        foreach (var property in element.EnumerateObject())
+        {
+            var childPath = CombineStructurePath(structurePath, property.Name);
+            var childSection = GetLeafStructureSegment(childPath);
+
+            if (property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+            {
+                FlushJsonScalarChunk(chunks, scalarLines, sourceName, relativePath, documentTitle, sectionTitle, structurePath, ref chunkIndex);
+                AppendJsonChunks(property.Value, sourceName, relativePath, documentTitle, childSection, childPath, chunks, ref chunkIndex);
+                continue;
+            }
+
+            if (JsonIgnoredFieldNames.Contains(property.Name))
+            {
+                continue;
+            }
+
+            if (property.Name.Equals("number", StringComparison.OrdinalIgnoreCase) && IsIgnoredJsonStructure(childPath))
+            {
+                continue;
+            }
+
+            var value = JsonScalarToString(property.Value);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            if (JsonPriorityFieldNames.Contains(property.Name) || value.Length > _options.ChunkSize / 2)
+            {
+                FlushJsonScalarChunk(chunks, scalarLines, sourceName, relativePath, documentTitle, sectionTitle, structurePath, ref chunkIndex);
+                AddStructuredChunk(
+                    chunks,
+                    sourceName,
+                    relativePath,
+                    documentTitle,
+                    childSection,
+                    childPath,
+                    GetJsonContentKind(property.Name),
+                    ref chunkIndex,
+                    $"{property.Name}: {value}");
+                continue;
+            }
+
+            scalarLines.Add($"{property.Name}: {value}");
+        }
+
+        FlushJsonScalarChunk(chunks, scalarLines, sourceName, relativePath, documentTitle, sectionTitle, structurePath, ref chunkIndex);
+    }
+
+    private void AppendJsonArrayChunks(
+        JsonElement element,
+        string sourceName,
+        string relativePath,
+        string documentTitle,
+        string sectionTitle,
+        string structurePath,
+        List<DocumentChunk> chunks,
+        ref int chunkIndex)
+    {
+        var scalarValues = new List<string>();
+        var itemIndex = 1;
+
+        foreach (var item in element.EnumerateArray())
+        {
+            var itemPath = $"{structurePath}[{itemIndex}]";
+            var itemSection = GetLeafStructureSegment(itemPath);
+
+            if (item.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+            {
+                FlushJsonArrayScalarChunk(chunks, scalarValues, sourceName, relativePath, documentTitle, sectionTitle, structurePath, ref chunkIndex);
+                AppendJsonChunks(item, sourceName, relativePath, documentTitle, itemSection, itemPath, chunks, ref chunkIndex);
+            }
+            else
+            {
+                var value = JsonScalarToString(item);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    scalarValues.Add(value);
+                }
+            }
+
+            itemIndex++;
+        }
+
+        FlushJsonArrayScalarChunk(chunks, scalarValues, sourceName, relativePath, documentTitle, sectionTitle, structurePath, ref chunkIndex);
+    }
+
+    private void FlushJsonScalarChunk(
+        List<DocumentChunk> chunks,
+        List<string> scalarLines,
+        string sourceName,
+        string relativePath,
+        string documentTitle,
+        string sectionTitle,
+        string structurePath,
+        ref int chunkIndex)
+    {
+        if (scalarLines.Count == 0)
+        {
+            return;
+        }
+
+        AddStructuredChunk(
+            chunks,
+            sourceName,
+            relativePath,
+            documentTitle,
+            sectionTitle,
+            structurePath,
+            GetJsonContentKind(GetLeafStructureSegment(structurePath)),
+            ref chunkIndex,
+            string.Join('\n', scalarLines));
+
+        scalarLines.Clear();
+    }
+
+    private void FlushJsonArrayScalarChunk(
+        List<DocumentChunk> chunks,
+        List<string> scalarValues,
+        string sourceName,
+        string relativePath,
+        string documentTitle,
+        string sectionTitle,
+        string structurePath,
+        ref int chunkIndex)
+    {
+        if (scalarValues.Count == 0)
+        {
+            return;
+        }
+
+        AddStructuredChunk(
+            chunks,
+            sourceName,
+            relativePath,
+            documentTitle,
+            sectionTitle,
+            structurePath,
+            GetJsonContentKind(GetLeafStructureSegment(structurePath)),
+            ref chunkIndex,
+            string.Join('\n', scalarValues.Select(value => $"- {value}")));
+
+        scalarValues.Clear();
+    }
+
+    private void AddStructuredChunk(
+        List<DocumentChunk> chunks,
+        string sourceName,
+        string relativePath,
+        string documentTitle,
+        string sectionTitle,
+        string structurePath,
+        string contentKind,
+        ref int chunkIndex,
+        string text)
+    {
+        var normalizedText = text.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedText))
+        {
+            return;
+        }
+
+        if (normalizedText.Length > _options.ChunkSize)
+        {
+            foreach (var oversizedPart in SplitLargeParagraph(normalizedText))
+            {
+                chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, oversizedPart, Array.Empty<float>(), documentTitle, sectionTitle, structurePath, contentKind));
+            }
+
+            return;
+        }
+
+        chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, normalizedText, Array.Empty<float>(), documentTitle, sectionTitle, structurePath, contentKind));
+    }
+
+    private static string CombineStructurePath(string parentPath, string childSegment)
+    {
+        return string.IsNullOrWhiteSpace(parentPath) ? childSegment : $"{parentPath} > {childSegment}";
+    }
+
+    private static string GetLeafStructureSegment(string structurePath)
+    {
+        if (string.IsNullOrWhiteSpace(structurePath))
+        {
+            return "正文";
+        }
+
+        var segments = structurePath.Split(" > ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return segments.Length == 0 ? structurePath : segments[^1];
+    }
+
+    private static bool IsIgnoredJsonStructure(string structurePath)
+    {
+        if (string.IsNullOrWhiteSpace(structurePath))
+        {
+            return false;
+        }
+
+        return structurePath.Contains("参考文献", StringComparison.Ordinal)
+            || structurePath.Contains("references", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetJsonContentKind(string fieldNameOrPathLeaf)
+    {
+        if (string.IsNullOrWhiteSpace(fieldNameOrPathLeaf))
+        {
+            return "body";
+        }
+
+        var normalized = fieldNameOrPathLeaf
+            .Replace("[", string.Empty, StringComparison.Ordinal)
+            .Replace("]", string.Empty, StringComparison.Ordinal)
+            .Trim();
+
+        if (normalized.Equals("title", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("name", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("documentTitle", StringComparison.OrdinalIgnoreCase))
+        {
+            return "title";
+        }
+
+        if (normalized.Equals("abstract", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("summary", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("overview", StringComparison.OrdinalIgnoreCase))
+        {
+            return "summary";
+        }
+
+        if (normalized.Equals("keywords", StringComparison.OrdinalIgnoreCase))
+        {
+            return "keyword";
+        }
+
+        if (normalized.Equals("content", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("workflow", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("architecture", StringComparison.OrdinalIgnoreCase))
+        {
+            return "body";
+        }
+
+        if (JsonMetadataFieldNames.Contains(normalized))
+        {
+            return "metadata";
+        }
+
+        return "body";
     }
 
     private static void AppendJsonElement(StringBuilder builder, JsonElement element, string label, int depth)
@@ -655,6 +977,33 @@ public sealed class LocalAiService : IDisposable
             JsonValueKind.Null => string.Empty,
             _ => element.GetRawText()
         };
+    }
+
+    private static string BuildChunkRetrievalText(DocumentChunk chunk)
+    {
+        var parts = new List<string>(4);
+        AppendRetrievalPart(parts, chunk.DocumentTitle);
+        AppendRetrievalPart(parts, chunk.StructurePath);
+        AppendRetrievalPart(parts, chunk.SectionTitle);
+        AppendRetrievalPart(parts, chunk.ContentKind is "body" or "" ? string.Empty : chunk.ContentKind);
+        AppendRetrievalPart(parts, chunk.Text);
+        return string.Join('\n', parts);
+    }
+
+    private static void AppendRetrievalPart(List<string> parts, string value)
+    {
+        var normalized = value.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return;
+        }
+
+        if (parts.Any(existing => string.Equals(existing, normalized, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        parts.Add(normalized);
     }
 
     private Dictionary<string, int> BuildTokenFrequency(string text)
@@ -962,7 +1311,7 @@ public sealed class LocalAiService : IDisposable
                 FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex);
                 foreach (var oversizedPart in SplitLargeParagraph(paragraph))
                 {
-                    chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, oversizedPart, Array.Empty<float>(), documentTitle, sectionTitle));
+                    chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, oversizedPart, Array.Empty<float>(), documentTitle, sectionTitle, string.Empty, "body"));
                 }
 
                 continue;
@@ -1019,7 +1368,7 @@ public sealed class LocalAiService : IDisposable
             return;
         }
 
-        chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, text, Array.Empty<float>(), documentTitle, sectionTitle));
+        chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, text, Array.Empty<float>(), documentTitle, sectionTitle, string.Empty, "body"));
     }
 
     private IEnumerable<string> SplitLargeParagraph(string paragraph)
@@ -1116,14 +1465,15 @@ public sealed class LocalAiService : IDisposable
             return 0f;
         }
 
-        var titleCorpus = $"{chunk.DocumentTitle} {chunk.SectionTitle}".ToLowerInvariant();
+        var titleCorpus = $"{chunk.DocumentTitle} {chunk.SectionTitle} {chunk.StructurePath}".ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(titleCorpus))
         {
             return 0f;
         }
 
         var matched = focusTerms.Count(term => titleCorpus.Contains(term, StringComparison.Ordinal));
-        return matched <= 0 ? 0f : matched / (float)focusTerms.Count;
+        var baseScore = matched <= 0 ? 0f : matched / (float)focusTerms.Count;
+        return baseScore * GetContentKindTitleMultiplier(chunk.ContentKind);
     }
 
     private static float ComputeNoisePenalty(DocumentChunk chunk)
@@ -1166,7 +1516,38 @@ public sealed class LocalAiService : IDisposable
             penalty += 0.08f;
         }
 
+        if (chunk.ContentKind == "metadata")
+        {
+            penalty += 0.28f;
+            if (text.Length < 120)
+            {
+                penalty += 0.08f;
+            }
+        }
+
+        if (chunk.ContentKind == "keyword")
+        {
+            penalty -= 0.04f;
+        }
+
+        if (chunk.ContentKind == "summary")
+        {
+            penalty -= 0.03f;
+        }
+
         return Math.Min(0.45f, penalty);
+    }
+
+    private static float GetContentKindTitleMultiplier(string contentKind)
+    {
+        return contentKind switch
+        {
+            "title" => 1.35f,
+            "summary" => 1.15f,
+            "keyword" => 1.2f,
+            "metadata" => 0.55f,
+            _ => 1f
+        };
     }
 
     private ScoredChunk[] RerankCandidates(IReadOnlyList<ScoredChunk> candidates, QueryProfile queryProfile, int count)
@@ -1205,7 +1586,7 @@ public sealed class LocalAiService : IDisposable
             return 0f;
         }
 
-        var normalized = chunk.Text.ToLowerInvariant();
+        var normalized = BuildChunkRetrievalText(chunk).ToLowerInvariant();
         var matched = focusTerms.Count(term => normalized.Contains(term, StringComparison.Ordinal));
         return matched <= 0 ? 0f : matched / (float)focusTerms.Count;
     }
@@ -1220,7 +1601,7 @@ public sealed class LocalAiService : IDisposable
         var neighbors = _indexedChunks
             .Where(item => string.Equals(item.Chunk.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase))
             .Where(item => Math.Abs(item.Chunk.Index - chunk.Index) <= 1 && item.Chunk.Index != chunk.Index)
-            .Select(item => item.Chunk.Text.ToLowerInvariant())
+            .Select(item => BuildChunkRetrievalText(item.Chunk).ToLowerInvariant())
             .ToArray();
 
         if (neighbors.Length == 0)
@@ -1331,6 +1712,10 @@ public sealed class LocalAiService : IDisposable
             var chunk = chunks[index];
             builder.AppendLine($"来源标签: {BuildStableCitation(chunk)}");
             builder.AppendLine($"来源说明: {chunk.DocumentTitle} / {chunk.SectionTitle} ({chunk.FilePath})");
+            if (!string.IsNullOrWhiteSpace(chunk.StructurePath))
+            {
+                builder.AppendLine($"结构路径: {chunk.StructurePath}");
+            }
             builder.AppendLine(SanitizeChunkForPrompt(chunk.Text));
             builder.AppendLine();
         }
@@ -1388,6 +1773,10 @@ public sealed class LocalAiService : IDisposable
             var chunk = chunks[index];
             builder.AppendLine($"来源标签: {BuildStableCitation(chunk)}");
             builder.AppendLine($"来源说明: {chunk.DocumentTitle} / {chunk.SectionTitle} ({chunk.FilePath})");
+            if (!string.IsNullOrWhiteSpace(chunk.StructurePath))
+            {
+                builder.AppendLine($"结构路径: {chunk.StructurePath}");
+            }
             builder.AppendLine(SanitizeChunkForPrompt(chunk.Text));
             builder.AppendLine();
         }
@@ -1587,6 +1976,15 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
+        if (queryProfile.Intent == "procedure")
+        {
+            var procedure = BuildProcedureFallbackAnswer(question, chunks);
+            if (!string.IsNullOrWhiteSpace(procedure))
+            {
+                return procedure;
+            }
+        }
+
         var tokens = ExtractQueryTokens(question);
         var candidates = new List<(DocumentChunk Chunk, string Sentence, int Score)>();
 
@@ -1639,6 +2037,78 @@ public sealed class LocalAiService : IDisposable
         }
 
         return builder.ToString();
+    }
+
+    private string? BuildProcedureFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
+    {
+        var queryTokens = ExtractQueryTokens(question);
+        var candidates = new List<ProcedureCandidate>();
+
+        foreach (var chunk in chunks)
+        {
+            var structureBoost = CountProcedureStructureSignals($"{chunk.StructurePath} {chunk.SectionTitle}");
+            var chunkSignals = CountArchitectureSignals($"{chunk.StructurePath} {chunk.SectionTitle} {chunk.Text}");
+            var sentences = SentenceSplitRegex.Split(chunk.Text)
+                .Select(sentence => sentence.Trim())
+                .Where(sentence => !string.IsNullOrWhiteSpace(sentence))
+                .Take(10);
+
+            foreach (var sentence in sentences)
+            {
+                if (!IsCandidateSentence(sentence))
+                {
+                    continue;
+                }
+
+                var lowerSentence = sentence.ToLowerInvariant();
+                var tokenHits = queryTokens.Count(token => lowerSentence.Contains(token, StringComparison.Ordinal));
+                var procedureHits = ProcedureSignals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
+                var architectureHits = CountArchitectureSignals(sentence);
+                var methodHits = CountMethodSignals(sentence);
+
+                var score = (tokenHits * 3)
+                    + (procedureHits * 2)
+                    + architectureHits
+                    + methodHits
+                    + structureBoost
+                    + chunkSignals;
+
+                if (chunk.ContentKind == "summary")
+                {
+                    score += 1;
+                }
+
+                if (score <= 0)
+                {
+                    continue;
+                }
+
+                candidates.Add(new ProcedureCandidate(chunk, sentence, score));
+            }
+        }
+
+        var selected = candidates
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Chunk.Index)
+            .GroupBy(item => $"{item.Chunk.FilePath}#{item.Chunk.Index}", StringComparer.Ordinal)
+            .Select(group => group.First())
+            .Take(4)
+            .ToArray();
+
+        if (selected.Length == 0)
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("根据当前文档，系统实现精准灌溉主要依靠以下环节：");
+        for (var index = 0; index < selected.Length; index++)
+        {
+            builder.AppendLine($"{index + 1}. {selected[index].Sentence} {BuildStableCitation(selected[index].Chunk)}");
+        }
+
+        return builder.ToString().TrimEnd();
     }
 
     private static bool WantsDetailedAnswer(string question)
@@ -1714,10 +2184,10 @@ public sealed class LocalAiService : IDisposable
         {
             if (queryProfile.WantsDetailedAnswer)
             {
-                return "如果问题是在问论文或文档主要写什么，优先概括研究目标，再展开写系统组成、关键方法、实现/实验结果、结论或意义。";
+                return "如果问题是在问论文或文档主要写什么，优先概括研究目标，再展开写系统组成、关键方法、实现/实验结果、结论或意义；如果原文明确列出了模块名、层级名或组成项，尽量保留原始术语，不要泛化改写。";
             }
 
-            return "如果问题是在问论文或文档主要写什么，先概括主旨，再列出几个核心内容点。";
+            return "如果问题是在问论文或文档主要写什么，先概括主旨，再列出几个核心内容点；如果原文明确列出了模块名、层级名或组成项，尽量保留原始术语，不要泛化改写。";
         }
 
         return queryProfile.WantsDetailedAnswer
@@ -1892,12 +2362,25 @@ public sealed class LocalAiService : IDisposable
         var lowerSubject = subject.ToLowerInvariant();
         return chunk.Text.ToLowerInvariant().Contains(lowerSubject, StringComparison.Ordinal)
             || chunk.DocumentTitle.ToLowerInvariant().Contains(lowerSubject, StringComparison.Ordinal)
-            || chunk.SectionTitle.ToLowerInvariant().Contains(lowerSubject, StringComparison.Ordinal);
+            || chunk.SectionTitle.ToLowerInvariant().Contains(lowerSubject, StringComparison.Ordinal)
+            || chunk.StructurePath.ToLowerInvariant().Contains(lowerSubject, StringComparison.Ordinal);
     }
 
     private static int CountArchitectureSignals(string sentence)
     {
-        var signals = new[] { "核心控制器", "主控芯片", "主控制器", "控制核心", "数据采集", "决策控制", "执行机构", "交互显示", "多任务调度" };
+        var signals = new[] { "核心控制器", "主控芯片", "主控制器", "控制核心", "数据采集", "决策控制", "执行机构", "交互显示", "多任务调度", "感知层", "决策层", "执行层", "交互层", "模糊pid", "电磁阀", "土壤湿度" };
+        return signals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
+    }
+
+    private static int CountProcedureStructureSignals(string text)
+    {
+        var signals = new[] { "感知", "决策", "执行", "交互", "流程", "步骤", "控制", "调节", "算法", "模块", "策略" };
+        return signals.Count(signal => text.Contains(signal, StringComparison.Ordinal));
+    }
+
+    private static int CountMethodSignals(string sentence)
+    {
+        var signals = new[] { "采用", "通过", "结合", "根据", "实时", "动态", "驱动", "调节", "控制", "监测", "反馈" };
         return signals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
     }
 
@@ -2014,7 +2497,7 @@ public sealed class LocalAiService : IDisposable
 
     private static string BuildStableCitation(DocumentChunk chunk)
     {
-        return BuildStableCitation(chunk.FilePath, chunk.SectionTitle, chunk.Index);
+        return BuildStableCitation(chunk.FilePath, string.IsNullOrWhiteSpace(chunk.StructurePath) ? chunk.SectionTitle : chunk.StructurePath, chunk.Index);
     }
 
     private static string BuildStableCitation(string filePath, string sectionTitle, int chunkIndex)
@@ -2045,7 +2528,7 @@ public sealed class LocalAiService : IDisposable
 
     private string BuildChunkCacheKey(DocumentChunk chunk)
     {
-        var payload = $"{Path.GetFileName(EmbeddingModelPath)}|{_options.ChunkSize}|{_options.ChunkOverlap}|{chunk.FilePath}|{chunk.Index}|{chunk.Text}";
+        var payload = $"structured-retrieval-v2|{Path.GetFileName(EmbeddingModelPath)}|{_options.ChunkSize}|{_options.ChunkOverlap}|{chunk.FilePath}|{chunk.Index}|{chunk.StructurePath}|{chunk.ContentKind}|{BuildChunkRetrievalText(chunk)}";
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
         return Convert.ToHexString(bytes);
     }
@@ -2088,6 +2571,8 @@ public sealed class LocalAiService : IDisposable
         float CoverageScore,
         float NeighborScore,
         bool HasDirectKeywordHit);
+
+    private sealed record ProcedureCandidate(DocumentChunk Chunk, string Sentence, int Score);
 
     private sealed record RetrievalResult(
         IReadOnlyList<ScoredChunk> RankedChunks,

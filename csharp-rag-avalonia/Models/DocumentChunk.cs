@@ -7,4 +7,6 @@ public sealed record DocumentChunk(
     string Text,
     float[] Embedding,
     string DocumentTitle = "",
-    string SectionTitle = "");
+    string SectionTitle = "",
+    string StructurePath = "",
+    string ContentKind = "body");
