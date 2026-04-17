@@ -23,6 +23,7 @@ public partial class TemplateTab : UserControl
         SeedButton.Click += OnSeed;
         ImportButton.Click += OnImport;
         DeleteButton.Click += OnDelete;
+        TemplateGrid.SelectionChanged += OnSelectionChanged;
     }
 
     public void SetConfigManager(ConfigManager configManager)
@@ -37,6 +38,16 @@ public partial class TemplateTab : UserControl
         var templates = await _configManager.ListTemplatesAsync();
         TemplateGrid.ItemsSource = templates;
         StatusBar.Text = $"共 {templates.Count} 个模板";
+        DeleteButton.IsVisible = false;
+    }
+
+    private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        var selected = TemplateGrid.SelectedItem as AfdMeta;
+        DeleteButton.IsVisible = selected != null;
+        _pendingDeleteId = null;
+        if (selected != null)
+            DeleteButton.Content = "删除选中模板";
     }
 
     private async void OnRefresh(object? sender, RoutedEventArgs e) => await LoadTemplatesAsync();
@@ -99,7 +110,7 @@ public partial class TemplateTab : UserControl
         if (_pendingDeleteId != selected.TemplateId)
         {
             _pendingDeleteId = selected.TemplateId;
-            StatusBar.Text = $"再次点击删除以确认: {selected.TemplateName}";
+            DeleteButton.Content = $"确认删除 \"{selected.TemplateName}\"?";
             return;
         }
 
