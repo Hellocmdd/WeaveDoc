@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using WeaveDoc.Converter.Afd.Models;
 using WeaveDoc.Converter.Config;
@@ -14,6 +15,7 @@ public partial class ConvertTab : UserControl
 {
     private ConfigManager? _configManager;
     private DocumentConversionEngine? _engine;
+    private bool _isDocx = true;
 
     public ConvertTab()
     {
@@ -21,6 +23,8 @@ public partial class ConvertTab : UserControl
         BrowseMdButton.Click += OnBrowseMd;
         BrowseOutputButton.Click += OnBrowseOutput;
         ConvertButton.Click += OnConvert;
+        FormatDocxBtn.Click += OnFormatDocx;
+        FormatPdfBtn.Click += OnFormatPdf;
     }
 
     public void SetServices(ConfigManager configManager, DocumentConversionEngine engine)
@@ -37,6 +41,36 @@ public partial class ConvertTab : UserControl
         TemplateCombo.ItemsSource = templates;
         if (templates.Count > 0)
             TemplateCombo.SelectedIndex = 0;
+    }
+
+    private void OnFormatDocx(object? sender, RoutedEventArgs e)
+    {
+        _isDocx = true;
+        FormatDocxBtn.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0x6F, 0xA5));
+        FormatDocxBtn.Foreground = new SolidColorBrush(Colors.White);
+        FormatDocxBtn.FontWeight = FontWeight.SemiBold;
+        FormatPdfBtn.Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xFC));
+        FormatPdfBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x71, 0x80, 0x96));
+        FormatPdfBtn.FontWeight = FontWeight.Normal;
+    }
+
+    private void OnFormatPdf(object? sender, RoutedEventArgs e)
+    {
+        _isDocx = false;
+        FormatPdfBtn.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0x6F, 0xA5));
+        FormatPdfBtn.Foreground = new SolidColorBrush(Colors.White);
+        FormatPdfBtn.FontWeight = FontWeight.SemiBold;
+        FormatDocxBtn.Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xFC));
+        FormatDocxBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x71, 0x80, 0x96));
+        FormatDocxBtn.FontWeight = FontWeight.Normal;
+    }
+
+    private void SetStatus(string text, string color)
+    {
+        StatusLabel.Text = text;
+        var brush = new SolidColorBrush(Color.Parse(color));
+        StatusLabel.Foreground = brush;
+        StatusDot.Background = brush;
     }
 
     private async void OnBrowseMd(object? sender, RoutedEventArgs e)
@@ -77,29 +111,31 @@ public partial class ConvertTab : UserControl
         var mdPath = MdPathBox.Text?.Trim();
         if (string.IsNullOrEmpty(mdPath) || !File.Exists(mdPath))
         {
-            StatusLabel.Text = "状态: 请选择有效的 Markdown 文件";
+            SetStatus("请选择有效的 Markdown 文件", "#F5222D");
             return;
         }
 
         var selected = TemplateCombo.SelectedItem as AfdMeta;
         if (selected == null)
         {
-            StatusLabel.Text = "状态: 请选择模板";
+            SetStatus("请选择模板", "#F5222D");
             return;
         }
 
         var outputDir = OutputDirBox.Text?.Trim();
         if (string.IsNullOrEmpty(outputDir) || !Directory.Exists(outputDir))
         {
-            StatusLabel.Text = "状态: 请选择输出目录";
+            SetStatus("请选择输出目录", "#F5222D");
             return;
         }
 
-        var format = FormatDocx.IsChecked == true ? "docx" : "pdf";
+        var format = _isDocx ? "docx" : "pdf";
 
-        StatusLabel.Text = "状态: 转换中...";
+        // 转换中状态
+        SetStatus("转换中...", "#1890FF");
         ConvertButton.IsEnabled = false;
-        LogBox.Text = $"模板: {selected.TemplateName} ({selected.TemplateId})\n格式: {format}\n输入: {mdPath}\n\n正在转换...\n";
+        ConvertButton.Content = "转换中...";
+        LogBox.IsVisible = false;
 
         try
         {
@@ -111,23 +147,26 @@ public partial class ConvertTab : UserControl
                 if (result.OutputPath != outputPath && File.Exists(result.OutputPath))
                     File.Move(result.OutputPath, outputPath, overwrite: true);
 
-                LogBox.Text += $"转换成功!\n输出: {outputPath}";
-                StatusLabel.Text = "状态: 转换完成";
+                SetStatus($"转换完成 — {outputPath}", "#52C41A");
+                LogBox.IsVisible = false;
             }
             else
             {
-                LogBox.Text += $"转换失败: {result.ErrorMessage}";
-                StatusLabel.Text = "状态: 转换失败";
+                SetStatus("转换失败", "#F5222D");
+                LogBox.Text = $"模板: {selected.TemplateName} ({selected.TemplateId})\n格式: {format}\n输入: {mdPath}\n\n{result.ErrorMessage}";
+                LogBox.IsVisible = true;
             }
         }
         catch (Exception ex)
         {
-            LogBox.Text += $"异常: {ex.Message}";
-            StatusLabel.Text = "状态: 转换出错";
+            SetStatus("转换出错", "#F5222D");
+            LogBox.Text = $"异常: {ex.Message}";
+            LogBox.IsVisible = true;
         }
         finally
         {
             ConvertButton.IsEnabled = true;
+            ConvertButton.Content = "开始转换";
         }
     }
 }
