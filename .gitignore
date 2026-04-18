@@ -23,3 +23,7 @@ models/
 .rag/
 rag_store.db
 .agent.md
+
+
+# evaluation results
+.eval/
