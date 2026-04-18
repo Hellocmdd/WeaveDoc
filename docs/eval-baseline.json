@@ -3,6 +3,7 @@
   "cases": [
     {
       "id": "stm32-summary",
+      "category": "engineering-paper",
       "question": "总结一下基于STM32单片机的智能浇花系统设计这篇文档主要写了什么",
       "expectedKeywords": [
         "stm32",
@@ -14,6 +15,7 @@
     },
     {
       "id": "stm32-control",
+      "category": "engineering-paper",
       "question": "这个智能浇花系统如何实现精准灌溉",
       "expectedKeywords": [
         "模糊pid",
@@ -24,6 +26,7 @@
     },
     {
       "id": "stm32-remote",
+      "category": "engineering-paper",
       "question": "文档里远程状态显示及控制模块是怎么做的",
       "expectedKeywords": [
         "esp-01s",
@@ -34,6 +37,7 @@
     },
     {
       "id": "follow-up-detail",
+      "category": "engineering-paper",
       "question": "详细一点",
       "expectedKeywords": [
         "模糊pid",
@@ -50,6 +54,54 @@
           "content": "上一轮回答略。"
         }
       ]
+    },
+    {
+      "id": "ai-shortdrama-summary",
+      "category": "humanities-paper",
+      "question": "总结一下《从文化传承到科幻未来：国产AI微短剧发展的新趋势与新启示》这篇论文主要写了什么",
+      "expectedKeywords": [
+        "ai微短剧",
+        "文化传承",
+        "科幻",
+        "人机"
+      ],
+      "minMatchedKeywords": 4
+    },
+    {
+      "id": "ai-shortdrama-challenges",
+      "category": "humanities-paper",
+      "question": "文中认为国产AI微短剧当前面临哪些问题，未来应走向什么路径",
+      "expectedKeywords": [
+        "叙事同质化",
+        "文化失真",
+        "人机",
+        "人文引领"
+      ],
+      "minMatchedKeywords": 3
+    },
+    {
+      "id": "geology-system-architecture",
+      "category": "system-paper",
+      "question": "《基于Spring Boot和Vue的地质信息智能抽取与可视化系统设计与实现》采用了什么总体架构和技术栈",
+      "expectedKeywords": [
+        "spring boot",
+        "vue3",
+        "mybatis-plus",
+        "echarts"
+      ],
+      "minMatchedKeywords": 4
+    },
+    {
+      "id": "geology-system-modules",
+      "category": "system-paper",
+      "question": "这篇地质信息抽取与可视化系统论文主要有哪些功能模块",
+      "expectedKeywords": [
+        "信息抽取",
+        "知识图谱",
+        "多模态检索",
+        "多特征关联分析"
+      ],
+      "minMatchedKeywords": 4
     }
   ]
 }

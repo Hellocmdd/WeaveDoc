@@ -68,13 +68,14 @@ JSON 文档不会直接按原始 JSON 字符串切块，而是先通过 `ReadDoc
 
 - 自动提取 `title`、`name`、`documentTitle`、`document_name` 等字段作为文档标题
 - object 转成分节标题 + `字段: 值`
-- array 转成按项展开的小节或列表
+- array 转成按项展开的小节或列表，并给对象数组项生成 `第N项 + 摘要` 形式的小节标题
 - 最后形成一份带标题层级的纯文本，再进入现有 Markdown/文本切块流程
 
 这样做的好处是：
 
 - 检索仍能利用标题命中与章节命中
 - 嵌套 JSON 不会退化成一整段难检索的原始字符串
+- 深层数组项不再只剩下 `[1]`、`[2]` 这种弱标签
 - 生成回答时引用仍能稳定落到“文件 + 章节 + chunk”
 
 ## 3. 文档切块与元信息
@@ -187,6 +188,7 @@ JSON 文档不会直接按原始 JSON 字符串切块，而是先通过 `ReadDoc
 - `BM25`
 - `KeywordScore`
 - `TitleScore`
+- `JsonStructureScore`
 - `HasDirectKeywordHit`
 - `NoisePenalty`
 
@@ -197,6 +199,7 @@ sparseScore =
   bm25 * Bm25Weight
   + keyword * KeywordWeight
   + title * TitleWeight
+  + jsonStructure * JsonStructureWeight
   + directHitBonus
   - noisePenalty
 ```
@@ -244,7 +247,16 @@ finalCandidateScore =
 
 `ComputeNeighborSupportScore` 检查同文件相邻 chunk 是否也支持当前主题。
 
-### 7.3 Intent boost
+### 7.3 JSON branch support
+
+`ComputeJsonBranchSupportScore` 会额外检查 JSON 同一结构分支上的 sibling / parent / child chunk 是否也包含焦点词。
+
+这一步主要解决两类问题：
+
+- 命中的是数组项时，希望同组规则或同模块的相邻字段也能提供支持
+- 命中的是深层节点时，希望父子层级中的补充信息能进入重排
+
+### 7.4 Intent boost
 
 `ComputeIntentBoost` 会根据问题类型给包含特定信号词的 chunk 加小分：
 
@@ -252,13 +264,14 @@ finalCandidateScore =
 - `procedure` 偏好“步骤 / 流程 / 首先 / 然后”
 - `explain` 偏好“原因 / 机制 / 因为 / 由于”
 
-### 7.4 重排公式
+### 7.5 重排公式
 
 ```text
 rerankScore =
   candidateScore
   + coverage * CoverageWeight
   + neighbor * NeighborWeight
+  + jsonBranch * JsonBranchWeight
   + intentBoost
 ```
 
@@ -266,7 +279,7 @@ rerankScore =
 
 ## 8. 上下文窗口
 
-`BuildContextWindow` 不只保留主命中 chunk，还会取其前后相邻 chunk：
+`BuildContextWindow` 不只保留主命中 chunk，还会取其前后相邻 chunk；如果命中的是 JSON 结构化 chunk，还会补充同一结构分支上的辅助证据：
 
 - 范围由 `ContextWindowRadius` 控制
 - 同一 chunk 只保留一次
@@ -377,8 +390,10 @@ rerankScore =
 - `RAG_BM25_WEIGHT = 0.20`
 - `RAG_KEYWORD_WEIGHT = 0.18`
 - `RAG_TITLE_WEIGHT = 0.12`
+- `RAG_JSON_STRUCTURE_WEIGHT = 0.10`
 - `RAG_COVERAGE_WEIGHT = 0.08`
 - `RAG_NEIGHBOR_WEIGHT = 0.08`
+- `RAG_JSON_BRANCH_WEIGHT = 0.06`
 - `RAG_DIRECT_KEYWORD_BONUS = 0.08`
 - `LLAMA_SERVER_TEMPERATURE = 0.2`
 - `LLAMA_SERVER_MAX_TOKENS = 1536`

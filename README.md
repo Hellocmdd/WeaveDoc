@@ -88,9 +88,9 @@ LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
 ## What The App Supports
 
 - local indexing of `.md`, `.txt`, and `.json` documents from `doc/`
-- JSON ingestion by flattening nested objects and arrays into titled plain-text sections before chunking
+- JSON ingestion into structure-aware chunks with searchable array-item section labels
 - duplicate import detection so the app does not keep copying identical files into the knowledge base
-- hybrid retrieval with sparse prefilter + semantic scoring + lightweight reranking
+- hybrid retrieval with sparse prefilter + semantic scoring + structure-aware reranking
 - stable citations in answers, using file path + section + chunk id instead of temporary `[1] [2]` numbering
 - offline baseline evaluation through a CLI entry point and helper script
 

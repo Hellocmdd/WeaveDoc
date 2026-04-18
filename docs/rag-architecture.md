@@ -68,10 +68,12 @@ JSON files are not chunked as raw JSON text. They are first converted into struc
 
 - title-like fields such as `title`, `name`, `documentTitle`, and `document_name` are used as the document title
 - objects are expanded into section headings plus `field: value` lines
-- arrays are expanded into section blocks or bullet-style lists
+- arrays are expanded into section blocks or bullet-style lists, and object items receive `item N + preview` section labels
 - the resulting text is then fed into the normal text/Markdown chunking pipeline
 
 This makes JSON searchable through title and section signals instead of treating the whole file as a noisy blob.
+
+It also avoids weak citations such as bare `[1]` / `[2]` labels for deep array items.
 
 ## 3. Chunking and Metadata
 
@@ -180,6 +182,7 @@ Every chunk first receives sparse-only signals:
 - `BM25`
 - `KeywordScore`
 - `TitleScore`
+- `JsonStructureScore`
 - `HasDirectKeywordHit`
 - `NoisePenalty`
 
@@ -190,6 +193,7 @@ sparseScore =
   bm25 * Bm25Weight
   + keyword * KeywordWeight
   + title * TitleWeight
+  + jsonStructure * JsonStructureWeight
   + directHitBonus
   - noisePenalty
 ```
@@ -237,7 +241,16 @@ the system falls back to full semantic scoring so paraphrased or fuzzy questions
 
 `ComputeNeighborSupportScore` checks whether adjacent chunks from the same file also support the same topic.
 
-### 7.3 Intent boost
+### 7.3 JSON branch support
+
+`ComputeJsonBranchSupportScore` checks whether sibling / parent / child chunks from the same JSON structure branch also support the focus terms.
+
+This is mainly useful when:
+
+- the best hit is a single array item and nearby structured evidence should remain attached
+- the best hit is a deep node and the answer needs parent/child details from the same branch
+
+### 7.4 Intent boost
 
 `ComputeIntentBoost` adds a small extra score when the chunk contains intent-specific signals:
 
@@ -245,13 +258,14 @@ the system falls back to full semantic scoring so paraphrased or fuzzy questions
 - `procedure` prefers “步骤 / 流程 / 首先 / 然后”
 - `explain` prefers “原因 / 机制 / 因为 / 由于”
 
-### 7.4 Rerank formula
+### 7.5 Rerank formula
 
 ```text
 rerankScore =
   candidateScore
   + coverage * CoverageWeight
   + neighbor * NeighborWeight
+  + jsonBranch * JsonBranchWeight
   + intentBoost
 ```
 
@@ -259,7 +273,7 @@ The final top `TopK` chunks become the main answer evidence.
 
 ## 8. Context Window Expansion
 
-`BuildContextWindow` expands the top-ranked chunks with nearby chunks:
+`BuildContextWindow` expands the top-ranked chunks with nearby chunks. For JSON hits it also pulls in supporting chunks from the same structure branch:
 
 - the radius is controlled by `ContextWindowRadius`
 - each chunk appears at most once
@@ -370,8 +384,10 @@ Important current parameters include:
 - `RAG_BM25_WEIGHT = 0.20`
 - `RAG_KEYWORD_WEIGHT = 0.18`
 - `RAG_TITLE_WEIGHT = 0.12`
+- `RAG_JSON_STRUCTURE_WEIGHT = 0.10`
 - `RAG_COVERAGE_WEIGHT = 0.08`
 - `RAG_NEIGHBOR_WEIGHT = 0.08`
+- `RAG_JSON_BRANCH_WEIGHT = 0.06`
 - `RAG_DIRECT_KEYWORD_BONUS = 0.08`
 - `LLAMA_SERVER_TEMPERATURE = 0.2`
 - `LLAMA_SERVER_MAX_TOKENS = 1536`
