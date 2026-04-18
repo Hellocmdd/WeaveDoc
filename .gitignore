@@ -21,7 +21,7 @@ models/
 
 # local app cache
 .rag/
-rag_store.db
+*.db
 .agent.md
 
 
