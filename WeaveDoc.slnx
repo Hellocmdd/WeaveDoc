@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WeaveDoc.Converter.Ui/WeaveDoc.Converter.Ui.csproj" />
+    <Project Path="src/WeaveDoc.Converter/WeaveDoc.Converter.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WeaveDoc.Converter.Tests/WeaveDoc.Converter.Tests.csproj" />
+    <Project Path="tests/WeaveDoc.Converter.Ui.Tests/WeaveDoc.Converter.Ui.Tests.csproj" />
+  </Folder>
+  <Project Path="../WeaveDoc/WeaveDoc.csproj" />
+</Solution>
