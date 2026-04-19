@@ -102,6 +102,18 @@
         "多特征关联分析"
       ],
       "minMatchedKeywords": 4
+    },
+    {
+      "id": "json-metadata-english",
+      "category": "json-ingestion",
+      "question": "《基于STM32单片机的智能浇花系统设计》这份 JSON 文档的英文标题、英文摘要和英文关键词是什么",
+      "expectedKeywords": [
+        "design of intelligent watering system",
+        "stm32 microcontroller",
+        "fuzzy pid",
+        "solenoid valve"
+      ],
+      "minMatchedKeywords": 3
     }
   ]
 }

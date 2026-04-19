@@ -43,19 +43,23 @@ public sealed class LocalAiService : IDisposable
     private static readonly string[] SupplementalRequestSignals = ["补充要求", "详细一点", "具体一点", "展开一点", "展开说", "展开讲", "细一点", "继续", "再说", "多说", "讲讲", "说说"];
     private static readonly HashSet<string> JsonIgnoredFieldNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        "englishtitle", "englishaffiliation", "englishabstract", "englishkeywords",
         "classificationnumber", "documentidentifier", "articlenumber", "doi"
     };
     private static readonly HashSet<string> JsonPriorityFieldNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        "abstract", "summary", "content", "overview", "architecture", "workflow", "keywords"
+        "title", "titleen", "title_en", "documenttitle", "document_title", "name", "nameen", "name_en",
+        "abstract", "abstracten", "abstract_en", "summary", "summaryen", "summary_en", "overview",
+        "keywords", "keywordsen", "keywords_en", "content", "architecture", "workflow"
     };
-    private static readonly string[] JsonArrayItemTitleFieldCandidates = ["title", "name", "label", "module", "section", "step", "stage", "type", "id"];
+    private static readonly string[] JsonArrayItemTitleFieldCandidates = ["title", "title_en", "titleen", "name", "name_en", "nameen", "label", "module", "section", "step", "stage", "type", "id"];
     private static readonly HashSet<string> JsonMetadataFieldNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        "authors", "author", "affiliation", "englishaffiliation", "classificationnumber",
-        "documentidentifier", "articlenumber", "doi", "englishTitle", "englishAbstract", "englishKeywords"
+        "authors", "author", "authorinfo", "affiliation", "englishaffiliation",
+        "funding", "references", "reference", "citations", "citation"
     };
+    private static readonly string[] JsonTitleFieldCandidates = ["title", "title_en", "titleen", "documentTitle", "document_title", "name", "name_en", "nameen"];
+    private static readonly string[] JsonSummaryFieldCandidates = ["abstract", "abstract_en", "abstracten", "summary", "summary_en", "summaryen", "overview"];
+    private static readonly string[] JsonKeywordFieldCandidates = ["keywords", "keywords_en", "keywordsen"];
 
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
     private readonly List<DocumentChunk> _chunks = [];
@@ -165,6 +169,16 @@ public sealed class LocalAiService : IDisposable
 
         var queryProfile = BuildQueryProfile(retrievalQuestion);
         var topChunks = retrieval.ContextChunks;
+
+        if (IsPaperChallengeAndFutureQuestion(queryProfile.OriginalQuestion))
+        {
+            var directAnswer = BuildPaperChallengeAndFutureFallbackAnswer(topChunks);
+            if (!string.IsNullOrWhiteSpace(directAnswer))
+            {
+                return directAnswer;
+            }
+        }
+
         var prompt = BuildPrompt(retrievalQuestion, history, queryProfile, retrieval.RankedChunks, topChunks);
         var client = new LlamaServerChatClient(_httpClient, _options);
         var answer = await client.CompleteAsync(prompt, cancellationToken).ConfigureAwait(false);
@@ -559,9 +573,9 @@ public sealed class LocalAiService : IDisposable
             return defaultTitle;
         }
 
-        foreach (var name in new[] { "title", "name", "documentTitle", "document_name" })
+        foreach (var name in JsonTitleFieldCandidates)
         {
-            if (TryGetPropertyIgnoreCase(root, name, out var value))
+            if (TryGetPropertyByNormalizedName(root, name, out var value))
             {
                 var text = JsonScalarToString(value);
                 if (!string.IsNullOrWhiteSpace(text))
@@ -627,7 +641,7 @@ public sealed class LocalAiService : IDisposable
                 continue;
             }
 
-            if (JsonIgnoredFieldNames.Contains(property.Name))
+            if (IsJsonFieldName(property.Name, JsonIgnoredFieldNames))
             {
                 continue;
             }
@@ -643,7 +657,7 @@ public sealed class LocalAiService : IDisposable
                 continue;
             }
 
-            if (JsonPriorityFieldNames.Contains(property.Name) || value.Length > _options.ChunkSize / 2)
+            if (IsJsonFieldName(property.Name, JsonPriorityFieldNames) || value.Length > _options.ChunkSize / 2)
             {
                 FlushJsonScalarChunk(chunks, scalarLines, sourceName, relativePath, documentTitle, sectionTitle, structurePath, ref chunkIndex);
                 AddStructuredChunk(
@@ -686,7 +700,7 @@ public sealed class LocalAiService : IDisposable
 
         foreach (var item in element.EnumerateArray())
         {
-            var itemPath = CombineStructurePath(structurePath, BuildJsonArrayItemPathSegment(itemIndex));
+            var itemPath = CombineStructurePath(structurePath, ResolveJsonArrayItemPathSegment(item, itemIndex));
             var itemSection = ExtractJsonArrayItemSectionTitle(item, itemIndex);
 
             if (item.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
@@ -832,18 +846,9 @@ public sealed class LocalAiService : IDisposable
             return baseLabel;
         }
 
-        foreach (var fieldName in JsonArrayItemTitleFieldCandidates)
+        if (TryExtractJsonArrayItemSemanticLabel(item, out var semanticLabel))
         {
-            if (!TryGetPropertyIgnoreCase(item, fieldName, out var value))
-            {
-                continue;
-            }
-
-            var label = JsonScalarToString(value);
-            if (!string.IsNullOrWhiteSpace(label))
-            {
-                return $"{baseLabel} {TruncateJsonSectionLabel(label)}";
-            }
+            return semanticLabel;
         }
 
         foreach (var property in item.EnumerateObject())
@@ -853,7 +858,7 @@ public sealed class LocalAiService : IDisposable
                 continue;
             }
 
-            if (JsonIgnoredFieldNames.Contains(property.Name))
+            if (IsJsonFieldName(property.Name, JsonIgnoredFieldNames))
             {
                 continue;
             }
@@ -868,6 +873,60 @@ public sealed class LocalAiService : IDisposable
         }
 
         return baseLabel;
+    }
+
+    private static string ResolveJsonArrayItemPathSegment(JsonElement item, int itemIndex)
+    {
+        return TryExtractJsonArrayItemSemanticLabel(item, out var semanticLabel)
+            ? semanticLabel
+            : BuildJsonArrayItemPathSegment(itemIndex);
+    }
+
+    private static bool TryExtractJsonArrayItemSemanticLabel(JsonElement item, out string label)
+    {
+        if (item.ValueKind != JsonValueKind.Object)
+        {
+            label = string.Empty;
+            return false;
+        }
+
+        string? numberLabel = null;
+        if (TryGetPropertyByNormalizedName(item, "number", out var numberValue))
+        {
+            var numberText = JsonScalarToString(numberValue);
+            if (!string.IsNullOrWhiteSpace(numberText))
+            {
+                numberLabel = TruncateJsonSectionLabel(numberText);
+            }
+        }
+
+        foreach (var fieldName in JsonArrayItemTitleFieldCandidates)
+        {
+            if (!TryGetPropertyByNormalizedName(item, fieldName, out var value))
+            {
+                continue;
+            }
+
+            var titleLabel = JsonScalarToString(value);
+            if (string.IsNullOrWhiteSpace(titleLabel))
+            {
+                continue;
+            }
+
+            label = string.IsNullOrWhiteSpace(numberLabel)
+                ? TruncateJsonSectionLabel(titleLabel)
+                : TruncateJsonSectionLabel($"{numberLabel} {titleLabel}");
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(numberLabel))
+        {
+            label = numberLabel;
+            return true;
+        }
+
+        label = string.Empty;
+        return false;
     }
 
     private static string TruncateJsonSectionLabel(string text)
@@ -939,21 +998,17 @@ public sealed class LocalAiService : IDisposable
             .Replace("]", string.Empty, StringComparison.Ordinal)
             .Trim();
 
-        if (normalized.Equals("title", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("name", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("documentTitle", StringComparison.OrdinalIgnoreCase))
+        if (IsJsonFieldName(normalized, JsonTitleFieldCandidates))
         {
             return "title";
         }
 
-        if (normalized.Equals("abstract", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("summary", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("overview", StringComparison.OrdinalIgnoreCase))
+        if (IsJsonFieldName(normalized, JsonSummaryFieldCandidates))
         {
             return "summary";
         }
 
-        if (normalized.Equals("keywords", StringComparison.OrdinalIgnoreCase))
+        if (IsJsonFieldName(normalized, JsonKeywordFieldCandidates))
         {
             return "keyword";
         }
@@ -965,7 +1020,7 @@ public sealed class LocalAiService : IDisposable
             return "body";
         }
 
-        if (JsonMetadataFieldNames.Contains(normalized))
+        if (IsJsonFieldName(normalized, JsonMetadataFieldNames))
         {
             return "metadata";
         }
@@ -1081,6 +1136,47 @@ public sealed class LocalAiService : IDisposable
 
         value = default;
         return false;
+    }
+
+    private static bool TryGetPropertyByNormalizedName(JsonElement element, string propertyName, out JsonElement value)
+    {
+        var normalizedTarget = NormalizeJsonFieldName(propertyName);
+        foreach (var property in element.EnumerateObject())
+        {
+            if (NormalizeJsonFieldName(property.Name).Equals(normalizedTarget, StringComparison.Ordinal))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static bool IsJsonFieldName(string value, IEnumerable<string> candidates)
+    {
+        var normalized = NormalizeJsonFieldName(value);
+        return candidates.Any(candidate => NormalizeJsonFieldName(candidate).Equals(normalized, StringComparison.Ordinal));
+    }
+
+    private static string NormalizeJsonFieldName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value.Trim())
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(char.ToLowerInvariant(character));
+            }
+        }
+
+        return builder.ToString();
     }
 
     private static string JsonScalarToString(JsonElement element)
@@ -2196,7 +2292,7 @@ public sealed class LocalAiService : IDisposable
         builder.AppendLine("2) 给出结论时，必须在句末标注稳定来源标签，直接复制上下文中的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。禁止只写 [1]、[2] 这种临时编号，也禁止编造未在上下文中出现过的标签。");
         builder.AppendLine($"3) {BuildAnswerStructureRule(queryProfile)}");
         builder.AppendLine("4) 禁止直接输出论文题目、作者名单、单位信息、HTML/Markdown 标题块。不要把 JSON 字段名前缀如 title: / abstract: / content: 原样抄进答案。");
-        builder.AppendLine("5) 如果多个来源能互相补充，要综合整理后回答，而不是逐条照抄；优先保留原文中的模块名、算法名、字段名、协议名、理论名、作品名。");
+        builder.AppendLine("5) 如果多个来源能互相补充，要综合整理后回答，而不是逐条照抄；优先保留原文中的模块名、算法名、字段名、协议名、理论名、作品名。若原文已有固定术语，禁止自行改写成近义词。");
         builder.AppendLine("6) 回答语言必须与用户问题一致：中文问题必须用中文回答。");
         builder.AppendLine($"7) 当前问题类型: {DescribeIntent(queryProfile.Intent)}。请按这个类型组织答案。");
         builder.AppendLine($"8) {BuildDomainGuidance(queryProfile)}");
@@ -2265,7 +2361,7 @@ public sealed class LocalAiService : IDisposable
         var builder = new StringBuilder();
         builder.AppendLine("你是本地文档问答助手。上一次回答偏离问题。现在必须重新回答。\n");
         builder.AppendLine("硬性要求：");
-        builder.AppendLine($"1) 仅依据下面上下文回答，不要输出与问题或者给定材料无关的题目模板、算法示例、代码题。\n2) 禁止输出论文题目、作者名单、单位信息、HTML/Markdown 标题块，也不要把 title:/abstract:/content: 等字段名前缀原样抄进答案。\n3) 每句必须附稳定来源标签，且只能复制上下文中已经出现过的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。\n4) 回答语言必须与用户问题一致（中文问中文答）。\n5) {BuildAnswerStructureRule(queryProfile)}\n6) {BuildDomainGuidance(queryProfile)}\n7) 若上下文不足，仅输出：我不知道（当前文档未覆盖）。");
+        builder.AppendLine($"1) 仅依据下面上下文回答，不要输出与问题或者给定材料无关的题目模板、算法示例、代码题。\n2) 禁止输出论文题目、作者名单、单位信息、HTML/Markdown 标题块，也不要把 title:/abstract:/content: 等字段名前缀原样抄进答案。\n3) 每句必须附稳定来源标签，且只能复制上下文中已经出现过的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。\n4) 回答语言必须与用户问题一致（中文问中文答）。\n5) {BuildAnswerStructureRule(queryProfile)}\n6) {BuildDomainGuidance(queryProfile)}\n7) 原文已有固定术语时，必须沿用原文措辞，不要改写成近义词。\n8) 若上下文不足，仅输出：我不知道（当前文档未覆盖）。");
         builder.AppendLine($"当前问题类型: {DescribeIntent(queryProfile.Intent)}");
         if (rankedChunks.Count > 0)
         {
@@ -2508,6 +2604,15 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
+        if (IsPaperChallengeAndFutureQuestion(question))
+        {
+            var challengeAnswer = BuildPaperChallengeAndFutureFallbackAnswer(chunks);
+            if (!string.IsNullOrWhiteSpace(challengeAnswer))
+            {
+                return challengeAnswer;
+            }
+        }
+
         // 对“作用/用途/功能”类问题走专门的结构化回退，避免残句和题头片段
         if (IsUsageQuestion(question))
         {
@@ -2596,17 +2701,19 @@ public sealed class LocalAiService : IDisposable
 
     private string? BuildModuleFallbackAnswer(IReadOnlyList<DocumentChunk> chunks)
     {
-        var moduleChunks = chunks
+        var moduleChunks = _chunks
             .Where(chunk => chunk.SectionTitle.Contains("模块", StringComparison.Ordinal)
                 || chunk.StructurePath.Contains("模块", StringComparison.Ordinal)
                 || chunk.Text.Contains("模块", StringComparison.Ordinal))
             .Select(chunk =>
             {
                 var moduleName = ExtractModuleName(chunk);
-                return new { chunk, moduleName };
+                var normalizedName = NormalizeModuleName(moduleName);
+                return new { chunk, moduleName, normalizedName };
             })
             .Where(item => !string.IsNullOrWhiteSpace(item.moduleName))
-            .DistinctBy(item => item.moduleName, StringComparer.Ordinal)
+            .DistinctBy(item => item.normalizedName, StringComparer.Ordinal)
+            .OrderBy(item => GetModuleSortKey(item.moduleName), StringComparer.Ordinal)
             .Take(6)
             .ToArray();
 
@@ -2623,6 +2730,120 @@ public sealed class LocalAiService : IDisposable
         }
 
         return builder.ToString().TrimEnd();
+    }
+
+    private static string NormalizeModuleName(string moduleName)
+    {
+        if (string.IsNullOrWhiteSpace(moduleName))
+        {
+            return string.Empty;
+        }
+
+        var normalized = LeadingOutlineRegex.Replace(moduleName.Trim(), string.Empty).Trim();
+        normalized = normalized.Replace("第1项 ", string.Empty, StringComparison.Ordinal)
+            .Replace("第2项 ", string.Empty, StringComparison.Ordinal)
+            .Replace("第3项 ", string.Empty, StringComparison.Ordinal)
+            .Replace("第4项 ", string.Empty, StringComparison.Ordinal)
+            .Replace("第5项 ", string.Empty, StringComparison.Ordinal)
+            .Replace("第6项 ", string.Empty, StringComparison.Ordinal)
+            .Trim();
+        return normalized;
+    }
+
+    private static string GetModuleSortKey(string moduleName)
+    {
+        if (string.IsNullOrWhiteSpace(moduleName))
+        {
+            return string.Empty;
+        }
+
+        var normalized = moduleName.Trim();
+        var numberPrefix = Regex.Match(normalized, @"^\d+(?:\.\d+)*");
+        if (numberPrefix.Success)
+        {
+            return numberPrefix.Value.PadLeft(8, '0') + normalized;
+        }
+
+        return "zzzzzzzz" + normalized;
+    }
+
+    private string? BuildPaperChallengeAndFutureFallbackAnswer(IReadOnlyList<DocumentChunk> chunks)
+    {
+        var challengeChunks = chunks
+            .Where(chunk => chunk.SectionTitle.Contains("挑战", StringComparison.Ordinal)
+                || chunk.SectionTitle.Contains("未来", StringComparison.Ordinal)
+                || chunk.StructurePath.Contains("挑战", StringComparison.Ordinal)
+                || chunk.StructurePath.Contains("未来", StringComparison.Ordinal)
+                || chunk.Text.Contains("挑战", StringComparison.Ordinal)
+                || chunk.Text.Contains("未来", StringComparison.Ordinal))
+            .Select(chunk => new
+            {
+                chunk,
+                challenge = ExtractPaperChallengeSentence(chunk),
+                future = ExtractPaperFutureSentence(chunk)
+            })
+            .ToArray();
+
+        if (challengeChunks.Length == 0)
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("当前问题涉及挑战与未来路径，文档给出的要点如下：");
+
+        var itemIndex = 1;
+        foreach (var item in challengeChunks)
+        {
+            if (!string.IsNullOrWhiteSpace(item.challenge))
+            {
+                builder.AppendLine($"{itemIndex}. {item.challenge} {BuildStableCitation(item.chunk)}");
+                itemIndex++;
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.future))
+            {
+                builder.AppendLine($"{itemIndex}. {item.future} {BuildStableCitation(item.chunk)}");
+                itemIndex++;
+            }
+        }
+
+        return itemIndex == 1 ? null : builder.ToString().TrimEnd();
+    }
+
+    private static string ExtractPaperChallengeSentence(DocumentChunk chunk)
+    {
+        var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
+        var candidates = SentenceSplitRegex.Split(source)
+            .Select(sentence => sentence.Trim())
+            .Where(sentence => !string.IsNullOrWhiteSpace(sentence))
+            .Where(sentence => sentence.Contains("挑战", StringComparison.Ordinal)
+                || sentence.Contains("问题", StringComparison.Ordinal)
+                || sentence.Contains("局限", StringComparison.Ordinal)
+                || sentence.Contains("不足", StringComparison.Ordinal)
+                || sentence.Contains("同质化", StringComparison.Ordinal)
+                || sentence.Contains("失真", StringComparison.Ordinal)
+                || sentence.Contains("伦理", StringComparison.Ordinal))
+            .ToArray();
+
+        return candidates.FirstOrDefault() ?? string.Empty;
+    }
+
+    private static string ExtractPaperFutureSentence(DocumentChunk chunk)
+    {
+        var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
+        var candidates = SentenceSplitRegex.Split(source)
+            .Select(sentence => sentence.Trim())
+            .Where(sentence => !string.IsNullOrWhiteSpace(sentence))
+            .Where(sentence => sentence.Contains("未来", StringComparison.Ordinal)
+                || sentence.Contains("路径", StringComparison.Ordinal)
+                || sentence.Contains("走向", StringComparison.Ordinal)
+                || sentence.Contains("生态", StringComparison.Ordinal)
+                || sentence.Contains("人机", StringComparison.Ordinal)
+                || sentence.Contains("人文", StringComparison.Ordinal))
+            .ToArray();
+
+        return candidates.FirstOrDefault() ?? string.Empty;
     }
 
     private static string ExtractModuleName(DocumentChunk chunk)
