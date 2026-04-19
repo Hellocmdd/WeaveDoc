@@ -24,6 +24,7 @@ models/
 *.db
 .codex/
 .codex
+.~lock.*#
 .agent.md
 
 
