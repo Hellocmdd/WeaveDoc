@@ -22,6 +22,8 @@ models/
 # local app cache
 .rag/
 *.db
+.codex/
+.codex
 .agent.md
 
 
