@@ -1,0 +1,174 @@
+name: Eval (Optional)
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      baseline_path:
+        description: Baseline file path
+        required: false
+        default: docs/eval-baseline.json
+      report_dir:
+        description: Report output directory
+        required: false
+        default: .eval/github-actions
+      llama_server_base_url:
+        description: Llama server base URL
+        required: false
+        default: http://127.0.0.1:8080
+      start_llama_server:
+        description: Start local llama-server if not reachable
+        required: false
+        type: boolean
+        default: false
+      chat_model_path:
+        description: Local chat model path used when starting llama-server
+        required: false
+        default: models/gemma-4-E2B-it.gguf
+      allow_skip:
+        description: Succeed with skip when prerequisites are missing
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    name: Optional RAG Eval
+    runs-on: ubuntu-latest
+    env:
+      BASELINE_PATH: ${{ inputs.baseline_path || 'docs/eval-baseline.json' }}
+      REPORT_DIR: ${{ inputs.report_dir || '.eval/github-actions' }}
+      LLAMA_SERVER_BASE_URL: ${{ inputs.llama_server_base_url || 'http://127.0.0.1:8080' }}
+      START_LLAMA_SERVER: ${{ inputs.start_llama_server || 'false' }}
+      CHAT_MODEL_PATH: ${{ inputs.chat_model_path || 'models/gemma-4-E2B-it.gguf' }}
+      ALLOW_SKIP: ${{ inputs.allow_skip || 'true' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/*.sln
+            **/packages.lock.json
+
+      - name: Preflight
+        id: preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          should_run=true
+          skip_reason=""
+
+          url_no_scheme="${LLAMA_SERVER_BASE_URL#http://}"
+          url_no_scheme="${url_no_scheme#https://}"
+          host_port="${url_no_scheme%%/*}"
+          server_host="${host_port%%:*}"
+          server_port="${host_port##*:}"
+
+          if [[ "$host_port" == "$server_host" ]]; then
+            server_port="8080"
+          fi
+
+          if [[ ! -f "$BASELINE_PATH" ]]; then
+            echo "Baseline file not found: $BASELINE_PATH" >&2
+            exit 1
+          fi
+
+          server_ok=false
+          if curl -fsS "$LLAMA_SERVER_BASE_URL/health" >/dev/null 2>&1; then
+            server_ok=true
+          fi
+
+          if [[ "$server_ok" != "true" && "$START_LLAMA_SERVER" == "true" ]]; then
+            if [[ -x "./llama.cpp/build/bin/llama-server" && -f "$CHAT_MODEL_PATH" ]]; then
+              echo "Starting local llama-server with model: $CHAT_MODEL_PATH"
+              mkdir -p ./.eval
+              ./llama.cpp/build/bin/llama-server \
+                -m "$CHAT_MODEL_PATH" \
+                --host "$server_host" \
+                --port "$server_port" \
+                > ./.eval/llama-server-gha.log 2>&1 &
+
+              for i in {1..30}; do
+                if curl -fsS "$LLAMA_SERVER_BASE_URL/health" >/dev/null 2>&1; then
+                  server_ok=true
+                  break
+                fi
+                sleep 1
+              done
+            else
+              should_run=false
+              skip_reason="llama-server unavailable and local startup prerequisites missing (binary/model)."
+            fi
+          fi
+
+          if [[ "$server_ok" != "true" && "$should_run" == "true" ]]; then
+            should_run=false
+            skip_reason="llama-server health check failed and local startup disabled."
+          fi
+
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+          echo "skip_reason=$skip_reason" >> "$GITHUB_OUTPUT"
+
+          if [[ "$should_run" != "true" ]]; then
+            if [[ "$ALLOW_SKIP" == "true" ]]; then
+              echo "Optional eval skipped: $skip_reason"
+              exit 0
+            fi
+
+            echo "Optional eval blocked: $skip_reason" >&2
+            exit 1
+          fi
+
+      - name: Run eval
+        if: steps.preflight.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          ./scripts/eval_rag.sh "$BASELINE_PATH" "$REPORT_DIR"
+
+      - name: Upload eval report
+        if: steps.preflight.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rag-eval-report
+          path: ${{ inputs.report_dir }}
+
+      - name: Summary (Skipped)
+        if: steps.preflight.outputs.should_run != 'true'
+        shell: bash
+        run: |
+          {
+            echo "## Optional Eval"
+            echo "Status: Skipped"
+            echo "Reason: ${{ steps.preflight.outputs.skip_reason }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary (Executed)
+        if: steps.preflight.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          {
+            echo "## Optional Eval"
+            echo "Status: Executed"
+            echo "Baseline: $BASELINE_PATH"
+            echo "Report directory: $REPORT_DIR"
+          } >> "$GITHUB_STEP_SUMMARY"
