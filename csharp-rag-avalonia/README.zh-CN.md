@@ -31,8 +31,10 @@
 - 检索链路包括：
   稀疏预筛 = BM25 + keyword + title + direct-hit bonus + noise penalty
   语义阶段 = 只对候选池做向量相似度计算，稀疏信号过弱时可回退全量语义
-  重排阶段 = coverage + neighbor support + intent boost
+  重排阶段 = coverage + neighbor support + JSON branch support + intent boost
+- 会把相邻 chunk 和同一 JSON 结构分支上的相关 chunk 一并补进上下文
 - 通过 `llama-server` 生成带引用的回答
+- 首答不可靠时会走更严格的 repair prompt；总结类问题还有专门的 summary 回退
 - UI 支持添加、删除、刷新 `.md` / `.txt` / `.json`
 - JSON 会先展平为带标题层级的文本再切块
 - 导入时会避免重复复制相同内容的文件
@@ -116,7 +118,8 @@ dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eva
 - `RAG_SPARSE_CANDIDATE_POOL_SIZE` 默认 `48`
 - `RAG_CONTEXT_WINDOW_RADIUS` 默认 `1`
 - `RAG_VECTOR_WEIGHT` / `RAG_BM25_WEIGHT` / `RAG_KEYWORD_WEIGHT`
-- `RAG_TITLE_WEIGHT` / `RAG_COVERAGE_WEIGHT` / `RAG_NEIGHBOR_WEIGHT`
+- `RAG_TITLE_WEIGHT` / `RAG_JSON_STRUCTURE_WEIGHT`
+- `RAG_COVERAGE_WEIGHT` / `RAG_NEIGHBOR_WEIGHT` / `RAG_JSON_BRANCH_WEIGHT`
 - `RAG_CHUNK_SIZE` 默认 `520`
 - `RAG_CHUNK_OVERLAP` 默认 `96`
 - `RAG_MIN_COMBINED_THRESHOLD` 默认 `0.18`
@@ -131,3 +134,4 @@ dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eva
 - embedding 缓存按模型名、切块参数、文件路径、chunk 序号与文本内容联合建键
 - JSON 会先展平为带标题的纯文本，因此嵌套对象和数组也能参与检索
 - 回答提示词使用稳定来源标签而不是临时上下文编号，使引用在不同运行之间更稳定
+- 总结类问题会走专门的提示词结构和回退逻辑，避免“主要讲什么”只返回碎片化短句

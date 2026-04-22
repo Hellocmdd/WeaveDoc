@@ -1461,8 +1461,7 @@ public sealed class LocalAiService : IDisposable
 
     private static QueryProfile BuildQueryProfile(string question)
     {
-        var focusTermSource = BuildFocusTermSourceText(question);
-        var focusTerms = BuildRetrievalQueryTokens(focusTermSource)
+        var focusTerms = BuildRetrievalQueryTokens(question)
             .Where(IsMeaningfulFocusTerm)
             .OrderByDescending(token => token.Length)
             .Take(8)
@@ -1542,10 +1541,11 @@ public sealed class LocalAiService : IDisposable
         var focusSource = BuildFocusTermSourceText(question);
         var baseQuestion = string.IsNullOrWhiteSpace(focusSource) ? question : focusSource;
         var tokens = new HashSet<string>(ExtractQueryTokens(baseQuestion), StringComparer.Ordinal);
-        var lowerQuestion = baseQuestion.ToLowerInvariant();
-        var intent = DetectIntent(baseQuestion);
+        var expansionSource = string.IsNullOrWhiteSpace(question) ? baseQuestion : question;
+        var lowerQuestion = expansionSource.ToLowerInvariant();
+        var intent = DetectIntent(expansionSource);
 
-        foreach (var expansion in ExpandRetrievalTerms(baseQuestion, lowerQuestion, intent))
+        foreach (var expansion in ExpandRetrievalTerms(expansionSource, lowerQuestion, intent))
         {
             if (!string.IsNullOrWhiteSpace(expansion))
             {
@@ -2292,7 +2292,7 @@ public sealed class LocalAiService : IDisposable
         builder.AppendLine("2) 给出结论时，必须在句末标注稳定来源标签，直接复制上下文中的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。禁止只写 [1]、[2] 这种临时编号，也禁止编造未在上下文中出现过的标签。");
         builder.AppendLine($"3) {BuildAnswerStructureRule(queryProfile)}");
         builder.AppendLine("4) 禁止直接输出论文题目、作者名单、单位信息、HTML/Markdown 标题块。不要把 JSON 字段名前缀如 title: / abstract: / content: 原样抄进答案。");
-        builder.AppendLine("5) 如果多个来源能互相补充，要综合整理后回答，而不是逐条照抄；优先保留原文中的模块名、算法名、字段名、协议名、理论名、作品名。若原文已有固定术语，禁止自行改写成近义词。");
+        builder.AppendLine($"5) {BuildCrossSourceSynthesisRule(queryProfile)}");
         builder.AppendLine("6) 回答语言必须与用户问题一致：中文问题必须用中文回答。");
         builder.AppendLine($"7) 当前问题类型: {DescribeIntent(queryProfile.Intent)}。请按这个类型组织答案。");
         builder.AppendLine($"8) {BuildDomainGuidance(queryProfile)}");
@@ -2361,7 +2361,7 @@ public sealed class LocalAiService : IDisposable
         var builder = new StringBuilder();
         builder.AppendLine("你是本地文档问答助手。上一次回答偏离问题。现在必须重新回答。\n");
         builder.AppendLine("硬性要求：");
-        builder.AppendLine($"1) 仅依据下面上下文回答，不要输出与问题或者给定材料无关的题目模板、算法示例、代码题。\n2) 禁止输出论文题目、作者名单、单位信息、HTML/Markdown 标题块，也不要把 title:/abstract:/content: 等字段名前缀原样抄进答案。\n3) 每句必须附稳定来源标签，且只能复制上下文中已经出现过的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。\n4) 回答语言必须与用户问题一致（中文问中文答）。\n5) {BuildAnswerStructureRule(queryProfile)}\n6) {BuildDomainGuidance(queryProfile)}\n7) 原文已有固定术语时，必须沿用原文措辞，不要改写成近义词。\n8) 若上下文不足，仅输出：我不知道（当前文档未覆盖）。");
+        builder.AppendLine($"1) 仅依据下面上下文回答，不要输出与问题或者给定材料无关的题目模板、算法示例、代码题。\n2) 禁止输出论文题目、作者名单、单位信息、HTML/Markdown 标题块，也不要把 title:/abstract:/content: 等字段名前缀原样抄进答案。\n3) 每句必须附稳定来源标签，且只能复制上下文中已经出现过的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。\n4) 回答语言必须与用户问题一致（中文问中文答）。\n5) {BuildAnswerStructureRule(queryProfile)}\n6) {BuildDomainGuidance(queryProfile)}\n7) {BuildCrossSourceSynthesisRule(queryProfile)}\n8) 若上下文不足，仅输出：我不知道（当前文档未覆盖）。");
         builder.AppendLine($"当前问题类型: {DescribeIntent(queryProfile.Intent)}");
         if (rankedChunks.Count > 0)
         {
@@ -2465,14 +2465,23 @@ public sealed class LocalAiService : IDisposable
             return true;
         }
 
-        var tokens = ExtractQueryTokens(question);
-        if (tokens.Count == 0)
+        var meaningfulTokens = ExtractQueryTokens(question)
+            .Where(IsMeaningfulFocusTerm)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (meaningfulTokens.Length == 0)
         {
             return false;
         }
 
         var lowerAnswer = normalized.ToLowerInvariant();
-        var overlap = tokens.Count(token => lowerAnswer.Contains(token, StringComparison.Ordinal));
+        if (IsSummaryQuestion(question) && meaningfulTokens.Length <= 2)
+        {
+            return false;
+        }
+
+        var overlap = meaningfulTokens.Count(token => lowerAnswer.Contains(token, StringComparison.Ordinal));
         return overlap == 0;
     }
 
@@ -2632,6 +2641,24 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
+        if (queryProfile.Intent == "summary")
+        {
+            if (IsPaperQuestion(queryProfile.OriginalQuestion))
+            {
+                var paperSummary = BuildPaperSummaryFallbackAnswer(chunks, queryProfile.WantsDetailedAnswer);
+                if (!string.IsNullOrWhiteSpace(paperSummary))
+                {
+                    return paperSummary;
+                }
+            }
+
+            var summary = BuildSummaryFallbackAnswer(chunks, queryProfile.WantsDetailedAnswer);
+            if (!string.IsNullOrWhiteSpace(summary))
+            {
+                return summary;
+            }
+        }
+
         var tokens = ExtractQueryTokens(question);
         var candidates = new List<(DocumentChunk Chunk, string Sentence, int Score)>();
 
@@ -2684,6 +2711,297 @@ public sealed class LocalAiService : IDisposable
         }
 
         return builder.ToString();
+    }
+
+    private string? BuildPaperSummaryFallbackAnswer(IReadOnlyList<DocumentChunk> chunks, bool wantsDetailedAnswer)
+    {
+        var documentChunks = GetPrimaryDocumentChunks(chunks);
+        if (documentChunks.Count == 0)
+        {
+            return null;
+        }
+
+        var usedSentences = new HashSet<string>(StringComparer.Ordinal);
+        var objective = SelectBestSummarySentence(
+            documentChunks,
+            chunk => chunk.ContentKind == "summary"
+                || chunk.SectionTitle.Contains("引言", StringComparison.Ordinal)
+                || chunk.StructurePath.Contains("摘要", StringComparison.Ordinal)
+                || chunk.StructurePath.Contains("abstract", StringComparison.OrdinalIgnoreCase),
+            sentence => CountSignals(sentence, "针对", "旨在", "设计", "目标", "解决", "提出", "实现", "系统"),
+            usedSentences,
+            minimumSignalScore: 2);
+
+        var architecture = SelectBestSummarySentence(
+            documentChunks,
+            chunk => chunk.StructurePath.Contains("overview", StringComparison.OrdinalIgnoreCase)
+                || chunk.StructurePath.Contains("architecture", StringComparison.OrdinalIgnoreCase)
+                || chunk.StructurePath.Contains("workflow", StringComparison.OrdinalIgnoreCase)
+                || chunk.SectionTitle.Contains("总体设计", StringComparison.Ordinal)
+                || chunk.SectionTitle.Contains("系统", StringComparison.Ordinal)
+                || chunk.SectionTitle.Contains("架构", StringComparison.Ordinal),
+            sentence => CountSignals(sentence, "架构", "模块", "感知", "决策", "执行", "交互", "流程", "数据采集", "显示", "远程"),
+            usedSentences,
+            minimumSignalScore: 2);
+
+        var method = SelectBestSummarySentence(
+            documentChunks,
+            chunk => chunk.SectionTitle.Contains("控制", StringComparison.Ordinal)
+                || chunk.SectionTitle.Contains("软件", StringComparison.Ordinal)
+                || chunk.StructurePath.Contains("模糊PID", StringComparison.OrdinalIgnoreCase)
+                || chunk.StructurePath.Contains("控制", StringComparison.Ordinal)
+                || chunk.StructurePath.Contains("补偿", StringComparison.Ordinal),
+            sentence => CountSignals(sentence, "模糊pid", "控制算法", "动态调节", "补偿", "决策", "反馈", "传感器", "采集"),
+            usedSentences,
+            minimumSignalScore: 2);
+
+        var result = SelectBestSummarySentence(
+            documentChunks,
+            chunk => chunk.ContentKind == "summary"
+                || chunk.SectionTitle.Contains("结论", StringComparison.Ordinal)
+                || chunk.SectionTitle.Contains("测试", StringComparison.Ordinal)
+                || chunk.SectionTitle.Contains("评估", StringComparison.Ordinal)
+                || chunk.StructurePath.Contains("节水", StringComparison.Ordinal)
+                || chunk.StructurePath.Contains("结论", StringComparison.Ordinal),
+            sentence => CountSignals(sentence, "实验结果", "测试表明", "结果表明", "结论", "节水", "提升", "降低", "偏差", "适用", "推广", "价值", "解决方案"),
+            usedSentences,
+            minimumSignalScore: 2);
+
+        var innovation = wantsDetailedAnswer
+            ? SelectBestSummarySentence(
+                documentChunks,
+                chunk => chunk.SectionTitle.Contains("创新", StringComparison.Ordinal)
+                    || chunk.StructurePath.Contains("创新", StringComparison.Ordinal),
+                sentence => CountSignals(sentence, "创新", "融合", "补偿", "模糊pid", "加权", "动态"),
+                usedSentences,
+                minimumSignalScore: 1)
+            : null;
+
+        if (objective is null && architecture is null && method is null && result is null)
+        {
+            return null;
+        }
+
+        var clauses = new List<string>();
+        if (objective is not null)
+        {
+            clauses.Add($"根据当前文档，这篇论文主要讲的是{objective.Sentence} {BuildStableCitation(objective.Chunk)}");
+        }
+
+        if (architecture is not null)
+        {
+            clauses.Add($"系统设计上还涉及{architecture.Sentence} {BuildStableCitation(architecture.Chunk)}");
+        }
+
+        if (method is not null && (wantsDetailedAnswer || architecture is null))
+        {
+            clauses.Add($"方法实现上关注{method.Sentence} {BuildStableCitation(method.Chunk)}");
+        }
+
+        if (result is not null)
+        {
+            clauses.Add($"效果结论上显示{result.Sentence} {BuildStableCitation(result.Chunk)}");
+        }
+
+        if (innovation is not null)
+        {
+            clauses.Add($"另外强调的创新点是{innovation.Sentence} {BuildStableCitation(innovation.Chunk)}");
+        }
+
+        return string.Join("；", clauses) + "。";
+    }
+
+    private string? BuildSummaryFallbackAnswer(IReadOnlyList<DocumentChunk> chunks, bool wantsDetailedAnswer)
+    {
+        var documentChunks = GetPrimaryDocumentChunks(chunks);
+        if (documentChunks.Count == 0)
+        {
+            return null;
+        }
+
+        var candidates = new List<SummaryCandidate>();
+        foreach (var chunk in documentChunks)
+        {
+            var chunkBias = GetSummaryChunkBias(chunk);
+            var sentences = SentenceSplitRegex.Split(chunk.Text)
+                .Select(sentence => sentence.Trim())
+                .Where(sentence => !string.IsNullOrWhiteSpace(sentence))
+                .Take(8)
+                .ToArray();
+
+            for (var index = 0; index < sentences.Length; index++)
+            {
+                var sentence = CleanStructuredSentence(sentences[index]);
+                if (!IsCandidateSentence(sentence) || IsMetadataLikeSentence(sentence))
+                {
+                    continue;
+                }
+
+                if (!ContainsCjk(sentence) || sentence.Length < 14)
+                {
+                    continue;
+                }
+
+                var score = chunkBias;
+                if (index == 0)
+                {
+                    score += 2;
+                }
+
+                score += CountSummarySignals(sentence) * 2;
+                if (IsParameterHeavySentence(sentence))
+                {
+                    score -= 6;
+                }
+
+                score += CountArchitectureSignals(sentence);
+                score += CountMethodSignals(sentence);
+                score += CountProcedureStructureSignals(sentence);
+
+                if (sentence.Contains("本文", StringComparison.Ordinal)
+                    || sentence.Contains("文中", StringComparison.Ordinal)
+                    || sentence.Contains("系统", StringComparison.Ordinal)
+                    || sentence.Contains("研究", StringComparison.Ordinal)
+                    || sentence.Contains("设计", StringComparison.Ordinal)
+                    || sentence.Contains("实现", StringComparison.Ordinal))
+                {
+                    score += 2;
+                }
+
+                candidates.Add(new SummaryCandidate(chunk, sentence, score));
+            }
+        }
+
+        var selected = candidates
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Chunk.Index)
+            .DistinctBy(item => NormalizeSummarySentence(item.Sentence), StringComparer.Ordinal)
+            .Take(wantsDetailedAnswer ? 3 : 2)
+            .ToArray();
+
+        if (selected.Length == 0)
+        {
+            return null;
+        }
+
+        var lead = selected[0];
+        var clauses = new List<string>
+        {
+            $"根据当前文档，这份材料主要内容是{lead.Sentence} {BuildStableCitation(lead.Chunk)}"
+        };
+
+        if (selected.Length > 1)
+        {
+            var remainder = selected
+                .Skip(1)
+                .Select(item => $"{item.Sentence} {BuildStableCitation(item.Chunk)}")
+                .Distinct(StringComparer.Ordinal)
+                .Take(2)
+                .ToArray();
+
+            if (remainder.Length > 0)
+            {
+                clauses.Add($"另外还涉及{string.Join("、", remainder)}");
+            }
+        }
+
+        return string.Join("；", clauses) + "。";
+    }
+
+    private IReadOnlyList<DocumentChunk> GetPrimaryDocumentChunks(IReadOnlyList<DocumentChunk> chunks)
+    {
+        if (chunks.Count == 0)
+        {
+            return [];
+        }
+
+        var primaryFilePath = chunks
+            .GroupBy(chunk => chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Key)
+            .FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(primaryFilePath))
+        {
+            return chunks.ToArray();
+        }
+
+        var fromCorpus = _chunks
+            .Where(chunk => string.Equals(chunk.FilePath, primaryFilePath, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (fromCorpus.Length > 0)
+        {
+            return fromCorpus;
+        }
+
+        return chunks
+            .Where(chunk => string.Equals(chunk.FilePath, primaryFilePath, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+    }
+
+    private SummaryCandidate? SelectBestSummarySentence(
+        IReadOnlyList<DocumentChunk> chunks,
+        Func<DocumentChunk, bool> chunkFilter,
+        Func<string, int> signalScorer,
+        ISet<string>? excludedSentences = null,
+        int minimumSignalScore = 1)
+    {
+        SummaryCandidate? best = null;
+        foreach (var chunk in chunks.Where(chunkFilter))
+        {
+            var chunkBias = GetSummaryChunkBias(chunk);
+            var sentences = SentenceSplitRegex.Split(chunk.Text)
+                .Select(sentence => CleanStructuredSentence(sentence))
+                .Where(sentence => !string.IsNullOrWhiteSpace(sentence))
+                .Take(8);
+
+            foreach (var sentence in sentences)
+            {
+                if (!IsCandidateSentence(sentence) || IsMetadataLikeSentence(sentence))
+                {
+                    continue;
+                }
+
+                var normalizedSentence = NormalizeSummarySentence(sentence);
+                if (excludedSentences?.Contains(normalizedSentence) == true)
+                {
+                    continue;
+                }
+
+                var signalScore = signalScorer(sentence);
+                if (signalScore < minimumSignalScore)
+                {
+                    continue;
+                }
+
+                var score = chunkBias + CountSummarySignals(sentence) + (signalScore * 2);
+                if (IsParameterHeavySentence(sentence))
+                {
+                    score -= 8;
+                }
+
+                if (score <= 0)
+                {
+                    continue;
+                }
+
+                var candidate = new SummaryCandidate(chunk, sentence, score);
+                if (best is null || candidate.Score > best.Score)
+                {
+                    best = candidate;
+                }
+            }
+        }
+
+        if (best is not null)
+        {
+            excludedSentences?.Add(NormalizeSummarySentence(best.Sentence));
+        }
+
+        return best;
     }
 
     private static bool IsModuleQuestion(string question)
@@ -2991,8 +3309,13 @@ public sealed class LocalAiService : IDisposable
             || question.Contains("概述", StringComparison.Ordinal)
             || question.Contains("综述", StringComparison.Ordinal)
             || question.Contains("主要写什么", StringComparison.Ordinal)
+            || question.Contains("主要写的是什么", StringComparison.Ordinal)
+            || question.Contains("主要写的是啥", StringComparison.Ordinal)
             || question.Contains("主要内容", StringComparison.Ordinal)
             || question.Contains("主要讲", StringComparison.Ordinal)
+            || question.Contains("论文主要写", StringComparison.Ordinal)
+            || question.Contains("文章主要写", StringComparison.Ordinal)
+            || question.Contains("文档主要写", StringComparison.Ordinal)
             || question.Contains("讲了什么", StringComparison.Ordinal)
             || question.Contains("说了什么", StringComparison.Ordinal);
     }
@@ -3011,6 +3334,7 @@ public sealed class LocalAiService : IDisposable
         }
 
         return WantsDetailedAnswer(question)
+            || IsSummaryQuestion(question)
             || question.Contains("再说", StringComparison.Ordinal)
             || question.Contains("继续", StringComparison.Ordinal)
             || question.Contains("展开一点", StringComparison.Ordinal)
@@ -3030,8 +3354,8 @@ public sealed class LocalAiService : IDisposable
             if (IsPaperSummaryQuestion(queryProfile))
             {
                 return queryProfile.WantsDetailedAnswer
-                    ? "如果是在总结论文或文章，先用 1-2 句概括主题与核心结论，再按“研究对象/问题、方法或系统设计、关键发现或创新、局限/启示”组织 4-6 个要点。"
-                    : "如果是在总结论文或文章，先概括主题与核心结论，再按“研究对象/问题、方法或系统设计、关键发现或创新”组织 3-4 个要点。";
+                    ? "如果是在总结论文或文章，先用 1-2 句概括主题与核心结论，再按“研究对象/问题 -> 方法或系统设计 -> 关键发现或创新 -> 局限/启示”的主线自然展开；避免把相近内容拆成很多并列短句。"
+                    : "如果是在总结论文或文章，先用 1 句概括主题与核心结论，再围绕一条主线自然展开 2-3 个层次；避免机械罗列多个并列要点。";
             }
 
             if (IsPaperContributionQuestion(queryProfile.OriginalQuestion))
@@ -3050,12 +3374,29 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
-        if (queryProfile.WantsDetailedAnswer)
+        if (queryProfile.Intent == "summary")
         {
-            return "先给直接结论，再充分展开；优先用 1 段概括 + 4-6 个要点，或 2-4 个自然段说明，每个要点尽量写成完整句，不要只给几条很短的并列短语。若原文有明确模块名、算法名、协议名或字段名，优先沿用原词。";
+            return queryProfile.WantsDetailedAnswer
+                ? "如果是在总结文档，先概括主题与主旨，再围绕 2-3 个核心方面自然展开；优先保留关键模块名、方法名或阶段名，但不要把相近内容拆成很多碎片化短句。"
+                : "如果是在总结文档，先概括主旨，再用 2-3 句或 2-3 个层次串起核心内容；不要只复述一句原文，也不要机械罗列多个并列短语。";
         }
 
-        return "先给直接结论，再用 2-4 点展开依据；不要只复述一句原文。若原文有明确模块名、算法名、协议名或字段名，优先沿用原词。";
+        if (queryProfile.WantsDetailedAnswer)
+        {
+            return "先给直接结论，再充分展开；按问题本身的结构来回答：流程题按步骤，解释题按原因或机制，模块/系统题按组成或层次，对比题按维度展开。若原文有明确模块名、算法名、协议名或字段名，优先沿用原词。";
+        }
+
+        return "先给直接结论，再用 2-4 句或 2-4 个要点展开依据；按问题类型保留必要的步骤、模块、技术栈或关键字段，不要只复述一句原文。若原文有明确模块名、算法名、协议名或字段名，优先沿用原词。";
+    }
+
+    private static string BuildCrossSourceSynthesisRule(QueryProfile queryProfile)
+    {
+        if (queryProfile.Intent == "summary")
+        {
+            return "如果多个来源能互相补充，要综合整理后回答，而不是逐条照抄；先归并同类信息，再提炼主线，不要把相近术语、模块或现象机械堆成一串名词。优先保留原文中的模块名、算法名、字段名、协议名、理论名、作品名。若原文已有固定术语，禁止自行改写成近义词。";
+        }
+
+        return "如果多个来源能互相补充，要综合整理后回答，而不是逐条照抄；但要按问题需要保留完整的步骤、模块、技术栈、字段或对比维度，不要为了“归并”而删掉关键并列项。优先保留原文中的模块名、算法名、字段名、协议名、理论名、作品名。若原文已有固定术语，禁止自行改写成近义词。";
     }
 
     private static string BuildDomainGuidance(QueryProfile queryProfile)
@@ -3087,10 +3428,10 @@ public sealed class LocalAiService : IDisposable
         {
             if (queryProfile.WantsDetailedAnswer)
             {
-                return "如果问题是在问论文或文档主要写什么，优先概括研究目标，再展开写系统组成、关键方法、实现/实验结果、结论或意义；如果原文明确列出了模块名、层级名或组成项，尽量保留原始术语，不要泛化改写。";
+                return "如果问题是在问论文或文档主要写什么，优先概括研究目标，再沿着“目标 -> 方法/系统 -> 结果/意义”自然展开；如果原文明确列出了模块名、层级名或组成项，尽量保留原始术语，但不要把它们逐条堆成清单。";
             }
 
-            return "如果问题是在问论文或文档主要写什么，先概括主旨，再列出几个核心内容点；如果原文明确列出了模块名、层级名或组成项，尽量保留原始术语，不要泛化改写。";
+            return "如果问题是在问论文或文档主要写什么，先概括主旨，再用一条清晰主线串起核心内容点；如果原文明确列出了模块名、层级名或组成项，尽量保留原始术语，但不要机械罗列。";
         }
 
         if (queryProfile.Intent == "procedure"
@@ -3363,6 +3704,89 @@ public sealed class LocalAiService : IDisposable
         return signals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
     }
 
+    private static int CountSignals(string sentence, params string[] signals)
+    {
+        return signals.Count(signal => sentence.Contains(signal, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static int CountSummarySignals(string sentence)
+    {
+        var signals = new[]
+        {
+            "围绕", "面向", "针对", "提出", "设计", "实现", "构建", "搭建", "分析", "总结",
+            "介绍", "包括", "主要", "核心", "模块", "架构", "方法", "流程", "结果", "结论"
+        };
+
+        return signals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
+    }
+
+    private static int GetSummaryChunkBias(DocumentChunk chunk)
+    {
+        var score = 0;
+
+        if (chunk.ContentKind == "summary")
+        {
+            score += 6;
+        }
+
+        if (chunk.ContentKind == "body")
+        {
+            score += 1;
+        }
+
+        var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
+        var preferredSignals = new[]
+        {
+            "摘要", "abstract", "overview", "architecture", "workflow", "概述", "总结", "引言", "简介",
+            "系统", "总体设计", "架构", "设计", "方法", "实现", "结果", "结论", "模块", "测试", "评估", "创新"
+        };
+
+        score += preferredSignals.Count(signal => structureText.Contains(signal, StringComparison.OrdinalIgnoreCase));
+        if (IsParameterHeavySentence(chunk.Text))
+        {
+            score -= 4;
+        }
+
+        return score;
+    }
+
+    private static string NormalizeSummarySentence(string sentence)
+    {
+        return Regex.Replace(CleanStructuredSentence(sentence), "\\s+", string.Empty);
+    }
+
+    private static string CleanStructuredSentence(string sentence)
+    {
+        if (string.IsNullOrWhiteSpace(sentence))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = sentence.Trim();
+        cleaned = Regex.Replace(cleaned, "^(?:content|overview|summary|abstract|architecture|workflow)\\s*[:：]\\s*", string.Empty, RegexOptions.IgnoreCase);
+        cleaned = Regex.Replace(cleaned, "\\s+", " ");
+        return cleaned.Trim();
+    }
+
+    private static bool IsParameterHeavySentence(string sentence)
+    {
+        if (string.IsNullOrWhiteSpace(sentence))
+        {
+            return false;
+        }
+
+        var digitCount = sentence.Count(char.IsDigit);
+        var lower = sentence.ToLowerInvariant();
+        var parameterSignals = new[]
+        {
+            "mhz", "kb", "sram", "flash", "adc", "i²c", "spi", "usart", "dma", "μa", "ma",
+            "v", "fps", "bps", "ms", "l/min", "cortex", "risc", "flash", "oled", "wifi"
+        };
+
+        var signalHits = parameterSignals.Count(signal => lower.Contains(signal, StringComparison.Ordinal));
+        return digitCount >= 6 || (digitCount >= 3 && signalHits >= 2);
+    }
+
     private static bool IsReferenceLikeSentence(string sentence)
     {
         var trimmed = sentence.Trim();
@@ -3555,6 +3979,8 @@ public sealed class LocalAiService : IDisposable
         bool HasDirectKeywordHit);
 
     private sealed record ProcedureCandidate(DocumentChunk Chunk, string Sentence, int Score);
+
+    private sealed record SummaryCandidate(DocumentChunk Chunk, string Sentence, int Score);
 
     private sealed record RetrievalResult(
         IReadOnlyList<ScoredChunk> RankedChunks,

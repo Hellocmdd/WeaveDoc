@@ -37,6 +37,7 @@ user question
     -> llama-server /v1/chat/completions
     -> answer quality checks
       -> repair prompt retry
+      -> summary-aware fallback
       -> extractive fallback
 ```
 
@@ -95,9 +96,11 @@ Each `DocumentChunk` includes:
 - `Index`
 - `DocumentTitle`
 - `SectionTitle`
+- `StructurePath`
+- `ContentKind`
 - `Text`
 
-These fields are used both by retrieval and by the stable citation system.
+These fields are used by retrieval and the stable citation system. `StructurePath` and `ContentKind` are also reused by JSON-aware reranking, context expansion, and summary fallback selection.
 
 ## 4. Embedding and Cache
 
@@ -159,6 +162,8 @@ These are required for BM25 and other sparse retrieval signals.
 - `Intent`
 - `WantsDetailedAnswer`
 
+`FocusTerms` now come from the current user question itself, while follow-up expansion still borrows prior turns through `BuildFocusTermSourceText` when needed.
+
 Supported intent types:
 
 - `compare`
@@ -169,7 +174,9 @@ Supported intent types:
 - `definition`
 - `general`
 
-These values influence both reranking and answer prompting.
+The `summary` intent now explicitly covers prompts such as “主要讲什么 / 主要内容 / 概述 / 总结”.
+
+These values influence reranking, prompt structure, and fallback answer selection.
 
 ## 6. Two-Stage Retrieval
 
@@ -276,6 +283,7 @@ The final top `TopK` chunks become the main answer evidence.
 `BuildContextWindow` expands the top-ranked chunks with nearby chunks. For JSON hits it also pulls in supporting chunks from the same structure branch:
 
 - the radius is controlled by `ContextWindowRadius`
+- JSON branch supplements are capped at `max(1, ContextWindowRadius + 1)` per seed chunk
 - each chunk appears at most once
 - output is ordered by `FilePath + Index`
 
@@ -296,6 +304,7 @@ This helps preserve local context and reduces hard boundary loss caused by chunk
 - prioritized evidence list
 - context body
 - answer rules
+- an intent-aware cross-source synthesis rule
 
 ### 9.2 Stable citations
 
@@ -326,18 +335,22 @@ This makes citations far more stable even when context ordering changes.
 - short answers to detailed questions
 - generic answers for usage/function questions
 
+For very short summary-style queries, the overlap check is intentionally relaxed so valid high-level summaries are not rejected just because the user only asked “what does this article mainly discuss”.
+
 ### 10.2 Repair retry
 
 If the first answer is weak, the service retries with a stricter repair prompt.
 
 ### 10.3 Extractive fallback
 
-If repair still fails, the service falls back to:
+If repair still fails, the service falls back to intent-specific builders:
 
+- `BuildPaperSummaryFallbackAnswer`
+- `BuildSummaryFallbackAnswer`
 - `BuildExtractiveFallbackAnswer`
 - `BuildUsageFallbackAnswer`
 
-Fallback answers also use stable citations instead of temporary numbering.
+Summary fallback prefers sentences from summary / overview / architecture / method / result sections, filters out parameter-heavy fragments, and still emits stable citations instead of temporary numbering.
 
 ## 11. Observability
 
@@ -389,8 +402,10 @@ Important current parameters include:
 - `RAG_NEIGHBOR_WEIGHT = 0.08`
 - `RAG_JSON_BRANCH_WEIGHT = 0.06`
 - `RAG_DIRECT_KEYWORD_BONUS = 0.08`
+- `RAG_FALLBACK_SENTENCE_COUNT = 2`
 - `LLAMA_SERVER_TEMPERATURE = 0.2`
 - `LLAMA_SERVER_MAX_TOKENS = 1536`
+- `LLAMA_SERVER_TIMEOUT_SECONDS = 300`
 
 The default parameter style is intentionally conservative: stable, debuggable, and low-hallucination rather than aggressively long or overly permissive generation.
 
@@ -403,7 +418,7 @@ The default parameter style is intentionally conservative: stable, debuggable, a
 - JSON is normalized into a retrievable text structure
 - retrieval already uses a two-stage design instead of full semantic scanning only
 - citations are stable and easier to trace
-- repair retry, extractive fallback, and offline evaluation are already built in
+- repair retry, summary-aware fallback, extractive fallback, and offline evaluation are already built in
 
 ### Limitations
 
@@ -415,4 +430,4 @@ The default parameter style is intentionally conservative: stable, debuggable, a
 
 ## 15. One-Sentence Summary
 
-The current WeaveDoc RAG design normalizes local documents into section-aware chunks, retrieves evidence through sparse prefiltering plus localized semantic scoring and rule-based reranking, sends grounded context to local `llama-server`, and uses stable citations, repair retry, extractive fallback, and offline evaluation to keep answers more reliable.
+The current WeaveDoc RAG design normalizes local documents into section-aware chunks, retrieves evidence through sparse prefiltering plus localized semantic scoring and rule-based reranking, sends grounded context to local `llama-server`, and uses stable citations, repair retry, summary-aware fallback, and offline evaluation to keep answers more reliable.

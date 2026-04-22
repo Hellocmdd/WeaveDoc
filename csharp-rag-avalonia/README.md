@@ -29,8 +29,10 @@ And a chat model file that will be loaded by `llama-server`, for example:
 - Runs hybrid recall + rerank:
   sparse prefilter = BM25 + keyword + title + direct-hit bonus + noise penalty
   semantic stage = vector similarity only on the filtered candidate pool, with fallback to full semantic scan when sparse evidence is weak
-  rerank stage = coverage + neighbor support + intent boost
+  rerank stage = coverage + neighbor support + JSON branch support + intent boost
+- Expands answer context with adjacent chunks and structure-related JSON chunks
 - Sends grounded prompts plus short chat history to `llama-server` for answer generation
+- Retries weak generations with a stricter repair prompt and uses summary-aware fallback for overview questions
 - Supports adding, deleting, and refreshing indexed `.md` / `.txt` / `.json` documents from the UI
 - Flattens JSON objects and arrays into titled plain-text sections before chunking
 - Avoids duplicating files when the imported document is already inside `doc/` or has identical content to an indexed file
@@ -116,7 +118,8 @@ You can override runtime behavior with env vars:
 - `RAG_SPARSE_CANDIDATE_POOL_SIZE` (default: `48`)
 - `RAG_CONTEXT_WINDOW_RADIUS` (default: `1`)
 - `RAG_VECTOR_WEIGHT` / `RAG_BM25_WEIGHT` / `RAG_KEYWORD_WEIGHT`
-- `RAG_TITLE_WEIGHT` / `RAG_COVERAGE_WEIGHT` / `RAG_NEIGHBOR_WEIGHT`
+- `RAG_TITLE_WEIGHT` / `RAG_JSON_STRUCTURE_WEIGHT`
+- `RAG_COVERAGE_WEIGHT` / `RAG_NEIGHBOR_WEIGHT` / `RAG_JSON_BRANCH_WEIGHT`
 - `RAG_CHUNK_SIZE` (default: `520`)
 - `RAG_CHUNK_OVERLAP` (default: `96`)
 - `RAG_MIN_COMBINED_THRESHOLD` (default: `0.18`)
@@ -131,3 +134,4 @@ You can override runtime behavior with env vars:
 - The embedding cache is content-addressed by model name, chunk settings, file path, chunk index, and chunk text, so edited documents are re-embedded automatically.
 - JSON files are flattened into titled plain text sections before chunking, so nested objects and arrays can still participate in retrieval.
 - The answer prompt uses stable source labels instead of temporary context numbering, which makes citations more consistent across runs and context windows.
+- Summary questions use intent-specific prompting and fallback extraction so “what does this paper mainly discuss” style queries stay concise but grounded.

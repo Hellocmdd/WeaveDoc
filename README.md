@@ -91,7 +91,9 @@ LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
 - JSON ingestion into structure-aware chunks with searchable array-item section labels
 - duplicate import detection so the app does not keep copying identical files into the knowledge base
 - hybrid retrieval with sparse prefilter + semantic scoring + structure-aware reranking
+- JSON branch-aware context expansion so related parent/child chunks can travel with the main hit
 - stable citations in answers, using file path + section + chunk id instead of temporary `[1] [2]` numbering
+- summary-aware fallback answers for paper and document overview questions
 - offline baseline evaluation through a CLI entry point and helper script
 
 ## Offline Evaluation
