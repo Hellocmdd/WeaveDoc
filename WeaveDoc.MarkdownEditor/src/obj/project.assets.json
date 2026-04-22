@@ -128,6 +128,22 @@
           }
         }
       },
+      "Avalonia.Fonts.Inter/12.0.1": {
+        "type": "package",
+        "dependencies": {
+          "Avalonia": "12.0.1"
+        },
+        "compile": {
+          "lib/net8.0/Avalonia.Fonts.Inter.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Avalonia.Fonts.Inter.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Avalonia.FreeDesktop/12.0.1": {
         "type": "package",
         "dependencies": {
@@ -176,22 +192,6 @@
         },
         "runtime": {
           "lib/net8.0/Avalonia.HarfBuzz.dll": {
-            "related": ".xml"
-          }
-        }
-      },
-      "Avalonia.Markup.Xaml.Loader/12.0.1": {
-        "type": "package",
-        "dependencies": {
-          "Avalonia": "12.0.1"
-        },
-        "compile": {
-          "lib/net8.0/Avalonia.Markup.Xaml.Loader.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net8.0/Avalonia.Markup.Xaml.Loader.dll": {
             "related": ".xml"
           }
         }
@@ -843,6 +843,22 @@
         "lib/net8.0/Avalonia.Desktop.xml"
       ]
     },
+    "Avalonia.Fonts.Inter/12.0.1": {
+      "sha512": "Pm7Xb9fMpjM4i1cpUGtpDtxkMC/oVfijaT93cPl30LPUKPYPbpwm1jkrYwtWLtEr/xTgbUmxyZZvJd0cV9oF8g==",
+      "type": "package",
+      "path": "avalonia.fonts.inter/12.0.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "avalonia.fonts.inter.12.0.1.nupkg.sha512",
+        "avalonia.fonts.inter.nuspec",
+        "lib/net10.0/Avalonia.Fonts.Inter.dll",
+        "lib/net10.0/Avalonia.Fonts.Inter.xml",
+        "lib/net8.0/Avalonia.Fonts.Inter.dll",
+        "lib/net8.0/Avalonia.Fonts.Inter.xml"
+      ]
+    },
     "Avalonia.FreeDesktop/12.0.1": {
       "sha512": "BbYDbu3hEwv2stkLlCh8/+2Y94IjdyxQNj8wQVAiKton2yZEmnwYpBRfQ8v/q7I6BjIJing6dofZk8IG/i82/g==",
       "type": "package",
@@ -889,22 +905,6 @@
         "lib/net10.0/Avalonia.HarfBuzz.xml",
         "lib/net8.0/Avalonia.HarfBuzz.dll",
         "lib/net8.0/Avalonia.HarfBuzz.xml"
-      ]
-    },
-    "Avalonia.Markup.Xaml.Loader/12.0.1": {
-      "sha512": "h+YvPjvAhRGouceSIn0uoj+QmcBjmqRjNabLpDwiTmm9BEO7iIsNM5txU1jpCKliDvlBEK05rpsX9WJ7lP+fOg==",
-      "type": "package",
-      "path": "avalonia.markup.xaml.loader/12.0.1",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "avalonia.markup.xaml.loader.12.0.1.nupkg.sha512",
-        "avalonia.markup.xaml.loader.nuspec",
-        "lib/net10.0/Avalonia.Markup.Xaml.Loader.dll",
-        "lib/net10.0/Avalonia.Markup.Xaml.Loader.xml",
-        "lib/net8.0/Avalonia.Markup.Xaml.Loader.dll",
-        "lib/net8.0/Avalonia.Markup.Xaml.Loader.xml"
       ]
     },
     "Avalonia.Native/12.0.1": {
@@ -1508,7 +1508,8 @@
     "net8.0": [
       "Avalonia >= 12.0.1",
       "Avalonia.Desktop >= 12.0.1",
-      "Avalonia.Markup.Xaml.Loader >= 12.0.1",
+      "Avalonia.Diagnostics >= 12.0.1",
+      "Avalonia.Fonts.Inter >= 12.0.1",
       "Avalonia.Themes.Fluent >= 12.0.1",
       "Microsoft.Web.WebView2 >= 1.0.1343.22"
     ]
@@ -1519,11 +1520,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
+      "projectUniqueName": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
       "projectName": "WeaveDoc.MarkdownEditor",
-      "projectPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
+      "projectPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
       "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
-      "outputPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\obj\\",
+      "outputPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -1563,7 +1564,11 @@
             "target": "Package",
             "version": "[12.0.1, )"
           },
-          "Avalonia.Markup.Xaml.Loader": {
+          "Avalonia.Diagnostics": {
+            "target": "Package",
+            "version": "[12.0.1, )"
+          },
+          "Avalonia.Fonts.Inter": {
             "target": "Package",
             "version": "[12.0.1, )"
           },
@@ -1595,5 +1600,16 @@
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.419/PortableRuntimeIdentifierGraph.json"
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "NU1102",
+      "level": "Error",
+      "message": "找不到版本为 (>= 12.0.1) 的包 Avalonia.Diagnostics\r\n  - 在 nuget.org 中找到 101 个版本[ 最接近版本: 11.3.14 ]",
+      "libraryId": "Avalonia.Diagnostics",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
 }

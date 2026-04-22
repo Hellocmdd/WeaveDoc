@@ -1,17 +1,17 @@
 {
   "version": 2,
-  "dgSpecHash": "3q/sjXJN7ss=",
-  "success": true,
+  "dgSpecHash": "GyNT1UJN3io=",
+  "success": false,
   "projectFilePath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia\\12.0.1\\avalonia.12.0.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.angle.windows.natives\\2.1.25547.20250602\\avalonia.angle.windows.natives.2.1.25547.20250602.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.buildservices\\11.3.2\\avalonia.buildservices.11.3.2.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.desktop\\12.0.1\\avalonia.desktop.12.0.1.nupkg.sha512",
+    "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.fonts.inter\\12.0.1\\avalonia.fonts.inter.12.0.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.freedesktop\\12.0.1\\avalonia.freedesktop.12.0.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.freedesktop.atspi\\12.0.1\\avalonia.freedesktop.atspi.12.0.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.harfbuzz\\12.0.1\\avalonia.harfbuzz.12.0.1.nupkg.sha512",
-    "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.markup.xaml.loader\\12.0.1\\avalonia.markup.xaml.loader.12.0.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.native\\12.0.1\\avalonia.native.12.0.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.remote.protocol\\12.0.1\\avalonia.remote.protocol.12.0.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.skia\\12.0.1\\avalonia.skia.12.0.1.nupkg.sha512",
@@ -33,5 +33,15 @@
     "C:\\Users\\Administrator\\.nuget\\packages\\system.io.pipelines\\8.0.0\\system.io.pipelines.8.0.0.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\tmds.dbus.protocol\\0.92.0\\tmds.dbus.protocol.0.92.0.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1102",
+      "level": "Error",
+      "message": "找不到版本为 (>= 12.0.1) 的包 Avalonia.Diagnostics\r\n  - 在 nuget.org 中找到 101 个版本[ 最接近版本: 11.3.14 ]",
+      "libraryId": "Avalonia.Diagnostics",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
 }

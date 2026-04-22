@@ -5,24 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monaco Editor</title>
     <link rel="stylesheet" href="style.css">
-    <script src="editor.js"></script>
+    <!-- 加载本地的 loader.js -->
+    <script src="min/vs/loader.js"></script>
 </head>
 <body>
-    <div id="editor" style="width: 800px; height: 600px;"></div>
+    <div id="editor"></div>
     <script>
-        // Initialize the Monaco editor with a simple message bridge to the host (WebView2)
-        require.config({ paths: { 'vs': 'monaco-editor/vs' }});
+        // 配置 RequireJS 指向本地的 vs 文件夹
+        require.config({ paths: { 'vs': './min/vs' }});
+
         require(['vs/editor/editor.main'], function() {
+            // 初始化编辑器
             var editor = monaco.editor.create(document.getElementById('editor'), {
-                value: '',
-                language: 'markdown'
+                value: '# Hello WeaveDoc!\n\nStart typing markdown here...',
+                language: 'markdown',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize: 14,
+                lineNumbers: 'on',
+                wordWrap: 'on'
             });
 
-            // Send content changes to host
+            // 监听内容变化并发送给 C#
             editor.onDidChangeModelContent(function() {
                 try {
                     var content = editor.getValue();
-                    if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+                    if (window.chrome && window.chrome.webview) {
                         window.chrome.webview.postMessage(JSON.stringify({ Type: 'contentChanged', Data: content }));
                     }
                 } catch (e) {
@@ -30,25 +40,25 @@
                 }
             });
 
-            // Listen for messages from host
+            // 监听来自 C# 的消息
             if (window.chrome && window.chrome.webview) {
                 window.chrome.webview.addEventListener('message', function(e) {
                     try {
                         var msg = e.data;
-                        // If host sends JSON, parse it
                         if (typeof msg === 'string') {
-                            try { msg = JSON.parse(msg); } catch { }
+                            try { msg = JSON.parse(msg); } catch {}
                         }
                         if (msg && msg.Type === 'setContent') {
-                            var newContent = msg.Data || '';
                             var current = editor.getValue();
-                            if (current !== newContent) {
-                                editor.setValue(newContent);
+                            if (current !== msg.Data) {
+                                editor.setValue(msg.Data || '');
                             }
                         }
                     } catch (err) { console.error(err); }
                 });
             }
+            
+            console.log("Monaco Editor Loaded Successfully");
         });
     </script>
 </body>
