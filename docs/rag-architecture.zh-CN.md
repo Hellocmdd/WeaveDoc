@@ -37,6 +37,7 @@
     -> llama-server /v1/chat/completions
     -> 回答质量校验
       -> 修复提示词重试
+      -> 总结型回退
       -> 抽取式回退答案
 ```
 
@@ -98,9 +99,11 @@ JSON 文档不会直接按原始 JSON 字符串切块，而是先通过 `ReadDoc
 - `Index`
 - `DocumentTitle`
 - `SectionTitle`
+- `StructurePath`
+- `ContentKind`
 - `Text`
 
-这些信息同时用于检索和稳定引用标签。
+这些信息同时用于检索和稳定引用标签；其中 `StructurePath` 和 `ContentKind` 还会被 JSON 分支重排、上下文补全和 summary 回退逻辑复用。
 
 ## 4. Embedding 与缓存
 
@@ -165,6 +168,8 @@ JSON 文档不会直接按原始 JSON 字符串切块，而是先通过 `ReadDoc
 - `Intent`
 - `WantsDetailedAnswer`
 
+现在 `FocusTerms` 直接从当前用户问题里提取；如果是“继续 / 展开说”这类追问，才会通过 `BuildFocusTermSourceText` 借助上一轮问题补全检索展开词。
+
 支持的 `Intent` 包括：
 
 - `compare`
@@ -175,7 +180,9 @@ JSON 文档不会直接按原始 JSON 字符串切块，而是先通过 `ReadDoc
 - `definition`
 - `general`
 
-这些信息同时影响检索重排和回答提示词。
+其中 `summary` 明确覆盖“主要讲什么 / 主要内容 / 概述 / 总结”这类问题。
+
+这些信息同时影响检索重排、回答结构和回退路径选择。
 
 ## 6. 两阶段召回
 
@@ -282,6 +289,7 @@ rerankScore =
 `BuildContextWindow` 不只保留主命中 chunk，还会取其前后相邻 chunk；如果命中的是 JSON 结构化 chunk，还会补充同一结构分支上的辅助证据：
 
 - 范围由 `ContextWindowRadius` 控制
+- 对每个命中 JSON chunk，结构分支补充数量上限为 `max(1, ContextWindowRadius + 1)`
 - 同一 chunk 只保留一次
 - 最终按 `FilePath + Index` 排序
 
@@ -302,6 +310,7 @@ rerankScore =
 - 优先证据
 - 上下文正文
 - 回答规则
+- 按问题类型变化的跨来源综合规则
 
 ### 9.2 稳定引用标签
 
@@ -332,18 +341,22 @@ rerankScore =
 - 详细问题却回答过短
 - 用途类问题却给出空泛回答
 
+对于“这篇文章主要写什么”这类极短总结问题，词项重叠校验会适当放宽，避免高层概述因为没有逐字复用提问词而被误判成跑题。
+
 ### 10.2 修复重试
 
 如果首答不可靠，会用更严格的 repair prompt 再试一次。
 
 ### 10.3 抽取式回退
 
-如果修复仍失败，则进入：
+如果修复仍失败，则会按问题类型进入不同回退器：
 
+- `BuildPaperSummaryFallbackAnswer`
+- `BuildSummaryFallbackAnswer`
 - `BuildExtractiveFallbackAnswer`
 - `BuildUsageFallbackAnswer`
 
-回退答案同样使用稳定引用标签，而不是临时编号。
+其中 summary 回退会优先挑选摘要、概述、架构、方法、结果等位置上的代表句，过滤参数堆叠型句子，并继续使用稳定引用标签。
 
 ## 11. 调试与可观测性
 
@@ -395,8 +408,10 @@ rerankScore =
 - `RAG_NEIGHBOR_WEIGHT = 0.08`
 - `RAG_JSON_BRANCH_WEIGHT = 0.06`
 - `RAG_DIRECT_KEYWORD_BONUS = 0.08`
+- `RAG_FALLBACK_SENTENCE_COUNT = 2`
 - `LLAMA_SERVER_TEMPERATURE = 0.2`
 - `LLAMA_SERVER_MAX_TOKENS = 1536`
+- `LLAMA_SERVER_TIMEOUT_SECONDS = 300`
 
 整体参数风格偏保守，目标是稳定、低幻觉、可调试，而不是极端生成长度或极端召回覆盖。
 
@@ -409,7 +424,7 @@ rerankScore =
 - JSON 可结构化展平后再检索
 - 已经从全量混合打分升级为两阶段召回
 - 引用标签稳定，可追溯性更好
-- 有修复重试、抽取回退和离线评测链路
+- 有修复重试、summary 回退、抽取回退和离线评测链路
 
 ### 局限
 
@@ -423,4 +438,4 @@ rerankScore =
 
 当前 WeaveDoc 的 RAG 核心思路是：
 
-**先把本地文档规范化并切成带章节信息的 chunk，再用“稀疏预筛 + 局部语义打分 + 规则重排”找出最相关上下文，把这些上下文送入本地 `llama-server` 生成答案，并通过稳定引用、修复重试、抽取回退和离线评测来保证回答质量。**
+**先把本地文档规范化并切成带章节信息的 chunk，再用“稀疏预筛 + 局部语义打分 + 规则重排”找出最相关上下文，把这些上下文送入本地 `llama-server` 生成答案，并通过稳定引用、修复重试、summary 回退和离线评测来保证回答质量。**
