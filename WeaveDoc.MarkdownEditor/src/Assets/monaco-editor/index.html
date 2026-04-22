@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monaco Editor</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="editor.js"></script>
+</head>
+<body>
+    <div id="editor" style="width: 800px; height: 600px;"></div>
+    <script>
+        // Initialize the Monaco editor with a simple message bridge to the host (WebView2)
+        require.config({ paths: { 'vs': 'monaco-editor/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            var editor = monaco.editor.create(document.getElementById('editor'), {
+                value: '',
+                language: 'markdown'
+            });
+
+            // Send content changes to host
+            editor.onDidChangeModelContent(function() {
+                try {
+                    var content = editor.getValue();
+                    if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+                        window.chrome.webview.postMessage(JSON.stringify({ Type: 'contentChanged', Data: content }));
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+
+            // Listen for messages from host
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.addEventListener('message', function(e) {
+                    try {
+                        var msg = e.data;
+                        // If host sends JSON, parse it
+                        if (typeof msg === 'string') {
+                            try { msg = JSON.parse(msg); } catch { }
+                        }
+                        if (msg && msg.Type === 'setContent') {
+                            var newContent = msg.Data || '';
+                            var current = editor.getValue();
+                            if (current !== newContent) {
+                                editor.setValue(newContent);
+                            }
+                        }
+                    } catch (err) { console.error(err); }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

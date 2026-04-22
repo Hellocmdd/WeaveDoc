@@ -1,0 +1,9 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fluent="clr-namespace:Avalonia.Themes.Fluent;assembly=Avalonia.Themes.Fluent"
+             x:Class="WeaveDoc.MarkdownEditor.App">
+  <Application.Styles>
+    <!-- Include the Fluent theme resources. Avoid explicit Accent include which may be relocated between package versions. -->
+    <StyleInclude Source="avares://Avalonia.Themes.Fluent/FluentTheme.xaml" />
+  </Application.Styles>
+</Application>

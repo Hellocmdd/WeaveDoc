@@ -1,0 +1,9 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl"
+             Width="800" Height="600">
+  <!-- Placeholder panel where native WebView2 will be positioned over/inside -->
+  <Border x:Name="HostBorder" Background="Transparent">
+    <TextBlock Text="Loading Monaco..." HorizontalAlignment="Center" VerticalAlignment="Center"/>
+  </Border>
+</UserControl>

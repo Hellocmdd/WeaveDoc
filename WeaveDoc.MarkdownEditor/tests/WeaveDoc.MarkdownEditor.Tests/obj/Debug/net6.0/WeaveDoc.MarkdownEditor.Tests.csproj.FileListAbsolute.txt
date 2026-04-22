@@ -1,0 +1,5 @@
+D:\WeaveDoc\WeaveDoc.MarkdownEditor\tests\WeaveDoc.MarkdownEditor.Tests\obj\Debug\net6.0\WeaveDoc.MarkdownEditor.Tests.csproj.AssemblyReference.cache
+D:\WeaveDoc\WeaveDoc.MarkdownEditor\tests\WeaveDoc.MarkdownEditor.Tests\obj\Debug\net6.0\WeaveDoc.MarkdownEditor.Tests.GeneratedMSBuildEditorConfig.editorconfig
+D:\WeaveDoc\WeaveDoc.MarkdownEditor\tests\WeaveDoc.MarkdownEditor.Tests\obj\Debug\net6.0\WeaveDoc.MarkdownEditor.Tests.AssemblyInfoInputs.cache
+D:\WeaveDoc\WeaveDoc.MarkdownEditor\tests\WeaveDoc.MarkdownEditor.Tests\obj\Debug\net6.0\WeaveDoc.MarkdownEditor.Tests.AssemblyInfo.cs
+D:\WeaveDoc\WeaveDoc.MarkdownEditor\tests\WeaveDoc.MarkdownEditor.Tests\obj\Debug\net6.0\WeaveDoc.MarkdownEditor.Tests.csproj.CoreCompileInputs.cache

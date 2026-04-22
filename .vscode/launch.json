@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": ".NET Core Launch (WeaveDoc.MarkdownEditor)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build WeaveDoc.MarkdownEditor",
+      "program": "${workspaceFolder}/WeaveDoc.MarkdownEditor/src/bin/Debug/net8.0/WeaveDoc.MarkdownEditor.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/WeaveDoc.MarkdownEditor/src",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    }
+  ]
+}
