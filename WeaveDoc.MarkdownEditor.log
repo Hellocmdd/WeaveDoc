@@ -63,3 +63,9 @@
    at System.Runtime.InteropServices.Marshal.ThrowExceptionForHR(Int32 errorCode)
    at Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(String browserExecutableFolder, String userDataFolder, CoreWebView2EnvironmentOptions options)
    at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.InitializeWebViewAsync() in d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 64
+[2026-04-23 16:50:52.070] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-23 16:50:52.190] MonacoEditorControl: Got HWND: 2820218
+[2026-04-23 16:50:52.204] EXCEPTION: System.Runtime.InteropServices.COMException (0x80010106): 无法在设置线程模式后对其加以更改。 (0x80010106 (RPC_E_CHANGED_MODE))
+   at System.Runtime.InteropServices.Marshal.ThrowExceptionForHR(Int32 errorCode)
+   at Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(String browserExecutableFolder, String userDataFolder, CoreWebView2EnvironmentOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.InitializeWebViewAsync() in D:\WeaveDoc\Weavedoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 64
