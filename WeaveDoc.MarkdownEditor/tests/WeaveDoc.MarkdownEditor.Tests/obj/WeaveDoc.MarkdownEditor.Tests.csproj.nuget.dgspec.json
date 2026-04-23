@@ -20,7 +20,7 @@
           "net6.0"
         ],
         "sources": {
-          "https://mirrors.aliyun.com/nuget/v3/index.json": {}
+          "https://nuget.azure.cn/v3/index.json": {}
         },
         "frameworks": {
           "net6.0": {

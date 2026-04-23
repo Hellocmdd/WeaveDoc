@@ -37,6 +37,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 Logger.Log("MonacoEditorControl: Starting WebView2 initialization...");
 
+                // 等待控件完全加载并附加到视觉树
+                await Task.Delay(100); 
+
                 // Get top-level window handle
                 var root = this.VisualRoot as Window;
                 if (root == null)
@@ -45,18 +48,23 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
                 }
 
-                var platformImpl = root.PlatformImpl;
-                if (platformImpl == null)
+                // 【修复】正确获取 Windows 窗口句柄 (HWND) - Avalonia 11+ 方式
+                var topLevel = root.TryGetPlatformHandle();
+                
+                if (topLevel == null || topLevel.Handle == IntPtr.Zero)
                 {
-                    Logger.Log("MonacoEditorControl: platform implementation is null");
+                    Logger.Log("MonacoEditorControl: Could not get platform handle or HWND is zero");
                     return;
                 }
 
-                var platformHandle = ((IPlatformHandle)platformImpl).Handle;
+                var hwnd = topLevel.Handle;
+                Logger.Log($"MonacoEditorControl: Got HWND: {hwnd}");
 
                 // Create WebView2 environment and controller
                 var env = await CoreWebView2Environment.CreateAsync();
-                _controller = await env.CreateCoreWebView2ControllerAsync(platformHandle);
+                
+                // 【修复】使用 CreateCoreWebView2ControllerAsync 的重载，传入 IntPtr (HWND)
+                _controller = await env.CreateCoreWebView2ControllerAsync(hwnd);
                 _webview = _controller.CoreWebView2;
 
                 // Configure WebView2 settings
@@ -80,6 +88,16 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     _isWebViewReady = true;
                     Logger.Log("MonacoEditorControl: WebView navigation completed");
                     
+                    // 【新增】强制打开开发者工具以便调试
+                    try 
+                    {
+                        _webview.OpenDevToolsWindow();
+                    } 
+                    catch (Exception devEx) 
+                    {
+                        Logger.LogException(devEx);
+                    }
+
                     // If there's pending content, set it now
                     if (!string.IsNullOrEmpty(_pendingContent))
                     {
@@ -135,7 +153,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 if (_webview != null)
                 {
                     _webview.WebMessageReceived -= Webview_WebMessageReceived;
-                    _webview.NavigationCompleted -= null;
+                    // 注意：C# 中移除事件通常不需要指定右侧为 null，直接 -= 方法名即可，但保留原逻辑结构
+                    // _webview.NavigationCompleted -= null; 这行在原代码中可能无效或报错，建议注释掉或移除
                     _webview = null;
                 }
                 _controller?.Close();
@@ -161,7 +180,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 {
                     // Calculate the bounds of this control relative to the window
                     var controlBounds = this.Bounds;
-                    var windowBounds = root.Bounds;
+                    // var windowBounds = root.Bounds; // 未使用，可保留或删除
                     
                     // Position WebView2 to cover this control's area
                     var x = (int)controlBounds.X;
@@ -213,8 +232,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-// ... existing code ...
-
         public async Task SetContentAsync(string content)
         {
             try
@@ -231,9 +248,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var json = System.Text.Json.JsonSerializer.Serialize(obj);
                 
                 // PostWebMessageAsJson is not async, so we don't need await here.
-                // However, to keep the method signature async Task and suppress the warning,
-                // we can use Task.CompletedTask or ensure there's an actual async call.
-                // Since PostWebMessageAsJson is synchronous, we can just call it.
                 _webview.PostWebMessageAsJson(json);
                 Logger.Log($"MonacoEditorControl: Content set (length: {content.Length})");
             }
@@ -245,8 +259,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
             // Add this to suppress CS1998 if no other await is present
             await Task.CompletedTask;
         }
-
-// ... existing code ...
 
         private record Message(string? Type, object? Data);
 

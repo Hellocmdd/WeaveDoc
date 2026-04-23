@@ -51,3 +51,15 @@
 [2026-04-23 08:40:55.384] MonacoEditorControl: Starting WebView2 initialization...
 [2026-04-23 08:40:55.417] EXCEPTION: System.InvalidCastException: Unable to cast object of type 'Avalonia.Win32.WindowImpl' to type 'Avalonia.Platform.IPlatformHandle'.
    at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.InitializeWebViewAsync() in d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 55
+[2026-04-23 10:32:13.245] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-23 10:32:13.257] EXCEPTION: System.InvalidCastException: Unable to cast object of type 'Avalonia.Win32.WindowImpl' to type 'Avalonia.Platform.IPlatformHandle'.
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.InitializeWebViewAsync() in d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 55
+[2026-04-23 11:19:35.735] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-23 11:19:35.752] EXCEPTION: System.InvalidCastException: Unable to cast object of type 'Avalonia.Win32.WindowImpl' to type 'Avalonia.Platform.IPlatformHandle'.
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.InitializeWebViewAsync() in d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 55
+[2026-04-23 15:35:30.834] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-23 15:35:30.955] MonacoEditorControl: Got HWND: 657292
+[2026-04-23 15:35:31.108] EXCEPTION: System.Runtime.InteropServices.COMException (0x80010106): 无法在设置线程模式后对其加以更改。 (0x80010106 (RPC_E_CHANGED_MODE))
+   at System.Runtime.InteropServices.Marshal.ThrowExceptionForHR(Int32 errorCode)
+   at Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(String browserExecutableFolder, String userDataFolder, CoreWebView2EnvironmentOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.InitializeWebViewAsync() in d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 64
