@@ -48,3 +48,6 @@
 [2026-04-22 15:55:42.205] MonacoEditorControl: root window is null
 [2026-04-22 16:08:37.002] MonacoEditorControl: Starting WebView2 initialization...
 [2026-04-22 16:08:37.012] MonacoEditorControl: root window is null
+[2026-04-23 08:40:55.384] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-23 08:40:55.417] EXCEPTION: System.InvalidCastException: Unable to cast object of type 'Avalonia.Win32.WindowImpl' to type 'Avalonia.Platform.IPlatformHandle'.
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.InitializeWebViewAsync() in d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 55
