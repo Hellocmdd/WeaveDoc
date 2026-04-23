@@ -1,0 +1,8 @@
+d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\WeaveDoc.MarkdownEditor.csproj.AssemblyReference.cache
+d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\Avalonia\Resources.Inputs.cache
+d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\Avalonia\resources
+d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\WeaveDoc.MarkdownEditor.GeneratedMSBuildEditorConfig.editorconfig
+d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\WeaveDoc.MarkdownEditor.AssemblyInfoInputs.cache
+d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\WeaveDoc.MarkdownEditor.AssemblyInfo.cs
+d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\WeaveDoc.MarkdownEditor.csproj.CoreCompileInputs.cache
+d:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\WeaveDoc.MarkdownEditor.sourcelink.json

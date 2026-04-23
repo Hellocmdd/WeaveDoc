@@ -45,23 +45,23 @@
           "dependencies": {
             "Avalonia": {
               "target": "Package",
-              "version": "[12.0.1, )"
+              "version": "[11.3.14, )"
             },
             "Avalonia.Desktop": {
               "target": "Package",
-              "version": "[12.0.1, )"
+              "version": "[11.3.14, )"
             },
             "Avalonia.Diagnostics": {
               "target": "Package",
-              "version": "[12.0.1, )"
+              "version": "[11.3.14, )"
             },
             "Avalonia.Fonts.Inter": {
               "target": "Package",
-              "version": "[12.0.1, )"
+              "version": "[11.3.14, )"
             },
             "Avalonia.Themes.Fluent": {
               "target": "Package",
-              "version": "[12.0.1, )"
+              "version": "[11.3.14, )"
             },
             "Microsoft.Web.WebView2": {
               "target": "Package",
