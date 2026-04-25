@@ -50,8 +50,9 @@ The indexer currently supports the following files under `doc/`:
 - `.md`
 - `.txt`
 - `.json`
+- `.pdf` (through system `pdftotext` extraction)
 
-The repository may contain PDF source files, but the current RAG pipeline does not parse PDFs directly.
+For PDFs, the app shells out to `pdftotext` and feeds extracted UTF-8 text into the same chunking pipeline.
 
 ### 2.2 Import policy
 
@@ -378,9 +379,10 @@ The evaluation mode:
 - runs a batch of questions
 - prints the generated answers
 - prints retrieval debug output
-- computes simple expected-keyword coverage statistics
+- computes expected-keyword coverage statistics
+- runs per-case structural checks for selected baseline case IDs
 
-This is not a full automatic grader yet, but it is already enough for day-to-day regression checks and before/after comparisons when tuning retrieval behavior.
+This is still not a full semantic automatic grader, but it is already enough for day-to-day regression checks and before/after comparisons when tuning retrieval behavior.
 
 ## 13. Main Parameters
 
@@ -414,19 +416,20 @@ The default parameter style is intentionally conservative: stable, debuggable, a
 ### Strengths
 
 - no external vector database is required
-- supports `.md`, `.txt`, and `.json`
+- supports `.md`, `.txt`, `.json`, and `.pdf`
 - JSON is normalized into a retrievable text structure
 - retrieval already uses a two-stage design instead of full semantic scanning only
+- document-title-aware retrieval can prioritize chunks from a user-requested source file
 - citations are stable and easier to trace
 - repair retry, summary-aware fallback, extractive fallback, and offline evaluation are already built in
 
 ### Limitations
 
 - reranking is still rule-based rather than learned
-- PDF ingestion is still unsupported
+- PDF ingestion currently depends on external `pdftotext` availability and text extraction quality
 - sparse prefilter improves performance but is not yet an ANN vector index
 - stable citations currently resolve to “file + section + chunk”, not page numbers or finer structural locations
-- offline evaluation is still based on simple keyword coverage, not a stronger automatic grading model
+- offline evaluation is mainly keyword + rule checks, not a stronger semantic automatic grading model
 
 ## 15. One-Sentence Summary
 

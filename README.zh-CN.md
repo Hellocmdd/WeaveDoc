@@ -87,14 +87,24 @@ LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
 
 ## 当前能力
 
-- 支持索引 `doc/` 中的 `.md`、`.txt`、`.json`
+- 支持索引 `doc/` 中的 `.md`、`.txt`、`.json`、`.pdf`
 - JSON 会先转成带结构路径的 chunk，并为数组项生成可检索的小节标题
 - 导入阶段会避免把相同文件一遍遍复制进知识库
 - 检索采用“稀疏预筛 + 局部语义打分 + 结构感知重排”
+- 对“《标题》这篇论文/文档...”这类问题支持文档定向检索，优先使用目标文档证据
 - 命中 JSON 时会补充同一结构分支上的上下文，避免父子节点信息脱节
 - 回答引用使用稳定标签，而不是临时 `[1][2]`
 - 对“论文/文档主要讲什么”这类问题提供 summary-aware 回退答案
-- 提供离线基线评测入口
+- 对组成类、模块实现类、元数据类与工程论文类问题提供更细的意图化回退
+- 提供离线基线评测入口（关键词覆盖 + 结构化校验）
+
+## PDF 解析依赖
+
+当前 PDF 文本解析依赖系统命令 `pdftotext`（Poppler）。
+
+- Ubuntu/Debian：`sudo apt install poppler-utils`
+- Arch：`sudo pacman -S poppler`
+- Fedora：`sudo dnf install poppler-utils`
 
 ## 离线评测
 
@@ -103,6 +113,12 @@ LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
 ```bash
 ./scripts/eval_rag.sh
 ```
+
+说明：
+
+- 退出码 `0`：全部用例通过
+- 退出码 `2`：至少一个用例未通过
+- 当前评测不仅统计关键词命中，还会对部分基线用例执行结构化检查
 
 也可以直接通过 CLI 模式运行：
 
