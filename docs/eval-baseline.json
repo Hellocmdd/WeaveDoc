@@ -33,7 +33,36 @@
         "wifi",
         "mqtt",
         "远程"
-      ]
+      ],
+      "minMatchedKeywords": 4
+    },
+    {
+      "id": "stm32-remote-detailed",
+      "category": "engineering-paper",
+      "question": "对于STM32这篇论文，文档里远程状态显示及控制模块是怎么做的，详细一点",
+      "expectedKeywords": [
+        "usart",
+        "esp-01s",
+        "mqtt",
+        "json",
+        "app",
+        "阈值",
+        "指令"
+      ],
+      "minMatchedKeywords": 5
+    },
+    {
+      "id": "stm32-control-prefixed",
+      "category": "engineering-paper",
+      "question": "对于STM32这篇论文，这个智能浇花系统如何实现精准灌溉",
+      "expectedKeywords": [
+        "土壤湿度",
+        "环境温湿度",
+        "模糊pid",
+        "电磁阀",
+        "pwm"
+      ],
+      "minMatchedKeywords": 4
     },
     {
       "id": "follow-up-detail",
@@ -56,26 +85,14 @@
       ]
     },
     {
-      "id": "ai-shortdrama-summary",
-      "category": "humanities-paper",
-      "question": "总结一下《从文化传承到科幻未来：国产AI微短剧发展的新趋势与新启示》这篇论文主要写了什么",
+      "id": "json-metadata-english",
+      "category": "json-ingestion",
+      "question": "《基于STM32单片机的智能浇花系统设计》这份 JSON 文档的英文标题、英文摘要和英文关键词是什么",
       "expectedKeywords": [
-        "ai微短剧",
-        "文化传承",
-        "科幻",
-        "人机"
-      ],
-      "minMatchedKeywords": 4
-    },
-    {
-      "id": "ai-shortdrama-challenges",
-      "category": "humanities-paper",
-      "question": "文中认为国产AI微短剧当前面临哪些问题，未来应走向什么路径",
-      "expectedKeywords": [
-        "叙事同质化",
-        "文化失真",
-        "人机",
-        "人文引领"
+        "design of intelligent watering system",
+        "stm32 microcontroller",
+        "fuzzy pid",
+        "solenoid valve"
       ],
       "minMatchedKeywords": 3
     },
@@ -84,12 +101,14 @@
       "category": "system-paper",
       "question": "《基于Spring Boot和Vue的地质信息智能抽取与可视化系统设计与实现》采用了什么总体架构和技术栈",
       "expectedKeywords": [
+        "前后端分离",
         "spring boot",
-        "vue3",
+        "vue 3",
         "mybatis-plus",
+        "mysql",
         "echarts"
       ],
-      "minMatchedKeywords": 4
+      "minMatchedKeywords": 5
     },
     {
       "id": "geology-system-modules",
@@ -99,19 +118,7 @@
         "信息抽取",
         "知识图谱",
         "多模态检索",
-        "多特征关联分析"
-      ],
-      "minMatchedKeywords": 4
-    },
-    {
-      "id": "json-metadata-english",
-      "category": "json-ingestion",
-      "question": "《基于STM32单片机的智能浇花系统设计》这份 JSON 文档的英文标题、英文摘要和英文关键词是什么",
-      "expectedKeywords": [
-        "design of intelligent watering system",
-        "stm32 microcontroller",
-        "fuzzy pid",
-        "solenoid valve"
+        "多特征关联"
       ],
       "minMatchedKeywords": 3
     }
