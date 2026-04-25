@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using RagAvalonia.Models;
 
 namespace RagAvalonia.Services;
@@ -75,9 +76,11 @@ internal static class EvalRunner
 
             var matched = MatchExpectedKeywords(answer, item.ExpectedKeywords);
             var requiredMatches = GetRequiredMatchCount(item);
+            var structuralPassed = PassesStructuralChecks(answer, item);
             matchedExpectations += matched;
             totalExpectations += item.ExpectedKeywords?.Count ?? 0;
-            var passed = item.ExpectedKeywords is null || item.ExpectedKeywords.Count == 0 || matched >= requiredMatches;
+            var keywordPassed = item.ExpectedKeywords is null || item.ExpectedKeywords.Count == 0 || matched >= requiredMatches;
+            var passed = keywordPassed && structuralPassed;
             if (passed)
             {
                 matchedCases++;
@@ -91,6 +94,7 @@ internal static class EvalRunner
                 matched,
                 requiredMatches,
                 passed,
+                structuralPassed,
                 answer,
                 debug));
 
@@ -109,6 +113,7 @@ internal static class EvalRunner
                     Console.WriteLine($"Required matches: {requiredMatches}");
                 }
             }
+            Console.WriteLine($"Structural checks: {(structuralPassed ? "pass" : "fail")}");
 
             Console.WriteLine("Answer:");
             Console.WriteLine(answer);
@@ -171,6 +176,59 @@ internal static class EvalRunner
         }
 
         return item.ExpectedKeywords.Count;
+    }
+
+    private static bool PassesStructuralChecks(string answer, EvalCase item)
+    {
+        if (string.IsNullOrWhiteSpace(item.Id))
+        {
+            return true;
+        }
+
+        var normalized = NormalizeForMatching(answer);
+        return item.Id switch
+        {
+            "stm32-remote" => ContainsAll(normalized, "usart", "mqtt")
+                && ContainsAny(normalized, "app", "手机app")
+                && ContainsAny(normalized, "阈值", "指令", "手动触发", "即时灌溉"),
+            "stm32-remote-detailed" => ContainsAll(normalized, "usart", "esp-01s", "mqtt")
+                && ContainsAny(normalized, "json", "封装")
+                && ContainsAny(normalized, "app", "手机app")
+                && ContainsAny(normalized, "阈值", "指令", "手动触发", "即时灌溉"),
+            "stm32-control-prefixed" => ContainsAll(normalized, "模糊pid", "土壤湿度", "电磁阀")
+                && ContainsAny(normalized, "环境温湿度", "环境数据", "传感器")
+                && ContainsAny(normalized, "pwm", "占空比", "开度"),
+            "stm32-control" => ContainsAll(normalized, "模糊pid", "土壤湿度", "电磁阀")
+                && ContainsAny(normalized, "pwm", "占空比", "开度"),
+            "follow-up-detail" => ContainsAll(normalized, "模糊pid", "土壤湿度", "电磁阀")
+                && ContainsAny(normalized, "pwm", "占空比", "开度")
+                && ContainsAny(normalized, "环境温湿度", "补偿", "蒸发"),
+            "geology-system-architecture" => ContainsAny(normalized, "前后端分离", "restfulapi")
+                && ContainsAll(normalized, "springboot")
+                && ContainsAny(normalized, "vue3", "vue")
+                && ContainsAny(normalized, "mybatis-plus", "mybatisplus")
+                && ContainsAny(normalized, "mysql", "echarts"),
+            "geology-system-modules" => ContainsAny(normalized, "信息抽取", "抽取模块")
+                && ContainsAny(normalized, "知识图谱", "图谱")
+                && ContainsAny(normalized, "多模态检索", "多模态")
+                && ContainsAny(normalized, "多特征关联", "关联分析", "关联融合"),
+            _ => true
+        };
+    }
+
+    private static string NormalizeForMatching(string text)
+    {
+        return Regex.Replace(text.ToLowerInvariant(), "\\s+", string.Empty);
+    }
+
+    private static bool ContainsAll(string text, params string[] tokens)
+    {
+        return tokens.All(token => text.Contains(token, StringComparison.Ordinal));
+    }
+
+    private static bool ContainsAny(string text, params string[] tokens)
+    {
+        return tokens.Any(token => text.Contains(token, StringComparison.Ordinal));
     }
 
     private static async Task<(string JsonReportPath, string MarkdownReportPath)> SaveReportsAsync(EvalSummaryReport summary, CancellationToken cancellationToken)
@@ -250,6 +308,7 @@ internal static class EvalRunner
                 builder.AppendLine($"- Matched keywords: `{item.MatchedKeywords}/{item.ExpectedKeywords.Count}`");
                 builder.AppendLine($"- Required matches: `{item.RequiredMatches}`");
             }
+            builder.AppendLine($"- Structural checks: `{(item.StructuralChecksPassed ? "pass" : "fail")}`");
 
             builder.AppendLine();
             builder.AppendLine("**Answer**");
@@ -289,6 +348,7 @@ internal static class EvalRunner
         int MatchedKeywords,
         int RequiredMatches,
         bool Passed,
+        bool StructuralChecksPassed,
         string Answer,
         string RetrievalDebug);
 
