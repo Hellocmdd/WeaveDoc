@@ -87,14 +87,24 @@ LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
 
 ## What The App Supports
 
-- local indexing of `.md`, `.txt`, and `.json` documents from `doc/`
+- local indexing of `.md`, `.txt`, `.json`, and `.pdf` documents from `doc/`
 - JSON ingestion into structure-aware chunks with searchable array-item section labels
 - duplicate import detection so the app does not keep copying identical files into the knowledge base
 - hybrid retrieval with sparse prefilter + semantic scoring + structure-aware reranking
+- document-aware retrieval for title-scoped questions (for example `《...》这篇论文...`), with preferred evidence from the requested file
 - JSON branch-aware context expansion so related parent/child chunks can travel with the main hit
 - stable citations in answers, using file path + section + chunk id instead of temporary `[1] [2]` numbering
 - summary-aware fallback answers for paper and document overview questions
-- offline baseline evaluation through a CLI entry point and helper script
+- intent-specific fallback paths for composition, module implementation, metadata, and engineering-paper style questions
+- offline baseline evaluation through a CLI entry point and helper script, with keyword checks plus structural answer checks
+
+## PDF Ingestion Dependency
+
+PDF text extraction currently depends on the system command `pdftotext` (Poppler).
+
+- Ubuntu/Debian: `sudo apt install poppler-utils`
+- Arch: `sudo pacman -S poppler`
+- Fedora: `sudo dnf install poppler-utils`
 
 ## Offline Evaluation
 
@@ -103,6 +113,12 @@ Run the baseline evaluation after `llama-server` is reachable:
 ```bash
 ./scripts/eval_rag.sh
 ```
+
+Notes:
+
+- exit code `0`: all eval cases passed
+- exit code `2`: at least one case failed
+- besides keyword matching, the current evaluator also runs per-case structural checks for selected baseline cases
 
 Or run the app in evaluation mode directly:
 
