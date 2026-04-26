@@ -12,9 +12,6 @@ from paper_tool_feedback_crawler.crawler import (
     write_summary_markdown,
     write_requirement_summary_json,
     write_requirement_summary_markdown,
-    build_ml_requirement_analysis,
-    write_ml_requirement_analysis_json,
-    write_ml_requirement_analysis_markdown,
     write_lean_requirements_json,
     write_lean_requirements_markdown,
     write_prd_requirements_markdown
@@ -54,25 +51,13 @@ def main():
     write_jsonl(records, output_dir / "feedback.jsonl")
     write_csv(records, output_dir / "feedback.csv")
     
-    # Generate summaries
+    # Generating summaries... (Standard summaries only)
     print("Generating summaries...")
     summary = summarize_records(records)
     write_summary_json(summary, output_dir / "tool_summary.json")
     write_summary_markdown(summary, output_dir / "tool_summary.md")
     write_requirement_summary_json(summary, output_dir / "requirement_summary.json")
     write_requirement_summary_markdown(summary, output_dir / "requirement_summary.md")
-    
-    # Generate ML analysis
-    print("Generating ML analysis...")
-    ml_analysis = build_ml_requirement_analysis(
-        records,
-        doc_requirements_path=config.doc_requirements_path or None,
-    )
-    write_ml_requirement_analysis_json(ml_analysis, output_dir / "ml_requirement_analysis.json")
-    write_ml_requirement_analysis_markdown(ml_analysis, output_dir / "ml_requirement_analysis.md")
-    write_lean_requirements_json(ml_analysis, output_dir / "lean_requirements.json")
-    write_lean_requirements_markdown(ml_analysis, output_dir / "lean_requirements.md")
-    write_prd_requirements_markdown(ml_analysis, output_dir / "prd_requirements.md")
     
     print(f"All results saved to {output_dir}")
 

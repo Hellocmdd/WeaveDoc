@@ -127,6 +127,38 @@
       "headers": {
         "Accept-Language": "en-US,en;q=0.9"
       }
+    },
+    {
+      "name": "github-weavedoc-requirements",
+      "source_type": "github_issues_search",
+      "github_search_qualifiers": [
+        "is:issue",
+        "label:enhancement",
+        "label:feature"
+      ],
+      "search_limit": 20,
+      "crawl_delay_seconds": 2.0
+    },
+    {
+      "name": "duckduckgo-weavedoc-requirements",
+      "source_type": "duckduckgo_html_search",
+      "search_domains": [
+        "forum.zotero.org",
+        "reddit.com",
+        "stackoverflow.com"
+      ],
+      "search_limit": 15,
+      "crawl_delay_seconds": 3.0
+    },
+    {
+      "name": "producthunt-weavedoc-requirements",
+      "source_type": "producthunt_reviews",
+      "start_urls": [
+        "https://www.producthunt.com/products/zotero",
+        "https://www.producthunt.com/products/obsidian"
+      ],
+      "max_comments": 10,
+      "crawl_delay_seconds": 2.0
     }
   ]
 }
