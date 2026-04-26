@@ -1,0 +1,28 @@
+{
+  "keywords": [
+    "BibTeX"
+  ],
+  "review_terms": [
+    "review"
+  ],
+  "requirement_terms": [
+    "bibtex",
+    "citation",
+    "export"
+  ],
+  "request_timeout_seconds": 20,
+  "max_workers": 2,
+  "sources": [
+    {
+      "name": "so-debug",
+      "source_type": "stackoverflow_search",
+      "search_site": "stackoverflow",
+      "search_terms": [
+        "bibtex",
+        "citation"
+      ],
+      "search_limit": 10,
+      "crawl_delay_seconds": 0.3
+    }
+  ]
+}

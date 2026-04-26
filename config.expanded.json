@@ -1,0 +1,196 @@
+{
+  "keywords": [
+    "Zotero",
+    "Mendeley",
+    "EndNote",
+    "Paperpile",
+    "Paperlib",
+    "Overleaf",
+    "Typst",
+    "Obsidian",
+    "Logseq",
+    "MarkText",
+    "Elicit",
+    "Consensus",
+    "Research Rabbit",
+    "Connected Papers",
+    "Scite"
+  ],
+  "keyword_aliases": {
+    "Research Rabbit": [
+      "ResearchRabbit"
+    ],
+    "Connected Papers": [
+      "ConnectedPapers"
+    ],
+    "Consensus": [
+      "Consensus AI"
+    ],
+    "Elicit": [
+      "Elicit AI"
+    ],
+    "Scite": [
+      "Scite.ai"
+    ]
+  },
+  "review_terms": [
+    "review",
+    "experience",
+    "recommend",
+    "pros",
+    "cons",
+    "worth it",
+    "comparison",
+    "alternative",
+    "frustrating",
+    "buggy"
+  ],
+  "requirement_terms": [
+    "workflow",
+    "markdown",
+    "pdf",
+    "docx",
+    "export",
+    "template",
+    "citation",
+    "bibtex",
+    "annotation",
+    "offline",
+    "local",
+    "privacy",
+    "linux",
+    "windows",
+    "word plugin",
+    "sync",
+    "collaboration",
+    "import",
+    "需求",
+    "工作流",
+    "导出",
+    "模板",
+    "批注",
+    "本地",
+    "离线",
+    "隐私",
+    "同步",
+    "协作"
+  ],
+  "request_timeout_seconds": 20,
+  "max_workers": 6,
+  "sources": [
+    {
+      "name": "reddit-expanded",
+      "source_type": "reddit_search",
+      "subreddits": [
+        "academia",
+        "gradschool",
+        "PhD",
+        "research",
+        "AskAcademia",
+        "ObsidianMD",
+        "Zotero",
+        "LaTeX",
+        "MachineLearning",
+        "OpenSource"
+      ],
+      "search_terms": [
+        "review",
+        "experience",
+        "pros",
+        "cons",
+        "workflow",
+        "citation",
+        "annotation",
+        "offline",
+        "privacy",
+        "comparison",
+        "alternative",
+        "buggy"
+      ],
+      "search_sort": "relevance",
+      "search_limit": 25,
+      "include_comments": true,
+      "max_comments": 10,
+      "crawl_delay_seconds": 1.0,
+      "headers": {
+        "Accept-Language": "en-US,en;q=0.9"
+      }
+    },
+    {
+      "name": "v2ex-expanded",
+      "source_type": "v2ex_topics",
+      "start_urls": [
+        "https://www.v2ex.com/go/create",
+        "https://www.v2ex.com/go/programmer",
+        "https://www.v2ex.com/go/share",
+        "https://www.v2ex.com/go/linux",
+        "https://www.v2ex.com/go/macdev"
+      ],
+      "search_limit": 50,
+      "max_comments": 10,
+      "max_pages": 3,
+      "crawl_delay_seconds": 1.0,
+      "headers": {
+        "Accept-Language": "zh-CN,zh;q=0.9"
+      }
+    },
+    {
+      "name": "hn-expanded",
+      "source_type": "hn_algolia_search",
+      "search_tags": [
+        "story",
+        "comment"
+      ],
+      "search_limit": 30,
+      "crawl_delay_seconds": 0.8,
+      "headers": {
+        "Accept-Language": "en-US,en;q=0.9"
+      }
+    },
+    {
+      "name": "stackoverflow-expanded",
+      "source_type": "stackoverflow_search",
+      "search_site": "stackoverflow",
+      "search_tags": [
+        "markdown",
+        "pdf",
+        "latex",
+        "zotero",
+        "citation",
+        "bibtex"
+      ],
+      "search_limit": 30,
+      "crawl_delay_seconds": 0.8,
+      "headers": {
+        "Accept-Language": "en-US,en;q=0.9"
+      }
+    },
+    {
+      "name": "producthunt-expanded",
+      "source_type": "producthunt_reviews",
+      "start_urls": [
+        "https://www.producthunt.com/products/consensus-2",
+        "https://www.producthunt.com/posts/open-paper-2",
+        "https://www.producthunt.com/products/elicit",
+        "https://www.producthunt.com/products/research-rabbit"
+      ],
+      "max_comments": 8,
+      "crawl_delay_seconds": 1.2,
+      "headers": {
+        "Accept-Language": "en-US,en;q=0.9"
+      }
+    },
+    {
+      "name": "capterra-expanded",
+      "source_type": "capterra_reviews",
+      "start_urls": [
+        "https://www.capterra.com/p/101431/Paperpile/"
+      ],
+      "max_comments": 8,
+      "crawl_delay_seconds": 1.2,
+      "headers": {
+        "Accept-Language": "en-US,en;q=0.9"
+      }
+    }
+  ]
+}

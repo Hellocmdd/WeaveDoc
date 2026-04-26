@@ -1,0 +1,132 @@
+{
+  "keywords": [
+    "Zotero",
+    "Paperlib",
+    "Paperpile",
+    "Obsidian",
+    "Typst",
+    "Pandoc",
+    "BibTeX"
+  ],
+  "review_terms": [
+    "体验",
+    "问题",
+    "需求",
+    "痛点",
+    "导出",
+    "引用",
+    "批注",
+    "离线",
+    "隐私"
+  ],
+  "requirement_terms": [
+    "markdown",
+    "pdf",
+    "docx",
+    "citation",
+    "bibtex",
+    "export",
+    "annotation",
+    "offline",
+    "privacy",
+    "template",
+    "workflow",
+    "本地",
+    "离线",
+    "隐私",
+    "导出",
+    "引用",
+    "批注"
+  ],
+  "request_timeout_seconds": 20,
+  "max_workers": 6,
+  "sources": [
+    {
+      "name": "github-issues-chinese-fallback",
+      "source_type": "github_issues_search",
+      "github_repos": [
+        "zotero/zotero",
+        "zotero/zotero-word-for-windows-integration",
+        "zotero/zotero-google-docs-integration",
+        "typst/typst",
+        "jgm/pandoc",
+        "microsoft/monaco-editor",
+        "obsidianmd/obsidian-releases"
+      ],
+      "search_terms": [
+        "markdown pdf",
+        "docx export",
+        "citation",
+        "offline privacy",
+        "bug"
+      ],
+      "github_search_qualifiers": [
+        "is:issue",
+        "in:title,body",
+        "comments:>0"
+      ],
+      "search_limit": 20,
+      "crawl_delay_seconds": 0.6,
+      "headers": {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "paper-tool-feedback-crawler"
+      }
+    },
+    {
+      "name": "duckduckgo-cnblogs",
+      "source_type": "duckduckgo_html_search",
+      "search_domains": [
+        "cnblogs.com"
+      ],
+      "search_terms": [
+        "文献管理 体验",
+        "导出 问题",
+        "引用 问题",
+        "markdown pdf 导出",
+        "离线 隐私"
+      ],
+      "search_limit": 8,
+      "crawl_delay_seconds": 0.8,
+      "headers": {
+        "Accept-Language": "zh-CN,zh;q=0.9"
+      }
+    },
+    {
+      "name": "duckduckgo-juejin",
+      "source_type": "duckduckgo_html_search",
+      "search_domains": [
+        "juejin.cn"
+      ],
+      "search_terms": [
+        "markdown pdf 导出",
+        "docx export",
+        "引用 管理",
+        "文献管理",
+        "离线 隐私"
+      ],
+      "search_limit": 8,
+      "crawl_delay_seconds": 0.8,
+      "headers": {
+        "Accept-Language": "zh-CN,zh;q=0.9"
+      }
+    },
+    {
+      "name": "duckduckgo-sspai",
+      "source_type": "duckduckgo_html_search",
+      "search_domains": [
+        "sspai.com"
+      ],
+      "search_terms": [
+        "文献管理",
+        "引用 管理",
+        "markdown pdf 导出",
+        "论文 写作 工具"
+      ],
+      "search_limit": 8,
+      "crawl_delay_seconds": 0.8,
+      "headers": {
+        "Accept-Language": "zh-CN,zh;q=0.9"
+      }
+    }
+  ]
+}

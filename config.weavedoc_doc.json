@@ -1,0 +1,194 @@
+{
+  "keywords": [
+    "WeaveDoc",
+    "Zotero",
+    "Mendeley",
+    "Paperlib",
+    "Paperpile",
+    "Overleaf",
+    "Typst",
+    "Obsidian",
+    "BibTeX",
+    "LLamaSharp",
+    "Avalonia",
+    "Pandoc",
+    "Monaco",
+    "Siyuan"
+  ],
+  "keyword_aliases": {
+    "WeaveDoc": ["weavedoc"],
+    "BibTeX": ["bibtex"],
+    "LLamaSharp": ["llamasharp", "llama sharp"],
+    "Avalonia": ["avalonia ui", "avaloniaui"],
+    "Pandoc": ["pandoc"]
+  },
+  "review_terms": [
+    "review",
+    "experience",
+    "recommend",
+    "issue",
+    "bug",
+    "pain",
+    "problem",
+    "feedback",
+    "需求",
+    "痛点",
+    "建议",
+    "卡顿",
+    "同步",
+    "离线"
+  ],
+  "requirement_terms": [
+    "workflow",
+    "markdown",
+    "pdf",
+    "docx",
+    "export",
+    "template",
+    "citation",
+    "bibtex",
+    "annotation",
+    "offline",
+    "local",
+    "privacy",
+    "rag",
+    "llm",
+    "llamasharp",
+    "linux",
+    "windows",
+    "双屏",
+    "联动",
+    "高保真导出",
+    "本地优先",
+    "离线",
+    "隐私",
+    "格式即代码",
+    "format as code"
+  ],
+  "request_timeout_seconds": 20,
+  "max_workers": 6,
+  "doc_requirements_path": "doc/《软件计划项目书》.docx",
+  "sources": [
+    {
+      "name": "reddit-weavedoc",
+      "source_type": "reddit_search",
+      "subreddits": [
+        "academia",
+        "gradschool",
+        "PhD",
+        "research",
+        "ObsidianMD",
+        "Zotero",
+        "LocalLLaMA",
+        "dotnet"
+      ],
+      "search_terms": [
+        "workflow offline",
+        "citation local",
+        "dual pane markdown",
+        "pandoc export pdf",
+        "llamasharp",
+        "avalonia",
+        "academic writing format"
+      ],
+      "search_sort": "relevance",
+      "search_limit": 30,
+      "include_comments": true,
+      "max_comments": 8,
+      "crawl_delay_seconds": 1.5,
+      "headers": {
+        "Accept-Language": "en-US,en;q=0.9"
+      }
+    },
+    {
+      "name": "github-issues-weavedoc-doc",
+      "source_type": "github_issues_search",
+      "github_repos": [
+        "zotero/zotero",
+        "zotero/zotero-word-for-windows-integration",
+        "typst/typst",
+        "obsidianmd/obsidian-releases",
+        "SciSharp/LLamaSharp",
+        "AvaloniaUI/Avalonia",
+        "jgm/pandoc",
+        "siyuan-note/siyuan"
+      ],
+      "search_terms": [
+        "markdown pdf sync",
+        "docx export citation",
+        "offline privacy",
+        "bibtex workflow",
+        "local-first writing",
+        "rag local llm"
+      ],
+      "github_search_qualifiers": [
+        "is:issue",
+        "in:title,body",
+        "comments:>0"
+      ],
+      "search_limit": 30,
+      "crawl_delay_seconds": 0.6,
+      "headers": {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "paper-tool-feedback-crawler"
+      }
+    },
+    {
+      "name": "hn-weavedoc-doc",
+      "source_type": "hn_algolia_search",
+      "search_tags": [
+        "story",
+        "comment"
+      ],
+      "search_terms": [
+        "workflow citation",
+        "offline markdown",
+        "local first pdf"
+      ],
+      "search_limit": 25,
+      "crawl_delay_seconds": 0.8,
+      "headers": {
+        "Accept-Language": "en-US,en;q=0.9"
+      }
+    },
+    {
+      "name": "stackoverflow-weavedoc-doc",
+      "source_type": "stackoverflow_search",
+      "search_site": "stackoverflow",
+      "search_tags": [
+        "markdown",
+        "pdf",
+        "zotero",
+        "bibtex",
+        "pandoc",
+        "avalonia"
+      ],
+      "search_terms": [
+        "docx",
+        "plugin",
+        "workflow"
+      ],
+      "search_limit": 25,
+      "crawl_delay_seconds": 0.8,
+      "headers": {
+        "Accept-Language": "en-US,en;q=0.9"
+      }
+    },
+    {
+      "name": "v2ex-weavedoc-doc",
+      "source_type": "v2ex_topics",
+      "start_urls": [
+        "https://www.v2ex.com/go/create",
+        "https://www.v2ex.com/go/programmer",
+        "https://www.v2ex.com/go/linux"
+      ],
+      "search_limit": 30,
+      "max_comments": 8,
+      "max_pages": 2,
+      "crawl_delay_seconds": 1.0,
+      "headers": {
+        "Accept-Language": "zh-CN,zh;q=0.9"
+      }
+    }
+  ]
+}
