@@ -1,9 +1,11 @@
 using Avalonia;
+using System;
 
 namespace WeaveDoc.MarkdownEditor
 {
     internal static class Program
     {
+        [STAThread]
         public static void Main(string[] args) =>
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
 

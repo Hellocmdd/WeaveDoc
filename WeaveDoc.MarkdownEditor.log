@@ -69,3 +69,256 @@
    at System.Runtime.InteropServices.Marshal.ThrowExceptionForHR(Int32 errorCode)
    at Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(String browserExecutableFolder, String userDataFolder, CoreWebView2EnvironmentOptions options)
    at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.InitializeWebViewAsync() in D:\WeaveDoc\Weavedoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 64
+[2026-04-27 08:29:28.945] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 08:29:29.191] MonacoEditorControl: Got HWND: 853110
+[2026-04-27 08:29:29.337] EXCEPTION: System.Runtime.InteropServices.COMException (0x80010106): 无法在设置线程模式后对其加以更改。 (0x80010106 (RPC_E_CHANGED_MODE))
+   at System.Runtime.InteropServices.Marshal.ThrowExceptionForHR(Int32 errorCode)
+   at Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(String browserExecutableFolder, String userDataFolder, CoreWebView2EnvironmentOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.InitializeWebViewAsync() in D:\WeaveDoc\Weavedoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 64
+[2026-04-27 08:51:09.243] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 08:51:09.422] MonacoEditorControl: Got HWND: 2165592
+[2026-04-27 08:51:09.476] EXCEPTION: System.Runtime.InteropServices.COMException (0x80010106): 无法在设置线程模式后对其加以更改。 (0x80010106 (RPC_E_CHANGED_MODE))
+   at System.Runtime.InteropServices.Marshal.ThrowExceptionForHR(Int32 errorCode)
+   at Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(String browserExecutableFolder, String userDataFolder, CoreWebView2EnvironmentOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.<>c__DisplayClass6_0.<<InitializeWebViewAsync>b__0>d.MoveNext() in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 69
+[2026-04-27 08:52:18.713] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 08:52:19.110] MonacoEditorControl: Got HWND: 2755280
+[2026-04-27 08:53:36.334] WebView2 environment created successfully
+[2026-04-27 08:53:36.578] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 08:53:37.035] MonacoEditorControl: Got HWND: 2886352
+[2026-04-27 08:54:17.255] WebView2 environment created successfully
+[2026-04-27 08:54:17.500] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 08:54:17.948] MonacoEditorControl: Got HWND: 983638
+[2026-04-27 08:54:58.172] WebView2 environment created successfully
+[2026-04-27 08:54:58.410] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 08:54:58.851] MonacoEditorControl: Got HWND: 4130482
+[2026-04-27 08:55:48.549] WebView2 environment created successfully
+[2026-04-27 08:55:48.773] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 08:55:49.170] MonacoEditorControl: Got HWND: 1510498
+[2026-04-27 08:56:33.170] MonacoEditorControl: Loading Monaco from: file:///D:/WeaveDoc/WeaveDoc.MarkdownEditor/src/bin/Debug/net8.0/Assets/monaco-editor/index.html
+[2026-04-27 08:56:33.172] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 08:56:33.704] MonacoEditorControl: WebView navigation completed
+[2026-04-27 08:58:34.601] WebView2 environment created successfully
+[2026-04-27 08:58:34.881] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 08:58:35.033] MonacoEditorControl: Got HWND: 3410768
+[2026-04-27 08:59:06.725] MonacoEditorControl: Loading Monaco from: file:///D:/WeaveDoc/WeaveDoc.MarkdownEditor/src/bin/Debug/net8.0/Assets/monaco-editor/index.html
+[2026-04-27 08:59:06.727] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 08:59:07.321] MonacoEditorControl: WebView navigation completed
+[2026-04-27 09:00:17.230] WebView2 environment created successfully
+[2026-04-27 09:00:17.456] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 09:00:17.604] MonacoEditorControl: Got HWND: 394904
+[2026-04-27 09:00:49.309] MonacoEditorControl: Loading Monaco from: file:///D:/WeaveDoc/WeaveDoc.MarkdownEditor/src/bin/Debug/net8.0/Assets/monaco-editor/index.html
+[2026-04-27 09:00:49.311] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 09:00:49.703] MonacoEditorControl: WebView navigation completed
+[2026-04-27 09:12:40.387] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 98.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:40.630] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 103.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:41.387] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 106.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:43.730] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 109.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:43.732] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 112.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:43.734] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 115.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:44.030] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 118.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:45.655] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 121.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:45.658] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 124.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:45.661] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 127.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:45.663] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 130.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:45.665] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 133.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:45.667] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 136.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:53.407] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 139.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:53.410] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 142.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:53.413] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 145.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:53.415] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 148.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:54.598] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 151.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:54.814] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 154.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:56.371] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 157.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:56.373] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 160.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:12:56.375] EXCEPTION: System.Text.Json.JsonException: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 163.
+   at System.Text.Json.ThrowHelper.ThrowJsonException_DeserializeUnableToConvertValue(Type propertyType)
+   at System.Text.Json.Serialization.Converters.ObjectWithParameterizedConstructorConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+   at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+   at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, JsonSerializerOptions options, ReadStack& state)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+   at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+   at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs args) in D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 223
+[2026-04-27 09:14:59.939] App: Starting OnFrameworkInitializationCompleted...
+[2026-04-27 09:15:00.077] WebView2 environment created successfully
+[2026-04-27 09:15:00.078] App: Creating MainWindow...
+[2026-04-27 09:15:00.742] App: MainWindow created successfully
+[2026-04-27 09:15:00.743] App: Calling base.OnFrameworkInitializationCompleted()...
+[2026-04-27 09:15:00.744] App: OnFrameworkInitializationCompleted completed
+[2026-04-27 09:15:00.823] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 09:15:01.173] MonacoEditorControl: Got HWND: 919854
+[2026-04-27 09:15:01.203] MonacoEditorControl: Creating WebView2 controller...
+[2026-04-27 09:15:01.760] MonacoEditorControl: WebView2 controller created
+[2026-04-27 09:15:01.761] MonacoEditorControl: WebView2 core initialized
+[2026-04-27 09:15:01.767] MonacoEditorControl: Loading Monaco from: file:///D:/WeaveDoc/Weavedoc.MarkdownEditor/src/bin/Debug/net8.0/Assets/monaco-editor/index.html
+[2026-04-27 09:15:01.768] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 09:15:02.701] MonacoEditorControl: WebView navigation completed

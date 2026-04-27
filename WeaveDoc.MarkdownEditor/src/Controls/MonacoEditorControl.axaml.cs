@@ -60,85 +60,126 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var hwnd = topLevel.Handle;
                 Logger.Log($"MonacoEditorControl: Got HWND: {hwnd}");
 
-                // Create WebView2 environment and controller
-                var env = await CoreWebView2Environment.CreateAsync();
-                
-                // 【修复】使用 CreateCoreWebView2ControllerAsync 的重载，传入 IntPtr (HWND)
-                _controller = await env.CreateCoreWebView2ControllerAsync(hwnd);
-                _webview = _controller.CoreWebView2;
-
-                // Configure WebView2 settings
-                _webview.Settings.IsStatusBarEnabled = false;
-                _webview.Settings.AreDefaultContextMenusEnabled = true;
-                _webview.Settings.AreDevToolsEnabled = true;
-
-                // Set initial bounds
-                UpdateControllerBounds(root);
-
-                // Monitor layout changes to resize controller
-                this.LayoutUpdated += (_, __) => UpdateControllerBounds(root);
-                root.SizeChanged += (_, __) => UpdateControllerBounds(root);
-
-                // Wire up messages from web
-                _webview.WebMessageReceived += Webview_WebMessageReceived;
-
-                // Mark WebView as ready when navigation completes
-                _webview.NavigationCompleted += (s, e) =>
+                // 检查 WebView2 环境是否已经创建
+                if (App.WebView2Environment == null)
                 {
-                    _isWebViewReady = true;
-                    Logger.Log("MonacoEditorControl: WebView navigation completed");
-                    
-                    // 【新增】强制打开开发者工具以便调试
-                    try 
+                    Logger.Log("MonacoEditorControl: WebView2 environment is not yet created, waiting...");
+                    // 等待 WebView2 环境创建
+                    await Task.Delay(1000);
+                    if (App.WebView2Environment == null)
                     {
-                        _webview.OpenDevToolsWindow();
-                    } 
-                    catch (Exception devEx) 
-                    {
-                        Logger.LogException(devEx);
-                    }
-
-                    // If there's pending content, set it now
-                    if (!string.IsNullOrEmpty(_pendingContent))
-                    {
-                        _ = SetContentAsync(_pendingContent);
-                        _pendingContent = string.Empty;
-                    }
-                };
-
-                // Load the local index.html from output directory
-                var exeDir = AppContext.BaseDirectory;
-                var indexPath = Path.Combine(exeDir, "Assets", "monaco-editor", "index.html");
-                
-                if (!File.Exists(indexPath))
-                {
-                    // Try fallback to project dir
-                    var projectDir = Directory.GetCurrentDirectory();
-                    indexPath = Path.Combine(projectDir, "Assets", "monaco-editor", "index.html");
-                    Logger.Log($"MonacoEditorControl: Trying fallback path: {indexPath}");
-                }
-
-                if (!File.Exists(indexPath))
-                {
-                    Logger.Log($"MonacoEditorControl: index.html not found at {indexPath}");
-                    return;
-                }
-
-                var uri = new Uri(indexPath).AbsoluteUri;
-                Logger.Log($"MonacoEditorControl: Loading Monaco from: {uri}");
-                _webview.Navigate(uri);
-
-                // If DataContext is a MainWindowViewModel, set initial content
-                if (DataContext is MainWindowViewModel mwvm)
-                {
-                    var initialContent = mwvm.EditorContent ?? string.Empty;
-                    if (!string.IsNullOrEmpty(initialContent))
-                    {
-                        await SetContentAsync(initialContent);
+                        Logger.Log("MonacoEditorControl: WebView2 environment is still null after waiting");
+                        return;
                     }
                 }
 
-                Logger.Log("MonacoEditorControl: WebView2 initialized successfully");
+                // 【修复】在 UI 线程上创建 WebView2 环境，避免线程模式冲突
+                Dispatcher.UIThread.Post(async () =>
+                {
+                    try
+                    {
+                        // 使用应用程序级别的 WebView2 环境，避免线程模式冲突
+                        var env = App.WebView2Environment;
+                        if (env == null)
+                        {
+                            Logger.Log("MonacoEditorControl: WebView2 environment is null");
+                            return;
+                        }
+                        
+                        Logger.Log("MonacoEditorControl: Creating WebView2 controller...");
+                        try
+                        {
+                            // 【修复】使用 CreateCoreWebView2ControllerAsync 的重载，传入 IntPtr (HWND)
+                            _controller = await env.CreateCoreWebView2ControllerAsync(hwnd);
+                            Logger.Log("MonacoEditorControl: WebView2 controller created");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogException(ex);
+                            return;
+                        }
+                        
+                        _webview = _controller.CoreWebView2;
+                        Logger.Log("MonacoEditorControl: WebView2 core initialized");
+
+                        // Configure WebView2 settings
+                        _webview.Settings.IsStatusBarEnabled = false;
+                        _webview.Settings.AreDefaultContextMenusEnabled = true;
+                        _webview.Settings.AreDevToolsEnabled = true;
+
+                        // Set initial bounds
+                        UpdateControllerBounds(root);
+
+                        // Monitor layout changes to resize controller
+                        this.LayoutUpdated += (_, __) => UpdateControllerBounds(root);
+                        root.SizeChanged += (_, __) => UpdateControllerBounds(root);
+
+                        // Wire up messages from web
+                        _webview.WebMessageReceived += Webview_WebMessageReceived;
+
+                        // Mark WebView as ready when navigation completes
+                        _webview.NavigationCompleted += (s, e) =>
+                        {
+                            _isWebViewReady = true;
+                            Logger.Log("MonacoEditorControl: WebView navigation completed");
+                            
+                            // 【新增】强制打开开发者工具以便调试
+                            try 
+                            {
+                                _webview.OpenDevToolsWindow();
+                            } 
+                            catch (Exception devEx) 
+                            {
+                                Logger.LogException(devEx);
+                            }
+
+                            // If there's pending content, set it now
+                            if (!string.IsNullOrEmpty(_pendingContent))
+                            {
+                                _ = SetContentAsync(_pendingContent);
+                                _pendingContent = string.Empty;
+                            }
+                        };
+
+                        // Load the local index.html from output directory
+                        var exeDir = AppContext.BaseDirectory;
+                        var indexPath = Path.Combine(exeDir, "Assets", "monaco-editor", "index.html");
+                        
+                        if (!File.Exists(indexPath))
+                        {
+                            // Try fallback to project dir
+                            var projectDir = Directory.GetCurrentDirectory();
+                            indexPath = Path.Combine(projectDir, "Assets", "monaco-editor", "index.html");
+                            Logger.Log($"MonacoEditorControl: Trying fallback path: {indexPath}");
+                        }
+
+                        if (!File.Exists(indexPath))
+                        {
+                            Logger.Log($"MonacoEditorControl: index.html not found at {indexPath}");
+                            return;
+                        }
+
+                        var uri = new Uri(indexPath).AbsoluteUri;
+                        Logger.Log($"MonacoEditorControl: Loading Monaco from: {uri}");
+                        _webview.Navigate(uri);
+
+                        // If DataContext is a MainWindowViewModel, set initial content
+                        if (DataContext is MainWindowViewModel mwvm)
+                        {
+                            var initialContent = mwvm.EditorContent ?? string.Empty;
+                            if (!string.IsNullOrEmpty(initialContent))
+                            {
+                                await SetContentAsync(initialContent);
+                            }
+                        }
+
+                        Logger.Log("MonacoEditorControl: WebView2 initialized successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogException(ex);
+                    }
+                });
             }
             catch (Exception ex)
             {

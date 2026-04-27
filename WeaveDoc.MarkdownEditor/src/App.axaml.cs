@@ -5,11 +5,14 @@ using WeaveDoc.MarkdownEditor.Views;
 using System;
 using System.Threading.Tasks;
 using WeaveDoc.MarkdownEditor.Helpers;
+using Microsoft.Web.WebView2.Core;
 
 namespace WeaveDoc.MarkdownEditor
 {
     public partial class App : Application
     {
+        public static CoreWebView2Environment? WebView2Environment { get; private set; }
+
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
@@ -37,12 +40,35 @@ namespace WeaveDoc.MarkdownEditor
             };
         }
 
-        public override void OnFrameworkInitializationCompleted()
+        public override async void OnFrameworkInitializationCompleted()
         {
-            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-                desktop.MainWindow = new MainWindow();
+            Logger.Log("App: Starting OnFrameworkInitializationCompleted...");
+            
+            // 提前创建 WebView2 环境，避免线程模式冲突
+            try
+            {
+                WebView2Environment = await CoreWebView2Environment.CreateAsync();
+                Logger.Log("WebView2 environment created successfully");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
 
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                Logger.Log("App: Creating MainWindow...");
+                desktop.MainWindow = new MainWindow();
+                Logger.Log("App: MainWindow created successfully");
+            }
+            else
+            {
+                Logger.Log("App: ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime");
+            }
+
+            Logger.Log("App: Calling base.OnFrameworkInitializationCompleted()...");
             base.OnFrameworkInitializationCompleted();
+            Logger.Log("App: OnFrameworkInitializationCompleted completed");
         }
     }
 }
