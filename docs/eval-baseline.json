@@ -11,7 +11,19 @@
         "决策控制",
         "执行机构",
         "交互显示"
-      ]
+      ],
+      "minMatchedKeywords": 2,
+      "retrievalSignals": [
+        "overview",
+        "abstract"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2,
+      "expectedCitations": [
+        "overview",
+        "abstract"
+      ],
+      "minMatchedCitations": 2
     },
     {
       "id": "stm32-control",
@@ -22,7 +34,19 @@
         "土壤湿度",
         "电磁阀",
         "动态调节"
-      ]
+      ],
+      "minMatchedKeywords": 3,
+      "retrievalSignals": [
+        "3 模糊PID复合控制器的简要设计",
+        "3.2 PID调节阶段设计",
+        "3.3 环境补偿机制"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2,
+      "expectedCitations": [
+        "模糊PID"
+      ],
+      "minMatchedCitations": 1
     },
     {
       "id": "stm32-remote",
@@ -34,7 +58,18 @@
         "mqtt",
         "远程"
       ],
-      "minMatchedKeywords": 4
+      "minMatchedKeywords": 4,
+      "retrievalSignals": [
+        "1.4.2 远程状态显示及控制模块",
+        "mqtt",
+        "json"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2,
+      "expectedCitations": [
+        "1.4.2 远程状态显示及控制模块"
+      ],
+      "minMatchedCitations": 1
     },
     {
       "id": "stm32-remote-detailed",
@@ -49,7 +84,19 @@
         "阈值",
         "指令"
       ],
-      "minMatchedKeywords": 5
+      "minMatchedKeywords": 5,
+      "retrievalSignals": [
+        "1.4.2 远程状态显示及控制模块",
+        "mqtt",
+        "json",
+        "usart"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 3,
+      "expectedCitations": [
+        "1.4.2 远程状态显示及控制模块"
+      ],
+      "minMatchedCitations": 1
     },
     {
       "id": "stm32-control-prefixed",
@@ -62,7 +109,18 @@
         "电磁阀",
         "pwm"
       ],
-      "minMatchedKeywords": 4
+      "minMatchedKeywords": 4,
+      "retrievalSignals": [
+        "3 模糊PID复合控制器的简要设计",
+        "3.2 PID调节阶段设计",
+        "3.3 环境补偿机制"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2,
+      "expectedCitations": [
+        "模糊PID"
+      ],
+      "minMatchedCitations": 1
     },
     {
       "id": "follow-up-detail",
@@ -73,6 +131,18 @@
         "电磁阀",
         "土壤湿度"
       ],
+      "minMatchedKeywords": 2,
+      "retrievalSignals": [
+        "3 模糊PID复合控制器的简要设计",
+        "3.2 PID调节阶段设计",
+        "3.3 环境补偿机制"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2,
+      "expectedCitations": [
+        "模糊PID"
+      ],
+      "minMatchedCitations": 1,
       "history": [
         {
           "role": "用户",
@@ -85,6 +155,64 @@
       ]
     },
     {
+      "id": "stm32-no-answer-bluetooth",
+      "category": "robustness",
+      "question": "《基于STM32单片机的智能浇花系统设计》这篇文档有写蓝牙 Mesh 组网吗",
+      "answerSignals": [
+        "我不知道"
+      ],
+      "minAnswerSignals": 1
+    },
+    {
+      "id": "stm32-summary-json-scoped",
+      "category": "json-ingestion",
+      "question": "《基于STM32单片机的智能浇花系统设计》这份 JSON 文档主要讲了什么，不要直接抄英文摘要或关键词",
+      "expectedKeywords": [
+        "stm32",
+        "模糊pid",
+        "电磁阀",
+        "交互显示"
+      ],
+      "minMatchedKeywords": 2,
+      "retrievalSignals": [
+        "overview",
+        "abstract",
+        "模糊PID"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2,
+      "expectedCitations": [
+        "overview",
+        "abstract"
+      ],
+      "minMatchedCitations": 1
+    },
+    {
+      "id": "stm32-remote-json-scoped",
+      "category": "json-ingestion",
+      "question": "《基于STM32单片机的智能浇花系统设计》这份 JSON 文档里，远程状态显示及控制模块是怎么做的",
+      "expectedKeywords": [
+        "esp-01s",
+        "mqtt",
+        "json",
+        "app",
+        "阈值"
+      ],
+      "minMatchedKeywords": 4,
+      "retrievalSignals": [
+        "1.4.2 远程状态显示及控制模块",
+        "mqtt",
+        "json",
+        "usart"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 3,
+      "expectedCitations": [
+        "1.4.2 远程状态显示及控制模块"
+      ],
+      "minMatchedCitations": 1
+    },
+    {
       "id": "json-metadata-english",
       "category": "json-ingestion",
       "question": "《基于STM32单片机的智能浇花系统设计》这份 JSON 文档的英文标题、英文摘要和英文关键词是什么",
@@ -94,7 +222,20 @@
         "fuzzy pid",
         "solenoid valve"
       ],
-      "minMatchedKeywords": 3
+      "minMatchedKeywords": 3,
+      "retrievalSignals": [
+        "englishtitle",
+        "englishabstract",
+        "englishkeywords"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 3,
+      "expectedCitations": [
+        "englishTitle",
+        "englishAbstract",
+        "englishKeywords"
+      ],
+      "minMatchedCitations": 3
     },
     {
       "id": "geology-system-architecture",
@@ -108,7 +249,14 @@
         "mysql",
         "echarts"
       ],
-      "minMatchedKeywords": 5
+      "minMatchedKeywords": 4,
+      "retrievalSignals": [
+        "前后端分离",
+        "spring boot",
+        "vue3"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2
     },
     {
       "id": "geology-system-modules",
@@ -120,7 +268,35 @@
         "多模态检索",
         "多特征关联"
       ],
-      "minMatchedKeywords": 3
+      "minMatchedKeywords": 3,
+      "retrievalSignals": [
+        "信息抽取",
+        "知识图谱",
+        "多模态检索",
+        "多特征关联"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 3
+    },
+    {
+      "id": "geology-modules-no-cross-doc",
+      "category": "system-paper",
+      "question": "《基于Spring Boot和Vue的地质信息智能抽取与可视化系统设计与实现》这篇论文主要有哪些功能模块，不要回答浇花系统相关内容",
+      "expectedKeywords": [
+        "信息抽取",
+        "知识图谱",
+        "多模态检索",
+        "多特征关联"
+      ],
+      "minMatchedKeywords": 3,
+      "retrievalSignals": [
+        "信息抽取",
+        "知识图谱",
+        "多模态检索",
+        "多特征关联"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 3
     }
   ]
 }

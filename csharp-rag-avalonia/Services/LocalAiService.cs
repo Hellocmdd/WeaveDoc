@@ -18,6 +18,7 @@ public sealed class LocalAiService : IDisposable
     private const int EmbeddingSafetyMargin = 64;
     private const int MaxEmbeddingTokens = EmbeddingContextSize - EmbeddingSafetyMargin;
     private static readonly string[] SupportedDocumentExtensions = [".md", ".txt", ".json", ".pdf"];
+    private static readonly string[] IgnoredCorpusRelativePrefixes = ["QA/"];
 
     private static readonly Regex QueryTokenRegex = new("[a-z0-9]+|[\\u4e00-\\u9fff]{2,}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex CitationRegex = new("\\[(?:\\d+|[^\\[\\]\\r\\n|]{1,160}\\s\\|\\s[^\\[\\]\\r\\n|]{1,160}\\s\\|\\sc\\d+)\\]", RegexOptions.Compiled);
@@ -107,6 +108,12 @@ public sealed class LocalAiService : IDisposable
 
     public string LastRetrievalDebug { get; private set; } = "尚未执行检索。";
 
+    public IReadOnlyList<RetrievalChunkSnapshot> LastRankedChunkSnapshots { get; private set; } = [];
+
+    public IReadOnlyList<RetrievalChunkSnapshot> LastContextChunkSnapshots { get; private set; } = [];
+
+    public bool LastUsedSparsePrefilter { get; private set; }
+
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         if (_initialized)
@@ -148,6 +155,7 @@ public sealed class LocalAiService : IDisposable
         if (string.IsNullOrWhiteSpace(retrievalQuestion))
         {
             LastRetrievalDebug = "当前输入被识别为寒暄语，未执行文档检索。";
+            ClearLastRetrievalSnapshots();
             return "你好，我是本地文档问答助手。你可以直接提问文档内容，或先导入/刷新文档后再问。";
         }
 
@@ -168,6 +176,9 @@ public sealed class LocalAiService : IDisposable
         }
 
         LastRetrievalDebug = BuildRetrievalDebugText(question, retrievalQuestion, retrieval);
+        LastRankedChunkSnapshots = retrieval.RankedChunks.Select(CreateRetrievalChunkSnapshot).ToArray();
+        LastContextChunkSnapshots = retrieval.ContextChunks.Select(CreateRetrievalChunkSnapshot).ToArray();
+        LastUsedSparsePrefilter = retrieval.UsedSparsePrefilter;
 
         if (retrieval.RankedChunks.Count == 0)
         {
@@ -181,6 +192,11 @@ public sealed class LocalAiService : IDisposable
 
         var queryProfile = BuildQueryProfile(retrievalQuestion);
         var topChunks = retrieval.ContextChunks;
+
+        if (ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
+        {
+            return "我不知道（当前文档未覆盖）。";
+        }
 
         if (IsPaperChallengeAndFutureQuestion(queryProfile.OriginalQuestion))
         {
@@ -328,6 +344,7 @@ public sealed class LocalAiService : IDisposable
         {
             await LoadCorpusAsync(cancellationToken).ConfigureAwait(false);
             LastRetrievalDebug = "尚未执行检索。";
+            ClearLastRetrievalSnapshots();
         }
         finally
         {
@@ -385,6 +402,7 @@ public sealed class LocalAiService : IDisposable
 
         var corpusFiles = Directory.EnumerateFiles(docRoot, "*.*", SearchOption.AllDirectories)
             .Where(path => IsSupportedDocumentExtension(Path.GetExtension(path)))
+            .Where(path => ShouldIndexCorpusFile(docRoot, path))
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -445,7 +463,7 @@ public sealed class LocalAiService : IDisposable
         }
 
         var queryProfile = BuildQueryProfile(question);
-        var queryTokens = BuildRetrievalQueryTokens(question);
+        var queryTokens = BuildRetrievalQueryTokens(question, queryProfile.RequestedDocumentTitle);
         var targetFilePaths = ApplyRequestedFileFormatPreference(question, ResolveRequestedDocumentFilePaths(queryProfile.RequestedDocumentTitle));
         var targetFilePathSet = targetFilePaths.Count == 0
             ? null
@@ -517,7 +535,7 @@ public sealed class LocalAiService : IDisposable
             .ToArray();
 
         var candidates = candidatePool
-            .Take(Math.Min(_options.CandidatePoolSize, candidatePool.Length))
+            .Take(Math.Min(GetRerankCandidatePoolSize(queryProfile), candidatePool.Length))
             .ToArray();
 
         var reranked = RerankCandidates(candidates, queryProfile, count);
@@ -544,9 +562,30 @@ public sealed class LocalAiService : IDisposable
         return embeddings.FirstOrDefault() ?? Array.Empty<float>();
     }
 
+    private int GetRerankCandidatePoolSize(QueryProfile queryProfile)
+    {
+        var multiplier = queryProfile.Intent switch
+        {
+            "procedure" => 3,
+            "module_implementation" => 3,
+            "module_list" => 3,
+            "metadata" => 2,
+            _ => 1
+        };
+
+        return Math.Clamp(_options.CandidatePoolSize * multiplier, _options.CandidatePoolSize, _options.SparseCandidatePoolSize);
+    }
+
+
     private static bool IsSupportedDocumentExtension(string extension)
     {
         return SupportedDocumentExtensions.Any(candidate => extension.Equals(candidate, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool ShouldIndexCorpusFile(string docRoot, string filePath)
+    {
+        var relativePath = Path.GetRelativePath(docRoot, filePath).Replace('\\', '/');
+        return !IgnoredCorpusRelativePrefixes.Any(prefix => relativePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool FilesHaveSameContent(string leftPath, string rightPath)
@@ -1373,7 +1412,7 @@ public sealed class LocalAiService : IDisposable
     private Dictionary<string, int> BuildTokenFrequency(string text)
     {
         var frequency = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var token in ExtractQueryTokens(text))
+        foreach (var token in EnumerateTokens(text))
         {
             frequency[token] = frequency.TryGetValue(token, out var count) ? count + 1 : 1;
         }
@@ -1603,7 +1642,7 @@ public sealed class LocalAiService : IDisposable
     private static QueryProfile BuildQueryProfile(string question)
     {
         var requestedDocumentTitle = ExtractRequestedDocumentTitle(question);
-        var focusTerms = BuildRetrievalQueryTokens(question)
+        var focusTerms = BuildRetrievalQueryTokens(question, requestedDocumentTitle)
             .Where(IsMeaningfulFocusTerm)
             .OrderByDescending(token => token.Length)
             .Take(8)
@@ -1611,7 +1650,30 @@ public sealed class LocalAiService : IDisposable
 
         var intent = DetectIntent(question);
         var wantsDetailedAnswer = WantsDetailedAnswer(question);
-        return new QueryProfile(question, focusTerms, intent, wantsDetailedAnswer, requestedDocumentTitle);
+        return new QueryProfile(question, focusTerms, intent, wantsDetailedAnswer, requestedDocumentTitle, AvoidsEnglishMetadata(question));
+    }
+
+    private static bool AvoidsEnglishMetadata(string question)
+    {
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            return false;
+        }
+
+        var hasNegativeDirective = question.Contains("不要", StringComparison.Ordinal)
+            || question.Contains("别", StringComparison.Ordinal)
+            || question.Contains("无需", StringComparison.Ordinal)
+            || question.Contains("不用", StringComparison.Ordinal);
+        if (!hasNegativeDirective)
+        {
+            return false;
+        }
+
+        return EnglishMetadataSignals.Any(signal => question.Contains(signal, StringComparison.OrdinalIgnoreCase))
+            || question.Contains("英文摘要", StringComparison.Ordinal)
+            || question.Contains("英文关键词", StringComparison.Ordinal)
+            || question.Contains("英文", StringComparison.OrdinalIgnoreCase)
+            || question.Contains("english", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsMeaningfulFocusTerm(string token)
@@ -1675,15 +1737,18 @@ public sealed class LocalAiService : IDisposable
             return question;
         }
 
-        return question[..markerIndex].Trim();
+        return StripRetrievalDirectives(question[..markerIndex].Trim());
     }
 
-    private static IReadOnlyList<string> BuildRetrievalQueryTokens(string question)
+    private static IReadOnlyList<string> BuildRetrievalQueryTokens(string question, string? requestedDocumentTitle = null)
     {
         var focusSource = BuildFocusTermSourceText(question);
         var baseQuestion = string.IsNullOrWhiteSpace(focusSource) ? question : focusSource;
+        baseQuestion = RemoveRequestedDocumentMentions(baseQuestion, requestedDocumentTitle);
+        baseQuestion = StripRetrievalDirectives(baseQuestion);
         var tokens = new HashSet<string>(ExtractQueryTokens(baseQuestion), StringComparer.Ordinal);
-        var expansionSource = string.IsNullOrWhiteSpace(question) ? baseQuestion : question;
+        var expansionSource = string.IsNullOrWhiteSpace(question) ? baseQuestion : RemoveRequestedDocumentMentions(question, requestedDocumentTitle);
+        expansionSource = StripRetrievalDirectives(expansionSource);
         var lowerQuestion = expansionSource.ToLowerInvariant();
         var intent = DetectIntent(expansionSource);
 
@@ -1696,6 +1761,53 @@ public sealed class LocalAiService : IDisposable
         }
 
         return tokens.ToArray();
+    }
+
+    private static string RemoveRequestedDocumentMentions(string question, string? requestedDocumentTitle)
+    {
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            return string.Empty;
+        }
+
+        var normalized = question.Trim();
+        if (string.IsNullOrWhiteSpace(requestedDocumentTitle))
+        {
+            return normalized;
+        }
+
+        var title = requestedDocumentTitle.Trim();
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return normalized;
+        }
+
+        var escapedTitle = Regex.Escape(title);
+        normalized = Regex.Replace(normalized, $"《\\s*{escapedTitle}\\s*》", string.Empty, RegexOptions.IgnoreCase);
+        normalized = Regex.Replace(normalized, $"[“\"]\\s*{escapedTitle}\\s*[”\"]", string.Empty, RegexOptions.IgnoreCase);
+        normalized = Regex.Replace(normalized, escapedTitle, string.Empty, RegexOptions.IgnoreCase);
+        normalized = Regex.Replace(normalized, @"(?:这篇(?:论文|文章|文档|研究)|这份(?:文档|材料))", string.Empty, RegexOptions.IgnoreCase);
+        normalized = Regex.Replace(normalized, @"\s{2,}", " ");
+        normalized = BoundaryNoiseRegex.Replace(normalized, string.Empty);
+        return normalized.Trim();
+    }
+
+    private static string StripRetrievalDirectives(string question)
+    {
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            return string.Empty;
+        }
+
+        var normalized = question.Trim();
+        normalized = Regex.Replace(
+            normalized,
+            @"(?:[，,；;。]\s*|\s+)(?:不要|别|无需|不用)(?:再)?[^，,；;。!?！？]*",
+            string.Empty,
+            RegexOptions.IgnoreCase);
+        normalized = Regex.Replace(normalized, @"\s{2,}", " ");
+        normalized = BoundaryNoiseRegex.Replace(normalized, string.Empty);
+        return normalized.Trim();
     }
 
     private IReadOnlyList<string> ResolveRequestedDocumentFilePaths(string? requestedDocumentTitle)
@@ -1977,12 +2089,18 @@ public sealed class LocalAiService : IDisposable
         {
             expansions.Add("模糊pid");
             expansions.Add("pid");
+            expansions.Add("模糊控制");
+            expansions.Add("pid调节");
+            expansions.Add("环境补偿");
+            expansions.Add("补偿");
             expansions.Add("土壤湿度");
             expansions.Add("电磁阀");
             expansions.Add("pwm");
             expansions.Add("占空比");
             expansions.Add("反馈");
             expansions.Add("控制算法");
+            expansions.Add("控制器");
+            expansions.Add("阶段");
         }
 
         if (question.Contains("远程", StringComparison.Ordinal)
@@ -2023,6 +2141,11 @@ public sealed class LocalAiService : IDisposable
             return "metadata";
         }
 
+        if (IsModuleQuestion(question))
+        {
+            return "module_list";
+        }
+
         if (IsModuleImplementationQuestion(question))
         {
             return "module_implementation";
@@ -2060,26 +2183,30 @@ public sealed class LocalAiService : IDisposable
         var sectionTitle = documentTitle;
         var chunkIndex = 0;
         var buffer = new StringBuilder();
+        var pendingOverlap = string.Empty;
 
         foreach (var paragraph in SplitParagraphs(normalized))
         {
             if (IsHeadingParagraph(paragraph))
             {
-                FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex);
+                FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex, allowOverlapForNextChunk: false);
+                pendingOverlap = string.Empty;
                 sectionTitle = paragraph.TrimStart('#', ' ').Trim();
                 buffer.AppendLine(paragraph.Trim());
                 continue;
             }
 
-            if (buffer.Length > 0 && buffer.Length + paragraph.Length + 2 > _options.ChunkSize)
+            var trimmedParagraph = paragraph.Trim();
+            if (buffer.Length > 0 && buffer.Length + trimmedParagraph.Length + 2 > _options.ChunkSize)
             {
-                FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex);
+                pendingOverlap = FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex, allowOverlapForNextChunk: true);
             }
 
-            if (paragraph.Length > _options.ChunkSize)
+            if (trimmedParagraph.Length > _options.ChunkSize)
             {
-                FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex);
-                foreach (var oversizedPart in SplitLargeParagraph(paragraph))
+                FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex, allowOverlapForNextChunk: false);
+                pendingOverlap = string.Empty;
+                foreach (var oversizedPart in SplitLargeParagraph(trimmedParagraph))
                 {
                     chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, oversizedPart, Array.Empty<float>(), documentTitle, sectionTitle, string.Empty, "body"));
                 }
@@ -2087,15 +2214,18 @@ public sealed class LocalAiService : IDisposable
                 continue;
             }
 
+            AppendPendingOverlap(buffer, pendingOverlap, trimmedParagraph.Length);
+            pendingOverlap = string.Empty;
+
             if (buffer.Length > 0)
             {
                 buffer.AppendLine();
             }
 
-            buffer.Append(paragraph.Trim());
+            buffer.Append(trimmedParagraph);
         }
 
-        FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex);
+        FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex, allowOverlapForNextChunk: false);
 
         return chunks;
     }
@@ -2129,16 +2259,67 @@ public sealed class LocalAiService : IDisposable
             || (trimmed.Length <= 40 && !trimmed.Contains('。') && !trimmed.Contains('，') && !trimmed.Contains('.'));
     }
 
-    private void FlushChunkBuffer(List<DocumentChunk> chunks, StringBuilder buffer, string sourceName, string relativePath, string documentTitle, string sectionTitle, ref int chunkIndex)
+    private string FlushChunkBuffer(
+        List<DocumentChunk> chunks,
+        StringBuilder buffer,
+        string sourceName,
+        string relativePath,
+        string documentTitle,
+        string sectionTitle,
+        ref int chunkIndex,
+        bool allowOverlapForNextChunk)
     {
         var text = buffer.ToString().Trim();
         buffer.Clear();
         if (string.IsNullOrWhiteSpace(text))
         {
-            return;
+            return string.Empty;
         }
 
         chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, text, Array.Empty<float>(), documentTitle, sectionTitle, string.Empty, "body"));
+        return allowOverlapForNextChunk ? BuildChunkOverlapPrefix(text) : string.Empty;
+    }
+
+    private void AppendPendingOverlap(StringBuilder buffer, string pendingOverlap, int nextParagraphLength)
+    {
+        if (buffer.Length > 0 || string.IsNullOrWhiteSpace(pendingOverlap) || _options.ChunkOverlap <= 0)
+        {
+            return;
+        }
+
+        var maxAllowedLength = Math.Max(0, _options.ChunkSize - nextParagraphLength - 2);
+        if (maxAllowedLength <= 0)
+        {
+            return;
+        }
+
+        var overlap = pendingOverlap.Trim();
+        if (overlap.Length > maxAllowedLength)
+        {
+            overlap = overlap[^maxAllowedLength..].Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(overlap))
+        {
+            buffer.Append(overlap);
+        }
+    }
+
+    private string BuildChunkOverlapPrefix(string chunkText)
+    {
+        if (_options.ChunkOverlap <= 0 || string.IsNullOrWhiteSpace(chunkText))
+        {
+            return string.Empty;
+        }
+
+        var normalized = chunkText.Trim();
+        var overlapLength = Math.Min(_options.ChunkOverlap, normalized.Length);
+        if (overlapLength <= 0)
+        {
+            return string.Empty;
+        }
+
+        return normalized[^overlapLength..].Trim();
     }
 
     private IEnumerable<string> SplitLargeParagraph(string paragraph)
@@ -2175,7 +2356,13 @@ public sealed class LocalAiService : IDisposable
 
     private static IReadOnlyList<string> ExtractQueryTokens(string text)
     {
-        var tokens = new HashSet<string>(StringComparer.Ordinal);
+        return EnumerateTokens(text)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static IEnumerable<string> EnumerateTokens(string text)
+    {
         foreach (Match match in QueryTokenRegex.Matches(text.ToLowerInvariant()))
         {
             var token = match.Value;
@@ -2184,17 +2371,15 @@ public sealed class LocalAiService : IDisposable
                 continue;
             }
 
-            tokens.Add(token);
+            yield return token;
             if (ContainsCjk(token) && token.Length > 3)
             {
                 for (var index = 0; index < token.Length - 1; index++)
                 {
-                    tokens.Add(token.Substring(index, 2));
+                    yield return token.Substring(index, 2);
                 }
             }
         }
-
-        return tokens.ToArray();
     }
 
     private static (float KeywordScore, bool HasDirectKeywordHit) ComputeKeywordScore(IReadOnlyList<string> queryTokens, string chunkText)
@@ -2382,12 +2567,13 @@ public sealed class LocalAiService : IDisposable
                 var neighborScore = ComputeNeighborSupportScore(queryProfile.FocusTerms, candidate.Chunk);
                 var jsonBranchScore = ComputeJsonBranchSupportScore(queryProfile.FocusTerms, candidate.Chunk);
                 var intentBoost = ComputeIntentBoost(queryProfile.Intent, candidate.Chunk.Text);
+                var chunkKindBoost = ComputeQueryAwareChunkKindBoost(queryProfile, candidate.Chunk);
                 var finalScore = candidate.Score
                     + (coverageScore * _options.CoverageWeight)
                     + (neighborScore * _options.NeighborWeight)
                     + (jsonBranchScore * _options.JsonBranchWeight)
-                    + candidate.RequestedDocumentScore
-                    + intentBoost;
+                    + intentBoost
+                    + chunkKindBoost;
 
                 return candidate with
                 {
@@ -2467,6 +2653,7 @@ public sealed class LocalAiService : IDisposable
     {
         var signals = intent switch
         {
+            "module_list" => ModuleImplementationSignals,
             "module_implementation" => ModuleImplementationSignals,
             "composition" => CompositionSignals,
             "usage" => UsageSignals,
@@ -2488,6 +2675,94 @@ public sealed class LocalAiService : IDisposable
             2 => 0.04f,
             _ => 0.06f
         };
+    }
+
+    private static float ComputeQueryAwareChunkKindBoost(QueryProfile queryProfile, DocumentChunk chunk)
+    {
+        var boost = 0f;
+
+        if (queryProfile.AvoidsEnglishMetadata && IsEnglishFieldChunk(chunk))
+        {
+            boost -= 0.35f;
+        }
+
+        if (queryProfile.Intent is "procedure" or "module_implementation")
+        {
+            boost += chunk.ContentKind switch
+            {
+                "body" or "" => 0.04f,
+                "summary" => -0.03f,
+                "keyword" => -0.24f,
+                "title" => -0.14f,
+                "metadata" => -0.30f,
+                _ => 0f
+            };
+
+            if (IsNarrowJsonExampleChunk(chunk))
+            {
+                boost -= 0.28f;
+            }
+        }
+
+        if (queryProfile.Intent == "procedure")
+        {
+            var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
+            if (structureText.Contains("模糊PID", StringComparison.OrdinalIgnoreCase)
+                || structureText.Contains("PID调节", StringComparison.OrdinalIgnoreCase))
+            {
+                boost += 0.18f;
+            }
+
+            if (structureText.Contains("环境补偿", StringComparison.OrdinalIgnoreCase)
+                || structureText.Contains("控制器", StringComparison.Ordinal))
+            {
+                boost += 0.10f;
+            }
+
+            if (structureText.Contains("阶段", StringComparison.Ordinal)
+                || structureText.Contains("策略", StringComparison.Ordinal)
+                || structureText.Contains("机制", StringComparison.Ordinal))
+            {
+                boost += 0.04f;
+            }
+
+            if (ContainsAny(chunk.Text, "动态调整", "动态调节", "精确控制", "补偿", "实时偏差", "灌溉量"))
+            {
+                boost += 0.12f;
+            }
+        }
+
+        if (queryProfile.Intent == "module_list")
+        {
+            var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
+            var moduleSignals = CountSignals(source, "信息抽取", "知识图谱", "多模态检索", "多特征关联", "功能模块", "模块");
+            boost += Math.Min(0.30f, moduleSignals * 0.06f);
+            if (ContainsAny(source, "集成了", "包括", "包含", "主要功能", "模块"))
+            {
+                boost += 0.08f;
+            }
+        }
+
+        return boost;
+    }
+
+    private static bool IsNarrowJsonExampleChunk(DocumentChunk chunk)
+    {
+        if (!IsJsonChunk(chunk))
+        {
+            return false;
+        }
+
+        var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
+        if (structureText.Contains("example", StringComparison.OrdinalIgnoreCase)
+            || structureText.Contains("示例", StringComparison.Ordinal)
+            || structureText.Contains("第", StringComparison.Ordinal) && structureText.Contains("项", StringComparison.Ordinal))
+        {
+            var lineCount = chunk.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length;
+            return lineCount <= 4 || chunk.Text.Length <= 180;
+        }
+
+        return false;
     }
 
     private IReadOnlyList<DocumentChunk> BuildContextWindow(IReadOnlyList<ScoredChunk> rankedChunks, QueryProfile queryProfile, IReadOnlyList<string> targetFilePaths)
@@ -2525,6 +2800,10 @@ public sealed class LocalAiService : IDisposable
 
             seedKeys.Add($"{ranked.Chunk.FilePath}#{ranked.Chunk.Index}");
             AddJsonBranchContext(selected, ranked.Chunk, queryProfile.FocusTerms, targetFilePathSet);
+            if (queryProfile.Intent == "procedure")
+            {
+                AddJsonProcedureChapterContext(selected, ranked.Chunk, queryProfile.FocusTerms, targetFilePathSet);
+            }
         }
 
         var maxContextChunks = Math.Clamp(Math.Max(6, rankedChunks.Count * (queryProfile.WantsDetailedAnswer ? 3 : 2)), 6, queryProfile.WantsDetailedAnswer ? 14 : 10);
@@ -2585,6 +2864,94 @@ public sealed class LocalAiService : IDisposable
                 selected.Add(key, chunk);
             }
         }
+    }
+
+    private void AddJsonProcedureChapterContext(
+        Dictionary<string, DocumentChunk> selected,
+        DocumentChunk seedChunk,
+        IReadOnlyList<string> focusTerms,
+        IReadOnlySet<string>? targetFilePathSet)
+    {
+        if (!TryFindProcedureAnchorPath(seedChunk, focusTerms, out var anchorPath))
+        {
+            return;
+        }
+
+        var chapterCandidates = _indexedChunks
+            .Where(item => string.Equals(item.Chunk.FilePath, seedChunk.FilePath, StringComparison.OrdinalIgnoreCase))
+            .Where(item => item.Chunk.Index != seedChunk.Index)
+            .Where(item => targetFilePathSet is null || targetFilePathSet.Contains(item.Chunk.FilePath))
+            .Where(item => item.Chunk.StructurePath.StartsWith(anchorPath + " > ", StringComparison.OrdinalIgnoreCase))
+            .Where(item => item.Chunk.ContentKind is "body" or "summary" or "")
+            .Select(item => new
+            {
+                item.Chunk,
+                Score = ComputeCoverageScore(focusTerms, item.Chunk)
+                    + ComputeTitleScore(focusTerms, item.Chunk)
+                    + ComputeJsonStructureScore(focusTerms, item.Chunk)
+                    + CountSignals($"{item.Chunk.SectionTitle} {item.Chunk.StructurePath}", "阶段", "策略", "机制", "补偿", "调节", "控制") * 0.08f
+            })
+            .Where(item => item.Score > 0f)
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.Index)
+            .Take(Math.Max(3, _options.ContextWindowRadius + 3))
+            .Select(item => item.Chunk);
+
+        foreach (var chunk in chapterCandidates)
+        {
+            var key = $"{chunk.FilePath}#{chunk.Index}";
+            if (!selected.ContainsKey(key))
+            {
+                selected.Add(key, chunk);
+            }
+        }
+    }
+
+    private static bool TryFindProcedureAnchorPath(DocumentChunk chunk, IReadOnlyList<string> focusTerms, out string anchorPath)
+    {
+        anchorPath = string.Empty;
+        if (!IsJsonChunk(chunk) || string.IsNullOrWhiteSpace(chunk.StructurePath))
+        {
+            return false;
+        }
+
+        var segments = chunk.StructurePath.Split(" > ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (segments.Length < 2)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < segments.Length; index++)
+        {
+            if (!IsProcedureAnchorSegment(segments[index], focusTerms))
+            {
+                continue;
+            }
+
+            anchorPath = string.Join(" > ", segments[..(index + 1)]);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsProcedureAnchorSegment(string segment, IReadOnlyList<string> focusTerms)
+    {
+        if (string.IsNullOrWhiteSpace(segment))
+        {
+            return false;
+        }
+
+        if (segment.Contains("模糊PID", StringComparison.OrdinalIgnoreCase)
+            || segment.Contains("控制器", StringComparison.Ordinal)
+            || segment.Contains("控制算法", StringComparison.Ordinal)
+            || segment.Contains("控制策略", StringComparison.Ordinal)
+            || segment.Contains("环境补偿", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return focusTerms.Any(term => term.Length >= 3 && segment.Contains(term, StringComparison.OrdinalIgnoreCase));
     }
 
     private static float ComputeRequestedDocumentScore(IReadOnlySet<string>? targetFilePathSet, string filePath)
@@ -2827,6 +3194,7 @@ public sealed class LocalAiService : IDisposable
     {
         return intent switch
         {
+            "module_list" => "模块清单题，列出核心功能模块并保留模块名",
             "module_implementation" => "模块实现题，围绕目标模块说明通信链路、显示/控制环节和执行方式",
             "metadata" => "元数据题，按字段逐项给出标题、摘要、关键词等明确字段值",
             "composition" => "组成/配置题，先说整体，再列组成项或条件",
@@ -2926,7 +3294,8 @@ public sealed class LocalAiService : IDisposable
             return true;
         }
 
-        var meaningfulTokens = ExtractQueryTokens(question)
+        var requestedDocumentTitle = ExtractRequestedDocumentTitle(question);
+        var meaningfulTokens = BuildRetrievalQueryTokens(question, requestedDocumentTitle)
             .Where(IsMeaningfulFocusTerm)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
@@ -2957,6 +3326,56 @@ public sealed class LocalAiService : IDisposable
         }
 
         return true;
+    }
+
+    private bool ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(
+        QueryProfile queryProfile,
+        IReadOnlyList<DocumentChunk> chunks,
+        IReadOnlyList<string> targetFilePaths)
+    {
+        if (string.IsNullOrWhiteSpace(queryProfile.RequestedDocumentTitle) || chunks.Count == 0)
+        {
+            return false;
+        }
+
+        if (queryProfile.Intent is "summary" or "metadata")
+        {
+            return false;
+        }
+
+        var topicalTokens = BuildRetrievalQueryTokens(queryProfile.OriginalQuestion, queryProfile.RequestedDocumentTitle)
+            .Where(IsMeaningfulFocusTerm)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (topicalTokens.Length == 0)
+        {
+            return false;
+        }
+
+        var targetFilePathSet = targetFilePaths.Count == 0
+            ? null
+            : new HashSet<string>(targetFilePaths, StringComparer.OrdinalIgnoreCase);
+        var scopedChunks = chunks
+            .Where(chunk => targetFilePathSet is null || targetFilePathSet.Contains(chunk.FilePath))
+            .ToArray();
+        if (scopedChunks.Length == 0)
+        {
+            return false;
+        }
+
+        var combinedText = string.Join(
+            "\n",
+            scopedChunks
+                .Select(BuildChunkRetrievalText)
+                .Where(text => !string.IsNullOrWhiteSpace(text)))
+            .ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(combinedText))
+        {
+            return false;
+        }
+
+        var matchedTokenCount = topicalTokens.Count(token => combinedText.Contains(token, StringComparison.Ordinal));
+        return matchedTokenCount == 0;
     }
 
     private static bool ContainsOnlyKnownCitations(string answer, IReadOnlyList<DocumentChunk> chunks)
@@ -4541,6 +4960,11 @@ public sealed class LocalAiService : IDisposable
                 : "如果是在问某个模块怎么做的，先说这个模块的实现链路，再列关键接口、协议、显示端和控制动作；不要答成整个系统的通用流程。";
         }
 
+        if (queryProfile.Intent == "module_list")
+        {
+            return "如果是在问系统有哪些功能模块，先给总括，再列出核心模块名及各自职责；不要回答成技术栈、运行环境或单个模块的实现流程。";
+        }
+
         if (queryProfile.WantsDetailedAnswer)
         {
             return "先给直接结论，再充分展开；按问题本身的结构来回答：流程题按步骤，解释题按原因或机制，模块/系统题按组成或层次，对比题按维度展开。若原文有明确模块名、算法名、协议名或字段名，优先沿用原词。";
@@ -4611,6 +5035,11 @@ public sealed class LocalAiService : IDisposable
             return queryProfile.WantsDetailedAnswer
                 ? "模块实现类问题优先围绕模块本身写清接口、协议、上下行链路、显示端和控制动作；如原文给出了 USART、WiFi、MQTT、JSON、APP、阈值设定或指令下发等术语，应直接保留。"
                 : "模块实现类问题优先点出接口、协议、显示/控制链路和执行动作，不要泛化成整个系统设计。";
+        }
+
+        if (queryProfile.Intent == "module_list")
+        {
+            return "模块清单类问题优先保留原文中的模块名，例如信息抽取、知识图谱、多模态检索、多特征关联等，并概括每个模块的职责。";
         }
 
         if (queryProfile.Intent == "procedure")
@@ -5550,6 +5979,29 @@ public sealed class LocalAiService : IDisposable
         return path;
     }
 
+    private void ClearLastRetrievalSnapshots()
+    {
+        LastRankedChunkSnapshots = [];
+        LastContextChunkSnapshots = [];
+        LastUsedSparsePrefilter = false;
+    }
+
+    private static RetrievalChunkSnapshot CreateRetrievalChunkSnapshot(ScoredChunk chunk)
+    {
+        return CreateRetrievalChunkSnapshot(chunk.Chunk);
+    }
+
+    private static RetrievalChunkSnapshot CreateRetrievalChunkSnapshot(DocumentChunk chunk)
+    {
+        return new RetrievalChunkSnapshot(
+            BuildStableCitation(chunk),
+            chunk.FilePath,
+            chunk.SectionTitle,
+            chunk.StructurePath,
+            chunk.ContentKind,
+            chunk.Text);
+    }
+
     private sealed record IndexedChunk(DocumentChunk Chunk, float[] Embedding, IReadOnlyDictionary<string, int> TokenFrequency, int TokenCount);
 
     private sealed record SparseRetrievalComponent(
@@ -5565,7 +6017,15 @@ public sealed class LocalAiService : IDisposable
 
     public sealed record AddDocumentResult(string StoredPath, bool ImportedNewFile, string StatusMessage);
 
-    private sealed record QueryProfile(string OriginalQuestion, IReadOnlyList<string> FocusTerms, string Intent, bool WantsDetailedAnswer, string? RequestedDocumentTitle);
+    public sealed record RetrievalChunkSnapshot(
+        string Citation,
+        string FilePath,
+        string SectionTitle,
+        string StructurePath,
+        string ContentKind,
+        string Text);
+
+    private sealed record QueryProfile(string OriginalQuestion, IReadOnlyList<string> FocusTerms, string Intent, bool WantsDetailedAnswer, string? RequestedDocumentTitle, bool AvoidsEnglishMetadata);
 
     private sealed record ScoredChunk(
         DocumentChunk Chunk,
