@@ -239,26 +239,37 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     Logger.Log("MonacoEditorControl: WebView navigation completed");
                     _isWebViewReady = true;
 
-                    // 隐藏加载文本
-                    if (HostBorder != null)
+                    // 使用 Dispatcher.UIThread.Post 延迟执行隐藏加载文本的操作，确保在控件完全加载后执行
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
-                        HostBorder.Child = null;
-                        Logger.Log("MonacoEditorControl: Hidden loading text");
-                    }
-                    else
-                    {
-                        Logger.Log("MonacoEditorControl: HostBorder is null, cannot hide loading text");
-                    }
+                        try
+                        {
+                            // 隐藏加载文本
+                            if (HostBorder != null)
+                            {
+                                HostBorder.Child = null;
+                                Logger.Log("MonacoEditorControl: Hidden loading text");
+                            }
+                            else
+                            {
+                                Logger.Log("MonacoEditorControl: HostBorder is null, cannot hide loading text");
+                            }
 
-                    // 导航完成后手动更新控制器大小和位置
-                    UpdateControllerBounds();
-                    Logger.Log("MonacoEditorControl: Updated bounds after navigation");
+                            // 导航完成后手动更新控制器大小和位置
+                            UpdateControllerBounds();
+                            Logger.Log("MonacoEditorControl: Updated bounds after navigation");
 
-                    if (!string.IsNullOrEmpty(_pendingContent))
-                    {
-                        SetContentAsync(_pendingContent);
-                        _pendingContent = string.Empty;
-                    }
+                            if (!string.IsNullOrEmpty(_pendingContent))
+                            {
+                                SetContentAsync(_pendingContent);
+                                _pendingContent = string.Empty;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogException(ex);
+                        }
+                    });
                 }
                 else
                 {

@@ -3,6 +3,5 @@
              x:Class="WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl">
   <!-- Placeholder panel where native WebView2 will be positioned over/inside -->
   <Border x:Name="HostBorder" Background="Transparent">
-    <TextBlock Text="Loading Monaco..." HorizontalAlignment="Center" VerticalAlignment="Center"/>
   </Border>
 </UserControl>
