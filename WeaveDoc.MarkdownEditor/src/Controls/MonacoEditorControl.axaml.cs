@@ -135,6 +135,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     
                     _controller.Bounds = new System.Drawing.Rectangle(x, y, w, h);
                     Logger.Log($"MonacoEditorControl: Updated bounds: x={x}, y={y}, w={w}, h={h}");
+                    Logger.Log($"MonacoEditorControl: Bounds: {bounds}");
                     
                     UpdateMonacoSize(w, h);
                 }
