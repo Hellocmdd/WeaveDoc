@@ -1110,3 +1110,10 @@
 [2026-04-27 14:49:21.159] App: MainWindow shown
 [2026-04-27 14:49:21.160] App: Calling base.OnFrameworkInitializationCompleted()...
 [2026-04-27 14:49:21.160] App: OnFrameworkInitializationCompleted completed
+[2026-04-27 19:23:17.082] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 19:23:17.093] MonacoEditorControl: Got window handle: 1246306
+[2026-04-27 19:23:17.196] MonacoEditorControl: Created WebView2 environment
+[2026-04-27 19:23:18.110] MonacoEditorControl: Created WebView2 controller
+[2026-04-27 19:23:18.113] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-27 19:23:18.115] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 19:23:18.579] MonacoEditorControl: WebView navigation completed

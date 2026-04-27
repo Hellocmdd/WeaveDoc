@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-using Avalonia.Platform;
 using Microsoft.Web.WebView2.Core;
 using System.Runtime.InteropServices;
 using WeaveDoc.MarkdownEditor.ViewModels;
@@ -18,7 +17,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private CoreWebView2Controller? _controller;
         private bool _isWebViewReady;
         private string _pendingContent = string.Empty;
-        private IntPtr _webviewWindowHandle;
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetActiveWindow();
 
         public MonacoEditorControl()
         {
@@ -64,10 +65,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 Logger.Log("MonacoEditorControl: Starting WebView2 initialization...");
 
-                var hwnd = GetAvaloniaWindowHandle();
+                var hwnd = GetActiveWindow();
                 if (hwnd == IntPtr.Zero)
                 {
-                    Logger.Log("MonacoEditorControl: Failed to get Avalonia window handle");
+                    Logger.Log("MonacoEditorControl: Failed to get active window handle");
                     return;
                 }
 
@@ -80,7 +81,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 Logger.Log("MonacoEditorControl: Created WebView2 controller");
 
                 _webview = _controller.CoreWebView2;
-                _webviewWindowHandle = _controller.Handle;
 
                 _webview.WebMessageReceived += Webview_WebMessageReceived;
                 _webview.NavigationCompleted += Webview_NavigationCompleted;
@@ -94,28 +94,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
             catch (Exception ex)
             {
                 Logger.LogException(ex);
-            }
-        }
-
-        private IntPtr GetAvaloniaWindowHandle()
-        {
-            try
-            {
-                var window = this.VisualRoot as Window;
-                if (window == null)
-                {
-                    Logger.Log("MonacoEditorControl: VisualRoot is not a Window");
-                    return IntPtr.Zero;
-                }
-
-                var handle = window.PlatformView.Handle;
-                Logger.Log($"MonacoEditorControl: Got platform handle: {handle}");
-                return handle;
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-                return IntPtr.Zero;
             }
         }
 
