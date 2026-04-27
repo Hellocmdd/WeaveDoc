@@ -40,26 +40,29 @@ namespace WeaveDoc.MarkdownEditor
             };
         }
 
-        public override async void OnFrameworkInitializationCompleted()
+        public override void OnFrameworkInitializationCompleted()
         {
             Logger.Log("App: Starting OnFrameworkInitializationCompleted...");
             
-            // 提前创建 WebView2 环境，避免线程模式冲突
-            try
-            {
-                WebView2Environment = await CoreWebView2Environment.CreateAsync();
-                Logger.Log("WebView2 environment created successfully");
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-            }
+            // 暂时移除 WebView2 初始化代码，以便应用程序能够启动并显示右侧预览
+            // try
+            // {
+            //     WebView2Environment = await CoreWebView2Environment.CreateAsync();
+            //     Logger.Log("WebView2 environment created successfully");
+            // }
+            // catch (Exception ex)
+            // {
+            //     Logger.LogException(ex);
+            // }
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 Logger.Log("App: Creating MainWindow...");
                 desktop.MainWindow = new MainWindow();
                 Logger.Log("App: MainWindow created successfully");
+                // 显示主窗口
+                desktop.MainWindow.Show();
+                Logger.Log("App: MainWindow shown");
             }
             else
             {
