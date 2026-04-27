@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj": {}
+    "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj": {}
   },
   "projects": {
-    "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {
+    "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
+        "projectUniqueName": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
         "projectName": "WeaveDoc.MarkdownEditor",
-        "projectPath": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
+        "projectPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
         "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
-        "outputPath": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\obj\\",
+        "outputPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -88,14 +88,14 @@
         }
       }
     },
-    "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj": {
+    "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj",
+        "projectUniqueName": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj",
         "projectName": "WeaveDoc.MarkdownEditor.Tests",
-        "projectPath": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj",
+        "projectPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj",
         "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
-        "outputPath": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\obj\\",
+        "outputPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -110,8 +110,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {
-                "projectPath": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj"
+              "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {
+                "projectPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj"
               }
             }
           }

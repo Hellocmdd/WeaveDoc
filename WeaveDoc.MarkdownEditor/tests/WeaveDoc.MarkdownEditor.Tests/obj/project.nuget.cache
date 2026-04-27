@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "eqUNfDBoIt8=",
+  "dgSpecHash": "ugTrgx3KUJM=",
   "success": true,
-  "projectFilePath": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj",
+  "projectFilePath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia\\11.1.0\\avalonia.11.1.0.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\avalonia.angle.windows.natives\\2.1.22045.20230930\\avalonia.angle.windows.natives.2.1.22045.20230930.nupkg.sha512",

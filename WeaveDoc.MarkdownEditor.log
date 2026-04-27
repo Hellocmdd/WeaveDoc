@@ -1957,3 +1957,14 @@
 [2026-04-27 20:30:04.273] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include iostream\\ncout<<\\\"hello world\\\";\"}"
 [2026-04-27 20:30:04.275] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 146.
 [2026-04-27 20:30:04.277] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include iostream\\ncout<<\\\"hello world\\\";\"}"
+[2026-04-27 20:35:11.370] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 20:35:11.897] MonacoEditorControl: Got window handle: 8457958
+[2026-04-27 20:35:11.910] MonacoEditorControl: Created WebView2 environment
+[2026-04-27 20:35:12.585] MonacoEditorControl: Created WebView2 controller
+[2026-04-27 20:35:12.589] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-27 20:35:12.591] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 20:35:14.022] MonacoEditorControl: WebView navigation completed
+[2026-04-27 20:35:14.023] MonacoEditorControl: HostBorder is null, cannot hide loading text
+[2026-04-27 20:35:14.027] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 20:35:14.030] MonacoEditorControl: Updated bounds after navigation
+[2026-04-27 20:35:14.039] MonacoEditorControl: Resized Monaco editor to 492x563
