@@ -75,8 +75,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
                 }
 
+                // 等待窗口完全加载
+                await Task.Delay(500);
+
                 // 使用 P/Invoke 获取窗口句柄
-                var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                var hwnd = GetActiveWindow();
                 if (hwnd == IntPtr.Zero)
                 {
                     Logger.Log("MonacoEditorControl: Failed to get window handle");
@@ -122,10 +125,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     // 计算控件在窗口中的位置和大小
                     var bounds = this.Bounds;
                     
-                    // 直接使用控件的边界作为位置和大小
-                    // 注意：这里的位置是相对于父控件的，而不是相对于窗口的
-                    var x = 0;
-                    var y = 0;
+                    // 计算控件在窗口中的绝对位置
+                    var point = this.PointToScreen(new Point(0, 0));
+                    var windowPoint = root.PointToScreen(new Point(0, 0));
+                    var x = (int)(point.X - windowPoint.X);
+                    var y = (int)(point.Y - windowPoint.Y);
                     var w = Math.Max(0, (int)bounds.Width);
                     var h = Math.Max(0, (int)bounds.Height);
                     

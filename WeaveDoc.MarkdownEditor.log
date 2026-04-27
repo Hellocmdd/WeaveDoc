@@ -1669,3 +1669,72 @@
 [2026-04-27 20:15:55.565] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n那餐撒大声地\\nsss\\n\"}"
 [2026-04-27 20:15:55.566] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 127.
 [2026-04-27 20:15:55.567] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n那餐撒大声地\\nsss\\n\"}"
+[2026-04-27 20:17:38.310] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 20:17:38.321] MonacoEditorControl: Got window handle: 1508926
+[2026-04-27 20:17:38.332] MonacoEditorControl: Created WebView2 environment
+[2026-04-27 20:17:39.074] MonacoEditorControl: Created WebView2 controller
+[2026-04-27 20:17:39.076] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-27 20:17:39.077] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 20:17:39.460] MonacoEditorControl: WebView navigation completed
+[2026-04-27 20:17:39.461] MonacoEditorControl: HostBorder is null, cannot hide loading text
+[2026-04-27 20:17:39.465] MonacoEditorControl: Updated bounds: x=0, y=0, w=492, h=563
+[2026-04-27 20:17:39.470] MonacoEditorControl: Updated bounds after navigation
+[2026-04-27 20:17:39.492] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 20:19:13.088] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 20:19:13.609] MonacoEditorControl: Got window handle: 8130242
+[2026-04-27 20:19:13.626] MonacoEditorControl: Created WebView2 environment
+[2026-04-27 20:19:14.217] MonacoEditorControl: Created WebView2 controller
+[2026-04-27 20:19:14.220] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-27 20:19:14.221] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 20:19:14.653] MonacoEditorControl: WebView navigation completed
+[2026-04-27 20:19:14.654] MonacoEditorControl: HostBorder is null, cannot hide loading text
+[2026-04-27 20:19:14.656] MonacoEditorControl: Updated bounds: x=0, y=0, w=492, h=563
+[2026-04-27 20:19:14.659] MonacoEditorControl: Updated bounds after navigation
+[2026-04-27 20:19:14.667] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 20:21:17.035] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 20:21:17.557] MonacoEditorControl: Got window handle: 5833176
+[2026-04-27 20:21:17.575] MonacoEditorControl: Created WebView2 environment
+[2026-04-27 20:21:18.214] MonacoEditorControl: Created WebView2 controller
+[2026-04-27 20:21:18.216] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-27 20:21:18.217] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 20:21:18.664] MonacoEditorControl: WebView navigation completed
+[2026-04-27 20:21:18.665] MonacoEditorControl: HostBorder is null, cannot hide loading text
+[2026-04-27 20:21:18.669] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 20:21:18.672] MonacoEditorControl: Updated bounds after navigation
+[2026-04-27 20:21:18.680] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 20:21:23.702] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊\"}"
+[2026-04-27 20:21:23.726] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 100.
+[2026-04-27 20:21:23.727] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊\"}"
+[2026-04-27 20:21:23.727] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回\"}"
+[2026-04-27 20:21:23.728] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 103.
+[2026-04-27 20:21:23.729] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回\"}"
+[2026-04-27 20:21:23.729] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到\"}"
+[2026-04-27 20:21:23.730] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 106.
+[2026-04-27 20:21:23.730] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到\"}"
+[2026-04-27 20:21:23.730] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家\"}"
+[2026-04-27 20:21:23.731] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 109.
+[2026-04-27 20:21:23.731] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家\"}"
+[2026-04-27 20:21:23.732] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡\"}"
+[2026-04-27 20:21:23.732] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 112.
+[2026-04-27 20:21:23.733] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡\"}"
+[2026-04-27 20:21:23.733] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\"}"
+[2026-04-27 20:21:23.734] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 115.
+[2026-04-27 20:21:23.734] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\"}"
+[2026-04-27 20:21:24.130] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n\"}"
+[2026-04-27 20:21:24.131] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 118.
+[2026-04-27 20:21:24.132] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n\"}"
+[2026-04-27 20:21:25.561] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊\"}"
+[2026-04-27 20:21:25.574] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 121.
+[2026-04-27 20:21:25.575] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊\"}"
+[2026-04-27 20:21:25.576] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊湿\"}"
+[2026-04-27 20:21:25.576] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 124.
+[2026-04-27 20:21:25.577] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊湿\"}"
+[2026-04-27 20:21:25.578] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊湿哒\"}"
+[2026-04-27 20:21:25.579] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 127.
+[2026-04-27 20:21:25.579] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊湿哒\"}"
+[2026-04-27 20:21:25.580] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊湿哒哒\"}"
+[2026-04-27 20:21:25.581] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 130.
+[2026-04-27 20:21:25.581] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊湿哒哒\"}"
+[2026-04-27 20:21:25.899] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊湿哒哒\\n\"}"
+[2026-04-27 20:21:25.900] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 133.
+[2026-04-27 20:21:25.900] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊湿哒哒\\n\"}"
