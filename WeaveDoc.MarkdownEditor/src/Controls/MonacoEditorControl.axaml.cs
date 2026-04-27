@@ -14,8 +14,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
 {
     public partial class MonacoEditorControl : UserControl
     {
-        private CoreWebView2 _webview;
-        private CoreWebView2Controller _controller;
+        private CoreWebView2? _webview;
+        private CoreWebView2Controller? _controller;
         private bool _isWebViewReady;
         private string _pendingContent = string.Empty;
 
@@ -62,7 +62,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        private async void InitializeWebViewAsync()
+        private void InitializeWebViewAsync()
         {
             try
             {
@@ -255,7 +255,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        public async Task SetContentAsync(string content)
+        public void SetContentAsync(string content)
         {
             try
             {
@@ -278,9 +278,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 Logger.LogException(ex);
             }
-            
-            // Add this to suppress CS1998 if no other await is present
-            await Task.CompletedTask;
         }
 
         private class Message
