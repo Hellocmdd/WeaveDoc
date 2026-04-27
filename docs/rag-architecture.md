@@ -379,10 +379,14 @@ The evaluation mode:
 - runs a batch of questions
 - prints the generated answers
 - prints retrieval debug output
-- computes expected-keyword coverage statistics
+- computes answer-signal / keyword coverage statistics
+- computes retrieval signal coverage for top-hit chunks and final context windows
+- computes citation precision / recall against expected evidence labels
 - runs per-case structural checks for selected baseline case IDs
 
-This is still not a full semantic automatic grader, but it is already enough for day-to-day regression checks and before/after comparisons when tuning retrieval behavior.
+The baseline schema can now express answer expectations, retrieval expectations, and citation expectations separately, so regressions can be localized to generation, retrieval, or grounding instead of collapsing into a single keyword score.
+
+This is still not a full semantic automatic grader, but it is materially stronger for day-to-day regression checks and before/after comparisons when tuning retrieval behavior.
 
 ## 13. Main Parameters
 
