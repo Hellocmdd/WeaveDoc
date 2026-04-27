@@ -11,7 +11,8 @@
     <!-- 左编辑器 / 右预览 布局 -->
     <Grid Grid.Row="1" ColumnDefinitions="*, *" Margin="8">
       <!-- 左侧编辑器：使用 Monaco Editor 控件 -->
-      <controls:MonacoEditorControl Grid.Column="0" DataContext="{Binding}" />
+      <!-- 暂时使用占位文本，等待 Monaco Editor 集成完成 -->
+      <TextBlock Grid.Column="0" TextWrapping="Wrap" Foreground="Black" FontSize="14" Text="Monaco Editor (initializing...)" />
 
       <!-- 右侧预览：显示由 MarkdownService 生成的 HTML（以文本形式展示） -->
       <ScrollViewer Grid.Column="1" Background="#FFF8F8F8" Padding="8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
