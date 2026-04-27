@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using WeaveDoc.MarkdownEditor.Services;
@@ -65,3 +66,5 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
                 System.Console.WriteLine($"打开文件时出错: {ex.Message}");
             }
         }
+    }
+}

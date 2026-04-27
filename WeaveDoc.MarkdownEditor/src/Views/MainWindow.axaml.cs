@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using WeaveDoc.MarkdownEditor.ViewModels;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace WeaveDoc.MarkdownEditor.Views
@@ -26,7 +27,7 @@ namespace WeaveDoc.MarkdownEditor.Views
             var dialog = new OpenFileDialog
             {
                 Title = "打开 Markdown 文件",
-                Filters = new[]
+                Filters = new List<FileDialogFilter>
                 {
                     new FileDialogFilter { Name = "Markdown 文件", Extensions = { "md", "markdown", "txt" } },
                     new FileDialogFilter { Name = "所有文件", Extensions = { "*" } }
