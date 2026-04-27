@@ -10,9 +10,10 @@
     <TextBlock Text="WeaveDoc Markdown Editor" FontSize="18" Margin="8"/>
     <!-- 左编辑器 / 右预览 布局 -->
     <Grid Grid.Row="1" ColumnDefinitions="*, *" Margin="8">
-      <!-- 左侧编辑器：使用 Monaco Editor 控件 -->
-      <!-- 暂时使用占位文本，等待 Monaco Editor 集成完成 -->
-      <TextBlock Grid.Column="0" TextWrapping="Wrap" Foreground="Black" FontSize="14" Text="Monaco Editor (initializing...)" />
+      <!-- 左侧编辑器：使用 Avalonia 内置的 TextBox 控件作为临时解决方案 -->
+      <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        <TextBox TextWrapping="Wrap" AcceptsReturn="True" Text="{Binding EditorContent, Mode=TwoWay}" />
+      </ScrollViewer>
 
       <!-- 右侧预览：显示由 MarkdownService 生成的 HTML（以文本形式展示） -->
       <ScrollViewer Grid.Column="1" Background="#FFF8F8F8" Padding="8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
