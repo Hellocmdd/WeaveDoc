@@ -1,19 +1,168 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using WeaveDoc.MarkdownEditor.ViewModels;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Web.WebView2.Core;
+using System;
+using System.Runtime.InteropServices;
+using WeaveDoc.MarkdownEditor.Helpers;
 
 namespace WeaveDoc.MarkdownEditor.Views
 {
     public partial class MainWindow : Window
     {
+        private CoreWebView2? _previewWebView;
+        private CoreWebView2Controller? _previewController;
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetActiveWindow();
+
         public MainWindow()
         {
             InitializeComponent();
             // 将 MainWindowViewModel 设置为 DataContext
             var vm = new MainWindowViewModel();
             DataContext = vm;
+            Logger.Log("MainWindow: Constructor called");
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
+            SizeChanged += OnSizeChanged;
+            Logger.Log("MainWindow: Events subscribed");
+        }
+
+        private async void OnLoaded(object? sender, EventArgs e)
+        {
+            Logger.Log("MainWindow: OnLoaded called");
+            // 延迟一下，确保控件完全加载
+            await Task.Delay(100);
+            Logger.Log("MainWindow: Calling InitializePreviewWebViewAsync");
+            InitializePreviewWebViewAsync();
+        }
+
+        private void OnUnloaded(object? sender, EventArgs e)
+        {
+            _previewController?.Close();
+        }
+
+        private void OnSizeChanged(object? sender, EventArgs e)
+        {
+            UpdatePreviewControllerBounds();
+        }
+
+        private async void InitializePreviewWebViewAsync()
+        {
+            try
+            {
+                Logger.Log("MainWindow: Starting WebView2 initialization for preview...");
+
+                // 使用 P/Invoke 获取窗口句柄
+                var hwnd = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                if (hwnd == IntPtr.Zero)
+                {
+                    Logger.Log("MainWindow: Failed to get window handle");
+                    return;
+                }
+
+                Logger.Log($"MainWindow: Got window handle: {hwnd}");
+
+                var env = await CoreWebView2Environment.CreateAsync();
+                Logger.Log("MainWindow: Created WebView2 environment for preview");
+
+                _previewController = await env.CreateCoreWebView2ControllerAsync(hwnd);
+                Logger.Log("MainWindow: Created WebView2 controller for preview");
+
+                _previewWebView = _previewController.CoreWebView2;
+
+                // 导航到一个空白页面
+                _previewWebView.NavigateToString("<html><body></body></html>");
+
+                // 初始更新预览内容
+                UpdatePreviewContent();
+
+                // 初始更新预览区域大小和位置
+                UpdatePreviewControllerBounds();
+
+                // 监听 EditorContent 变化，更新预览
+                if (DataContext is MainWindowViewModel vm)
+                {
+                    vm.PropertyChanged += (s, e) =>
+                    {
+                        if (e.PropertyName == nameof(MainWindowViewModel.EditorContent))
+                        {
+                            UpdatePreviewContent();
+                        }
+                    };
+                }
+
+                Logger.Log("MainWindow: WebView2 initialized successfully for preview");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+        }
+
+        private void UpdatePreviewContent()
+        {
+            try
+            {
+                if (_previewWebView != null && DataContext is MainWindowViewModel vm)
+                {
+                    var previewHtml = vm.PreviewHtml;
+                    _previewWebView.Navigate(previewHtml);
+                    Logger.Log("MainWindow: Updated preview content");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+        }
+
+        private void UpdatePreviewControllerBounds()
+        {
+            try
+            {
+                Logger.Log("MainWindow: UpdatePreviewControllerBounds called");
+                if (_previewController == null)
+                {
+                    Logger.Log("MainWindow: _previewController is null");
+                    return;
+                }
+
+                // 计算预览区域在窗口中的位置和大小
+                var previewScrollViewer = this.FindControl<ScrollViewer>("PreviewScrollViewer");
+                if (previewScrollViewer != null)
+                {
+                    var bounds = previewScrollViewer.Bounds;
+                    Logger.Log($"MainWindow: PreviewScrollViewer bounds: {bounds}");
+                    var point = previewScrollViewer.TranslatePoint(new Avalonia.Point(0, 0), this);
+                    if (point != null)
+                    {
+                        var x = (int)point.Value.X;
+                        var y = (int)point.Value.Y;
+                        var w = Math.Max(0, (int)bounds.Width);
+                        var h = Math.Max(0, (int)bounds.Height);
+
+                        _previewController.Bounds = new System.Drawing.Rectangle(x, y, w, h);
+                        Logger.Log($"MainWindow: Updated preview bounds: x={x}, y={y}, w={w}, h={h}");
+                    }
+                    else
+                    {
+                        Logger.Log("MainWindow: TranslatePoint returned null");
+                    }
+                }
+                else
+                {
+                    Logger.Log("MainWindow: PreviewScrollViewer not found");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
         }
 
         private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
