@@ -269,6 +269,7 @@ try
                     Logger.Log($"MonacoEditorControl: Updated bounds: x={x}, y={y}, w={w}, h={h}");
                     
                     // 通知 Monaco 编辑器更新尺寸
+                    Logger.Log("MonacoEditorControl: Calling UpdateMonacoSize");
                     UpdateMonacoSize(w, h);
                 }
             }

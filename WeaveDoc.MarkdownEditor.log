@@ -948,3 +948,38 @@
 [2026-04-27 11:28:58.747] MonacoEditorControl: Loading Monaco from: file:///D:/WeaveDoc/WeaveDoc.MarkdownEditor/src/bin/Debug/net8.0/Assets/monaco-editor/index.html
 [2026-04-27 11:28:58.748] MonacoEditorControl: WebView2 initialized successfully
 [2026-04-27 11:28:59.076] MonacoEditorControl: WebView navigation completed
+[2026-04-27 11:41:14.298] App: Starting OnFrameworkInitializationCompleted...
+[2026-04-27 11:41:14.322] WebView2 environment created successfully
+[2026-04-27 11:41:14.322] App: Creating MainWindow...
+[2026-04-27 11:41:14.426] App: MainWindow created successfully
+[2026-04-27 11:41:14.427] App: Calling base.OnFrameworkInitializationCompleted()...
+[2026-04-27 11:41:14.427] App: OnFrameworkInitializationCompleted completed
+[2026-04-27 11:41:14.460] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 11:41:14.570] MonacoEditorControl: Got HWND: 722400
+[2026-04-27 11:41:14.572] MonacoEditorControl: Creating WebView2 controller...
+[2026-04-27 11:41:18.891] MonacoEditorControl: WebView2 controller created
+[2026-04-27 11:41:18.892] MonacoEditorControl: WebView2 core initialized
+[2026-04-27 11:41:18.898] MonacoEditorControl: Updated bounds: x=-146, y=58, w=800, h=600
+[2026-04-27 11:41:18.899] MonacoEditorControl: Executing script: window.resizeEditor(800, 600);
+[2026-04-27 11:41:18.904] MonacoEditorControl: Loading Monaco from: file:///D:/WeaveDoc/WeaveDoc.MarkdownEditor/src/bin/Debug/net8.0/Assets/monaco-editor/index.html
+[2026-04-27 11:41:18.905] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 11:41:20.540] MonacoEditorControl: Resized Monaco editor to 800x600
+[2026-04-27 11:41:20.596] MonacoEditorControl: WebView navigation completed
+[2026-04-27 11:44:29.953] App: Starting OnFrameworkInitializationCompleted...
+[2026-04-27 11:44:29.977] WebView2 environment created successfully
+[2026-04-27 11:44:29.978] App: Creating MainWindow...
+[2026-04-27 11:44:30.093] App: MainWindow created successfully
+[2026-04-27 11:44:30.093] App: Calling base.OnFrameworkInitializationCompleted()...
+[2026-04-27 11:44:30.094] App: OnFrameworkInitializationCompleted completed
+[2026-04-27 11:44:30.138] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 11:44:30.252] MonacoEditorControl: Got HWND: 3672230
+[2026-04-27 11:44:30.254] MonacoEditorControl: Creating WebView2 controller...
+[2026-04-27 11:44:32.974] MonacoEditorControl: WebView2 controller created
+[2026-04-27 11:44:32.975] MonacoEditorControl: WebView2 core initialized
+[2026-04-27 11:44:32.984] MonacoEditorControl: Updated bounds: x=-146, y=58, w=800, h=600
+[2026-04-27 11:44:32.985] MonacoEditorControl: Calling UpdateMonacoSize
+[2026-04-27 11:44:32.986] MonacoEditorControl: Executing script: window.resizeEditor(800, 600);
+[2026-04-27 11:44:32.993] MonacoEditorControl: Loading Monaco from: file:///D:/WeaveDoc/WeaveDoc.MarkdownEditor/src/bin/Debug/net8.0/Assets/monaco-editor/index.html
+[2026-04-27 11:44:32.994] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 11:44:33.514] MonacoEditorControl: Resized Monaco editor to 800x600
+[2026-04-27 11:44:33.713] MonacoEditorControl: WebView navigation completed

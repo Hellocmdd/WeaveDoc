@@ -1326,3 +1326,6 @@ D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\refint\Avalonia\WeaveDo
 D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\WeaveDoc.343F62F5.Up2Date
 D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\WeaveDoc.MarkdownEditor.genruntimeconfig.cache
 D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\ref\WeaveDoc.MarkdownEditor.dll
+D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\WeaveDoc.MarkdownEditor.dll
+D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\refint\WeaveDoc.MarkdownEditor.dll
+D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\obj\Debug\net8.0\WeaveDoc.MarkdownEditor.pdb
