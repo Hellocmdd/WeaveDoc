@@ -125,13 +125,17 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     // 计算控件在窗口中的位置和大小
                     var bounds = this.Bounds;
                     
+                    // 确保宽度和高度不为0
+                    var width = Math.Max(200, (int)bounds.Width);
+                    var height = Math.Max(200, (int)bounds.Height);
+                    
                     // 计算控件在窗口中的绝对位置
                     var point = this.PointToScreen(new Point(0, 0));
                     var windowPoint = root.PointToScreen(new Point(0, 0));
                     var x = (int)(point.X - windowPoint.X);
                     var y = (int)(point.Y - windowPoint.Y);
-                    var w = Math.Max(0, (int)bounds.Width);
-                    var h = Math.Max(0, (int)bounds.Height);
+                    var w = width;
+                    var h = height;
                     
                     _controller.Bounds = new System.Drawing.Rectangle(x, y, w, h);
                     Logger.Log($"MonacoEditorControl: Updated bounds: x={x}, y={y}, w={w}, h={h}");

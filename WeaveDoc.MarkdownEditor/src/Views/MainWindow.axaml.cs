@@ -138,13 +138,16 @@ namespace WeaveDoc.MarkdownEditor.Views
                 {
                     var bounds = previewScrollViewer.Bounds;
                     Logger.Log($"MainWindow: PreviewScrollViewer bounds: {bounds}");
+                    // 确保宽度和高度不为0
+                    var width = Math.Max(200, (int)bounds.Width);
+                    var height = Math.Max(200, (int)bounds.Height);
                     var point = previewScrollViewer.TranslatePoint(new Avalonia.Point(0, 0), this);
                     if (point != null)
                     {
                         var x = (int)point.Value.X;
                         var y = (int)point.Value.Y;
-                        var w = Math.Max(0, (int)bounds.Width);
-                        var h = Math.Max(0, (int)bounds.Height);
+                        var w = width;
+                        var h = height;
 
                         _previewController.Bounds = new System.Drawing.Rectangle(x, y, w, h);
                         Logger.Log($"MainWindow: Updated preview bounds: x={x}, y={y}, w={w}, h={h}");
