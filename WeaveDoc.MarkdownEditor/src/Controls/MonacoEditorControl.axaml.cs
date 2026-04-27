@@ -67,10 +67,19 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 Logger.Log("MonacoEditorControl: Starting WebView2 initialization...");
 
-                var hwnd = GetActiveWindow();
+                // 获取包含 MonacoEditorControl 的窗口句柄
+                var root = this.VisualRoot as Window;
+                if (root == null)
+                {
+                    Logger.Log("MonacoEditorControl: Failed to get root window");
+                    return;
+                }
+
+                // 使用 P/Invoke 获取窗口句柄
+                var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                 {
-                    Logger.Log("MonacoEditorControl: Failed to get active window handle");
+                    Logger.Log("MonacoEditorControl: Failed to get window handle");
                     return;
                 }
 
@@ -110,10 +119,13 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 if (root != null)
                 {
+                    // 计算控件在窗口中的位置和大小
                     var bounds = this.Bounds;
                     
-                    var x = (int)bounds.X;
-                    var y = (int)bounds.Y;
+                    // 直接使用控件的边界作为位置和大小
+                    // 注意：这里的位置是相对于父控件的，而不是相对于窗口的
+                    var x = 0;
+                    var y = 0;
                     var w = Math.Max(0, (int)bounds.Width);
                     var h = Math.Max(0, (int)bounds.Height);
                     
