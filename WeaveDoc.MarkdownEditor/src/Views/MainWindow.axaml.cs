@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using WeaveDoc.MarkdownEditor.ViewModels;
 
 namespace WeaveDoc.MarkdownEditor.Views
 {

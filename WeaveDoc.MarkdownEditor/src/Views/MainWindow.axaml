@@ -15,13 +15,13 @@
       <!-- 右侧预览：显示由 MarkdownService 生成的 HTML（以文本形式展示） -->
       <ScrollViewer Grid.Column="1" Background="#FFF8F8F8" Padding="8">
         <StackPanel>
-          <TextBlock x:Name="PreviewTextBlock" TextWrapping="Wrap" Foreground="Black" FontSize="14" />
+          <TextBlock x:Name="PreviewTextBlock" TextWrapping="Wrap" Foreground="Black" FontSize="14" Text="{Binding Html}" />
           <!-- 调试信息：显示原始 HTML 与解码后长度，临时显示以便诊断 -->
           <Border BorderBrush="#FFDDDDDD" BorderThickness="1" Margin="0,8,0,0" Padding="6" Background="#FFFFFFFF">
             <StackPanel>
               <TextBlock Text="[Debug] Raw HTML:" FontWeight="Bold" FontSize="12" />
-              <TextBlock x:Name="DebugRawHtml" TextWrapping="Wrap" FontSize="12" Foreground="#333333" />
-              <TextBlock x:Name="DebugInfo" Margin="0,6,0,0" Foreground="#666666" FontSize="12" />
+              <TextBlock x:Name="DebugRawHtml" TextWrapping="Wrap" FontSize="12" Foreground="#333333" Text="{Binding Html}" />
+              <TextBlock x:Name="DebugInfo" Margin="0,6,0,0" Foreground="#666666" FontSize="12" Text="{Binding Html.Length, StringFormat='HTML Length: {0}'}" />
             </StackPanel>
           </Border>
         </StackPanel>

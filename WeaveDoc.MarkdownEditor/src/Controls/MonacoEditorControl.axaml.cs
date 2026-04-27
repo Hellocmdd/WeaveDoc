@@ -111,8 +111,26 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         UpdateControllerBounds(root);
 
                         // Monitor layout changes to resize controller
-                        this.LayoutUpdated += (_, __) => UpdateControllerBounds(root);
-                        root.SizeChanged += (_, __) => UpdateControllerBounds(root);
+                        this.LayoutUpdated += (_, __) => 
+                        {
+                            Logger.Log("MonacoEditorControl: LayoutUpdated event triggered");
+                            UpdateControllerBounds(root);
+                        };
+                        root.SizeChanged += (_, __) => 
+                        {
+                            Logger.Log("MonacoEditorControl: SizeChanged event triggered");
+                            UpdateControllerBounds(root);
+                        };
+                        
+                        // Also monitor position changes
+                        this.PropertyChanged += (_, e) => 
+                        {
+                            if (e.Property.Name == nameof(Bounds))
+                            {
+                                Logger.Log("MonacoEditorControl: Bounds property changed");
+                                UpdateControllerBounds(root);
+                            }
+                        };
 
                         // Wire up messages from web
                         _webview.WebMessageReceived += Webview_WebMessageReceived;
@@ -123,8 +141,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             _isWebViewReady = true;
                             Logger.Log("MonacoEditorControl: WebView navigation completed");
                             
-                            // 【新增】强制打开开发者工具以便调试
-                            try 
+                            // 【注释掉】强制打开开发者工具以便调试
+                            /*
+try 
                             {
                                 _webview.OpenDevToolsWindow();
                             } 
@@ -132,6 +151,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             {
                                 Logger.LogException(devEx);
                             }
+                            */
 
                             // If there's pending content, set it now
                             if (!string.IsNullOrEmpty(_pendingContent))
@@ -219,17 +239,17 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 if (root != null)
                 {
-                    // Calculate the bounds of this control relative to the window
-                    var controlBounds = this.Bounds;
-                    // var windowBounds = root.Bounds; // 未使用，可保留或删除
+                    // 直接使用控件的边界，简化计算
+                    var bounds = this.Bounds;
                     
                     // Position WebView2 to cover this control's area
-                    var x = (int)controlBounds.X;
-                    var y = (int)controlBounds.Y;
-                    var w = Math.Max(0, (int)controlBounds.Width);
-                    var h = Math.Max(0, (int)controlBounds.Height);
+                    var x = (int)bounds.X;
+                    var y = (int)bounds.Y;
+                    var w = Math.Max(0, (int)bounds.Width);
+                    var h = Math.Max(0, (int)bounds.Height);
                     
                     _controller.Bounds = new System.Drawing.Rectangle(x, y, w, h);
+                    Logger.Log($"MonacoEditorControl: Updated bounds: x={x}, y={y}, w={w}, h={h}");
                 }
             }
             catch (Exception ex)
@@ -245,26 +265,38 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var json = args.WebMessageAsJson;
                 if (string.IsNullOrWhiteSpace(json)) return;
                 
-                var msg = System.Text.Json.JsonSerializer.Deserialize<Message?>(json);
-                if (msg == null) return;
-
-                if (msg.Type == "contentChanged")
+                Logger.Log($"MonacoEditorControl: Received message: {json}");
+                
+                try
                 {
-                    var content = msg.Data?.ToString() ?? string.Empty;
-                    Dispatcher.UIThread.Post(() =>
+                    // 尝试反序列化 JSON
+                    var msg = System.Text.Json.JsonSerializer.Deserialize<Message?>(json);
+                    if (msg == null) return;
+
+                    if (msg.Type == "contentChanged")
                     {
-                        try
+                        var content = msg.Data?.ToString() ?? string.Empty;
+                        Dispatcher.UIThread.Post(() =>
                         {
-                            if (DataContext is MainWindowViewModel vm)
+                            try
                             {
-                                vm.EditorContent = content;
+                                if (DataContext is MainWindowViewModel vm)
+                                {
+                                    vm.EditorContent = content;
+                                }
                             }
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.LogException(ex);
-                        }
-                    });
+                            catch (Exception ex)
+                            {
+                                Logger.LogException(ex);
+                            }
+                        });
+                    }
+                }
+                catch (Exception jsonEx)
+                {
+                    // 详细记录 JSON 解析错误和原始 JSON 数据
+                    Logger.Log($"MonacoEditorControl: JSON parsing error: {jsonEx.Message}");
+                    Logger.Log($"MonacoEditorControl: Raw JSON: {json}");
                 }
             }
             catch (Exception ex)
@@ -301,7 +333,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
             await Task.CompletedTask;
         }
 
-        private record Message(string? Type, object? Data);
+        private class Message
+        {
+            public string? Type { get; set; }
+            public object? Data { get; set; }
+        }
 
         private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
     }
