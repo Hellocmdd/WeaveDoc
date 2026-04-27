@@ -16,7 +16,7 @@
 
       <!-- 右侧预览：显示由 MarkdownService 生成的 HTML（以文本形式展示） -->
       <ScrollViewer Grid.Column="1" Background="#FFF8F8F8" Padding="8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-        <TextBlock TextWrapping="Wrap" Foreground="Black" FontSize="14" Text="Hello WeaveDoc! This is the preview area." />
+        <TextBlock TextWrapping="Wrap" Foreground="Black" FontSize="14" Text="{Binding Html}" />
       </ScrollViewer>
     </Grid>
   </Grid>

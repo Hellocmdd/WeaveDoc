@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {}
+    "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {}
   },
   "projects": {
-    "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {
+    "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
+        "projectUniqueName": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
         "projectName": "WeaveDoc.MarkdownEditor",
-        "projectPath": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
+        "projectPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
         "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
-        "outputPath": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\obj\\",
+        "outputPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config"
