@@ -116,9 +116,18 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             Logger.Log("MonacoEditorControl: LayoutUpdated event triggered");
                             UpdateControllerBounds(root);
                         };
-                        root.SizeChanged += (_, __) => 
+                        
+                        // Monitor control size changes
+                        this.SizeChanged += (_, __) => 
                         {
                             Logger.Log("MonacoEditorControl: SizeChanged event triggered");
+                            UpdateControllerBounds(root);
+                        };
+                        
+                        // Monitor window size changes
+                        root.SizeChanged += (_, __) => 
+                        {
+                            Logger.Log("MonacoEditorControl: Root window SizeChanged event triggered");
                             UpdateControllerBounds(root);
                         };
                         
@@ -132,7 +141,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             }
                         };
                         
-                        // Monitor window resize events
+                        // Monitor window layout changes
                         root.LayoutUpdated += (_, __) => 
                         {
                             Logger.Log("MonacoEditorControl: Root window LayoutUpdated event triggered");
@@ -277,8 +286,22 @@ try
                 {
                     // 通知 Monaco 编辑器更新尺寸
                     var script = $"window.resizeEditor({width}, {height});";
-                    _webview.ExecuteScriptAsync(script);
-                    Logger.Log($"MonacoEditorControl: Resized Monaco editor to {width}x{height}");
+                    Logger.Log($"MonacoEditorControl: Executing script: {script}");
+                    _webview.ExecuteScriptAsync(script).ContinueWith(task =>
+                    {
+                        if (task.IsCompletedSuccessfully)
+                        {
+                            Logger.Log($"MonacoEditorControl: Resized Monaco editor to {width}x{height}");
+                        }
+                        else if (task.IsFaulted)
+                        {
+                            Logger.LogException(task.Exception);
+                        }
+                    });
+                }
+                else
+                {
+                    Logger.Log("MonacoEditorControl: _webview is null, cannot resize Monaco editor");
                 }
             }
             catch (Exception ex)
