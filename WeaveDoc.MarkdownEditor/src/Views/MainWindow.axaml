@@ -39,8 +39,10 @@
     
     <!-- 左编辑器 / 右预览 布局 -->
     <Grid Grid.Row="3" ColumnDefinitions="*, *" Margin="8">
-      <!-- 左侧编辑器：使用 Monaco Editor 控件 -->
-      <controls:MonacoEditorControl Grid.Column="0" DataContext="{Binding}" />
+      <!-- 左侧编辑器：使用 Avalonia 内置的 TextBox 控件作为临时解决方案 -->
+      <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        <TextBox TextWrapping="Wrap" AcceptsReturn="True" Text="{Binding EditorContent, Mode=TwoWay}" /> 
+      </ScrollViewer>
 
       <!-- 右侧预览：显示由 MarkdownService 生成的 HTML（以文本形式展示） -->
       <ScrollViewer Grid.Column="1" Background="#FFF8F8F8" Padding="8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
