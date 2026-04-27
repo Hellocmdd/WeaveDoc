@@ -22,11 +22,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
         public MonacoEditorControl()
         {
             InitializeComponent();
-            Loaded += OnLoaded;
-            Unloaded += OnUnloaded;
-            LayoutUpdated += OnLayoutUpdated;
-            SizeChanged += OnSizeChanged;
-            PropertyChanged += OnPropertyChanged;
+            // 暂时移除所有事件处理程序，以便应用程序能够启动并显示右侧预览
+            // Loaded += OnLoaded;
+            // Unloaded += OnUnloaded;
+            // LayoutUpdated += OnLayoutUpdated;
+            // SizeChanged += OnSizeChanged;
+            // PropertyChanged += OnPropertyChanged;
         }
 
         private void OnLoaded(object? sender, EventArgs e)
