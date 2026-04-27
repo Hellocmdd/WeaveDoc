@@ -117,5 +117,131 @@ namespace WeaveDoc.MarkdownEditor.Views
         {
             await SaveMarkdownFileAsAsync();
         }
+        
+        // 工具栏按钮事件处理程序
+        
+        /// <summary>
+        /// 处理粗体按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void BoldButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("**", "**");
+        }
+        
+        /// <summary>
+        /// 处理斜体按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void ItalicButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("*", "*");
+        }
+        
+        /// <summary>
+        /// 处理下划线按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void UnderlineButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("<u>", "</u>");
+        }
+        
+        /// <summary>
+        /// 处理一级标题按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void H1Button_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("# ", "");
+        }
+        
+        /// <summary>
+        /// 处理二级标题按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void H2Button_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("## ", "");
+        }
+        
+        /// <summary>
+        /// 处理三级标题按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void H3Button_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("### ", "");
+        }
+        
+        /// <summary>
+        /// 处理无序列表按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void BulletListButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("- ", "");
+        }
+        
+        /// <summary>
+        /// 处理有序列表按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void NumberedListButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("1. ", "");
+        }
+        
+        /// <summary>
+        /// 处理代码块按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void CodeBlockButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("```\n", "\n```");
+        }
+        
+        /// <summary>
+        /// 处理链接按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void LinkButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("[链接文本](", ")");
+        }
+        
+        /// <summary>
+        /// 处理图片按钮点击事件
+        /// </summary>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="e">事件参数</param>
+        private void ImageButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            InsertMarkdownSyntax("![图片描述](", ")");
+        }
+        
+        /// <summary>
+        /// 在编辑器中插入 Markdown 语法
+        /// </summary>
+        /// <param name="prefix">前缀</param>
+        /// <param name="suffix">后缀</param>
+        private void InsertMarkdownSyntax(string prefix, string suffix)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                // 简单实现：在编辑器内容末尾添加语法
+                vm.EditorContent += prefix + suffix;
+            }
+        }
     }
 }
