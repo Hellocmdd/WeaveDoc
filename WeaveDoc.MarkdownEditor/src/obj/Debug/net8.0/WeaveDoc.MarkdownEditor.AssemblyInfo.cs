@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WeaveDoc.MarkdownEditor")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+12a5a0736be7f4b646482d25773c9fb0052c2361")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d04b7160ead133e2ba32b22b9931d9b222bb688b")]
 [assembly: System.Reflection.AssemblyProductAttribute("WeaveDoc.MarkdownEditor")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WeaveDoc.MarkdownEditor")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

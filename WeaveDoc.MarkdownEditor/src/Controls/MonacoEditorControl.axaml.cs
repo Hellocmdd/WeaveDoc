@@ -237,6 +237,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     Logger.Log("MonacoEditorControl: WebView navigation completed");
                     _isWebViewReady = true;
 
+                    // 导航完成后手动更新控制器大小和位置
+                    UpdateControllerBounds();
+                    Logger.Log("MonacoEditorControl: Updated bounds after navigation");
+
                     if (!string.IsNullOrEmpty(_pendingContent))
                     {
                         SetContentAsync(_pendingContent);

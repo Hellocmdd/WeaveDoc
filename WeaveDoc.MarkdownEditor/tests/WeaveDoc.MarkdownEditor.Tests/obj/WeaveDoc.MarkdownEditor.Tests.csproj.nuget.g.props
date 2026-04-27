@@ -13,14 +13,18 @@
     <SourceRoot Include="C:\Users\Administrator\.nuget\packages\" />
   </ItemGroup>
   <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
-    <Import Project="$(NuGetPackageRoot)xunit.runner.visualstudio\2.4.3\build\netcoreapp2.1\xunit.runner.visualstudio.props" Condition="Exists('$(NuGetPackageRoot)xunit.runner.visualstudio\2.4.3\build\netcoreapp2.1\xunit.runner.visualstudio.props')" />
-    <Import Project="$(NuGetPackageRoot)xunit.core\2.4.1\build\xunit.core.props" Condition="Exists('$(NuGetPackageRoot)xunit.core\2.4.1\build\xunit.core.props')" />
-    <Import Project="$(NuGetPackageRoot)microsoft.testplatform.testhost\17.0.0\build\netcoreapp2.1\Microsoft.TestPlatform.TestHost.props" Condition="Exists('$(NuGetPackageRoot)microsoft.testplatform.testhost\17.0.0\build\netcoreapp2.1\Microsoft.TestPlatform.TestHost.props')" />
-    <Import Project="$(NuGetPackageRoot)microsoft.codecoverage\17.0.0\build\netstandard1.0\Microsoft.CodeCoverage.props" Condition="Exists('$(NuGetPackageRoot)microsoft.codecoverage\17.0.0\build\netstandard1.0\Microsoft.CodeCoverage.props')" />
-    <Import Project="$(NuGetPackageRoot)microsoft.net.test.sdk\17.0.0\build\netcoreapp2.1\Microsoft.NET.Test.Sdk.props" Condition="Exists('$(NuGetPackageRoot)microsoft.net.test.sdk\17.0.0\build\netcoreapp2.1\Microsoft.NET.Test.Sdk.props')" />
+    <Import Project="$(NuGetPackageRoot)skiasharp.nativeassets.webassembly\2.88.8\buildTransitive\netstandard1.0\SkiaSharp.NativeAssets.WebAssembly.props" Condition="Exists('$(NuGetPackageRoot)skiasharp.nativeassets.webassembly\2.88.8\buildTransitive\netstandard1.0\SkiaSharp.NativeAssets.WebAssembly.props')" />
+    <Import Project="$(NuGetPackageRoot)harfbuzzsharp.nativeassets.webassembly\7.3.0.2\buildTransitive\netstandard1.0\HarfBuzzSharp.NativeAssets.WebAssembly.props" Condition="Exists('$(NuGetPackageRoot)harfbuzzsharp.nativeassets.webassembly\7.3.0.2\buildTransitive\netstandard1.0\HarfBuzzSharp.NativeAssets.WebAssembly.props')" />
+    <Import Project="$(NuGetPackageRoot)avalonia\11.1.0\buildTransitive\Avalonia.props" Condition="Exists('$(NuGetPackageRoot)avalonia\11.1.0\buildTransitive\Avalonia.props')" />
+    <Import Project="$(NuGetPackageRoot)nunit3testadapter\4.5.0\build\netcoreapp3.1\NUnit3TestAdapter.props" Condition="Exists('$(NuGetPackageRoot)nunit3testadapter\4.5.0\build\netcoreapp3.1\NUnit3TestAdapter.props')" />
+    <Import Project="$(NuGetPackageRoot)nunit\4.1.0\build\NUnit.props" Condition="Exists('$(NuGetPackageRoot)nunit\4.1.0\build\NUnit.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.testplatform.testhost\17.10.0\build\netcoreapp3.1\Microsoft.TestPlatform.TestHost.props" Condition="Exists('$(NuGetPackageRoot)microsoft.testplatform.testhost\17.10.0\build\netcoreapp3.1\Microsoft.TestPlatform.TestHost.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.codecoverage\17.10.0\build\netstandard2.0\Microsoft.CodeCoverage.props" Condition="Exists('$(NuGetPackageRoot)microsoft.codecoverage\17.10.0\build\netstandard2.0\Microsoft.CodeCoverage.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.net.test.sdk\17.10.0\build\netcoreapp3.1\Microsoft.NET.Test.Sdk.props" Condition="Exists('$(NuGetPackageRoot)microsoft.net.test.sdk\17.10.0\build\netcoreapp3.1\Microsoft.NET.Test.Sdk.props')" />
   </ImportGroup>
   <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
-    <Pkgxunit_analyzers Condition=" '$(Pkgxunit_analyzers)' == '' ">C:\Users\Administrator\.nuget\packages\xunit.analyzers\0.10.0</Pkgxunit_analyzers>
-    <PkgNewtonsoft_Json Condition=" '$(PkgNewtonsoft_Json)' == '' ">C:\Users\Administrator\.nuget\packages\newtonsoft.json\9.0.1</PkgNewtonsoft_Json>
+    <PkgMicrosoft_Web_WebView2 Condition=" '$(PkgMicrosoft_Web_WebView2)' == '' ">C:\Users\Administrator\.nuget\packages\microsoft.web.webview2\1.0.2592.51</PkgMicrosoft_Web_WebView2>
+    <PkgAvalonia_BuildServices Condition=" '$(PkgAvalonia_BuildServices)' == '' ">C:\Users\Administrator\.nuget\packages\avalonia.buildservices\0.0.29</PkgAvalonia_BuildServices>
+    <PkgAvalonia Condition=" '$(PkgAvalonia)' == '' ">C:\Users\Administrator\.nuget\packages\avalonia\11.1.0</PkgAvalonia>
   </PropertyGroup>
 </Project>

@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System;
 using WeaveDoc.MarkdownEditor.Services;
 
 namespace WeaveDoc.MarkdownEditor.Tests
@@ -25,7 +26,7 @@ namespace WeaveDoc.MarkdownEditor.Tests
             var result = _markdownService.ConvertToHtml(markdown);
 
             // Assert
-            Assert.AreEqual(expectedHtml, result);
+            Assert.That(result, Is.EqualTo(expectedHtml));
         }
 
         [Test]
@@ -38,7 +39,7 @@ namespace WeaveDoc.MarkdownEditor.Tests
             var result = _markdownService.ConvertToHtml(markdown);
 
             // Assert
-            Assert.AreEqual(string.Empty, result);
+            Assert.That(result, Is.EqualTo(string.Empty));
         }
 
         [Test]
