@@ -10,8 +10,9 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
 
         public MainWindowViewModel()
         {
-            // 设置默认的编辑器内容，这样右侧预览就会显示内容
-            EditorContent = "# Hello WeaveDoc!\n\nStart typing markdown here...";
+            // 直接设置 Html 属性，这样右侧预览就会显示内容
+            _html = "<h1>Hello WeaveDoc!</h1>\n<p>Start typing markdown here...</p>";
+            OnPropertyChanged(nameof(Html));
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
