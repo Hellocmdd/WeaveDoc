@@ -22,12 +22,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
         public MonacoEditorControl()
         {
             InitializeComponent();
-            // 暂时移除所有事件处理程序，以便应用程序能够启动并显示右侧预览
-            // Loaded += OnLoaded;
-            // Unloaded += OnUnloaded;
-            // LayoutUpdated += OnLayoutUpdated;
-            // SizeChanged += OnSizeChanged;
-            // PropertyChanged += OnPropertyChanged;
+            // 恢复事件处理程序，以便 Monaco Editor 能够正常工作
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
+            LayoutUpdated += OnLayoutUpdated;
+            SizeChanged += OnSizeChanged;
+            PropertyChanged += OnPropertyChanged;
         }
 
         private void OnLoaded(object? sender, EventArgs e)
@@ -62,20 +62,83 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        private void InitializeWebViewAsync()
+        private async void InitializeWebViewAsync()
         {
             try
             {
                 Logger.Log("MonacoEditorControl: Starting WebView2 initialization...");
                 
-                // 暂时注释掉 WebView2 初始化代码，以便应用程序能够启动并显示右侧预览
-                Logger.Log("MonacoEditorControl: WebView2 initialization skipped for testing");
+                // 获取当前控件的父窗口
+                var window = this.VisualRoot as Window;
+                if (window == null)
+                {
+                    Logger.Log("MonacoEditorControl: Could not get parent window");
+                    return;
+                }
+                
+                // 创建 WebView2 控件
+                var webView = new WebView2();
+                
+                // 初始化 WebView2 环境
+                Logger.Log("MonacoEditorControl: Initializing WebView2 environment...");
+                await webView.EnsureCoreWebView2Async();
+                
+                // 获取 CoreWebView2 实例
+                _webview = webView.CoreWebView2;
+                if (_webview == null)
+                {
+                    Logger.Log("MonacoEditorControl: Failed to get CoreWebView2 instance");
+                    return;
+                }
+                
+                // 获取 CoreWebView2Controller 实例
+                _controller = webView.CoreWebView2Controller;
+                if (_controller == null)
+                {
+                    Logger.Log("MonacoEditorControl: Failed to get CoreWebView2Controller instance");
+                    return;
+                }
+                
+                // 设置 WebView2 事件处理程序
+                _webview.WebMessageReceived += Webview_WebMessageReceived;
+                _webview.NavigationCompleted += Webview_NavigationCompleted;
+                
+                // 禁用开发者工具
+                // _webview.OpenDevToolsWindow();
+                
+                // 加载 Monaco Editor HTML 文件
+                var htmlPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "monaco-editor", "index.html");
+                Logger.Log($"MonacoEditorControl: Loading Monaco Editor from: {htmlPath}");
+                _webview.Navigate(htmlPath);
+                
+                // 将 WebView2 控件添加到窗口
+                if (window.PlatformImpl is Avalonia.Win32.WindowImpl win32Impl)
+                {
+                    var hwnd = win32Impl.Handle.Handle;
+                    var webViewHwnd = webView.Handle;
+                    
+                    // 设置 WebView2 控件的父窗口
+                    SetParent(webViewHwnd, hwnd);
+                    
+                    // 更新 WebView2 控件的边界
+                    UpdateControllerBounds(window);
+                    
+                    Logger.Log("MonacoEditorControl: WebView2 initialized successfully");
+                }
+                else
+                {
+                    Logger.Log("MonacoEditorControl: Not running on Win32 platform");
+                }
             }
             catch (Exception ex)
             {
                 Logger.LogException(ex);
             }
         }
+        
+        // 导入 SetParent 函数
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
 
         private void UpdateControllerBounds(Window? root = null)
         {
