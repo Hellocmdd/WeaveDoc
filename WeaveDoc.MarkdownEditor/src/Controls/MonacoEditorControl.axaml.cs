@@ -246,17 +246,39 @@ try
 
                 if (root != null)
                 {
-                    // 直接使用控件的边界，简化计算
+                    // 使用更简单的方法计算位置和尺寸
+                    // 直接使用控件的边界，因为 WebView2 是直接添加到窗口的
                     var bounds = this.Bounds;
                     
                     // Position WebView2 to cover this control's area
-                    var x = (int)bounds.X;
-                    var y = (int)bounds.Y;
+                    var x = (int)bounds.X + 8; // 加上边距
+                    var y = (int)bounds.Y + 36; // 加上标题栏高度和边距
                     var w = Math.Max(0, (int)bounds.Width);
                     var h = Math.Max(0, (int)bounds.Height);
                     
                     _controller.Bounds = new System.Drawing.Rectangle(x, y, w, h);
                     Logger.Log($"MonacoEditorControl: Updated bounds: x={x}, y={y}, w={w}, h={h}");
+                    
+                    // 通知 Monaco 编辑器更新尺寸
+                    UpdateMonacoSize(w, h);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+        }
+        
+        private void UpdateMonacoSize(int width, int height)
+        {
+            try
+            {
+                if (_webview != null)
+                {
+                    // 通知 Monaco 编辑器更新尺寸
+                    var script = $"window.resizeEditor({width}, {height});";
+                    _webview.ExecuteScriptAsync(script);
+                    Logger.Log($"MonacoEditorControl: Resized Monaco editor to {width}x{height}");
                 }
             }
             catch (Exception ex)

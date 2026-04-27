@@ -58,7 +58,28 @@
                 });
             }
             
+            // 暴露 resizeEditor 函数给 C# 调用
+            window.resizeEditor = function(width, height) {
+                try {
+                    var editorElement = document.getElementById('editor');
+                    if (editorElement) {
+                        editorElement.style.width = width + 'px';
+                        editorElement.style.height = height + 'px';
+                        // 通知 Monaco 编辑器布局发生变化
+                        if (editor) {
+                            editor.layout();
+                        }
+                        console.log('Resized editor to ' + width + 'x' + height);
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            };
+            
             console.log("Monaco Editor Loaded Successfully");
+            
+            // 初始化时设置编辑器尺寸
+            window.resizeEditor(window.innerWidth, window.innerHeight);
         });
     </script>
 </body>
