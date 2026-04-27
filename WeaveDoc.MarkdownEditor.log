@@ -469,3 +469,370 @@
 [2026-04-27 10:20:37.479] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆\"}"
 [2026-04-27 10:20:37.480] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 115.
 [2026-04-27 10:20:37.480] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆\"}"
+[2026-04-27 10:21:33.735] MonacoEditorControl: Bounds property changed
+[2026-04-27 10:21:33.737] MonacoEditorControl: Updated bounds: x=22, y=194, w=800, h=600
+[2026-04-27 10:21:33.738] MonacoEditorControl: SizeChanged event triggered
+[2026-04-27 10:21:33.738] MonacoEditorControl: Updated bounds: x=22, y=194, w=800, h=600
+[2026-04-27 10:21:33.739] MonacoEditorControl: LayoutUpdated event triggered
+[2026-04-27 10:21:33.739] MonacoEditorControl: Updated bounds: x=22, y=194, w=800, h=600
+[2026-04-27 10:21:37.164] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿\"}"
+[2026-04-27 10:21:37.164] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 118.
+[2026-04-27 10:21:37.165] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿\"}"
+[2026-04-27 10:21:37.165] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\"}"
+[2026-04-27 10:21:37.165] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 121.
+[2026-04-27 10:21:37.166] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\"}"
+[2026-04-27 10:21:37.773] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n\"}"
+[2026-04-27 10:21:37.774] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 124.
+[2026-04-27 10:21:37.775] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n\"}"
+[2026-04-27 10:21:39.623] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒\"}"
+[2026-04-27 10:21:39.624] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 127.
+[2026-04-27 10:21:39.624] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒\"}"
+[2026-04-27 10:21:39.624] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒好\"}"
+[2026-04-27 10:21:39.625] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 130.
+[2026-04-27 10:21:39.625] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒好\"}"
+[2026-04-27 10:21:39.625] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒好的\"}"
+[2026-04-27 10:21:39.625] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 133.
+[2026-04-27 10:21:39.626] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒好的\"}"
+[2026-04-27 10:21:39.626] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒好的撒\"}"
+[2026-04-27 10:21:39.626] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 136.
+[2026-04-27 10:21:39.626] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒好的撒\"}"
+[2026-04-27 10:21:39.626] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒好的撒谎\"}"
+[2026-04-27 10:21:39.627] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 139.
+[2026-04-27 10:21:39.627] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒好的撒谎\"}"
+[2026-04-27 10:21:40.366] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒好的撒谎\\n\"}"
+[2026-04-27 10:21:40.366] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 142.
+[2026-04-27 10:21:40.367] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here.Hello world\\n大胆阿达\\n撒好的撒谎\\n\"}"
+[2026-04-27 10:21:43.829] MonacoEditorControl: Bounds property changed
+[2026-04-27 10:21:43.832] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:21:43.833] MonacoEditorControl: SizeChanged event triggered
+[2026-04-27 10:21:43.834] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:21:43.834] MonacoEditorControl: LayoutUpdated event triggered
+[2026-04-27 10:21:43.835] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:21:56.511] MonacoEditorControl: Bounds property changed
+[2026-04-27 10:21:56.512] MonacoEditorControl: Updated bounds: x=22, y=194, w=800, h=600
+[2026-04-27 10:21:56.513] MonacoEditorControl: SizeChanged event triggered
+[2026-04-27 10:21:56.513] MonacoEditorControl: Updated bounds: x=22, y=194, w=800, h=600
+[2026-04-27 10:21:56.514] MonacoEditorControl: LayoutUpdated event triggered
+[2026-04-27 10:21:56.514] MonacoEditorControl: Updated bounds: x=22, y=194, w=800, h=600
+[2026-04-27 10:21:58.550] MonacoEditorControl: Bounds property changed
+[2026-04-27 10:21:58.552] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:21:58.553] MonacoEditorControl: SizeChanged event triggered
+[2026-04-27 10:21:58.553] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:21:58.553] MonacoEditorControl: LayoutUpdated event triggered
+[2026-04-27 10:21:58.554] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:29:44.252] App: Starting OnFrameworkInitializationCompleted...
+[2026-04-27 10:29:44.276] WebView2 environment created successfully
+[2026-04-27 10:29:44.276] App: Creating MainWindow...
+[2026-04-27 10:29:44.397] App: MainWindow created successfully
+[2026-04-27 10:29:44.397] App: Calling base.OnFrameworkInitializationCompleted()...
+[2026-04-27 10:29:44.398] App: OnFrameworkInitializationCompleted completed
+[2026-04-27 10:29:44.434] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 10:29:44.669] MonacoEditorControl: Got HWND: 1050328
+[2026-04-27 10:29:44.688] MonacoEditorControl: Creating WebView2 controller...
+[2026-04-27 10:29:45.078] MonacoEditorControl: WebView2 controller created
+[2026-04-27 10:29:45.078] MonacoEditorControl: WebView2 core initialized
+[2026-04-27 10:29:45.083] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:29:45.085] MonacoEditorControl: Loading Monaco from: file:///D:/WeaveDoc/Weavedoc.MarkdownEditor/src/bin/Debug/net8.0/Assets/monaco-editor/index.html
+[2026-04-27 10:29:45.086] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 10:29:45.733] MonacoEditorControl: WebView navigation completed
+[2026-04-27 10:30:39.764] App: Starting OnFrameworkInitializationCompleted...
+[2026-04-27 10:30:39.789] WebView2 environment created successfully
+[2026-04-27 10:30:39.789] App: Creating MainWindow...
+[2026-04-27 10:30:39.909] App: MainWindow created successfully
+[2026-04-27 10:30:39.909] App: Calling base.OnFrameworkInitializationCompleted()...
+[2026-04-27 10:30:39.910] App: OnFrameworkInitializationCompleted completed
+[2026-04-27 10:30:39.944] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 10:30:40.202] MonacoEditorControl: Got HWND: 2098258
+[2026-04-27 10:30:40.221] MonacoEditorControl: Creating WebView2 controller...
+[2026-04-27 10:30:40.615] MonacoEditorControl: WebView2 controller created
+[2026-04-27 10:30:40.615] MonacoEditorControl: WebView2 core initialized
+[2026-04-27 10:30:40.619] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:30:40.620] MonacoEditorControl: Loading Monaco from: file:///D:/WeaveDoc/Weavedoc.MarkdownEditor/src/bin/Debug/net8.0/Assets/monaco-editor/index.html
+[2026-04-27 10:30:40.621] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 10:30:41.242] MonacoEditorControl: WebView navigation completed
+[2026-04-27 10:30:48.809] MonacoEditorControl: Bounds property changed
+[2026-04-27 10:30:48.810] MonacoEditorControl: Updated bounds: x=22, y=194, w=800, h=600
+[2026-04-27 10:30:48.810] MonacoEditorControl: SizeChanged event triggered
+[2026-04-27 10:30:48.811] MonacoEditorControl: Updated bounds: x=22, y=194, w=800, h=600
+[2026-04-27 10:30:48.811] MonacoEditorControl: LayoutUpdated event triggered
+[2026-04-27 10:30:48.811] MonacoEditorControl: Updated bounds: x=22, y=194, w=800, h=600
+[2026-04-27 10:30:48.812] MonacoEditorControl: Root window LayoutUpdated event triggered
+[2026-04-27 10:30:48.812] MonacoEditorControl: Updated bounds: x=22, y=194, w=800, h=600
+[2026-04-27 10:30:52.623] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n\"}"
+[2026-04-27 10:30:52.640] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 100.
+[2026-04-27 10:30:52.641] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n\"}"
+[2026-04-27 10:30:55.668] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#\"}"
+[2026-04-27 10:30:55.669] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 101.
+[2026-04-27 10:30:55.670] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#\"}"
+[2026-04-27 10:30:58.894] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#i\"}"
+[2026-04-27 10:30:58.895] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 102.
+[2026-04-27 10:30:58.895] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#i\"}"
+[2026-04-27 10:30:58.896] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#in\"}"
+[2026-04-27 10:30:58.896] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 103.
+[2026-04-27 10:30:58.897] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#in\"}"
+[2026-04-27 10:30:58.897] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#inc\"}"
+[2026-04-27 10:30:58.897] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 104.
+[2026-04-27 10:30:58.898] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#inc\"}"
+[2026-04-27 10:30:58.898] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#incl\"}"
+[2026-04-27 10:30:58.898] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 105.
+[2026-04-27 10:30:58.898] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#incl\"}"
+[2026-04-27 10:30:58.899] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#inclu\"}"
+[2026-04-27 10:30:58.899] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 106.
+[2026-04-27 10:30:58.899] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#inclu\"}"
+[2026-04-27 10:30:58.899] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#includ\"}"
+[2026-04-27 10:30:58.899] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 107.
+[2026-04-27 10:30:58.899] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#includ\"}"
+[2026-04-27 10:30:58.900] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include\"}"
+[2026-04-27 10:30:58.900] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 108.
+[2026-04-27 10:30:58.900] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include\"}"
+[2026-04-27 10:31:02.198] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<>\"}"
+[2026-04-27 10:31:02.199] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 110.
+[2026-04-27 10:31:02.199] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<>\"}"
+[2026-04-27 10:31:02.772] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<i>\"}"
+[2026-04-27 10:31:02.773] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 111.
+[2026-04-27 10:31:02.773] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<i>\"}"
+[2026-04-27 10:31:02.915] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<io>\"}"
+[2026-04-27 10:31:02.916] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 112.
+[2026-04-27 10:31:02.916] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<io>\"}"
+[2026-04-27 10:31:03.098] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<ios>\"}"
+[2026-04-27 10:31:03.099] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 113.
+[2026-04-27 10:31:03.100] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<ios>\"}"
+[2026-04-27 10:31:03.843] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iost>\"}"
+[2026-04-27 10:31:03.843] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 114.
+[2026-04-27 10:31:03.843] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iost>\"}"
+[2026-04-27 10:31:03.996] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostr>\"}"
+[2026-04-27 10:31:03.997] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 115.
+[2026-04-27 10:31:03.997] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostr>\"}"
+[2026-04-27 10:31:04.068] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostre>\"}"
+[2026-04-27 10:31:04.069] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 116.
+[2026-04-27 10:31:04.069] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostre>\"}"
+[2026-04-27 10:31:04.299] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostrea>\"}"
+[2026-04-27 10:31:04.300] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 117.
+[2026-04-27 10:31:04.300] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostrea>\"}"
+[2026-04-27 10:31:04.450] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\"}"
+[2026-04-27 10:31:04.451] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 118.
+[2026-04-27 10:31:04.451] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\"}"
+[2026-04-27 10:31:05.987] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\n\"}"
+[2026-04-27 10:31:05.988] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 121.
+[2026-04-27 10:31:05.988] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\n\"}"
+[2026-04-27 10:31:06.619] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nu\"}"
+[2026-04-27 10:31:06.619] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 122.
+[2026-04-27 10:31:06.620] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nu\"}"
+[2026-04-27 10:31:06.714] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nus\"}"
+[2026-04-27 10:31:06.715] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 123.
+[2026-04-27 10:31:06.715] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nus\"}"
+[2026-04-27 10:31:06.882] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusi\"}"
+[2026-04-27 10:31:06.883] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 124.
+[2026-04-27 10:31:06.883] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusi\"}"
+[2026-04-27 10:31:07.026] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusin\"}"
+[2026-04-27 10:31:07.027] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 125.
+[2026-04-27 10:31:07.028] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusin\"}"
+[2026-04-27 10:31:07.042] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing\"}"
+[2026-04-27 10:31:07.042] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 126.
+[2026-04-27 10:31:07.043] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing\"}"
+[2026-04-27 10:31:07.588] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing \"}"
+[2026-04-27 10:31:07.589] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 127.
+[2026-04-27 10:31:07.590] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing \"}"
+[2026-04-27 10:31:07.788] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing n\"}"
+[2026-04-27 10:31:07.788] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 128.
+[2026-04-27 10:31:07.788] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing n\"}"
+[2026-04-27 10:31:07.939] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing ne\"}"
+[2026-04-27 10:31:07.940] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 129.
+[2026-04-27 10:31:07.940] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing ne\"}"
+[2026-04-27 10:31:08.459] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing nem\"}"
+[2026-04-27 10:31:08.460] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 130.
+[2026-04-27 10:31:08.460] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing nem\"}"
+[2026-04-27 10:31:08.763] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing ne\"}"
+[2026-04-27 10:31:08.764] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 129.
+[2026-04-27 10:31:08.764] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing ne\"}"
+[2026-04-27 10:31:08.915] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing n\"}"
+[2026-04-27 10:31:08.915] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 128.
+[2026-04-27 10:31:08.915] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing n\"}"
+[2026-04-27 10:31:09.116] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing na\"}"
+[2026-04-27 10:31:09.116] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 129.
+[2026-04-27 10:31:09.116] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing na\"}"
+[2026-04-27 10:31:09.180] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing nam\"}"
+[2026-04-27 10:31:09.180] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 130.
+[2026-04-27 10:31:09.181] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing nam\"}"
+[2026-04-27 10:31:09.396] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing name\"}"
+[2026-04-27 10:31:09.397] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 131.
+[2026-04-27 10:31:09.397] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing name\"}"
+[2026-04-27 10:31:09.507] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing names\"}"
+[2026-04-27 10:31:09.508] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 132.
+[2026-04-27 10:31:09.508] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing names\"}"
+[2026-04-27 10:31:09.650] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namesp\"}"
+[2026-04-27 10:31:09.651] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 133.
+[2026-04-27 10:31:09.651] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namesp\"}"
+[2026-04-27 10:31:09.772] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespa\"}"
+[2026-04-27 10:31:09.772] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 134.
+[2026-04-27 10:31:09.772] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespa\"}"
+[2026-04-27 10:31:09.908] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespac\"}"
+[2026-04-27 10:31:09.908] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 135.
+[2026-04-27 10:31:09.909] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespac\"}"
+[2026-04-27 10:31:10.084] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace\"}"
+[2026-04-27 10:31:10.085] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 136.
+[2026-04-27 10:31:10.085] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace\"}"
+[2026-04-27 10:31:10.226] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace \"}"
+[2026-04-27 10:31:10.227] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 137.
+[2026-04-27 10:31:10.227] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace \"}"
+[2026-04-27 10:31:10.258] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace s\"}"
+[2026-04-27 10:31:10.259] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 138.
+[2026-04-27 10:31:10.260] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace s\"}"
+[2026-04-27 10:31:10.411] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace st\"}"
+[2026-04-27 10:31:10.412] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 139.
+[2026-04-27 10:31:10.413] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace st\"}"
+[2026-04-27 10:31:10.563] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\"}"
+[2026-04-27 10:31:10.563] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 140.
+[2026-04-27 10:31:10.564] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\"}"
+[2026-04-27 10:31:11.724] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\"}"
+[2026-04-27 10:31:11.725] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 143.
+[2026-04-27 10:31:11.725] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\"}"
+[2026-04-27 10:31:12.037] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\ns\"}"
+[2026-04-27 10:31:12.037] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 144.
+[2026-04-27 10:31:12.038] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\ns\"}"
+[2026-04-27 10:31:14.364] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\"}"
+[2026-04-27 10:31:14.364] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 143.
+[2026-04-27 10:31:14.365] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\"}"
+[2026-04-27 10:31:15.147] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\"}"
+[2026-04-27 10:31:15.147] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 140.
+[2026-04-27 10:31:15.147] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\"}"
+[2026-04-27 10:31:16.843] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std;\"}"
+[2026-04-27 10:31:16.843] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 141.
+[2026-04-27 10:31:16.844] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std;\"}"
+[2026-04-27 10:31:17.603] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\"}"
+[2026-04-27 10:31:17.603] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 140.
+[2026-04-27 10:31:17.604] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\"}"
+[2026-04-27 10:31:17.924] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\"}"
+[2026-04-27 10:31:17.925] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 143.
+[2026-04-27 10:31:17.925] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\"}"
+[2026-04-27 10:31:18.291] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\n\"}"
+[2026-04-27 10:31:18.292] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 146.
+[2026-04-27 10:31:18.293] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\n\"}"
+[2026-04-27 10:31:18.915] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\ni\"}"
+[2026-04-27 10:31:18.916] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 147.
+[2026-04-27 10:31:18.916] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\ni\"}"
+[2026-04-27 10:31:19.090] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nin\"}"
+[2026-04-27 10:31:19.091] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 148.
+[2026-04-27 10:31:19.091] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nin\"}"
+[2026-04-27 10:31:19.196] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint\"}"
+[2026-04-27 10:31:19.196] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 149.
+[2026-04-27 10:31:19.197] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint\"}"
+[2026-04-27 10:31:19.843] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint \"}"
+[2026-04-27 10:31:19.844] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 150.
+[2026-04-27 10:31:19.845] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint \"}"
+[2026-04-27 10:31:20.196] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint m\"}"
+[2026-04-27 10:31:20.196] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 151.
+[2026-04-27 10:31:20.197] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint m\"}"
+[2026-04-27 10:31:20.355] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint ma\"}"
+[2026-04-27 10:31:20.355] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 152.
+[2026-04-27 10:31:20.356] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint ma\"}"
+[2026-04-27 10:31:20.467] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint mai\"}"
+[2026-04-27 10:31:20.467] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 153.
+[2026-04-27 10:31:20.468] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint mai\"}"
+[2026-04-27 10:31:20.594] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main\"}"
+[2026-04-27 10:31:20.595] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 154.
+[2026-04-27 10:31:20.596] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main\"}"
+[2026-04-27 10:31:22.026] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\"}"
+[2026-04-27 10:31:22.027] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 156.
+[2026-04-27 10:31:22.028] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\"}"
+[2026-04-27 10:31:22.139] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\"}"
+[2026-04-27 10:31:22.139] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 156.
+[2026-04-27 10:31:22.140] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\"}"
+[2026-04-27 10:31:22.635] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n\"}"
+[2026-04-27 10:31:22.635] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 159.
+[2026-04-27 10:31:22.636] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n\"}"
+[2026-04-27 10:31:23.763] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{}\"}"
+[2026-04-27 10:31:23.763] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 161.
+[2026-04-27 10:31:23.763] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{}\"}"
+[2026-04-27 10:31:24.021] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    \\n}\"}"
+[2026-04-27 10:31:24.021] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 171.
+[2026-04-27 10:31:24.022] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    \\n}\"}"
+[2026-04-27 10:31:24.914] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    s\\n}\"}"
+[2026-04-27 10:31:24.915] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 172.
+[2026-04-27 10:31:24.915] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    s\\n}\"}"
+[2026-04-27 10:31:25.059] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    sa\\n}\"}"
+[2026-04-27 10:31:25.060] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 173.
+[2026-04-27 10:31:25.060] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    sa\\n}\"}"
+[2026-04-27 10:31:25.220] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    saj\\n}\"}"
+[2026-04-27 10:31:25.221] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 174.
+[2026-04-27 10:31:25.221] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    saj\\n}\"}"
+[2026-04-27 10:31:25.283] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    sajd\\n}\"}"
+[2026-04-27 10:31:25.283] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 175.
+[2026-04-27 10:31:25.284] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    sajd\\n}\"}"
+[2026-04-27 10:31:25.397] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    sajds\\n}\"}"
+[2026-04-27 10:31:25.397] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 176.
+[2026-04-27 10:31:25.398] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    sajds\\n}\"}"
+[2026-04-27 10:31:26.387] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    sajd\\n}\"}"
+[2026-04-27 10:31:26.388] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 175.
+[2026-04-27 10:31:26.388] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    sajd\\n}\"}"
+[2026-04-27 10:31:26.563] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    saj\\n}\"}"
+[2026-04-27 10:31:26.564] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 174.
+[2026-04-27 10:31:26.564] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    saj\\n}\"}"
+[2026-04-27 10:31:26.771] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    sa\\n}\"}"
+[2026-04-27 10:31:26.771] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 173.
+[2026-04-27 10:31:26.772] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    sa\\n}\"}"
+[2026-04-27 10:31:26.954] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    s\\n}\"}"
+[2026-04-27 10:31:26.955] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 172.
+[2026-04-27 10:31:26.956] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    s\\n}\"}"
+[2026-04-27 10:31:27.147] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    \\n}\"}"
+[2026-04-27 10:31:27.148] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 171.
+[2026-04-27 10:31:27.148] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    \\n}\"}"
+[2026-04-27 10:31:28.027] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    p\\n}\"}"
+[2026-04-27 10:31:28.028] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 172.
+[2026-04-27 10:31:28.028] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    p\\n}\"}"
+[2026-04-27 10:31:28.812] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    \\n}\"}"
+[2026-04-27 10:31:28.812] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 171.
+[2026-04-27 10:31:28.813] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    \\n}\"}"
+[2026-04-27 10:31:29.170] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    h\\n}\"}"
+[2026-04-27 10:31:29.171] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 172.
+[2026-04-27 10:31:29.171] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    h\\n}\"}"
+[2026-04-27 10:31:29.315] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    he\\n}\"}"
+[2026-04-27 10:31:29.316] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 173.
+[2026-04-27 10:31:29.316] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    he\\n}\"}"
+[2026-04-27 10:31:29.444] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hel\\n}\"}"
+[2026-04-27 10:31:29.445] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 174.
+[2026-04-27 10:31:29.446] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hel\\n}\"}"
+[2026-04-27 10:31:29.612] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hell\\n}\"}"
+[2026-04-27 10:31:29.612] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 175.
+[2026-04-27 10:31:29.613] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hell\\n}\"}"
+[2026-04-27 10:31:29.843] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hello\\n}\"}"
+[2026-04-27 10:31:29.844] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 176.
+[2026-04-27 10:31:29.845] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hello\\n}\"}"
+[2026-04-27 10:31:30.060] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hellop\\n}\"}"
+[2026-04-27 10:31:30.061] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 177.
+[2026-04-27 10:31:30.061] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hellop\\n}\"}"
+[2026-04-27 10:31:30.715] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hello\\n}\"}"
+[2026-04-27 10:31:30.715] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 176.
+[2026-04-27 10:31:30.715] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hello\\n}\"}"
+[2026-04-27 10:31:30.979] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hellow\\n}\"}"
+[2026-04-27 10:31:30.980] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 177.
+[2026-04-27 10:31:30.981] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hellow\\n}\"}"
+[2026-04-27 10:31:31.348] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hello\\n}\"}"
+[2026-04-27 10:31:31.348] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 176.
+[2026-04-27 10:31:31.348] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hello\\n}\"}"
+[2026-04-27 10:31:31.523] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hell\\n}\"}"
+[2026-04-27 10:31:31.523] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 175.
+[2026-04-27 10:31:31.523] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hell\\n}\"}"
+[2026-04-27 10:31:31.682] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hel\\n}\"}"
+[2026-04-27 10:31:31.683] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 174.
+[2026-04-27 10:31:31.683] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    hel\\n}\"}"
+[2026-04-27 10:31:31.844] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    he\\n}\"}"
+[2026-04-27 10:31:31.845] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 173.
+[2026-04-27 10:31:31.846] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    he\\n}\"}"
+[2026-04-27 10:31:32.027] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    h\\n}\"}"
+[2026-04-27 10:31:32.028] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 172.
+[2026-04-27 10:31:32.028] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    h\\n}\"}"
+[2026-04-27 10:31:32.214] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    \\n}\"}"
+[2026-04-27 10:31:32.214] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 171.
+[2026-04-27 10:31:32.214] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n#include<iostream>\\nusing namespace std\\n\\nint main()\\n{\\n    \\n}\"}"
+[2026-04-27 10:31:33.460] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"\"}"
+[2026-04-27 10:31:33.461] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 45.
+[2026-04-27 10:31:33.462] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"\"}"
+[2026-04-27 10:31:35.941] MonacoEditorControl: Bounds property changed
+[2026-04-27 10:31:35.942] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:31:35.943] MonacoEditorControl: SizeChanged event triggered
+[2026-04-27 10:31:35.944] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:31:35.944] MonacoEditorControl: LayoutUpdated event triggered
+[2026-04-27 10:31:35.945] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600
+[2026-04-27 10:31:35.945] MonacoEditorControl: Root window LayoutUpdated event triggered
+[2026-04-27 10:31:35.945] MonacoEditorControl: Updated bounds: x=-154, y=22, w=800, h=600

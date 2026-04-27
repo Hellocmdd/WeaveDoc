@@ -122,7 +122,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             UpdateControllerBounds(root);
                         };
                         
-                        // Also monitor position changes
+                        // Also monitor position and size changes
                         this.PropertyChanged += (_, e) => 
                         {
                             if (e.Property.Name == nameof(Bounds))
@@ -130,6 +130,13 @@ namespace WeaveDoc.MarkdownEditor.Controls
                                 Logger.Log("MonacoEditorControl: Bounds property changed");
                                 UpdateControllerBounds(root);
                             }
+                        };
+                        
+                        // Monitor window resize events
+                        root.LayoutUpdated += (_, __) => 
+                        {
+                            Logger.Log("MonacoEditorControl: Root window LayoutUpdated event triggered");
+                            UpdateControllerBounds(root);
                         };
 
                         // Wire up messages from web
