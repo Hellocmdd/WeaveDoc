@@ -31,8 +31,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
             PropertyChanged += OnPropertyChanged;
         }
 
-        private void OnLoaded(object? sender, EventArgs e)
+        private async void OnLoaded(object? sender, EventArgs e)
         {
+            // 延迟一下，确保控件完全加载
+            await Task.Delay(100);
             InitializeWebViewAsync();
         }
 
@@ -238,8 +240,15 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     _isWebViewReady = true;
 
                     // 隐藏加载文本
-                    HostBorder.Child = null;
-                    Logger.Log("MonacoEditorControl: Hidden loading text");
+                    if (HostBorder != null)
+                    {
+                        HostBorder.Child = null;
+                        Logger.Log("MonacoEditorControl: Hidden loading text");
+                    }
+                    else
+                    {
+                        Logger.Log("MonacoEditorControl: HostBorder is null, cannot hide loading text");
+                    }
 
                     // 导航完成后手动更新控制器大小和位置
                     UpdateControllerBounds();
