@@ -40,7 +40,9 @@ public sealed class LocalAiService : IDisposable
         "补充要求", "详细", "具体", "展开", "继续", "细一点", "详细一点", "具体一点"
     ];
     private static readonly string[] ExplanationSignals = ["原因", "因为", "导致", "所以", "由于", "为了", "通过", "原理", "机制"];
+    private static readonly string[] CompareSignals = ["区别", "不同", "差异", "相比", "而", "则", "一方面", "另一方面"];
     private static readonly string[] CompositionSignals = ["组成", "构成", "包括", "包含", "模块", "架构", "配置", "条件", "环境", "硬件", "软件", "接口"];
+    private static readonly string[] DefinitionSignals = ["是一种", "是指", "作为", "选用", "采用", "负责", "用于", "核心", "模块"];
     private static readonly string[] ProcedureSignals = ["步骤", "流程", "首先", "然后", "最后", "实现", "方法", "过程"];
     private static readonly string[] ModuleImplementationSignals = ["连接", "通信", "上传", "下发", "展示", "显示", "设定", "触发", "指令", "链路", "协议", "服务器", "app", "json"];
     private static readonly string[] UsageSignals = ["用于", "作用", "用途", "负责", "实现", "控制", "采集", "识别", "管理"];
@@ -2028,6 +2030,7 @@ public sealed class LocalAiService : IDisposable
         {
             expansions.Add("硬件设计");
             expansions.Add("主控");
+            expansions.Add("主控芯片");
             expansions.Add("传感器");
             expansions.Add("通信");
             expansions.Add("显示");
@@ -2045,6 +2048,43 @@ public sealed class LocalAiService : IDisposable
             expansions.Add("依赖");
             expansions.Add("模块");
             expansions.Add("配置");
+        }
+
+        if (intent == "definition"
+            || question.Contains("是什么", StringComparison.Ordinal)
+            || question.Contains("指什么", StringComparison.Ordinal)
+            || question.Contains("定义", StringComparison.Ordinal))
+        {
+            expansions.Add("作为");
+            expansions.Add("用于");
+            expansions.Add("负责");
+            expansions.Add("核心控制器");
+            expansions.Add("语义网络");
+        }
+
+        if (intent == "explain"
+            || question.Contains("为什么", StringComparison.Ordinal)
+            || question.Contains("原理", StringComparison.Ordinal)
+            || question.Contains("机制", StringComparison.Ordinal))
+        {
+            expansions.Add("原因");
+            expansions.Add("机制");
+            expansions.Add("蒸发");
+            expansions.Add("补偿");
+            expansions.Add("动态调节");
+        }
+
+        if (intent == "compare"
+            || question.Contains("区别", StringComparison.Ordinal)
+            || question.Contains("对比", StringComparison.Ordinal)
+            || question.Contains("比较", StringComparison.Ordinal))
+        {
+            expansions.Add("区别");
+            expansions.Add("差异");
+            expansions.Add("模糊控制");
+            expansions.Add("pid调节");
+            expansions.Add("阶段");
+            expansions.Add("补偿");
         }
 
         if (IsModuleQuestion(question))
@@ -2114,6 +2154,18 @@ public sealed class LocalAiService : IDisposable
             expansions.Add("mqtt");
             expansions.Add("usart");
             expansions.Add("远程");
+        }
+
+        if (intent == "usage"
+            || question.Contains("作用", StringComparison.Ordinal)
+            || question.Contains("用途", StringComparison.Ordinal)
+            || question.Contains("功能", StringComparison.Ordinal))
+        {
+            expansions.Add("用于");
+            expansions.Add("负责");
+            expansions.Add("显示");
+            expansions.Add("控制");
+            expansions.Add("采集");
         }
 
         return expansions;
@@ -2656,6 +2708,8 @@ public sealed class LocalAiService : IDisposable
             "module_list" => ModuleImplementationSignals,
             "module_implementation" => ModuleImplementationSignals,
             "composition" => CompositionSignals,
+            "compare" => CompareSignals,
+            "definition" => DefinitionSignals,
             "usage" => UsageSignals,
             "procedure" => ProcedureSignals,
             "explain" => ExplanationSignals,
@@ -2704,6 +2758,19 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
+        if (queryProfile.Intent is "composition" or "compare" or "definition" or "explain")
+        {
+            boost += chunk.ContentKind switch
+            {
+                "body" or "" => 0.05f,
+                "summary" => 0.02f,
+                "keyword" => -0.18f,
+                "title" => -0.10f,
+                "metadata" => -0.26f,
+                _ => 0f
+            };
+        }
+
         if (queryProfile.Intent == "procedure")
         {
             var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
@@ -2729,6 +2796,55 @@ public sealed class LocalAiService : IDisposable
             if (ContainsAny(chunk.Text, "动态调整", "动态调节", "精确控制", "补偿", "实时偏差", "灌溉量"))
             {
                 boost += 0.12f;
+            }
+        }
+
+        if (queryProfile.Intent == "explain")
+        {
+            var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
+            if (structureText.Contains("机制", StringComparison.Ordinal)
+                || structureText.Contains("原理", StringComparison.Ordinal)
+                || structureText.Contains("补偿", StringComparison.Ordinal))
+            {
+                boost += 0.12f;
+            }
+
+            if (ContainsAny(chunk.Text, "由于", "因此", "蒸发", "补偿", "动态修正", "提前调整"))
+            {
+                boost += 0.10f;
+            }
+        }
+
+        if (queryProfile.Intent == "compare")
+        {
+            var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
+            if (structureText.Contains("阶段", StringComparison.Ordinal)
+                || structureText.Contains("模糊控制", StringComparison.OrdinalIgnoreCase)
+                || structureText.Contains("PID调节", StringComparison.OrdinalIgnoreCase))
+            {
+                boost += 0.12f;
+            }
+
+            if (ContainsAny(chunk.Text, "大偏差", "快速响应", "精确控制", "动态调整", "超调", "积分"))
+            {
+                boost += 0.08f;
+            }
+        }
+
+        if (queryProfile.Intent == "definition")
+        {
+            if (ContainsAny(chunk.Text, "作为", "是一种", "是指", "负责", "用于", "核心控制器"))
+            {
+                boost += 0.10f;
+            }
+        }
+
+        if (queryProfile.Intent == "composition")
+        {
+            var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
+            if (ContainsAny(structureText, "层", "模块", "环境", "配置", "硬件", "软件", "接口"))
+            {
+                boost += 0.08f;
             }
         }
 
@@ -3654,6 +3770,15 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
+        if (queryProfile.Intent == "definition")
+        {
+            var definition = BuildDefinitionFallbackAnswer(question, scopedChunks);
+            if (!string.IsNullOrWhiteSpace(definition))
+            {
+                return definition;
+            }
+        }
+
         if (IsPaperSystemModuleQuestion(question))
         {
             var modules = BuildSystemModulesFallbackAnswer(scopedChunks);
@@ -3678,6 +3803,24 @@ public sealed class LocalAiService : IDisposable
             if (!string.IsNullOrWhiteSpace(moduleImplementation))
             {
                 return moduleImplementation;
+            }
+        }
+
+        if (queryProfile.Intent == "compare")
+        {
+            var comparison = BuildCompareFallbackAnswer(question, scopedChunks);
+            if (!string.IsNullOrWhiteSpace(comparison))
+            {
+                return comparison;
+            }
+        }
+
+        if (queryProfile.Intent == "explain")
+        {
+            var explanation = BuildExplanationFallbackAnswer(question, scopedChunks);
+            if (!string.IsNullOrWhiteSpace(explanation))
+            {
+                return explanation;
             }
         }
 
@@ -4254,6 +4397,34 @@ public sealed class LocalAiService : IDisposable
         return builder.ToString().TrimEnd();
     }
 
+    private string? BuildDefinitionFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
+    {
+        var subject = ExtractQuestionSubject(question);
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            return null;
+        }
+
+        var primary = FindBestSubjectSentence(subject, chunks, DefinitionSignals, preferBodyContent: true);
+        if (primary is null)
+        {
+            return null;
+        }
+
+        var secondary = FindBestSubjectSentence(subject, chunks, UsageSignals, preferBodyContent: true, excludedSentence: primary.Sentence);
+        var clauses = new List<string>
+        {
+            $"根据当前文档，关于{subject}，{CleanStructuredSentence(primary.Sentence)} {BuildStableCitation(primary.Chunk)}"
+        };
+
+        if (secondary is not null)
+        {
+            clauses.Add($"进一步看它的作用，{CleanStructuredSentence(secondary.Sentence)} {BuildStableCitation(secondary.Chunk)}");
+        }
+
+        return string.Join("。", clauses) + "。";
+    }
+
     private string? BuildModuleImplementationFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
     {
         var subject = ExtractModuleSubject(question);
@@ -4399,6 +4570,106 @@ public sealed class LocalAiService : IDisposable
             {
                 builder.Append($"进一步看，还包括{string.Join("，", tail)} {BuildStableCitation(selected[1].Chunk)}。");
             }
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    private string? BuildCompareFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
+    {
+        if (!TryExtractComparisonSubjects(question, out var leftSubject, out var rightSubject))
+        {
+            return null;
+        }
+
+        var left = FindBestSubjectSentence(leftSubject, chunks, ProcedureSignals, preferBodyContent: true);
+        var right = FindBestSubjectSentence(rightSubject, chunks, ProcedureSignals, preferBodyContent: true);
+        if (left is null && right is null)
+        {
+            return null;
+        }
+
+        var clauses = new List<string>();
+        if (left is not null)
+        {
+            clauses.Add($"{leftSubject}这边，{CleanStructuredSentence(left.Sentence)} {BuildStableCitation(left.Chunk)}");
+        }
+
+        if (right is not null)
+        {
+            clauses.Add($"{rightSubject}这边，{CleanStructuredSentence(right.Sentence)} {BuildStableCitation(right.Chunk)}");
+        }
+
+        return clauses.Count == 0
+            ? null
+            : $"根据当前文档，两者区别可以概括为：{string.Join("；", clauses)}。";
+    }
+
+    private string? BuildExplanationFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
+    {
+        var queryTokens = ExtractQueryTokens(question);
+        var candidates = new List<ProcedureCandidate>();
+
+        foreach (var chunk in chunks)
+        {
+            var structureBoost = CountSignals($"{chunk.StructurePath} {chunk.SectionTitle}", "机制", "原理", "补偿", "策略", "原因");
+            foreach (var sentence in GetCleanSentences(chunk.Text, 10))
+            {
+                if (!IsCandidateSentence(sentence) || IsMetadataLikeSentence(sentence))
+                {
+                    continue;
+                }
+
+                var lowerSentence = sentence.ToLowerInvariant();
+                var tokenHits = queryTokens.Count(token => lowerSentence.Contains(token, StringComparison.Ordinal));
+                var explanationHits = ExplanationSignals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
+                var methodHits = CountMethodSignals(sentence);
+                var score = (tokenHits * 3)
+                    + (explanationHits * 3)
+                    + methodHits
+                    + structureBoost;
+
+                if (chunk.ContentKind == "body")
+                {
+                    score += 2;
+                }
+                else if (chunk.ContentKind == "summary")
+                {
+                    score += 1;
+                }
+
+                if (score > 0)
+                {
+                    candidates.Add(new ProcedureCandidate(chunk, sentence, score));
+                }
+            }
+        }
+
+        var selected = candidates
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Chunk.Index)
+            .GroupBy(item => NormalizeSummarySentence(item.Sentence), StringComparer.Ordinal)
+            .Select(group => group.First())
+            .Take(3)
+            .ToArray();
+
+        if (selected.Length == 0)
+        {
+            return null;
+        }
+
+        var lead = selected[0];
+        var builder = new StringBuilder();
+        builder.Append($"根据当前文档，原因/机制主要在于：{CleanStructuredSentence(lead.Sentence)} {BuildStableCitation(lead.Chunk)}。");
+
+        if (selected.Length > 1)
+        {
+            var tail = selected
+                .Skip(1)
+                .Select(item => $"{CleanStructuredSentence(item.Sentence)} {BuildStableCitation(item.Chunk)}")
+                .ToArray();
+            builder.Append($"进一步看，{string.Join("；", tail)}。");
         }
 
         return builder.ToString().TrimEnd();
@@ -4953,6 +5224,21 @@ public sealed class LocalAiService : IDisposable
                 : "如果是在问组成、配置、条件或环境，先说整体，再列出关键组成项或约束条件；优先保留原文中的部件名、模块名、参数项或接口名。";
         }
 
+        if (queryProfile.Intent == "compare")
+        {
+            return "如果是在做对比，先点明比较维度，再分别说明两边的特点与差异；不要只解释其中一边。";
+        }
+
+        if (queryProfile.Intent == "explain")
+        {
+            return "如果是在解释原因或机制，先给结论，再说明触发条件、作用机制和结果影响。";
+        }
+
+        if (queryProfile.Intent == "definition")
+        {
+            return "如果是在问概念或对象是什么，先给出定义或身份，再补充它的职责、特征或在系统中的位置。";
+        }
+
         if (queryProfile.Intent == "module_implementation")
         {
             return queryProfile.WantsDetailedAnswer
@@ -5028,6 +5314,21 @@ public sealed class LocalAiService : IDisposable
             return queryProfile.WantsDetailedAnswer
                 ? "组成或配置类问题优先保留原文中的部件名、模块名、接口名、参数项和环境项，并按层次归并，不要混成流程描述。"
                 : "组成或配置类问题优先点出关键组成项、配置项或条件项，不要把它回答成实现流程。";
+        }
+
+        if (queryProfile.Intent == "compare")
+        {
+            return "对比类问题优先同时保留两边的原始术语、阶段名或模块名，并明确差异点，不要只答单侧。";
+        }
+
+        if (queryProfile.Intent == "explain")
+        {
+            return "解释类问题优先保留原文中的因果词、机制词、条件词和结果词，例如由于、因此、补偿、蒸发、动态调节等。";
+        }
+
+        if (queryProfile.Intent == "definition")
+        {
+            return "定义类问题优先保留原文中的对象名、角色描述和职责描述，不要只给一个孤立名词。";
         }
 
         if (queryProfile.Intent == "module_implementation")
@@ -5229,6 +5530,51 @@ public sealed class LocalAiService : IDisposable
             || question.Contains("有什么用", StringComparison.Ordinal);
     }
 
+    private static bool TryExtractComparisonSubjects(string question, out string leftSubject, out string rightSubject)
+    {
+        leftSubject = string.Empty;
+        rightSubject = string.Empty;
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            return false;
+        }
+
+        var normalized = StripQuestionBoilerplate(BuildFocusTermSourceText(question).Trim());
+        normalized = normalized
+            .Replace("请比较", string.Empty, StringComparison.Ordinal)
+            .Replace("比较一下", string.Empty, StringComparison.Ordinal)
+            .Replace("对比一下", string.Empty, StringComparison.Ordinal)
+            .Trim();
+
+        var match = Regex.Match(
+            normalized,
+            @"(?<left>.+?)(?:和|与|跟)(?<right>.+?)(?:之间)?(?:有何|有什么|有哪些)?(?:区别|不同|差异|对比).*$",
+            RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        leftSubject = CleanComparisonSubject(match.Groups["left"].Value);
+        rightSubject = CleanComparisonSubject(match.Groups["right"].Value);
+        return !string.IsNullOrWhiteSpace(leftSubject) && !string.IsNullOrWhiteSpace(rightSubject);
+    }
+
+    private static string CleanComparisonSubject(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        return text.Trim()
+            .Trim('，', '。', '？', '?', '！', '!', '：', ':', '；', ';', ' ')
+            .Replace("这篇论文里的", string.Empty, StringComparison.Ordinal)
+            .Replace("文档里的", string.Empty, StringComparison.Ordinal)
+            .Replace("文中", string.Empty, StringComparison.Ordinal)
+            .Trim();
+    }
+
     private static string NormalizeQuestionForSubjectExtraction(string question)
     {
         if (string.IsNullOrWhiteSpace(question))
@@ -5303,6 +5649,86 @@ public sealed class LocalAiService : IDisposable
             .FirstOrDefault();
 
         return exactEntity ?? matches.OrderByDescending(token => token.Length).First();
+    }
+
+    private SlotCandidate? FindBestSubjectSentence(
+        string subject,
+        IReadOnlyList<DocumentChunk> chunks,
+        IReadOnlyList<string> preferredSignals,
+        bool preferBodyContent = false,
+        string? excludedSentence = null)
+    {
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            return null;
+        }
+
+        var focusTerms = ExtractQueryTokens(subject)
+            .Where(IsMeaningfulFocusTerm)
+            .ToArray();
+        if (focusTerms.Length == 0)
+        {
+            focusTerms = [subject.ToLowerInvariant()];
+        }
+
+        SlotCandidate? best = null;
+        foreach (var chunk in chunks)
+        {
+            if (!ChunkMatchesSubject(chunk, subject))
+            {
+                continue;
+            }
+
+            var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
+            var structureHits = focusTerms.Count(term => structureText.Contains(term, StringComparison.OrdinalIgnoreCase))
+                + (structureText.Contains(subject, StringComparison.OrdinalIgnoreCase) ? 3 : 0);
+
+            foreach (var sentence in GetCleanSentences(chunk.Text, 10))
+            {
+                if (!IsCandidateSentence(sentence) || IsMetadataLikeSentence(sentence))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(excludedSentence)
+                    && NormalizeSummarySentence(sentence) == NormalizeSummarySentence(excludedSentence))
+                {
+                    continue;
+                }
+
+                var lowerSentence = sentence.ToLowerInvariant();
+                var tokenHits = focusTerms.Count(term => lowerSentence.Contains(term, StringComparison.Ordinal));
+                var signalHits = preferredSignals.Count(signal => sentence.Contains(signal, StringComparison.OrdinalIgnoreCase));
+                var score = (tokenHits * 4)
+                    + (signalHits * 3)
+                    + structureHits
+                    + CountMethodSignals(sentence);
+
+                if (chunk.ContentKind == "summary")
+                {
+                    score += 1;
+                }
+
+                if (preferBodyContent)
+                {
+                    if (chunk.ContentKind == "body")
+                    {
+                        score += 3;
+                    }
+                    else if (chunk.ContentKind == "summary")
+                    {
+                        score -= 1;
+                    }
+                }
+
+                if (best is null || score > best.Score)
+                {
+                    best = new SlotCandidate(chunk, sentence, score);
+                }
+            }
+        }
+
+        return best;
     }
 
     private static bool IsPrecisionIrrigationQuestion(string question)

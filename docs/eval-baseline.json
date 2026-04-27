@@ -164,6 +164,107 @@
       "minAnswerSignals": 1
     },
     {
+      "id": "stm32-definition-mcu",
+      "category": "definition",
+      "question": "《基于STM32单片机的智能浇花系统设计》里主控芯片是什么",
+      "expectedKeywords": [
+        "stm32l031g6",
+        "核心控制器",
+        "cortex-m0+"
+      ],
+      "minMatchedKeywords": 2,
+      "retrievalSignals": [
+        "1.1.1 主控芯片低功耗设计与核心架构",
+        "stm32l031g6",
+        "cortex-m0+"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2
+    },
+    {
+      "id": "stm32-composition-hardware",
+      "category": "composition",
+      "question": "《基于STM32单片机的智能浇花系统设计》这套系统的硬件组成包括哪些部分",
+      "expectedKeywords": [
+        "土壤湿度传感器",
+        "环境温湿度传感器",
+        "电磁阀",
+        "oled",
+        "esp-01s"
+      ],
+      "minMatchedKeywords": 4,
+      "retrievalSignals": [
+        "1.2 感知层",
+        "1.3 执行层",
+        "1.4 交互层",
+        "oled",
+        "esp-01s"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 3
+    },
+    {
+      "id": "stm32-usage-oled",
+      "category": "usage",
+      "question": "《基于STM32单片机的智能浇花系统设计》里 OLED 显示屏有什么作用",
+      "expectedKeywords": [
+        "显示",
+        "土壤",
+        "环境参数",
+        "电磁阀状态",
+        "wifi"
+      ],
+      "minMatchedKeywords": 3,
+      "retrievalSignals": [
+        "1.4.1 本地状态显示模块",
+        "oled",
+        "电磁阀状态"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2
+    },
+    {
+      "id": "stm32-explain-compensation",
+      "category": "explain",
+      "question": "《基于STM32单片机的智能浇花系统设计》里为什么需要环境补偿机制",
+      "expectedKeywords": [
+        "蒸发",
+        "灌溉量",
+        "温度",
+        "湿度",
+        "补偿"
+      ],
+      "minMatchedKeywords": 4,
+      "retrievalSignals": [
+        "3.3 环境补偿机制",
+        "3.3.1 温湿度耦合模型",
+        "3.3.2 实时补偿策略"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2
+    },
+    {
+      "id": "stm32-compare-fuzzy-pid",
+      "category": "compare",
+      "question": "《基于STM32单片机的智能浇花系统设计》里模糊控制阶段和 PID 调节阶段有什么区别",
+      "expectedKeywords": [
+        "模糊控制",
+        "pid调节",
+        "大偏差",
+        "快速响应",
+        "精确控制",
+        "动态调整"
+      ],
+      "minMatchedKeywords": 4,
+      "retrievalSignals": [
+        "3.1 模糊控制阶段：输入变量定义",
+        "3.2 PID调节阶段设计",
+        "阶段"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2
+    },
+    {
       "id": "stm32-summary-json-scoped",
       "category": "json-ingestion",
       "question": "《基于STM32单片机的智能浇花系统设计》这份 JSON 文档主要讲了什么，不要直接抄英文摘要或关键词",
@@ -294,6 +395,47 @@
         "知识图谱",
         "多模态检索",
         "多特征关联"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 3
+    },
+    {
+      "id": "geology-definition-kg",
+      "category": "definition",
+      "question": "《基于Spring Boot和Vue的地质信息智能抽取与可视化系统设计与实现》里知识图谱指的是什么",
+      "expectedKeywords": [
+        "知识图谱",
+        "实体",
+        "关系",
+        "知识网络"
+      ],
+      "minMatchedKeywords": 3,
+      "retrievalSignals": [
+        "知识图谱",
+        "实体",
+        "关系"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2
+    },
+    {
+      "id": "geology-composition-stack",
+      "category": "composition",
+      "question": "《基于Spring Boot和Vue的地质信息智能抽取与可视化系统设计与实现》这套系统的技术栈和组成包括哪些",
+      "expectedKeywords": [
+        "spring boot",
+        "vue 3",
+        "mybatis-plus",
+        "mysql",
+        "echarts"
+      ],
+      "minMatchedKeywords": 4,
+      "retrievalSignals": [
+        "前后端分离",
+        "spring boot",
+        "vue3",
+        "mybatis-plus",
+        "echarts"
       ],
       "minTopChunkSignals": 1,
       "minContextSignals": 3
