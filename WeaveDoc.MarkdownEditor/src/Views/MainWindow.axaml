@@ -11,6 +11,9 @@
     <Menu Grid.Row="0">
       <MenuItem Header="文件">
         <MenuItem Header="打开..." Click="OpenFile_Click" />
+        <Separator />
+        <MenuItem Header="保存" Click="SaveFile_Click" />
+        <MenuItem Header="另存为..." Click="SaveAsFile_Click" />
       </MenuItem>
     </Menu>
     

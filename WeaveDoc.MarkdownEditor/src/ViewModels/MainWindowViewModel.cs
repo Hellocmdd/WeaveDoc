@@ -58,12 +58,36 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
                 {
                     var content = System.IO.File.ReadAllText(filePath);
                     EditorContent = content;
+                    CurrentFilePath = filePath;
                 }
             }
             catch (Exception ex)
             {
                 // 处理异常
                 System.Console.WriteLine($"打开文件时出错: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// 当前打开的文件路径
+        /// </summary>
+        public string? CurrentFilePath { get; set; }
+        
+        /// <summary>
+        /// 保存 Markdown 文件
+        /// </summary>
+        /// <param name="filePath">保存文件的路径</param>
+        public void SaveFile(string filePath)
+        {
+            try
+            {
+                System.IO.File.WriteAllText(filePath, EditorContent);
+                CurrentFilePath = filePath;
+            }
+            catch (Exception ex)
+            {
+                // 处理异常
+                System.Console.WriteLine($"保存文件时出错: {ex.Message}");
             }
         }
     }
