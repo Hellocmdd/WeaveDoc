@@ -67,7 +67,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 Logger.Log("MonacoEditorControl: Starting WebView2 initialization...");
 
-                // 获取包含 MonacoEditorControl 的窗口句柄
+                // 获取包含 MonacoEditorControl 的窗口
                 var root = this.VisualRoot as Window;
                 if (root == null)
                 {
@@ -79,7 +79,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 await Task.Delay(500);
 
                 // 使用 P/Invoke 获取窗口句柄
-                var hwnd = GetActiveWindow();
+                var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                 {
                     Logger.Log("MonacoEditorControl: Failed to get window handle");
@@ -324,7 +324,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private class Message
         {
             public string? Type { get; set; }
-            public object? Data { get; set; }
+            public string? Data { get; set; }
         }
 
         private void InitializeComponent() => AvaloniaXamlLoader.Load(this);

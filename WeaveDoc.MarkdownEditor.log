@@ -1738,3 +1738,29 @@
 [2026-04-27 20:21:25.899] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊湿哒哒\\n\"}"
 [2026-04-27 20:21:25.900] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 133.
 [2026-04-27 20:21:25.900] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...啊回到家卡死\\n啊湿哒哒\\n\"}"
+[2026-04-27 20:25:57.301] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 20:25:57.824] MonacoEditorControl: Got window handle: 7080748
+[2026-04-27 20:25:57.946] MonacoEditorControl: Created WebView2 environment
+[2026-04-27 20:25:58.879] MonacoEditorControl: Created WebView2 controller
+[2026-04-27 20:25:58.881] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-27 20:25:58.884] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 20:25:59.332] MonacoEditorControl: WebView navigation completed
+[2026-04-27 20:25:59.335] MonacoEditorControl: HostBorder is null, cannot hide loading text
+[2026-04-27 20:25:59.343] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 20:25:59.347] MonacoEditorControl: Updated bounds after navigation
+[2026-04-27 20:25:59.369] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 20:27:37.372] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 20:27:37.899] MonacoEditorControl: Got window handle: 6032862
+[2026-04-27 20:27:37.919] MonacoEditorControl: Created WebView2 environment
+[2026-04-27 20:27:38.701] MonacoEditorControl: Created WebView2 controller
+[2026-04-27 20:27:38.704] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-27 20:27:38.706] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 20:27:39.227] MonacoEditorControl: WebView navigation completed
+[2026-04-27 20:27:39.228] MonacoEditorControl: HostBorder is null, cannot hide loading text
+[2026-04-27 20:27:39.232] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 20:27:39.235] MonacoEditorControl: Updated bounds after navigation
+[2026-04-27 20:27:39.267] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 20:27:44.787] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 20:27:44.790] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 20:27:44.794] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 20:27:44.796] MonacoEditorControl: Resized Monaco editor to 492x563
