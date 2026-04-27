@@ -6,10 +6,18 @@
         x:DataType="vm:MainWindowViewModel"
         Title="WeaveDoc Markdown Editor" Width="1000" Height="700"
         MinWidth="600" MinHeight="400">
-  <Grid RowDefinitions="Auto, *">
-    <TextBlock Text="WeaveDoc Markdown Editor" FontSize="18" Margin="8"/>
+  <Grid RowDefinitions="Auto, Auto, *">
+    <!-- 菜单 -->
+    <Menu Grid.Row="0">
+      <MenuItem Header="文件">
+        <MenuItem Header="打开..." Click="OpenFile_Click" />
+      </MenuItem>
+    </Menu>
+    
+    <TextBlock Grid.Row="1" Text="WeaveDoc Markdown Editor" FontSize="18" Margin="8"/>
+    
     <!-- 左编辑器 / 右预览 布局 -->
-    <Grid Grid.Row="1" ColumnDefinitions="*, *" Margin="8">
+    <Grid Grid.Row="2" ColumnDefinitions="*, *" Margin="8">
       <!-- 左侧编辑器：使用 Avalonia 内置的 TextBox 控件作为临时解决方案 -->
       <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
         <TextBox TextWrapping="Wrap" AcceptsReturn="True" Text="{Binding EditorContent, Mode=TwoWay}" />

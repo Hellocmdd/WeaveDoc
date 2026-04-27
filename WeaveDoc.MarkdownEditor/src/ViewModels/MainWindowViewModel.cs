@@ -44,5 +44,24 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
 
         protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name ?? string.Empty));
-    }
-}
+        
+        /// <summary>
+        /// 打开 Markdown 文件并加载内容
+        /// </summary>
+        /// <param name="filePath">Markdown 文件路径</param>
+        public void OpenFile(string filePath)
+        {
+            try
+            {
+                if (System.IO.File.Exists(filePath))
+                {
+                    var content = System.IO.File.ReadAllText(filePath);
+                    EditorContent = content;
+                }
+            }
+            catch (Exception ex)
+            {
+                // 处理异常
+                System.Console.WriteLine($"打开文件时出错: {ex.Message}");
+            }
+        }
