@@ -110,8 +110,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 {
                     var bounds = this.Bounds;
                     
-                    var x = (int)bounds.X + 8;
-                    var y = (int)bounds.Y + 36;
+                    var x = (int)bounds.X;
+                    var y = (int)bounds.Y;
                     var w = Math.Max(0, (int)bounds.Width);
                     var h = Math.Max(0, (int)bounds.Height);
                     
@@ -236,6 +236,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 {
                     Logger.Log("MonacoEditorControl: WebView navigation completed");
                     _isWebViewReady = true;
+
+                    // 隐藏加载文本
+                    HostBorder.Child = null;
+                    Logger.Log("MonacoEditorControl: Hidden loading text");
 
                     // 导航完成后手动更新控制器大小和位置
                     UpdateControllerBounds();

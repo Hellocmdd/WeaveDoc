@@ -42,9 +42,9 @@
       <!-- 左侧编辑器：使用 Monaco Editor 控件 -->
       <controls:MonacoEditorControl Grid.Column="0" DataContext="{Binding}" />
 
-      <!-- 右侧预览：显示由 MarkdownService 生成的 HTML（以文本形式展示） -->
+      <!-- 右侧预览：显示由 MarkdownService 生成的 HTML -->
       <ScrollViewer Grid.Column="1" Background="#FFF8F8F8" Padding="8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-        <TextBlock TextWrapping="Wrap" Foreground="Black" FontSize="14" Text="{Binding Html}" />
+        <TextBlock TextWrapping="Wrap" Foreground="Black" FontSize="14" Text="{Binding Html}" />  
       </ScrollViewer>
     </Grid>
   </Grid>

@@ -1317,3 +1317,12 @@
 [2026-04-27 19:39:43.612] MonacoEditorControl: Received message: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n\"}"
 [2026-04-27 19:39:43.613] MonacoEditorControl: JSON parsing error: The JSON value could not be converted to WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl+Message. Path: $ | LineNumber: 0 | BytePositionInLine: 100.
 [2026-04-27 19:39:43.613] MonacoEditorControl: Raw JSON: "{\"Type\":\"contentChanged\",\"Data\":\"# Hello WeaveDoc!\\n\\nStart typing markdown here...\\n\"}"
+[2026-04-27 19:45:11.110] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-27 19:45:11.121] MonacoEditorControl: Got window handle: 1773016
+[2026-04-27 19:45:11.136] MonacoEditorControl: Created WebView2 environment
+[2026-04-27 19:45:11.856] MonacoEditorControl: Created WebView2 controller
+[2026-04-27 19:45:11.859] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-27 19:45:11.861] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-27 19:45:12.281] MonacoEditorControl: WebView navigation completed
+[2026-04-27 19:45:12.287] EXCEPTION: System.NullReferenceException: Object reference not set to an instance of an object.
+   at WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl.Webview_NavigationCompleted(Object sender, CoreWebView2NavigationCompletedEventArgs args) in D:\WeaveDoc\Weavedoc.MarkdownEditor\src\Controls\MonacoEditorControl.axaml.cs:line 241

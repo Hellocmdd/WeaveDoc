@@ -26,6 +26,7 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
                 if (_html == value) return;
                 _html = value;
                 OnPropertyChanged(nameof(Html));
+                OnPropertyChanged(nameof(PreviewHtml));
             }
         }
 
@@ -40,6 +41,17 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
                 // 每次编辑器内容变更时，更新预览 HTML
                 Html = _markdownService.ConvertToHtml(_editorContent ?? string.Empty);
                 OnPropertyChanged(nameof(EditorContent));
+            }
+        }
+
+        /// <summary>
+        /// 用于 WebView 预览的完整 HTML 文档
+        /// </summary>
+        public string PreviewHtml
+        {
+            get
+            {
+                return $"data:text/html;charset=utf-8,<!DOCTYPE html><html><head><meta charset='utf-8'><title>Preview</title><style>body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; padding: 20px; }} h1, h2, h3 {{ color: #333; }} code {{ background-color: #f4f4f4; padding: 2px 4px; border-radius: 3px; }} pre {{ background-color: #f4f4f4; padding: 10px; border-radius: 3px; overflow-x: auto; }} img {{ max-width: 100%; }} blockquote {{ border-left: 4px solid #ddd; padding-left: 10px; margin: 10px 0; }}</style></head><body>{Html}</body></html>";
             }
         }
 
