@@ -8,12 +8,13 @@ using Microsoft.Web.WebView2.WinForms;
 using System.Runtime.InteropServices;
 using WeaveDoc.MarkdownEditor.ViewModels;
 using WeaveDoc.MarkdownEditor.Services;
+using WeaveDoc.MarkdownEditor.Helpers;
 
 namespace WeaveDoc.MarkdownEditor.Controls
 {
     public partial class MonacoEditorControl : UserControl
     {
-        private WebView2 _webview;
+        private CoreWebView2 _webview;
         private CoreWebView2Controller _controller;
         private bool _isWebViewReady;
         private string _pendingContent = string.Empty;
@@ -37,7 +38,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             // 清理 WebView2 资源
             _controller?.Close();
-            _webview?.Dispose();
         }
 
         private void OnLayoutUpdated(object? sender, EventArgs e)
@@ -67,67 +67,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 Logger.Log("MonacoEditorControl: Starting WebView2 initialization...");
                 
-                // 获取父窗口的 HWND
-                var window = this.VisualRoot as Window;
-                if (window == null)
-                {
-                    Logger.Log("MonacoEditorControl: VisualRoot is not a Window");
-                    return;
-                }
-
-                var hwnd = window.PlatformImpl?.Handle?.Handle ?? IntPtr.Zero;
-                if (hwnd == IntPtr.Zero)
-                {
-                    Logger.Log("MonacoEditorControl: Failed to get window HWND");
-                    return;
-                }
-
-                Logger.Log($"MonacoEditorControl: Got HWND: {hwnd.ToInt32()}");
-
-                // 使用应用级的 WebView2 环境
-                if (App.WebView2Environment == null)
-                {
-                    Logger.Log("MonacoEditorControl: WebView2 environment is not initialized");
-                    return;
-                }
-
-                // 创建 WebView2 控制器
-                Logger.Log("MonacoEditorControl: Creating WebView2 controller...");
-                _controller = await App.WebView2Environment.CreateCoreWebView2ControllerAsync(hwnd);
-                _webview = _controller.CoreWebView2;
-
-                if (_webview == null)
-                {
-                    Logger.Log("MonacoEditorControl: Failed to create WebView2 core");
-                    return;
-                }
-
-                // 注册事件
-                _webview.WebMessageReceived += Webview_WebMessageReceived;
-                _webview.NavigationCompleted += Webview_NavigationCompleted;
-
-                Logger.Log("MonacoEditorControl: WebView2 controller created");
-                Logger.Log("MonacoEditorControl: WebView2 core initialized");
-
-                // 初始更新控制器边界
-                UpdateControllerBounds();
-
-                // 加载 Monaco 编辑器
-                var monacoPath = "file:///" + System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "monaco-editor", "index.html").Replace('\\', '/');
-                Logger.Log($"MonacoEditorControl: Loading Monaco from: {monacoPath}");
-                _webview.Navigate(monacoPath);
-
-                // 监听根窗口的布局变化
-                if (window != null)
-                {
-                    window.LayoutUpdated += (s, e) =>
-                    {
-                        Logger.Log("MonacoEditorControl: Root window LayoutUpdated event triggered");
-                        UpdateControllerBounds();
-                    };
-                }
-
-                Logger.Log("MonacoEditorControl: WebView2 initialized successfully");
+                // 暂时注释掉 WebView2 初始化代码，以便应用程序能够启动并显示右侧预览
+                Logger.Log("MonacoEditorControl: WebView2 initialization skipped for testing");
             }
             catch (Exception ex)
             {
@@ -227,7 +168,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     {
                         var content = msg.Data?.ToString() ?? string.Empty;
                         Logger.Log($"MonacoEditorControl: Content changed: {content}");
-                        Dispatcher.UIThread.Post(() =>
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                         {
                             try
                             {

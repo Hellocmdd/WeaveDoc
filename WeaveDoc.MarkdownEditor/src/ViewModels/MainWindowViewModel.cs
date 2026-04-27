@@ -8,6 +8,12 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
     {
         private readonly MarkdownService _markdownService = new();
 
+        public MainWindowViewModel()
+        {
+            // 设置默认的编辑器内容，这样右侧预览就会显示内容
+            EditorContent = "# Hello WeaveDoc!\n\nStart typing markdown here...";
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         private string _html = string.Empty;
