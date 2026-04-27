@@ -15,15 +15,15 @@ build_property.PlatformNeutralAssembly =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = WeaveDoc.MarkdownEditor
-build_property.ProjectDir = D:\WeaveDoc\WeaveDoc.MarkdownEditor\src\
+build_property.ProjectDir = D:\WeaveDoc\Weavedoc.MarkdownEditor\src\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 
-[D:/WeaveDoc/WeaveDoc.MarkdownEditor/src/App.axaml]
+[D:/WeaveDoc/Weavedoc.MarkdownEditor/src/App.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[D:/WeaveDoc/WeaveDoc.MarkdownEditor/src/Controls/MonacoEditorControl.axaml]
+[D:/WeaveDoc/Weavedoc.MarkdownEditor/src/Controls/MonacoEditorControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[D:/WeaveDoc/WeaveDoc.MarkdownEditor/src/Views/MainWindow.axaml]
+[D:/WeaveDoc/Weavedoc.MarkdownEditor/src/Views/MainWindow.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
