@@ -70,7 +70,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 Logger.Log("MonacoEditorControl: Starting WebView2 initialization...");
 
                 // 检查 HostBorder 是否正确初始化
-                Logger.Log($"MonacoEditorControl: HostBorder is null: {HostBorder == null}");
+                var hostBorder = this.FindControl<Border>("HostBorder");
+                Logger.Log($"MonacoEditorControl: HostBorder is null: {hostBorder == null}");
 
                 // 获取包含 MonacoEditorControl 的窗口
                 var root = this.VisualRoot as Window;
@@ -274,9 +275,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         try
                         {
                             // 隐藏加载文本
-                            if (HostBorder != null)
+                            var hostBorder = this.FindControl<Border>("HostBorder");
+                            if (hostBorder != null)
                             {
-                                HostBorder.Child = null;
+                                hostBorder.Child = null;
                                 Logger.Log("MonacoEditorControl: Hidden loading text");
                             }
                             else
