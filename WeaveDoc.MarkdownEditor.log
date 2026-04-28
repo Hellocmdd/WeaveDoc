@@ -2335,3 +2335,99 @@
 [2026-04-27 21:41:28.606] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
 [2026-04-27 21:41:28.609] MonacoEditorControl: Updated bounds after navigation
 [2026-04-27 21:41:28.632] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 21:42:58.860] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 21:42:58.860] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-27 21:42:58.861] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 21:42:58.865] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 21:42:58.866] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-27 21:42:58.866] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 21:53:51.071] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 21:53:51.072] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-27 21:53:51.073] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 21:53:51.076] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 21:53:51.076] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-27 21:53:51.077] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 22:07:48.824] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 22:07:48.834] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-27 22:07:48.836] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 22:07:48.836] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-27 22:07:48.836] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 22:07:48.837] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 22:17:40.428] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 22:17:40.429] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-27 22:17:40.431] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 22:17:40.431] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 22:17:40.432] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-27 22:17:40.432] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 22:17:42.887] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 22:17:42.887] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-27 22:17:42.888] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-27 22:17:42.904] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-27 22:17:42.904] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-27 22:17:42.905] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-28 08:21:16.706] MainWindow: Constructor called
+[2026-04-28 08:21:16.720] MainWindow: Events subscribed
+[2026-04-28 08:21:17.679] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-28 08:21:17.680] MainWindow: _previewController is null
+[2026-04-28 08:21:17.994] MainWindow: OnLoaded called
+[2026-04-28 08:21:18.108] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-28 08:21:18.111] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-28 08:21:18.112] MainWindow: Got window handle: 525464
+[2026-04-28 08:21:18.218] MainWindow: Created WebView2 environment for preview
+[2026-04-28 08:21:18.231] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-28 08:21:18.750] MonacoEditorControl: Got window handle: 525464
+[2026-04-28 08:21:18.751] MonacoEditorControl: Created WebView2 environment
+[2026-04-28 08:21:18.752] MainWindow: Created WebView2 controller for preview
+[2026-04-28 08:21:18.755] MainWindow: Updated preview content
+[2026-04-28 08:21:18.755] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-28 08:21:18.760] MainWindow: PreviewScrollViewer bounds: 492, 0, 492, 563.3333333333334
+[2026-04-28 08:21:18.764] MainWindow: Updated preview bounds: x=500, y=128, w=492, h=563
+[2026-04-28 08:21:18.764] MainWindow: WebView2 initialized successfully for preview
+[2026-04-28 08:21:18.821] MonacoEditorControl: Created WebView2 controller
+[2026-04-28 08:21:18.824] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-28 08:21:18.825] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-28 08:21:19.138] MonacoEditorControl: WebView navigation completed
+[2026-04-28 08:21:19.139] MonacoEditorControl: HostBorder is null, cannot hide loading text
+[2026-04-28 08:21:19.140] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-28 08:21:19.140] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-28 08:21:19.143] MonacoEditorControl: Updated bounds after navigation
+[2026-04-28 08:21:19.163] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-28 08:25:21.210] MainWindow: Constructor called
+[2026-04-28 08:25:21.222] MainWindow: Events subscribed
+[2026-04-28 08:25:21.449] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-28 08:25:21.450] MainWindow: _previewController is null
+[2026-04-28 08:25:21.750] MonacoEditorControl: OnLoaded called
+[2026-04-28 08:25:21.753] MainWindow: OnLoaded called
+[2026-04-28 08:25:21.868] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-28 08:25:21.870] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-28 08:25:21.871] MainWindow: Got window handle: 394474
+[2026-04-28 08:25:21.883] MainWindow: Created WebView2 environment for preview
+[2026-04-28 08:25:22.263] MonacoEditorControl: HostBorder check before InitializeWebViewAsync
+[2026-04-28 08:25:22.265] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-28 08:25:22.266] MonacoEditorControl: HostBorder is null: True
+[2026-04-28 08:25:22.523] MainWindow: Created WebView2 controller for preview
+[2026-04-28 08:25:22.524] MainWindow: Updated preview content
+[2026-04-28 08:25:22.525] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-28 08:25:22.530] MainWindow: PreviewScrollViewer bounds: 492, 0, 492, 563.3333333333334
+[2026-04-28 08:25:22.532] MainWindow: Updated preview bounds: x=500, y=128, w=492, h=563
+[2026-04-28 08:25:22.533] MainWindow: WebView2 initialized successfully for preview
+[2026-04-28 08:25:22.775] MonacoEditorControl: Got window handle: 394474
+[2026-04-28 08:25:22.776] MonacoEditorControl: Created WebView2 environment
+[2026-04-28 08:25:22.847] MonacoEditorControl: Created WebView2 controller
+[2026-04-28 08:25:22.850] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-28 08:25:22.851] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-28 08:25:22.851] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-28 08:25:22.855] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-28 08:25:23.903] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-28 08:25:24.170] MonacoEditorControl: WebView navigation completed
+[2026-04-28 08:25:24.171] MonacoEditorControl: HostBorder is null, cannot hide loading text
+[2026-04-28 08:25:24.172] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-28 08:25:24.173] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-28 08:25:24.174] MonacoEditorControl: Updated bounds after navigation
+[2026-04-28 08:25:24.184] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-28 08:28:34.140] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-28 08:28:34.141] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-28 08:28:34.143] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-28 08:28:34.153] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
+[2026-04-28 08:28:34.154] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-28 08:28:34.158] MonacoEditorControl: Resized Monaco editor to 492x563

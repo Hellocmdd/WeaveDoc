@@ -33,8 +33,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         private async void OnLoaded(object? sender, EventArgs e)
         {
-            // 延迟一下，确保控件完全加载
-            await Task.Delay(100);
+            Logger.Log("MonacoEditorControl: OnLoaded called");
+            // 增加延迟时间，确保控件完全加载
+            await Task.Delay(500);
+            Logger.Log("MonacoEditorControl: HostBorder check before InitializeWebViewAsync");
             InitializeWebViewAsync();
         }
 
@@ -66,6 +68,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
             try
             {
                 Logger.Log("MonacoEditorControl: Starting WebView2 initialization...");
+
+                // 检查 HostBorder 是否正确初始化
+                Logger.Log($"MonacoEditorControl: HostBorder is null: {HostBorder == null}");
 
                 // 获取包含 MonacoEditorControl 的窗口
                 var root = this.VisualRoot as Window;
@@ -102,6 +107,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var htmlPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "monaco-editor", "index.html");
                 Logger.Log($"MonacoEditorControl: Loading Monaco Editor from: {htmlPath}");
                 _webview.Navigate(htmlPath);
+
+                // 初始化完成后立即更新控制器大小
+                UpdateControllerBounds(root);
 
                 Logger.Log("MonacoEditorControl: WebView2 initialized successfully");
             }
