@@ -109,8 +109,9 @@ These fields are used by retrieval and the stable citation system. `StructurePat
 
 The embedding side runs locally with a GGUF sentence embedding model:
 
-- default model: `sentence-transformers--all-MiniLM-L6-v2.gguf`
+- default model: `bge-m3.gguf`
 - runtime: `LLamaSharp`
+- pooling: model default from GGUF metadata
 
 Before embedding, `PrepareTextForEmbedding` trims long inputs so they stay within the embedding context budget.
 
@@ -237,9 +238,9 @@ the system falls back to full semantic scoring so paraphrased or fuzzy questions
 - `RAG_SPARSE_CANDIDATE_POOL_SIZE`
   sparse prefilter size before semantic scoring
 
-## 7. Lightweight Reranking
+## 7. Reranking
 
-`RerankCandidates` adds rule-based features on top of the candidate score.
+`RerankCandidates` first adds rule-based features on top of the candidate score. If the local reranker server is reachable, the top rule-ranked candidates are then sent to BGE-Reranker through llama.cpp's `/v1/rerank` endpoint for learned cross-encoder reranking.
 
 ### 7.1 Coverage
 
@@ -266,7 +267,7 @@ This is mainly useful when:
 - `procedure` prefers “步骤 / 流程 / 首先 / 然后”
 - `explain` prefers “原因 / 机制 / 因为 / 由于”
 
-### 7.5 Rerank formula
+### 7.5 Rule rerank formula
 
 ```text
 rerankScore =
@@ -276,6 +277,8 @@ rerankScore =
   + jsonBranch * JsonBranchWeight
   + intentBoost
 ```
+
+The learned reranker reorders this candidate set when available. If the reranker server is disabled, unreachable, times out, or returns an unusable response, retrieval falls back to the rule-ranked order.
 
 The final top `TopK` chunks become the main answer evidence.
 
@@ -429,7 +432,7 @@ The default parameter style is intentionally conservative: stable, debuggable, a
 
 ### Limitations
 
-- reranking is still rule-based rather than learned
+- learned reranking requires a separate local reranker server; the pipeline falls back to rule reranking when it is unavailable
 - PDF ingestion currently depends on external `pdftotext` availability and text extraction quality
 - sparse prefilter improves performance but is not yet an ANN vector index
 - stable citations currently resolve to “file + section + chunk”, not page numbers or finer structural locations
@@ -437,4 +440,4 @@ The default parameter style is intentionally conservative: stable, debuggable, a
 
 ## 15. One-Sentence Summary
 
-The current WeaveDoc RAG design normalizes local documents into section-aware chunks, retrieves evidence through sparse prefiltering plus localized semantic scoring and rule-based reranking, sends grounded context to local `llama-server`, and uses stable citations, repair retry, summary-aware fallback, and offline evaluation to keep answers more reliable.
+The current WeaveDoc RAG design normalizes local documents into section-aware chunks, retrieves evidence through sparse prefiltering plus localized semantic scoring and BGE reranking, sends grounded context to local `llama-server`, and uses stable citations, repair retry, summary-aware fallback, and offline evaluation to keep answers more reliable.

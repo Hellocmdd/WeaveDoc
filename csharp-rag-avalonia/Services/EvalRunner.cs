@@ -373,7 +373,10 @@ internal static class EvalRunner
                 && ContainsAny(normalized, "环境温湿度", "补偿", "蒸发"),
             "stm32-no-answer-bluetooth" => ContainsAny(normalized, "我不知道", "当前文档未覆盖"),
             "stm32-summary-json-scoped" => ContainsAny(normalized, "模糊pid", "电磁阀", "交互显示")
-                && !ContainsAny(normalized, "englishabstract", "englishkeywords"),
+                && ContainsAtLeast(normalized, 3, "目标", "系统设计", "控制方法", "效果", "感知", "决策", "执行", "交互")
+                && ContainsAny(normalized, "abstract", "正文", "控制", "模块", "系统")
+                && !ContainsAny(normalized, "englishabstract", "englishkeywords")
+                && !ContainsAny(normalized, "展开。", "展开[", "展开 "),
             "stm32-remote-json-scoped" => ContainsAll(normalized, "mqtt")
                 && ContainsAny(normalized, "json", "封装")
                 && ContainsAny(normalized, "app", "手机app")
@@ -413,6 +416,11 @@ internal static class EvalRunner
     private static bool ContainsAny(string text, params string[] tokens)
     {
         return tokens.Any(token => text.Contains(token, StringComparison.Ordinal));
+    }
+
+    private static bool ContainsAtLeast(string text, int minimum, params string[] tokens)
+    {
+        return tokens.Count(token => text.Contains(token, StringComparison.Ordinal)) >= minimum;
     }
 
     private static async Task<(string JsonReportPath, string MarkdownReportPath)> SaveReportsAsync(EvalSummaryReport summary, CancellationToken cancellationToken)

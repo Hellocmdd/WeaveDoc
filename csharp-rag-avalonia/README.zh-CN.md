@@ -8,20 +8,21 @@
 
 - Embedding 与切块索引在本地通过 LLamaSharp 完成
 - 聊天生成通过本地 `llama-server` 提供的 OpenAI 兼容接口完成
-- 检索采用“稀疏预筛 + 语义打分 + 轻量重排 + 邻接上下文窗口”
+- 检索采用“稀疏预筛 + 语义打分 + BGE 学习式重排 + 规则补充排序 + 邻接上下文窗口”
 - 回答中的引用使用稳定来源标签，例如 `[doc/json/a.json | 某章节 | c3]`
 
 ## 模型
 
 应用会从工作区根目录的 `models/` 中寻找模型文件。
 
-必须的 embedding 模型：
+必须的 embedding 与 reranker 模型：
 
-- `models/sentence-transformers--all-MiniLM-L6-v2.gguf`
+- `models/bge-m3.gguf`
+- `models/bge-reranker-v2-m3.gguf`
 
-聊天模型示例：
+默认聊天模型：
 
-- `models/gemma-4-E2B-it.gguf`
+- `models/Qwen3.5-4B-Q4_K_M.gguf`
 
 ## 功能
 
@@ -31,7 +32,7 @@
 - 检索链路包括：
   稀疏预筛 = BM25 + keyword + title + direct-hit bonus + noise penalty
   语义阶段 = 只对候选池做向量相似度计算，稀疏信号过弱时可回退全量语义
-  重排阶段 = coverage + neighbor support + JSON branch support + intent boost
+  重排阶段 = coverage + neighbor support + JSON branch support + intent boost，之后在 reranker 服务可用时交给 BGE-Reranker 精排
 - 会把相邻 chunk 和同一 JSON 结构分支上的相关 chunk 一并补进上下文
 - 通过 `llama-server` 生成带引用的回答
 - 首答不可靠时会走更严格的 repair prompt；总结类问题还有专门的 summary 回退
@@ -56,7 +57,7 @@ git submodule update --init --recursive
 启动脚本会：
 
 - 在缺少 `llama-server` 时先构建 `llama.cpp`
-- 如果 `127.0.0.1:8080` 没有可用服务就启动 `llama-server`
+- 如果本地服务不可用，就启动 8080 端口的聊天 `llama-server` 和 8081 端口的 reranker `llama-server`
 - 若已有健康服务则直接复用
 - 健康检查通过后启动 Avalonia 桌面应用
 
@@ -64,15 +65,23 @@ git submodule update --init --recursive
 
 ```bash
 LLAMA_SERVER_MODEL=./models/your-chat-model.gguf ./scripts/run_weavedoc.sh
-LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
+LLAMA_SERVER_PORT=8082 ./scripts/run_weavedoc.sh
+LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 ```
 
 如果你想手动运行两个进程，也可以：
 
 ```bash
 ./llama.cpp/build/bin/llama-server \
-  -m ./models/gemma-4-E2B-it.gguf \
-  --host 127.0.0.1 --port 8080
+  -m ./models/Qwen3.5-4B-Q4_K_M.gguf \
+  --host 127.0.0.1 --port 8080 \
+  --gpu-layers auto
+
+./llama.cpp/build/bin/llama-server \
+  -m ./models/bge-reranker-v2-m3.gguf \
+  --host 127.0.0.1 --port 8081 \
+  --embedding --pooling rank --reranking \
+  --gpu-layers auto
 
 dotnet restore csharp-rag-avalonia/RagAvalonia.csproj
 dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj
@@ -113,6 +122,11 @@ dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eva
 - `LLAMA_SERVER_CHAT_MODEL` 默认 `local-model`
 - `LLAMA_SERVER_TEMPERATURE` 默认 `0.2`
 - `LLAMA_SERVER_MAX_TOKENS` 默认 `1536`
+- `RAG_EMBEDDING_MODEL_FILE` 默认 `bge-m3.gguf`
+- `RAG_EMBEDDING_GPU_LAYERS` 默认 `999`，需要 GPU 版 LLamaSharp backend 才会真正走 GPU
+- `RAG_RERANKER_ENABLED` 默认 `true`
+- `RAG_RERANKER_BASE_URL` 默认 `http://127.0.0.1:8081`
+- `RAG_RERANKER_MODEL` 默认 `bge-reranker-v2-m3`
 - `RAG_TOP_K` 默认 `4`
 - `RAG_CANDIDATE_POOL_SIZE` 默认 `12`
 - `RAG_SPARSE_CANDIDATE_POOL_SIZE` 默认 `48`

@@ -112,8 +112,9 @@ JSON 文档不会直接按原始 JSON 字符串切块，而是先通过 `ReadDoc
 
 系统使用本地 GGUF sentence embedding 模型：
 
-- 默认模型：`sentence-transformers--all-MiniLM-L6-v2.gguf`
+- 默认模型：`bge-m3.gguf`
 - 推理库：`LLamaSharp`
+- pooling：使用 GGUF 元数据中的模型默认值
 
 在真正计算 embedding 之前，会先通过 `PrepareTextForEmbedding` 做长度控制，避免超过上下文预算。
 
@@ -243,9 +244,9 @@ finalCandidateScore =
 - `RAG_SPARSE_CANDIDATE_POOL_SIZE`
   稀疏阶段进入语义打分的候选数
 
-## 7. 规则增强重排
+## 7. 重排
 
-`RerankCandidates` 会在候选分数上继续叠加规则特征。
+`RerankCandidates` 先在候选分数上继续叠加规则特征。如果本地 reranker 服务可用，规则排序后的候选会继续发送到 llama.cpp 的 `/v1/rerank` 端点，由 BGE-Reranker 做学习式 cross-encoder 精排。
 
 ### 7.1 Coverage
 
@@ -272,7 +273,7 @@ finalCandidateScore =
 - `procedure` 偏好“步骤 / 流程 / 首先 / 然后”
 - `explain` 偏好“原因 / 机制 / 因为 / 由于”
 
-### 7.5 重排公式
+### 7.5 规则重排公式
 
 ```text
 rerankScore =
@@ -282,6 +283,8 @@ rerankScore =
   + jsonBranch * JsonBranchWeight
   + intentBoost
 ```
+
+学习式 reranker 可用时会重排这批候选；如果 reranker 服务关闭、不可达、超时或返回不可用响应，系统会自动回退到规则排序。
 
 最终取前 `TopK` 个主命中 chunk。
 
@@ -435,7 +438,7 @@ rerankScore =
 
 ### 局限
 
-- 重排仍然是规则增强，不是学习式 reranker
+- 学习式重排依赖单独的本地 reranker 服务；服务不可用时会回退到规则重排
 - PDF 能力依赖外部 `pdftotext` 命令及文本抽取质量
 - 稀疏预筛虽提升了性能，但还不是 ANN 向量索引
 - 稳定引用目前到“文件 + 章节 + chunk”，还没有页码或更细粒度结构定位
@@ -445,4 +448,4 @@ rerankScore =
 
 当前 WeaveDoc 的 RAG 核心思路是：
 
-**先把本地文档规范化并切成带章节信息的 chunk，再用“稀疏预筛 + 局部语义打分 + 规则重排”找出最相关上下文，把这些上下文送入本地 `llama-server` 生成答案，并通过稳定引用、修复重试、summary 回退和离线评测来保证回答质量。**
+**先把本地文档规范化并切成带章节信息的 chunk，再用“稀疏预筛 + 局部语义打分 + BGE 重排”找出最相关上下文，把这些上下文送入本地 `llama-server` 生成答案，并通过稳定引用、修复重试、summary 回退和离线评测来保证回答质量。**
