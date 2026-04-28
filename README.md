@@ -40,11 +40,15 @@ Prepare GGUF models in the workspace-level `models/` directory.
 
 Required embedding model:
 
-- `models/sentence-transformers--all-MiniLM-L6-v2.gguf`
+- `models/bge-m3.gguf`
 
-Example chat model:
+Required reranker model:
 
-- `models/gemma-4-E2B-it.gguf`
+- `models/bge-reranker-v2-m3.gguf`
+
+Default chat model:
+
+- `models/Qwen3.5-4B-Q4_K_M.gguf`
 
 ## One-Click Update
 
@@ -76,13 +80,14 @@ After models are prepared in `models/`, start the full local stack with:
 ./scripts/run_weavedoc.sh
 ```
 
-This launcher will build and start `llama-server` when needed, then launch the Avalonia desktop app.
+This launcher will build and start the chat `llama-server` and the BGE reranker server when needed, then launch the Avalonia desktop app.
 
 Useful overrides:
 
 ```bash
 LLAMA_SERVER_MODEL=./models/your-chat-model.gguf ./scripts/run_weavedoc.sh
-LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
+LLAMA_SERVER_PORT=8082 ./scripts/run_weavedoc.sh
+LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 ```
 
 ## What The App Supports

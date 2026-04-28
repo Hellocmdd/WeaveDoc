@@ -21,4 +21,4 @@ fi
 
 echo "[cmake_llama_cpp] GGML_CUDA=$CUDA_FLAG"
 cmake -B build -DGGML_CUDA="$CUDA_FLAG"
-cmake --build build --config Release --parallel
+cmake --build build --config Release --parallel 13

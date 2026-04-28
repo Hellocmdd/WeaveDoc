@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -14,8 +15,8 @@ namespace RagAvalonia.Services;
 
 public sealed class LocalAiService : IDisposable
 {
-    private const int EmbeddingContextSize = 512;
-    private const int EmbeddingSafetyMargin = 64;
+    private const int EmbeddingContextSize = 8192;
+    private const int EmbeddingSafetyMargin = 256;
     private const int MaxEmbeddingTokens = EmbeddingContextSize - EmbeddingSafetyMargin;
     private static readonly string[] SupportedDocumentExtensions = [".md", ".txt", ".json", ".pdf"];
     private static readonly string[] IgnoredCorpusRelativePrefixes = ["QA/"];
@@ -31,6 +32,7 @@ public sealed class LocalAiService : IDisposable
     private static readonly Regex MetadataLineRegex = new("^(关键词|key words|摘要|abstract|中图分类号|文献标识码|文章编号|doi|图\\d+|表\\d+|参考文献)[:：]?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex LeadingOutlineRegex = new("^\\s*(?:\\d+(?:\\.\\d+)*\\s+)+", RegexOptions.Compiled);
     private static readonly Regex JsonArrayIndexRegex = new("^\\[(\\d+)\\]$", RegexOptions.Compiled);
+    private static readonly Regex UsageSubjectRegex = new("(?:^|[，。；;：:\\s])(?:在.+?[里中内]\\s*)?(?<subject>[a-z0-9\\-_/+\\.\\u4e00-\\u9fff]{2,24}?)(?:有?什么作用|有什么用途|有什么功能|有什么用|作用是什么|用途是什么|功能是什么)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly HashSet<string> FocusStopWords =
     [
         "什么", "哪些", "哪个", "那个", "这个", "一下", "一些", "其中", "对于", "相关", "关于", "有关", "内容",
@@ -92,7 +94,7 @@ public sealed class LocalAiService : IDisposable
     private LLamaEmbedder? _embedder;
     private float _avgDocumentLength;
 
-    public string EmbeddingModelPath => GetModelPath("sentence-transformers--all-MiniLM-L6-v2.gguf");
+    public string EmbeddingModelPath => GetModelPath(_options.EmbeddingModelFile);
 
     public string WorkspaceRoot => _workspaceRoot ?? WorkspacePaths.FindWorkspaceRoot();
 
@@ -209,30 +211,32 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
-        if (IsPaperSystemModuleQuestion(queryProfile.OriginalQuestion))
+        if (ShouldUseDirectExplanationFallback(queryProfile, topChunks))
         {
-            var directAnswer = BuildSystemModulesFallbackAnswer(topChunks);
+            var directAnswer = BuildExplanationFallbackAnswer(queryProfile.OriginalQuestion, topChunks);
             if (!string.IsNullOrWhiteSpace(directAnswer))
             {
                 return directAnswer;
             }
         }
 
-        if (IsPaperSystemArchitectureQuestion(queryProfile.OriginalQuestion))
+        if (queryProfile.Intent == "summary")
         {
-            var directAnswer = BuildSystemArchitectureFallbackAnswer(topChunks);
-            if (!string.IsNullOrWhiteSpace(directAnswer))
+            var summaryAnswer = IsPaperQuestion(queryProfile.OriginalQuestion)
+                ? BuildPaperSummaryFallbackAnswer(topChunks, queryProfile.WantsDetailedAnswer)
+                : BuildSummaryFallbackAnswer(topChunks, queryProfile.WantsDetailedAnswer);
+            if (!string.IsNullOrWhiteSpace(summaryAnswer))
             {
-                return directAnswer;
+                return summaryAnswer;
             }
         }
 
-        if (IsPrecisionIrrigationQuestion(queryProfile.OriginalQuestion))
+        if (queryProfile.Intent == "procedure")
         {
-            var directAnswer = BuildPrecisionIrrigationFallbackAnswer(queryProfile.OriginalQuestion, topChunks);
-            if (!string.IsNullOrWhiteSpace(directAnswer))
+            var procedureAnswer = BuildProcedureFallbackAnswer(queryProfile.OriginalQuestion, topChunks);
+            if (!string.IsNullOrWhiteSpace(procedureAnswer))
             {
-                return directAnswer;
+                return procedureAnswer;
             }
         }
 
@@ -370,14 +374,22 @@ public sealed class LocalAiService : IDisposable
             BatchSize = 512,
             UBatchSize = 512,
             Threads = Environment.ProcessorCount,
-            PoolingType = LLamaPoolingType.Mean,
+            PoolingType = LLamaPoolingType.Unspecified,
             UseMemorymap = true,
-            GpuLayerCount = 0,
+            GpuLayerCount = _options.EmbeddingGpuLayerCount,
             FlashAttention = true,
         };
 
         _embeddingWeights?.Dispose();
-        _embeddingWeights = await LLamaWeights.LoadFromFileAsync(parameters, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            _embeddingWeights = await LLamaWeights.LoadFromFileAsync(parameters, cancellationToken).ConfigureAwait(false);
+        }
+        catch when (_options.EmbeddingGpuLayerCount > 0)
+        {
+            parameters.GpuLayerCount = 0;
+            _embeddingWeights = await LLamaWeights.LoadFromFileAsync(parameters, cancellationToken).ConfigureAwait(false);
+        }
 
         _embedder?.Dispose();
         _embedder = new LLamaEmbedder(_embeddingWeights, parameters);
@@ -466,7 +478,7 @@ public sealed class LocalAiService : IDisposable
 
         var queryProfile = BuildQueryProfile(question);
         var queryTokens = BuildRetrievalQueryTokens(question, queryProfile.RequestedDocumentTitle);
-        var targetFilePaths = ApplyRequestedFileFormatPreference(question, ResolveRequestedDocumentFilePaths(queryProfile.RequestedDocumentTitle));
+        var targetFilePaths = ApplyRequestedFileFormatPreference(question, queryProfile.Intent, ResolveRequestedDocumentFilePaths(queryProfile.RequestedDocumentTitle));
         var targetFilePathSet = targetFilePaths.Count == 0
             ? null
             : new HashSet<string>(targetFilePaths, StringComparer.OrdinalIgnoreCase);
@@ -540,7 +552,10 @@ public sealed class LocalAiService : IDisposable
             .Take(Math.Min(GetRerankCandidatePoolSize(queryProfile), candidatePool.Length))
             .ToArray();
 
-        var reranked = RerankCandidates(candidates, queryProfile, count);
+        var ruleRerankCount = Math.Min(candidates.Length, Math.Max(count, _options.RerankerTopN));
+        var ruleReranked = RerankCandidates(candidates, queryProfile, ruleRerankCount);
+        var learnedRerank = await TryRerankWithLearnedModelAsync(question, ruleReranked, count, cancellationToken).ConfigureAwait(false);
+        var reranked = learnedRerank.RankedChunks;
         var contextChunks = BuildContextWindow(reranked, queryProfile, targetFilePaths);
         return new RetrievalResult(
             reranked,
@@ -549,6 +564,8 @@ public sealed class LocalAiService : IDisposable
             sparseRanked.Length,
             semanticInputs.Length,
             hasMeaningfulSparseEvidence,
+            learnedRerank.Used,
+            learnedRerank.Status,
             targetFilePaths);
     }
 
@@ -576,6 +593,199 @@ public sealed class LocalAiService : IDisposable
         };
 
         return Math.Clamp(_options.CandidatePoolSize * multiplier, _options.CandidatePoolSize, _options.SparseCandidatePoolSize);
+    }
+
+    private async Task<LearnedRerankResult> TryRerankWithLearnedModelAsync(
+        string question,
+        IReadOnlyList<ScoredChunk> candidates,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        if (!_options.RerankerEnabled)
+        {
+            return new LearnedRerankResult(candidates.Take(count).ToArray(), false, "disabled");
+        }
+
+        if (candidates.Count <= 1)
+        {
+            return new LearnedRerankResult(candidates.Take(count).ToArray(), false, "not enough candidates");
+        }
+
+        var endpoint = BuildRerankerEndpoint(_options.RerankerBaseUrl);
+        var documents = candidates
+            .Select(candidate => BuildRerankerDocumentText(candidate.Chunk))
+            .ToArray();
+        var payload = new RerankRequest(_options.RerankerModel, question, documents, Math.Min(count, candidates.Count));
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = JsonContent.Create(payload)
+        };
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(_options.RerankerTimeoutSeconds));
+
+        try
+        {
+            using var response = await _httpClient.SendAsync(request, timeout.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new LearnedRerankResult(candidates.Take(count).ToArray(), false, $"http {(int)response.StatusCode}");
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: timeout.Token).ConfigureAwait(false);
+            var scores = ParseRerankScores(document.RootElement);
+            if (scores.Count == 0)
+            {
+                return new LearnedRerankResult(candidates.Take(count).ToArray(), false, "empty response");
+            }
+
+            var scoreByIndex = scores
+                .Where(score => score.Index >= 0 && score.Index < candidates.Count)
+                .GroupBy(score => score.Index)
+                .ToDictionary(group => group.Key, group => group.Max(item => item.Score));
+
+            if (scoreByIndex.Count == 0)
+            {
+                return new LearnedRerankResult(candidates.Take(count).ToArray(), false, "no usable scores");
+            }
+
+            var ranked = candidates
+                .Select((candidate, index) =>
+                {
+                    var relevance = scoreByIndex.TryGetValue(index, out var score) ? score : float.NegativeInfinity;
+                    return new
+                    {
+                        Candidate = candidate,
+                        Relevance = relevance,
+                        OriginalRank = index
+                    };
+                })
+                .OrderByDescending(item => item.Relevance)
+                .ThenByDescending(item => item.Candidate.Score)
+                .ThenBy(item => item.OriginalRank)
+                .Take(count)
+                .Select(item => item.Candidate)
+                .ToArray();
+
+            return new LearnedRerankResult(ranked, true, $"ok ({scoreByIndex.Count}/{candidates.Count})");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new LearnedRerankResult(candidates.Take(count).ToArray(), false, "timeout");
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException or NotSupportedException)
+        {
+            return new LearnedRerankResult(candidates.Take(count).ToArray(), false, exception.GetType().Name);
+        }
+    }
+
+    private static Uri BuildRerankerEndpoint(string baseUrl)
+    {
+        var normalized = baseUrl.TrimEnd('/');
+        return new Uri($"{normalized}/v1/rerank", UriKind.Absolute);
+    }
+
+    private static string BuildRerankerDocumentText(DocumentChunk chunk)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine($"file: {chunk.FilePath}");
+        if (!string.IsNullOrWhiteSpace(chunk.StructurePath))
+        {
+            builder.AppendLine($"section: {chunk.StructurePath}");
+        }
+        else if (!string.IsNullOrWhiteSpace(chunk.SectionTitle))
+        {
+            builder.AppendLine($"section: {chunk.SectionTitle}");
+        }
+
+        builder.AppendLine($"kind: {chunk.ContentKind}");
+        builder.AppendLine(BuildChunkRetrievalText(chunk));
+        return builder.ToString();
+    }
+
+    private static List<RerankScore> ParseRerankScores(JsonElement root)
+    {
+        var scores = new List<RerankScore>();
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            ParseRerankScoreArray(root, scores);
+            return scores;
+        }
+
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return scores;
+        }
+
+        if (root.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
+        {
+            ParseRerankScoreArray(results, scores);
+        }
+        else if (root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+        {
+            ParseRerankScoreArray(data, scores);
+        }
+
+        return scores;
+    }
+
+    private static void ParseRerankScoreArray(JsonElement items, List<RerankScore> scores)
+    {
+        var fallbackIndex = 0;
+        foreach (var item in items.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                fallbackIndex++;
+                continue;
+            }
+
+            var index = TryGetIntProperty(item, "index")
+                ?? TryGetIntProperty(item, "document_index")
+                ?? fallbackIndex;
+            var score = TryGetFloatProperty(item, "relevance_score")
+                ?? TryGetFloatProperty(item, "score")
+                ?? TryGetFloatProperty(item, "relevance");
+
+            if (score.HasValue)
+            {
+                scores.Add(new RerankScore(index, score.Value));
+            }
+
+            fallbackIndex++;
+        }
+    }
+
+    private static int? TryGetIntProperty(JsonElement item, string propertyName)
+    {
+        if (!item.TryGetProperty(propertyName, out var value))
+        {
+            return null;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number when value.TryGetInt32(out var intValue) => intValue,
+            JsonValueKind.String when int.TryParse(value.GetString(), out var intValue) => intValue,
+            _ => null
+        };
+    }
+
+    private static float? TryGetFloatProperty(JsonElement item, string propertyName)
+    {
+        if (!item.TryGetProperty(propertyName, out var value))
+        {
+            return null;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number when value.TryGetSingle(out var floatValue) => floatValue,
+            JsonValueKind.String when float.TryParse(value.GetString(), out var floatValue) => floatValue,
+            _ => null
+        };
     }
 
 
@@ -1502,6 +1712,7 @@ public sealed class LocalAiService : IDisposable
         builder.AppendLine($"稀疏预筛候选: {retrieval.SparseCandidateCount} 条");
         builder.AppendLine($"进入语义计算: {retrieval.SemanticCandidateCount} 条");
         builder.AppendLine($"是否使用稀疏预筛: {(retrieval.UsedSparsePrefilter ? "是" : "否（回退全量语义）")}");
+        builder.AppendLine($"学习式重排: {(retrieval.UsedLearnedReranker ? "BGE-Reranker" : "未使用")} ({retrieval.LearnedRerankerStatus})");
 
         if (retrieval.RankedChunks.Count == 0)
         {
@@ -1930,7 +2141,7 @@ public sealed class LocalAiService : IDisposable
         return builder.ToString();
     }
 
-    private static IReadOnlyList<string> ApplyRequestedFileFormatPreference(string question, IReadOnlyList<string> filePaths)
+    private static IReadOnlyList<string> ApplyRequestedFileFormatPreference(string question, string intent, IReadOnlyList<string> filePaths)
     {
         if (filePaths.Count <= 1)
         {
@@ -1955,7 +2166,47 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
+        if (ShouldPreferStructuredJsonForIntent(intent))
+        {
+            var preferred = PreferJsonWhenSameDocumentHasPdf(filePaths);
+            if (preferred.Count > 0 && preferred.Count < filePaths.Count)
+            {
+                return preferred;
+            }
+        }
+
         return filePaths;
+    }
+
+    private static bool ShouldPreferStructuredJsonForIntent(string intent)
+    {
+        return intent is "summary" or "composition" or "usage" or "module_list" or "module_implementation" or "explain" or "procedure";
+    }
+
+    private static IReadOnlyList<string> PreferJsonWhenSameDocumentHasPdf(IReadOnlyList<string> filePaths)
+    {
+        var grouped = filePaths
+            .GroupBy(path => NormalizeLookupText(Path.GetFileNameWithoutExtension(path)), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var selected = new List<string>();
+        var changed = false;
+        foreach (var group in grouped)
+        {
+            var paths = group.ToArray();
+            var jsonPaths = paths.Where(path => path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)).ToArray();
+            var hasPdf = paths.Any(path => path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase));
+            if (jsonPaths.Length > 0 && hasPdf)
+            {
+                selected.AddRange(jsonPaths);
+                changed = true;
+                continue;
+            }
+
+            selected.AddRange(paths);
+        }
+
+        return changed ? selected : filePaths;
     }
 
     private static IEnumerable<string> ExpandRetrievalTerms(string question, string lowerQuestion, string intent)
@@ -1964,15 +2215,14 @@ public sealed class LocalAiService : IDisposable
 
         if (intent == "summary" || question.Contains("主要写了什么", StringComparison.Ordinal) || question.Contains("主要内容", StringComparison.Ordinal))
         {
-            expansions.Add("模块");
-            expansions.Add("架构");
             expansions.Add("overview");
             expansions.Add("summary");
             expansions.Add("abstract");
-            expansions.Add("感知");
-            expansions.Add("决策");
-            expansions.Add("执行");
-            expansions.Add("交互");
+            expansions.Add("摘要");
+            expansions.Add("概述");
+            expansions.Add("引言");
+            expansions.Add("结论");
+            expansions.Add("主要内容");
         }
 
         if (question.Contains("创新点", StringComparison.Ordinal)
@@ -1981,13 +2231,10 @@ public sealed class LocalAiService : IDisposable
         {
             expansions.Add("创新点");
             expansions.Add("创新");
-            expansions.Add("系统创新点");
-            expansions.Add("模板化配置");
-            expansions.Add("多源异构");
-            expansions.Add("知识图谱");
-            expansions.Add("多模态");
-            expansions.Add("可视化");
-            expansions.Add("人机协同");
+            expansions.Add("贡献");
+            expansions.Add("提出");
+            expansions.Add("改进");
+            expansions.Add("优势");
         }
 
         if (question.Contains("局限", StringComparison.Ordinal)
@@ -2001,14 +2248,11 @@ public sealed class LocalAiService : IDisposable
             expansions.Add("局限");
             expansions.Add("不足");
             expansions.Add("挑战");
-            expansions.Add("未来发展路径");
+            expansions.Add("问题");
+            expansions.Add("未来");
+            expansions.Add("改进");
             expansions.Add("研究局限");
             expansions.Add("反思");
-            expansions.Add("人机合作");
-            expansions.Add("人机共创");
-            expansions.Add("叙事同质化");
-            expansions.Add("文化失真");
-            expansions.Add("戏剧性");
         }
 
         if (question.Contains("架构", StringComparison.Ordinal)
@@ -2016,14 +2260,13 @@ public sealed class LocalAiService : IDisposable
             || question.Contains("总体设计", StringComparison.Ordinal)
             || question.Contains("前后端", StringComparison.Ordinal))
         {
-            expansions.Add("系统总体架构");
-            expansions.Add("前后端分离");
-            expansions.Add("spring boot");
-            expansions.Add("vue3");
-            expansions.Add("mybatis-plus");
-            expansions.Add("mysql");
-            expansions.Add("echarts");
-            expansions.Add("restful api");
+            expansions.Add("架构");
+            expansions.Add("系统架构");
+            expansions.Add("总体架构");
+            expansions.Add("总体设计");
+            expansions.Add("技术栈");
+            expansions.Add("模块");
+            expansions.Add("接口");
         }
 
         if (question.Contains("硬件", StringComparison.Ordinal))
@@ -2055,11 +2298,13 @@ public sealed class LocalAiService : IDisposable
             || question.Contains("指什么", StringComparison.Ordinal)
             || question.Contains("定义", StringComparison.Ordinal))
         {
+            expansions.Add("定义");
+            expansions.Add("是指");
+            expansions.Add("是一种");
             expansions.Add("作为");
             expansions.Add("用于");
             expansions.Add("负责");
-            expansions.Add("核心控制器");
-            expansions.Add("语义网络");
+            expansions.Add("核心");
         }
 
         if (intent == "explain"
@@ -2069,8 +2314,11 @@ public sealed class LocalAiService : IDisposable
         {
             expansions.Add("原因");
             expansions.Add("机制");
-            expansions.Add("蒸发");
-            expansions.Add("补偿");
+            expansions.Add("原理");
+            expansions.Add("由于");
+            expansions.Add("因为");
+            expansions.Add("因此");
+            expansions.Add("影响");
             expansions.Add("动态调节");
         }
 
@@ -2081,28 +2329,36 @@ public sealed class LocalAiService : IDisposable
         {
             expansions.Add("区别");
             expansions.Add("差异");
-            expansions.Add("模糊控制");
-            expansions.Add("pid调节");
+            expansions.Add("不同");
+            expansions.Add("对比");
+            expansions.Add("相比");
             expansions.Add("阶段");
-            expansions.Add("补偿");
+        }
+
+        if (intent == "procedure")
+        {
+            expansions.Add("方法");
+            expansions.Add("步骤");
+            expansions.Add("流程");
+            expansions.Add("策略");
+            expansions.Add("机制");
+            expansions.Add("算法");
+            expansions.Add("控制");
+            expansions.Add("调节");
+            expansions.Add("动态");
+            expansions.Add("反馈");
+            expansions.Add("执行");
+            expansions.Add("输出");
+            expansions.Add("偏差");
         }
 
         if (IsModuleQuestion(question))
         {
-            expansions.Add("信息抽取模块");
-            expansions.Add("知识图谱");
-            expansions.Add("多模态检索");
-            expansions.Add("多特征关联分析");
-            expansions.Add("可视化");
-        }
-
-        if (question.Contains("文化传承", StringComparison.Ordinal)
-            || question.Contains("传统文化", StringComparison.Ordinal))
-        {
-            expansions.Add("中国神话");
-            expansions.Add("ai看典籍");
-            expansions.Add("文化传承");
-            expansions.Add("创造性转化");
+            expansions.Add("模块");
+            expansions.Add("功能模块");
+            expansions.Add("功能");
+            expansions.Add("组成");
+            expansions.Add("职责");
         }
 
         if (EnglishMetadataSignals.Any(signal => question.Contains(signal, StringComparison.OrdinalIgnoreCase)))
@@ -2113,47 +2369,19 @@ public sealed class LocalAiService : IDisposable
             expansions.Add("english");
         }
 
-        if (question.Contains("科幻", StringComparison.Ordinal))
-        {
-            expansions.Add("三星堆");
-            expansions.Add("未来启示录");
-            expansions.Add("科幻题材");
-            expansions.Add("末日");
-            expansions.Add("想象未来");
-        }
-
-        if (question.Contains("精准灌溉", StringComparison.Ordinal)
-            || question.Contains("灌溉", StringComparison.Ordinal)
-            || question.Contains("控制策略", StringComparison.Ordinal)
-            || question.Contains("怎么控制", StringComparison.Ordinal))
-        {
-            expansions.Add("模糊pid");
-            expansions.Add("pid");
-            expansions.Add("模糊控制");
-            expansions.Add("pid调节");
-            expansions.Add("环境补偿");
-            expansions.Add("补偿");
-            expansions.Add("土壤湿度");
-            expansions.Add("电磁阀");
-            expansions.Add("pwm");
-            expansions.Add("占空比");
-            expansions.Add("反馈");
-            expansions.Add("控制算法");
-            expansions.Add("控制器");
-            expansions.Add("阶段");
-        }
-
-        if (question.Contains("远程", StringComparison.Ordinal)
+        if (intent == "module_implementation"
+            || question.Contains("远程", StringComparison.Ordinal)
             || question.Contains("状态显示", StringComparison.Ordinal)
-            || question.Contains("控制模块", StringComparison.Ordinal)
-            || lowerQuestion.Contains("mqtt", StringComparison.Ordinal)
-            || lowerQuestion.Contains("wifi", StringComparison.Ordinal))
+            || question.Contains("控制模块", StringComparison.Ordinal))
         {
-            expansions.Add("esp-01s");
-            expansions.Add("wifi");
-            expansions.Add("mqtt");
-            expansions.Add("usart");
-            expansions.Add("远程");
+            expansions.Add("接口");
+            expansions.Add("协议");
+            expansions.Add("通信");
+            expansions.Add("链路");
+            expansions.Add("上传");
+            expansions.Add("下发");
+            expansions.Add("显示");
+            expansions.Add("控制");
         }
 
         if (intent == "usage"
@@ -2774,28 +3002,14 @@ public sealed class LocalAiService : IDisposable
         if (queryProfile.Intent == "procedure")
         {
             var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
-            if (structureText.Contains("模糊PID", StringComparison.OrdinalIgnoreCase)
-                || structureText.Contains("PID调节", StringComparison.OrdinalIgnoreCase))
-            {
-                boost += 0.18f;
-            }
-
-            if (structureText.Contains("环境补偿", StringComparison.OrdinalIgnoreCase)
-                || structureText.Contains("控制器", StringComparison.Ordinal))
+            if (ContainsAny(structureText, "阶段", "步骤", "流程", "策略", "机制", "方法", "控制", "调节"))
             {
                 boost += 0.10f;
             }
 
-            if (structureText.Contains("阶段", StringComparison.Ordinal)
-                || structureText.Contains("策略", StringComparison.Ordinal)
-                || structureText.Contains("机制", StringComparison.Ordinal))
+            if (ContainsAny(chunk.Text, "首先", "然后", "最后", "通过", "采用", "根据", "动态", "实时", "反馈"))
             {
-                boost += 0.04f;
-            }
-
-            if (ContainsAny(chunk.Text, "动态调整", "动态调节", "精确控制", "补偿", "实时偏差", "灌溉量"))
-            {
-                boost += 0.12f;
+                boost += 0.08f;
             }
         }
 
@@ -2804,12 +3018,13 @@ public sealed class LocalAiService : IDisposable
             var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
             if (structureText.Contains("机制", StringComparison.Ordinal)
                 || structureText.Contains("原理", StringComparison.Ordinal)
-                || structureText.Contains("补偿", StringComparison.Ordinal))
+                || structureText.Contains("原因", StringComparison.Ordinal)
+                || structureText.Contains("策略", StringComparison.Ordinal))
             {
                 boost += 0.12f;
             }
 
-            if (ContainsAny(chunk.Text, "由于", "因此", "蒸发", "补偿", "动态修正", "提前调整"))
+            if (ContainsAny(chunk.Text, "由于", "因此", "因为", "导致", "影响", "为了", "从而", "所以"))
             {
                 boost += 0.10f;
             }
@@ -2819,13 +3034,14 @@ public sealed class LocalAiService : IDisposable
         {
             var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
             if (structureText.Contains("阶段", StringComparison.Ordinal)
-                || structureText.Contains("模糊控制", StringComparison.OrdinalIgnoreCase)
-                || structureText.Contains("PID调节", StringComparison.OrdinalIgnoreCase))
+                || structureText.Contains("对比", StringComparison.Ordinal)
+                || structureText.Contains("比较", StringComparison.Ordinal)
+                || structureText.Contains("区别", StringComparison.Ordinal))
             {
                 boost += 0.12f;
             }
 
-            if (ContainsAny(chunk.Text, "大偏差", "快速响应", "精确控制", "动态调整", "超调", "积分"))
+            if (ContainsAny(chunk.Text, "不同", "区别", "相比", "一方面", "另一方面", "而", "则"))
             {
                 boost += 0.08f;
             }
@@ -2833,7 +3049,7 @@ public sealed class LocalAiService : IDisposable
 
         if (queryProfile.Intent == "definition")
         {
-            if (ContainsAny(chunk.Text, "作为", "是一种", "是指", "负责", "用于", "核心控制器"))
+            if (ContainsAny(chunk.Text, "作为", "是一种", "是指", "负责", "用于", "核心", "表示", "定义"))
             {
                 boost += 0.10f;
             }
@@ -2851,7 +3067,7 @@ public sealed class LocalAiService : IDisposable
         if (queryProfile.Intent == "module_list")
         {
             var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
-            var moduleSignals = CountSignals(source, "信息抽取", "知识图谱", "多模态检索", "多特征关联", "功能模块", "模块");
+            var moduleSignals = CountSignals(source, "功能模块", "模块", "子系统", "功能", "组成", "包括", "包含", "职责");
             boost += Math.Min(0.30f, moduleSignals * 0.06f);
             if (ContainsAny(source, "集成了", "包括", "包含", "主要功能", "模块"))
             {
@@ -3400,7 +3616,7 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
-        if (IsModuleImplementationQuestion(question) && !HasModuleImplementationAnswerShape(normalized))
+        if (IsModuleImplementationQuestion(question) && !HasGenericModuleImplementationAnswerShape(normalized))
         {
             return true;
         }
@@ -3634,18 +3850,10 @@ public sealed class LocalAiService : IDisposable
         return referenceLikeLines * 2 >= lines.Length;
     }
 
-    private static bool HasModuleImplementationAnswerShape(string answer)
+    private static bool HasGenericModuleImplementationAnswerShape(string answer)
     {
         var normalized = Regex.Replace(answer.ToLowerInvariant(), "\\s+", string.Empty);
-        var hasCoreLink = normalized.Contains("usart", StringComparison.Ordinal)
-            && normalized.Contains("mqtt", StringComparison.Ordinal);
-        var hasEndpoint = normalized.Contains("app", StringComparison.Ordinal)
-            || normalized.Contains("手机app", StringComparison.Ordinal);
-        var hasControl = normalized.Contains("阈值", StringComparison.Ordinal)
-            || normalized.Contains("指令", StringComparison.Ordinal)
-            || normalized.Contains("手动触发", StringComparison.Ordinal)
-            || normalized.Contains("即时灌溉", StringComparison.Ordinal);
-        return hasCoreLink && hasEndpoint && hasControl;
+        return ContainsAny(normalized, "通过", "采用", "连接", "接口", "协议", "通信", "链路", "上传", "下发", "显示", "控制", "实现", "处理", "调用", "模块");
     }
 
     private string? BuildMetadataFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
@@ -3779,24 +3987,6 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
-        if (IsPaperSystemModuleQuestion(question))
-        {
-            var modules = BuildSystemModulesFallbackAnswer(scopedChunks);
-            if (!string.IsNullOrWhiteSpace(modules))
-            {
-                return modules;
-            }
-        }
-
-        if (IsPaperSystemArchitectureQuestion(question))
-        {
-            var architecture = BuildSystemArchitectureFallbackAnswer(scopedChunks);
-            if (!string.IsNullOrWhiteSpace(architecture))
-            {
-                return architecture;
-            }
-        }
-
         if (queryProfile.Intent == "module_implementation")
         {
             var moduleImplementation = BuildModuleImplementationFallbackAnswer(question, scopedChunks);
@@ -3821,15 +4011,6 @@ public sealed class LocalAiService : IDisposable
             if (!string.IsNullOrWhiteSpace(explanation))
             {
                 return explanation;
-            }
-        }
-
-        if (IsPrecisionIrrigationQuestion(question))
-        {
-            var precisionIrrigation = BuildPrecisionIrrigationFallbackAnswer(question, scopedChunks);
-            if (!string.IsNullOrWhiteSpace(precisionIrrigation))
-            {
-                return precisionIrrigation;
             }
         }
 
@@ -3957,7 +4138,7 @@ public sealed class LocalAiService : IDisposable
                 || chunk.SectionTitle.Contains("总体设计", StringComparison.Ordinal)
                 || chunk.SectionTitle.Contains("系统", StringComparison.Ordinal)
                 || chunk.SectionTitle.Contains("架构", StringComparison.Ordinal),
-            sentence => CountSignals(sentence, "架构", "模块", "感知", "决策", "执行", "交互", "流程", "数据采集", "显示", "远程"),
+            sentence => CountSignals(sentence, "架构", "模块", "组成", "层", "流程", "设计", "包括", "包含", "系统"),
             usedSentences,
             minimumSignalScore: 2);
 
@@ -3965,10 +4146,10 @@ public sealed class LocalAiService : IDisposable
             documentChunks,
             chunk => chunk.SectionTitle.Contains("控制", StringComparison.Ordinal)
                 || chunk.SectionTitle.Contains("软件", StringComparison.Ordinal)
-                || chunk.StructurePath.Contains("模糊PID", StringComparison.OrdinalIgnoreCase)
                 || chunk.StructurePath.Contains("控制", StringComparison.Ordinal)
-                || chunk.StructurePath.Contains("补偿", StringComparison.Ordinal),
-            sentence => CountSignals(sentence, "模糊pid", "控制算法", "动态调节", "补偿", "决策", "反馈", "传感器", "采集"),
+                || chunk.StructurePath.Contains("方法", StringComparison.Ordinal)
+                || chunk.StructurePath.Contains("机制", StringComparison.Ordinal),
+            sentence => CountSignals(sentence, "方法", "算法", "控制", "调节", "机制", "流程", "采集", "处理", "生成", "实现"),
             usedSentences,
             minimumSignalScore: 2);
 
@@ -3989,7 +4170,7 @@ public sealed class LocalAiService : IDisposable
                 documentChunks,
                 chunk => chunk.SectionTitle.Contains("创新", StringComparison.Ordinal)
                     || chunk.StructurePath.Contains("创新", StringComparison.Ordinal),
-                sentence => CountSignals(sentence, "创新", "融合", "补偿", "模糊pid", "加权", "动态"),
+                sentence => CountSignals(sentence, "创新", "融合", "改进", "优化", "动态", "机制", "方法"),
                 usedSentences,
                 minimumSignalScore: 1)
             : null;
@@ -4112,14 +4293,16 @@ public sealed class LocalAiService : IDisposable
         {
             var remainder = selected
                 .Skip(1)
-                .Select(item => item.Sentence)
-                .Distinct(StringComparer.Ordinal)
+                .DistinctBy(item => NormalizeSummarySentence(item.Sentence), StringComparer.Ordinal)
                 .Take(2)
                 .ToArray();
 
             if (remainder.Length > 0)
             {
-                builder.Append($"另外，文档还围绕{string.Join("，", remainder)}展开 {BuildStableCitation(selected[1].Chunk)}。");
+                foreach (var item in remainder)
+                {
+                    builder.Append($"另外，{CleanStructuredSentence(item.Sentence)} {BuildStableCitation(item.Chunk)}。");
+                }
             }
         }
 
@@ -4348,10 +4531,16 @@ public sealed class LocalAiService : IDisposable
                     continue;
                 }
 
-                var lowerSentence = sentence.ToLowerInvariant();
+                var cleanedSentence = CleanStructuredSentence(sentence);
+                if (IsLikelyFragmentSentence(cleanedSentence))
+                {
+                    continue;
+                }
+
+                var lowerSentence = cleanedSentence.ToLowerInvariant();
                 var tokenHits = queryTokens.Count(token => lowerSentence.Contains(token, StringComparison.Ordinal));
-                var compositionHits = CompositionSignals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
-                var structureHits = CountCompositionStructureSignals(sentence);
+                var compositionHits = CompositionSignals.Count(signal => cleanedSentence.Contains(signal, StringComparison.Ordinal));
+                var structureHits = CountCompositionStructureSignals(cleanedSentence);
 
                 var score = (tokenHits * 3)
                     + (compositionHits * 2)
@@ -4362,13 +4551,22 @@ public sealed class LocalAiService : IDisposable
                 {
                     score += 1;
                 }
+                else if (chunk.ContentKind == "body")
+                {
+                    score += 2;
+                }
+
+                if (IsJsonChunk(chunk))
+                {
+                    score += 2;
+                }
 
                 if (score <= 0)
                 {
                     continue;
                 }
 
-                candidates.Add(new ProcedureCandidate(chunk, sentence, score));
+                candidates.Add(new ProcedureCandidate(chunk, cleanedSentence, score));
             }
         }
 
@@ -4387,11 +4585,10 @@ public sealed class LocalAiService : IDisposable
         }
 
         var builder = new StringBuilder();
-        var selectedSentences = selected.Select(item => item.Sentence).ToArray();
-        var paragraph = JoinSentencesWithCitation(selectedSentences, "根据当前文档，相关组成、配置或条件信息主要包括", BuildStableCitation(selected[0].Chunk));
-        if (!string.IsNullOrWhiteSpace(paragraph))
+        builder.AppendLine("根据当前文档，相关组成、配置或条件信息主要包括：");
+        for (var index = 0; index < selected.Length; index++)
         {
-            builder.Append(paragraph);
+            builder.AppendLine($"{index + 1}. {selected[index].Sentence} {BuildStableCitation(selected[index].Chunk)}");
         }
 
         return builder.ToString().TrimEnd();
@@ -5048,11 +5245,17 @@ public sealed class LocalAiService : IDisposable
                     continue;
                 }
 
-                var lowerSentence = sentence.ToLowerInvariant();
+                var cleanedSentence = CleanStructuredSentence(sentence);
+                if (IsLikelyFragmentSentence(cleanedSentence))
+                {
+                    continue;
+                }
+
+                var lowerSentence = cleanedSentence.ToLowerInvariant();
                 var tokenHits = queryTokens.Count(token => lowerSentence.Contains(token, StringComparison.Ordinal));
-                var procedureHits = ProcedureSignals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
-                var architectureHits = CountArchitectureSignals(sentence);
-                var methodHits = CountMethodSignals(sentence);
+                var procedureHits = ProcedureSignals.Count(signal => cleanedSentence.Contains(signal, StringComparison.Ordinal));
+                var architectureHits = CountArchitectureSignals(cleanedSentence);
+                var methodHits = CountMethodSignals(cleanedSentence);
 
                 var score = (tokenHits * 3)
                     + (procedureHits * 2)
@@ -5071,7 +5274,7 @@ public sealed class LocalAiService : IDisposable
                     continue;
                 }
 
-                candidates.Add(new ProcedureCandidate(chunk, sentence, score));
+                candidates.Add(new ProcedureCandidate(chunk, cleanedSentence, score));
             }
         }
 
@@ -5090,21 +5293,10 @@ public sealed class LocalAiService : IDisposable
         }
 
         var builder = new StringBuilder();
-        var lead = selected[0];
-        builder.Append($"根据当前文档，相关流程或实现要点可以概括为：{lead.Sentence} {BuildStableCitation(lead.Chunk)}。");
-        if (selected.Length > 1)
+        builder.AppendLine("根据当前文档，相关流程或实现要点包括：");
+        for (var index = 0; index < selected.Length; index++)
         {
-            var tail = selected
-                .Skip(1)
-                .Select(item => item.Sentence)
-                .Distinct(StringComparer.Ordinal)
-                .Take(3)
-                .ToArray();
-
-            if (tail.Length > 0)
-            {
-                builder.Append($"进一步包括{string.Join("，", tail)} {BuildStableCitation(selected[1].Chunk)}。");
-            }
+            builder.AppendLine($"{index + 1}. {selected[index].Sentence} {BuildStableCitation(selected[index].Chunk)}");
         }
 
         return builder.ToString().TrimEnd();
@@ -5280,7 +5472,7 @@ public sealed class LocalAiService : IDisposable
 
             if (IsPaperSystemQuestion(queryProfile.OriginalQuestion))
             {
-                return "论文系统类问题优先保留原文中的技术栈、框架名、模块名、方法名和可视化/知识图谱等术语，并尽量按后端、前端、数据库、可视化或功能模块分别展开。";
+                return "论文系统类问题优先保留原文中的技术栈、框架名、模块名、方法名和关键功能术语，并尽量按系统层次、组成模块、数据流程或功能模块分别展开。";
             }
 
             if (IsPaperContributionQuestion(queryProfile.OriginalQuestion))
@@ -5323,7 +5515,7 @@ public sealed class LocalAiService : IDisposable
 
         if (queryProfile.Intent == "explain")
         {
-            return "解释类问题优先保留原文中的因果词、机制词、条件词和结果词，例如由于、因此、补偿、蒸发、动态调节等。";
+            return "解释类问题优先保留原文中的因果词、机制词、条件词和结果词，例如由于、因此、为了、导致、影响、动态调节等。";
         }
 
         if (queryProfile.Intent == "definition")
@@ -5334,13 +5526,13 @@ public sealed class LocalAiService : IDisposable
         if (queryProfile.Intent == "module_implementation")
         {
             return queryProfile.WantsDetailedAnswer
-                ? "模块实现类问题优先围绕模块本身写清接口、协议、上下行链路、显示端和控制动作；如原文给出了 USART、WiFi、MQTT、JSON、APP、阈值设定或指令下发等术语，应直接保留。"
+                ? "模块实现类问题优先围绕模块本身写清接口、协议、上下行链路、显示端和控制动作；如原文给出了具体接口名、协议名、数据格式、终端或控制动作，应直接保留。"
                 : "模块实现类问题优先点出接口、协议、显示/控制链路和执行动作，不要泛化成整个系统设计。";
         }
 
         if (queryProfile.Intent == "module_list")
         {
-            return "模块清单类问题优先保留原文中的模块名，例如信息抽取、知识图谱、多模态检索、多特征关联等，并概括每个模块的职责。";
+            return "模块清单类问题优先保留原文中的模块名，并概括每个模块的职责。";
         }
 
         if (queryProfile.Intent == "procedure")
@@ -5517,6 +5709,30 @@ public sealed class LocalAiService : IDisposable
         return !IsReferenceLikeSentence(trimmed);
     }
 
+    private static bool IsLikelyFragmentSentence(string sentence)
+    {
+        var trimmed = sentence.Trim();
+        if (trimmed.Length < 12)
+        {
+            return true;
+        }
+
+        if (trimmed.Count(character => character is '，' or ',' or '、') >= 5
+            && CountSignals(trimmed, "包括", "包含", "由", "组成", "构成") == 0)
+        {
+            return true;
+        }
+
+        if (!ContainsCjk(trimmed))
+        {
+            return false;
+        }
+
+        var hasPredicateSignal = CountSignals(trimmed, "包括", "包含", "采用", "选用", "负责", "实现", "用于", "连接", "采集", "控制", "显示", "上传", "下发", "组成", "构成") > 0;
+        var hasTerminalPunctuation = trimmed.EndsWith('。') || trimmed.EndsWith('！') || trimmed.EndsWith('？') || trimmed.EndsWith('.');
+        return !hasPredicateSignal && !hasTerminalPunctuation && trimmed.Length < 24;
+    }
+
     private static bool IsUsageQuestion(string question)
     {
         if (string.IsNullOrWhiteSpace(question))
@@ -5621,6 +5837,11 @@ public sealed class LocalAiService : IDisposable
             return null;
         }
 
+        if (TryExtractUsageQuestionSubject(question, out var usageSubject))
+        {
+            return usageSubject;
+        }
+
         var normalized = NormalizeQuestionForSubjectExtraction(question);
         if (string.IsNullOrWhiteSpace(normalized))
         {
@@ -5649,6 +5870,54 @@ public sealed class LocalAiService : IDisposable
             .FirstOrDefault();
 
         return exactEntity ?? matches.OrderByDescending(token => token.Length).First();
+    }
+
+    private static bool TryExtractUsageQuestionSubject(string question, out string subject)
+    {
+        subject = string.Empty;
+        if (!IsUsageQuestion(question))
+        {
+            return false;
+        }
+
+        var normalized = StripQuestionBoilerplate(BuildFocusTermSourceText(question).Trim());
+        var match = UsageSubjectRegex.Match(normalized);
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        subject = CleanExtractedUsageSubject(match.Groups["subject"].Value);
+        return !string.IsNullOrWhiteSpace(subject);
+    }
+
+    private static string CleanExtractedUsageSubject(string subject)
+    {
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = subject.Trim()
+            .Trim('，', '。', '？', '?', '！', '!', '；', ';', '：', ':', '、', ' ')
+            .Replace("文档里", string.Empty, StringComparison.Ordinal)
+            .Replace("文档中", string.Empty, StringComparison.Ordinal)
+            .Replace("文中", string.Empty, StringComparison.Ordinal)
+            .Replace("里面", string.Empty, StringComparison.Ordinal)
+            .Replace("其中", string.Empty, StringComparison.Ordinal)
+            .Trim();
+
+        var markers = new[] { "里", "中", "内", "的" };
+        foreach (var marker in markers)
+        {
+            var markerIndex = cleaned.LastIndexOf(marker, StringComparison.Ordinal);
+            if (markerIndex >= 0 && markerIndex < cleaned.Length - marker.Length)
+            {
+                cleaned = cleaned[(markerIndex + marker.Length)..].Trim();
+            }
+        }
+
+        return cleaned;
     }
 
     private SlotCandidate? FindBestSubjectSentence(
@@ -6036,7 +6305,7 @@ public sealed class LocalAiService : IDisposable
 
     private static int CountArchitectureSignals(string sentence)
     {
-        var signals = new[] { "核心控制器", "主控芯片", "主控制器", "控制核心", "数据采集", "决策控制", "执行机构", "交互显示", "多任务调度", "感知层", "决策层", "执行层", "交互层", "模糊pid", "电磁阀", "土壤湿度" };
+        var signals = new[] { "核心", "控制", "采集", "执行", "显示", "通信", "调度", "模块", "架构", "层", "接口", "数据", "状态", "参数" };
         return signals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
     }
 
@@ -6049,8 +6318,8 @@ public sealed class LocalAiService : IDisposable
     {
         var signals = new[]
         {
-            "功能模块", "模块", "信息抽取", "抽取模块", "知识图谱", "图谱", "多模态检索",
-            "检索模块", "多特征关联", "关联分析", "关联融合", "知识网络", "表征学习", "相似度度量"
+            "功能模块", "模块", "子系统", "功能", "组件", "组成", "接口", "服务",
+            "管理", "展示", "分析", "处理", "检索", "抽取", "控制", "可视化"
         };
 
         return signals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
@@ -6141,6 +6410,21 @@ public sealed class LocalAiService : IDisposable
         return question.Contains("怎么", StringComparison.Ordinal)
             && !question.Contains("怎么样", StringComparison.Ordinal)
             && !question.Contains("怎样的", StringComparison.Ordinal);
+    }
+
+    private static bool ShouldUseDirectExplanationFallback(QueryProfile queryProfile, IReadOnlyList<DocumentChunk> chunks)
+    {
+        if (queryProfile.Intent != "explain")
+        {
+            return false;
+        }
+
+        var focusHits = queryProfile.FocusTerms.Count(term =>
+            chunks.Any(chunk => BuildChunkRetrievalText(chunk).Contains(term, StringComparison.OrdinalIgnoreCase)));
+        var mechanismHits = chunks.Count(chunk =>
+            CountSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}", "机制", "原理", "补偿", "蒸发", "灌溉量", "动态修正", "提前调整") > 0);
+
+        return mechanismHits >= 1 && (focusHits >= 1 || queryProfile.FocusTerms.Count == 0);
     }
 
     private static int CountSummarySignals(string sentence)
@@ -6472,6 +6756,16 @@ public sealed class LocalAiService : IDisposable
 
     private sealed record SummaryCandidate(DocumentChunk Chunk, string Sentence, int Score);
 
+    private sealed record RerankRequest(
+        [property: JsonPropertyName("model")] string Model,
+        [property: JsonPropertyName("query")] string Query,
+        [property: JsonPropertyName("documents")] IReadOnlyList<string> Documents,
+        [property: JsonPropertyName("top_n")] int TopN);
+
+    private sealed record RerankScore(int Index, float Score);
+
+    private sealed record LearnedRerankResult(IReadOnlyList<ScoredChunk> RankedChunks, bool Used, string Status);
+
     private sealed record RetrievalResult(
         IReadOnlyList<ScoredChunk> RankedChunks,
         IReadOnlyList<DocumentChunk> ContextChunks,
@@ -6479,6 +6773,8 @@ public sealed class LocalAiService : IDisposable
         int SparseCandidateCount,
         int SemanticCandidateCount,
         bool UsedSparsePrefilter,
+        bool UsedLearnedReranker,
+        string LearnedRerankerStatus,
         IReadOnlyList<string> TargetFilePaths);
 
     private sealed record UsageCandidate(string Sentence, string FilePath, string SectionTitle, int ChunkIndex, int Score);

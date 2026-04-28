@@ -8,18 +8,19 @@ A local Avalonia desktop RAG app.
 
 - Embedding and chunk indexing run locally with LLamaSharp.
 - Chat generation is delegated to a local `llama-server` (OpenAI-compatible endpoint).
-- Retrieval uses a staged pipeline: sparse prefilter, semantic scoring, lightweight reranking, and adjacent context windows.
+- Retrieval uses a staged pipeline: sparse prefilter, semantic scoring, BGE learned reranking, rule tie-breakers, and adjacent context windows.
 - Answers are expected to cite stable source labels such as `[doc/json/a.json | section name | c3]`.
 
 ## Models
 
 The app expects these files in the workspace-level `models/` directory:
 
-- `models/sentence-transformers--all-MiniLM-L6-v2.gguf`
+- `models/bge-m3.gguf`
+- `models/bge-reranker-v2-m3.gguf`
 
 And a chat model file that will be loaded by `llama-server`, for example:
 
-- `models/gemma-4-E2B-it.gguf`
+- `models/Qwen3.5-4B-Q4_K_M.gguf`
 
 ## What it does
 
@@ -29,7 +30,7 @@ And a chat model file that will be loaded by `llama-server`, for example:
 - Runs hybrid recall + rerank:
   sparse prefilter = BM25 + keyword + title + direct-hit bonus + noise penalty
   semantic stage = vector similarity only on the filtered candidate pool, with fallback to full semantic scan when sparse evidence is weak
-  rerank stage = coverage + neighbor support + JSON branch support + intent boost
+  rerank stage = coverage + neighbor support + JSON branch support + intent boost, followed by BGE-Reranker when its local server is available
 - Expands answer context with adjacent chunks and structure-related JSON chunks
 - Sends grounded prompts plus short chat history to `llama-server` for answer generation
 - Retries weak generations with a stricter repair prompt and uses summary-aware fallback for overview questions
@@ -54,7 +55,7 @@ git submodule update --init --recursive
 The launcher script will:
 
 - build `llama.cpp` first if `llama-server` is missing
-- start `llama-server` on `127.0.0.1:8080` if it is not already running
+- start chat `llama-server` on `127.0.0.1:8080` and reranker `llama-server` on `127.0.0.1:8081` if they are not already running
 - reuse the existing server if one is already healthy
 - launch the Avalonia desktop app after the health check passes
 
@@ -62,15 +63,23 @@ Useful overrides:
 
 ```bash
 LLAMA_SERVER_MODEL=./models/your-chat-model.gguf ./scripts/run_weavedoc.sh
-LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
+LLAMA_SERVER_PORT=8082 ./scripts/run_weavedoc.sh
+LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 ```
 
 If you want to run the two processes manually instead, the equivalent flow is:
 
 ```bash
 ./llama.cpp/build/bin/llama-server \
-	-m ./models/gemma-4-E2B-it.gguf \
-	--host 127.0.0.1 --port 8080
+	-m ./models/Qwen3.5-4B-Q4_K_M.gguf \
+	--host 127.0.0.1 --port 8080 \
+	--gpu-layers auto
+
+./llama.cpp/build/bin/llama-server \
+	-m ./models/bge-reranker-v2-m3.gguf \
+	--host 127.0.0.1 --port 8081 \
+	--embedding --pooling rank --reranking \
+	--gpu-layers auto
 
 dotnet restore csharp-rag-avalonia/RagAvalonia.csproj
 dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj
@@ -113,6 +122,11 @@ You can override runtime behavior with env vars:
 - `LLAMA_SERVER_CHAT_MODEL` (default: `local-model`)
 - `LLAMA_SERVER_TEMPERATURE` (default: `0.2`)
 - `LLAMA_SERVER_MAX_TOKENS` (default: `1536`)
+- `RAG_EMBEDDING_MODEL_FILE` (default: `bge-m3.gguf`)
+- `RAG_EMBEDDING_GPU_LAYERS` (default: `999`; requires a GPU-capable LLamaSharp backend)
+- `RAG_RERANKER_ENABLED` (default: `true`)
+- `RAG_RERANKER_BASE_URL` (default: `http://127.0.0.1:8081`)
+- `RAG_RERANKER_MODEL` (default: `bge-reranker-v2-m3`)
 - `RAG_TOP_K` (default: `4`)
 - `RAG_CANDIDATE_POOL_SIZE` (default: `12`)
 - `RAG_SPARSE_CANDIDATE_POOL_SIZE` (default: `48`)
