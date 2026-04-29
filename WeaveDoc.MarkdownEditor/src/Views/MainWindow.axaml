@@ -44,7 +44,6 @@
 
       <!-- 右侧预览：显示由 MarkdownService 生成的 HTML -->
       <ScrollViewer x:Name="PreviewScrollViewer" Grid.Column="1" Background="Transparent" Padding="8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-        <TextBlock TextWrapping="Wrap" Foreground="Black" FontSize="14" Text="{Binding Html}" />  
       </ScrollViewer>
     </Grid>
   </Grid>

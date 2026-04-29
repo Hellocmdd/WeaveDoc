@@ -138,11 +138,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     var width = Math.Max(200, (int)bounds.Width);
                     var height = Math.Max(200, (int)bounds.Height);
                     
-                    // 计算控件在窗口中的绝对位置
-                    var point = this.PointToScreen(new Point(0, 0));
-                    var windowPoint = root.PointToScreen(new Point(0, 0));
-                    var x = (int)(point.X - windowPoint.X);
-                    var y = (int)(point.Y - windowPoint.Y);
+                    // 使用 TranslatePoint 计算控件在窗口中的位置
+                    var point = this.TranslatePoint(new Avalonia.Point(0, 0), root);
+                    
+                    // 如果 TranslatePoint 返回有效位置，则使用它；否则使用默认位置
+                    var x = point.HasValue ? (int)point.Value.X : 0;
+                    var y = point.HasValue ? (int)point.Value.Y : 0;
                     var w = width;
                     var h = height;
                     
