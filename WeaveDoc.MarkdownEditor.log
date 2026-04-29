@@ -2925,3 +2925,75 @@
 [2026-04-29 15:02:21.569] MainWindow: Updated preview content
 [2026-04-29 15:02:22.943] MainWindow: Updated preview content
 [2026-04-29 15:02:24.348] MainWindow: Updated preview content
+[2026-04-29 15:06:51.551] MainWindow: Constructor called
+[2026-04-29 15:06:51.562] MainWindow: Events subscribed
+[2026-04-29 15:06:51.804] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 15:06:51.805] MainWindow: _previewController is null
+[2026-04-29 15:06:51.884] MainWindow: OnLoaded called
+[2026-04-29 15:06:52.029] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 15:06:52.033] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 15:06:52.035] MainWindow: Got window handle: 723416
+[2026-04-29 15:06:52.057] MainWindow: Created WebView2 environment for preview
+[2026-04-29 15:06:53.004] MainWindow: Created WebView2 controller for preview
+[2026-04-29 15:06:53.006] MainWindow: Updated preview content
+[2026-04-29 15:06:53.007] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 15:06:53.009] MainWindow: PreviewHostBorder not found
+[2026-04-29 15:06:53.010] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 15:12:04.202] MainWindow: Constructor called
+[2026-04-29 15:12:04.220] MainWindow: Events subscribed
+[2026-04-29 15:12:04.473] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 15:12:04.474] MainWindow: _previewController is null
+[2026-04-29 15:12:04.733] MainWindow: OnLoaded called
+[2026-04-29 15:12:04.844] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 15:12:04.846] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 15:12:04.847] MainWindow: Got window handle: 1312862
+[2026-04-29 15:12:04.861] MainWindow: Created WebView2 environment for preview
+[2026-04-29 15:12:05.430] MainWindow: Created WebView2 controller for preview
+[2026-04-29 15:12:05.432] MainWindow: Updated preview content
+[2026-04-29 15:12:05.433] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 15:12:05.435] MainWindow: PreviewHostBorder not found
+[2026-04-29 15:12:05.436] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 15:16:24.966] MainWindow: Constructor called
+[2026-04-29 15:16:24.979] MainWindow: Events subscribed
+[2026-04-29 15:16:25.530] MainWindow: OnLoaded called
+[2026-04-29 15:16:25.647] MainWindow: Focused on editor
+[2026-04-29 15:28:18.816] MainWindow: Constructor called
+[2026-04-29 15:28:18.827] MainWindow: Events subscribed
+[2026-04-29 15:28:19.410] MainWindow: OnLoaded called
+[2026-04-29 15:28:19.554] MainWindow: Focused on editor
+[2026-04-29 15:35:30.781] MainWindow: Constructor called
+[2026-04-29 15:35:30.793] MainWindow: Events subscribed
+[2026-04-29 15:35:31.330] MainWindow: OnLoaded called
+[2026-04-29 15:35:31.506] MainWindow: Focused on editor
+[2026-04-29 15:47:26.687] MainWindow: Constructor called
+[2026-04-29 15:47:26.700] MainWindow: Events subscribed
+[2026-04-29 15:47:27.048] MainWindow: OnLoaded called
+[2026-04-29 15:47:27.188] MainWindow: Focused on editor
+[2026-04-29 15:48:41.574] MainWindow: Constructor called
+[2026-04-29 15:48:41.591] MainWindow: Events subscribed
+[2026-04-29 15:48:42.101] MainWindow: OnLoaded called
+[2026-04-29 15:48:42.214] MainWindow: Focused on editor
+[2026-04-29 15:48:42.215] MainWindow: EditorContent length: 48
+[2026-04-29 15:48:42.215] MainWindow: EditorContent: # Hello WeaveDoc!
+
+Start typing markdown here...
+[2026-04-29 15:49:54.489] MainWindow: Constructor called
+[2026-04-29 15:49:54.504] MainWindow: Events subscribed
+[2026-04-29 15:49:55.078] MainWindow: OnLoaded called
+[2026-04-29 15:49:55.204] MainWindow: Focused on editor
+[2026-04-29 15:49:55.205] MainWindow: EditorContent length: 48
+[2026-04-29 15:49:55.206] MainWindow: EditorContent: # Hello WeaveDoc!
+
+Start typing markdown here...
+[2026-04-29 15:53:22.612] MainWindow: Constructor called
+[2026-04-29 15:53:22.626] MainWindow: Events subscribed
+[2026-04-29 15:53:23.181] MainWindow: OnLoaded called
+[2026-04-29 15:53:23.408] MainWindow: Focused on editor and set text
+[2026-04-29 15:54:58.379] MainWindow: Constructor called
+[2026-04-29 15:54:58.391] MainWindow: Events subscribed
+[2026-04-29 15:54:58.986] MainWindow: OnLoaded called
+[2026-04-29 15:54:59.210] MainWindow: Focused on editor and set text
+[2026-04-29 15:56:16.226] MainWindow: Constructor called
+[2026-04-29 15:56:16.241] MainWindow: Events subscribed
+[2026-04-29 15:56:16.575] MainWindow: OnLoaded called
+[2026-04-29 15:56:16.803] MainWindow: Focused on editor and set text

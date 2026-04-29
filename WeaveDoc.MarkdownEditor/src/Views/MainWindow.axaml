@@ -1,12 +1,17 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:WeaveDoc.MarkdownEditor.Controls;assembly=WeaveDoc.MarkdownEditor"
-        xmlns:vm="clr-namespace:WeaveDoc.MarkdownEditor.ViewModels;assembly=WeaveDoc.MarkdownEditor"
-        x:Class="WeaveDoc.MarkdownEditor.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
         Title="WeaveDoc Markdown Editor" Width="1000" Height="700"
         MinWidth="600" MinHeight="400">
-  <Grid RowDefinitions="Auto, Auto, Auto, *">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+    
     <!-- 菜单 -->
     <Menu Grid.Row="0">
       <MenuItem Header="文件">
@@ -19,47 +24,57 @@
     
     <!-- 工具栏 -->
     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="8" Spacing="4">
-      <Button Content="B" FontWeight="Bold" Click="BoldButton_Click" ToolTip.Tip="粗体 (Ctrl+B)" />
-      <Button Content="I" FontStyle="Italic" Click="ItalicButton_Click" ToolTip.Tip="斜体 (Ctrl+I)" />
-      <Button Content="U" Click="UnderlineButton_Click" ToolTip.Tip="下划线 (Ctrl+U)" />
+      <Button Content="B" FontWeight="Bold" Click="BoldButton_Click" />
+      <Button Content="I" FontStyle="Italic" Click="ItalicButton_Click" />
+      <Button Content="U" Click="UnderlineButton_Click" />
       <Separator Width="1" Height="20" Margin="4,0,4,0" />
-      <Button Content="#" Click="H1Button_Click" ToolTip.Tip="一级标题" />
-      <Button Content="##" Click="H2Button_Click" ToolTip.Tip="二级标题" />
-      <Button Content="###" Click="H3Button_Click" ToolTip.Tip="三级标题" />
+      <Button Content="#" Click="H1Button_Click" />
+      <Button Content="##" Click="H2Button_Click" />
+      <Button Content="###" Click="H3Button_Click" />
       <Separator Width="1" Height="20" Margin="4,0,4,0" />
-      <Button Content="•" Click="BulletListButton_Click" ToolTip.Tip="无序列表" />
-      <Button Content="1." Click="NumberedListButton_Click" ToolTip.Tip="有序列表" />
+      <Button Content="•" Click="BulletListButton_Click" />
+      <Button Content="1." Click="NumberedListButton_Click" />
       <Separator Width="1" Height="20" Margin="4,0,4,0" />
-      <Button Content="```" Click="CodeBlockButton_Click" ToolTip.Tip="代码块" />
-      <Button Content="[链接]()" Click="LinkButton_Click" ToolTip.Tip="链接" />
-      <Button Content="![]()" Click="ImageButton_Click" ToolTip.Tip="图片" />
+      <Button Content="```" Click="CodeBlockButton_Click" />
+      <Button Content="[链接]()" Click="LinkButton_Click" />
+      <Button Content="![]()" Click="ImageButton_Click" />
     </StackPanel>
     
-    <TextBlock Grid.Row="2" Text="WeaveDoc Markdown Editor" FontSize="18" Margin="8"/>
-    
-    <!-- 左编辑器 / 右预览 布局 -->
-    <Grid Grid.Row="3" ColumnDefinitions="*, 8, *" Margin="8">
-      <!-- 左侧编辑器：使用 TextBox 控件 -->
-      <TextBox Grid.Column="0" 
-               Text="{Binding EditorContent, Mode=TwoWay}" 
+    <!-- 主内容区域 -->
+    <Grid Grid.Row="2" Margin="8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      
+      <!-- 左侧编辑器 -->
+      <TextBox Grid.Column="0"
+               Name="EditorTextBox"
+               Text="# Hello WeaveDoc!
+
+Start typing markdown here..." 
                TextWrapping="Wrap" 
                AcceptsReturn="True" 
-               FontFamily="Consolas, Monospace" 
+               FontFamily="Consolas" 
                FontSize="14" 
                Background="#1E1E1E" 
-               Foreground="#D4D4D4" 
-               Margin="0" 
+               Foreground="White" 
                Padding="8" 
-               HorizontalAlignment="Stretch" 
-               VerticalAlignment="Stretch"
-               CaretBrush="White" /> 
+               CaretBrush="White"
+               Margin="0,0,4,0" />
 
-      <!-- 分隔线 -->
-      <Grid Grid.Column="1" Background="#DDDDDD" />
+      <!-- 右侧预览 -->
+      <ScrollViewer Grid.Column="1" 
+                    Background="White"
+                    Margin="4,0,0,0">
+        <TextBlock Text="# Hello WeaveDoc!
 
-      <!-- 右侧预览：显示由 MarkdownService 生成的 HTML -->
-      <ScrollViewer Grid.Column="2" Background="White" Padding="8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-        <TextBlock Text="{Binding EditorContent}" FontFamily="Segoe UI, Tahoma, Geneva, Verdana, sans-serif" FontSize="14" LineHeight="1.6" TextWrapping="Wrap" />
+Start typing markdown here..." 
+                   FontFamily="Segoe UI" 
+                   FontSize="14" 
+                   TextWrapping="Wrap"
+                   Foreground="Black"
+                   Padding="8" />
       </ScrollViewer>
     </Grid>
   </Grid>

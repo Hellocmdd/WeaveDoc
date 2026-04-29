@@ -4,20 +4,13 @@ using Avalonia.Markup.Xaml;
 using WeaveDoc.MarkdownEditor.ViewModels;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Web.WebView2.Core;
 using System;
-using System.Runtime.InteropServices;
 using WeaveDoc.MarkdownEditor.Helpers;
 
 namespace WeaveDoc.MarkdownEditor.Views
 {
     public partial class MainWindow : Window
     {
-        private CoreWebView2? _previewWebView;
-        private CoreWebView2Controller? _previewController;
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetActiveWindow();
 
         public MainWindow()
         {
@@ -27,8 +20,6 @@ namespace WeaveDoc.MarkdownEditor.Views
             DataContext = vm;
             Logger.Log("MainWindow: Constructor called");
             Loaded += OnLoaded;
-            Unloaded += OnUnloaded;
-            SizeChanged += OnSizeChanged;
             Logger.Log("MainWindow: Events subscribed");
         }
 
@@ -36,135 +27,16 @@ namespace WeaveDoc.MarkdownEditor.Views
         {
             Logger.Log("MainWindow: OnLoaded called");
             // 延迟一下，确保控件完全加载
-            await Task.Delay(100);
-            Logger.Log("MainWindow: Calling InitializePreviewWebViewAsync");
-            InitializePreviewWebViewAsync();
-        }
-
-        private void OnUnloaded(object? sender, EventArgs e)
-        {
-            _previewController?.Close();
-        }
-
-        private void OnSizeChanged(object? sender, EventArgs e)
-        {
-            UpdatePreviewControllerBounds();
-        }
-
-        private async void InitializePreviewWebViewAsync()
-        {
-            try
+            await Task.Delay(200);
+            
+            // 聚焦到编辑器并设置初始内容
+            var editorTextBox = this.FindControl<TextBox>("EditorTextBox");
+            if (editorTextBox != null)
             {
-                Logger.Log("MainWindow: Starting WebView2 initialization for preview...");
-
-                // 使用 P/Invoke 获取窗口句柄
-                var hwnd = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-                if (hwnd == IntPtr.Zero)
-                {
-                    Logger.Log("MainWindow: Failed to get window handle");
-                    return;
-                }
-
-                Logger.Log($"MainWindow: Got window handle: {hwnd}");
-
-                var env = await CoreWebView2Environment.CreateAsync();
-                Logger.Log("MainWindow: Created WebView2 environment for preview");
-
-                _previewController = await env.CreateCoreWebView2ControllerAsync(hwnd);
-                Logger.Log("MainWindow: Created WebView2 controller for preview");
-
-                _previewWebView = _previewController.CoreWebView2;
-
-                // 导航到一个空白页面
-                _previewWebView.NavigateToString("<html><body></body></html>");
-
-                // 初始更新预览内容
-                UpdatePreviewContent();
-
-                // 初始更新预览区域大小和位置
-                UpdatePreviewControllerBounds();
-
-                // 监听 Html 变化，更新预览
-                if (DataContext is MainWindowViewModel vm)
-                {
-                    vm.PropertyChanged += (s, e) =>
-                    {
-                        if (e.PropertyName == nameof(MainWindowViewModel.Html))
-                        {
-                            UpdatePreviewContent();
-                        }
-                    };
-                }
-
-                Logger.Log("MainWindow: WebView2 initialized successfully for preview");
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-            }
-        }
-
-        private void UpdatePreviewContent()
-        {
-            try
-            {
-                if (_previewWebView != null && DataContext is MainWindowViewModel vm)
-                {
-                    var previewHtml = $"<html><head><meta charset='utf-8'><title>Preview</title><style>body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; padding: 20px; }} h1, h2, h3 {{ color: #333; }} code {{ background-color: #f4f4f4; padding: 2px 4px; border-radius: 3px; }} pre {{ background-color: #f4f4f4; padding: 10px; border-radius: 3px; overflow-x: auto; }} img {{ max-width: 100%; }} blockquote {{ border-left: 4px solid #ddd; padding-left: 10px; margin: 10px 0; }}</style></head><body>{vm.Html}</body></html>";
-                    _previewWebView.NavigateToString(previewHtml);
-                    Logger.Log("MainWindow: Updated preview content");
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-            }
-        }
-
-        private void UpdatePreviewControllerBounds()
-        {
-            try
-            {
-                Logger.Log("MainWindow: UpdatePreviewControllerBounds called");
-                if (_previewController == null)
-                {
-                    Logger.Log("MainWindow: _previewController is null");
-                    return;
-                }
-
-                // 计算预览区域在窗口中的位置和大小
-                var previewHostBorder = this.FindControl<Border>("PreviewHostBorder");
-                if (previewHostBorder != null)
-                {
-                    var bounds = previewHostBorder.Bounds;
-                    Logger.Log($"MainWindow: PreviewHostBorder bounds: {bounds}");
-                    // 确保宽度和高度不为0
-                    var width = Math.Max(200, (int)bounds.Width);
-                    var height = Math.Max(200, (int)bounds.Height);
-                    var point = previewHostBorder.TranslatePoint(new Avalonia.Point(0, 0), this);
-                    if (point.HasValue)
-                    {
-                        var x = (int)point.Value.X;
-                        var y = (int)point.Value.Y;
-                        var w = width;
-                        var h = height;
-
-                        _previewController.Bounds = new System.Drawing.Rectangle(x, y, w, h);
-                        Logger.Log($"MainWindow: Updated preview bounds: x={x}, y={y}, w={w}, h={h}");
-                    }
-                    else
-                    {
-                        Logger.Log("MainWindow: TranslatePoint returned null");
-                    }
-                }
-                else
-                {
-                    Logger.Log("MainWindow: PreviewHostBorder not found");
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
+                // 直接设置文本
+                editorTextBox.Text = "# Hello WeaveDoc!\n\nStart typing markdown here...";
+                editorTextBox.Focus();
+                Logger.Log("MainWindow: Focused on editor and set text");
             }
         }
 
