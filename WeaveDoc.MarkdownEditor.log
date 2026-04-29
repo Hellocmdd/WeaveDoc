@@ -2833,3 +2833,95 @@
 [2026-04-29 14:40:09.159] MainWindow: Updated preview content
 [2026-04-29 14:40:09.190] MainWindow: Updated preview content
 [2026-04-29 14:40:10.722] MainWindow: Updated preview content
+[2026-04-29 14:42:12.998] MainWindow: Constructor called
+[2026-04-29 14:42:13.012] MainWindow: Events subscribed
+[2026-04-29 14:42:13.234] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:42:13.235] MainWindow: _previewController is null
+[2026-04-29 14:42:13.481] MainWindow: OnLoaded called
+[2026-04-29 14:42:13.589] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:42:13.590] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:42:13.591] MainWindow: Got window handle: 526498
+[2026-04-29 14:42:13.604] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:42:14.053] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:42:14.054] MainWindow: Updated preview content
+[2026-04-29 14:42:14.054] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:42:14.055] MainWindow: PreviewScrollViewer not found
+[2026-04-29 14:42:14.055] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 14:42:27.629] MainWindow: Updated preview content
+[2026-04-29 14:42:31.632] MainWindow: Updated preview content
+[2026-04-29 14:42:31.985] MainWindow: Updated preview content
+[2026-04-29 14:42:32.139] MainWindow: Updated preview content
+[2026-04-29 14:42:32.303] MainWindow: Updated preview content
+[2026-04-29 14:42:32.455] MainWindow: Updated preview content
+[2026-04-29 14:42:32.609] MainWindow: Updated preview content
+[2026-04-29 14:42:32.761] MainWindow: Updated preview content
+[2026-04-29 14:42:32.900] MainWindow: Updated preview content
+[2026-04-29 14:42:33.051] MainWindow: Updated preview content
+[2026-04-29 14:42:33.211] MainWindow: Updated preview content
+[2026-04-29 14:42:33.376] MainWindow: Updated preview content
+[2026-04-29 14:42:33.549] MainWindow: Updated preview content
+[2026-04-29 14:42:43.092] MainWindow: Constructor called
+[2026-04-29 14:42:43.102] MainWindow: Events subscribed
+[2026-04-29 14:42:43.324] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:42:43.325] MainWindow: _previewController is null
+[2026-04-29 14:42:43.571] MainWindow: OnLoaded called
+[2026-04-29 14:42:43.683] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:42:43.684] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:42:43.685] MainWindow: Got window handle: 919556
+[2026-04-29 14:42:43.697] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:42:44.130] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:42:44.131] MainWindow: Updated preview content
+[2026-04-29 14:42:44.132] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:42:44.133] MainWindow: PreviewScrollViewer not found
+[2026-04-29 14:42:44.134] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 14:48:47.536] MainWindow: Constructor called
+[2026-04-29 14:48:47.547] MainWindow: Events subscribed
+[2026-04-29 14:48:47.769] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:48:47.770] MainWindow: _previewController is null
+[2026-04-29 14:48:47.828] MainWindow: OnLoaded called
+[2026-04-29 14:48:47.940] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:48:47.942] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:48:47.944] MainWindow: Got window handle: 2426860
+[2026-04-29 14:48:47.959] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:48:48.615] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:48:48.619] MainWindow: Updated preview content
+[2026-04-29 14:48:48.630] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:48:48.638] MainWindow: PreviewHostBorder bounds: 496, 0, 488, 563.3333333333334
+[2026-04-29 14:48:48.642] MainWindow: Updated preview bounds: x=504, y=128, w=488, h=563
+[2026-04-29 14:48:48.643] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 14:54:26.588] MainWindow: Constructor called
+[2026-04-29 14:54:26.601] MainWindow: Events subscribed
+[2026-04-29 14:54:26.790] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:54:26.790] MainWindow: _previewController is null
+[2026-04-29 14:54:27.068] MainWindow: OnLoaded called
+[2026-04-29 14:54:27.180] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:54:27.182] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:54:27.185] MainWindow: Got window handle: 592076
+[2026-04-29 14:54:27.200] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:54:27.760] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:54:27.762] MainWindow: Updated preview content
+[2026-04-29 14:54:27.763] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:54:27.767] MainWindow: PreviewHostBorder bounds: 496, 0, 488, 563.3333333333334
+[2026-04-29 14:54:27.770] MainWindow: Updated preview bounds: x=504, y=128, w=488, h=563
+[2026-04-29 14:54:27.770] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 14:57:21.920] MainWindow: Constructor called
+[2026-04-29 14:57:21.930] MainWindow: Events subscribed
+[2026-04-29 14:57:22.150] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:57:22.151] MainWindow: _previewController is null
+[2026-04-29 14:57:22.219] MainWindow: OnLoaded called
+[2026-04-29 14:57:22.334] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:57:22.336] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:57:22.337] MainWindow: Got window handle: 2558030
+[2026-04-29 14:57:22.348] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:57:22.969] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:57:22.971] MainWindow: Updated preview content
+[2026-04-29 14:57:22.972] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:57:22.974] MainWindow: PreviewHostBorder not found
+[2026-04-29 14:57:22.974] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 15:01:01.434] MainWindow: Updated preview content
+[2026-04-29 15:01:02.918] MainWindow: Updated preview content
+[2026-04-29 15:01:03.323] MainWindow: Updated preview content
+[2026-04-29 15:02:19.602] MainWindow: Updated preview content
+[2026-04-29 15:02:21.569] MainWindow: Updated preview content
+[2026-04-29 15:02:22.943] MainWindow: Updated preview content
+[2026-04-29 15:02:24.348] MainWindow: Updated preview content

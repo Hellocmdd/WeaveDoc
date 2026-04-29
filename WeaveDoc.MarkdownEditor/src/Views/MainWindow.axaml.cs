@@ -84,12 +84,12 @@ namespace WeaveDoc.MarkdownEditor.Views
                 // 初始更新预览区域大小和位置
                 UpdatePreviewControllerBounds();
 
-                // 监听 EditorContent 变化，更新预览
+                // 监听 Html 变化，更新预览
                 if (DataContext is MainWindowViewModel vm)
                 {
                     vm.PropertyChanged += (s, e) =>
                     {
-                        if (e.PropertyName == nameof(MainWindowViewModel.EditorContent))
+                        if (e.PropertyName == nameof(MainWindowViewModel.Html))
                         {
                             UpdatePreviewContent();
                         }
@@ -133,16 +133,16 @@ namespace WeaveDoc.MarkdownEditor.Views
                 }
 
                 // 计算预览区域在窗口中的位置和大小
-                var previewScrollViewer = this.FindControl<ScrollViewer>("PreviewScrollViewer");
-                if (previewScrollViewer != null)
+                var previewHostBorder = this.FindControl<Border>("PreviewHostBorder");
+                if (previewHostBorder != null)
                 {
-                    var bounds = previewScrollViewer.Bounds;
-                    Logger.Log($"MainWindow: PreviewScrollViewer bounds: {bounds}");
+                    var bounds = previewHostBorder.Bounds;
+                    Logger.Log($"MainWindow: PreviewHostBorder bounds: {bounds}");
                     // 确保宽度和高度不为0
                     var width = Math.Max(200, (int)bounds.Width);
                     var height = Math.Max(200, (int)bounds.Height);
-                    var point = previewScrollViewer.TranslatePoint(new Avalonia.Point(0, 0), this);
-                    if (point != null)
+                    var point = previewHostBorder.TranslatePoint(new Avalonia.Point(0, 0), this);
+                    if (point.HasValue)
                     {
                         var x = (int)point.Value.X;
                         var y = (int)point.Value.Y;
@@ -159,7 +159,7 @@ namespace WeaveDoc.MarkdownEditor.Views
                 }
                 else
                 {
-                    Logger.Log("MainWindow: PreviewScrollViewer not found");
+                    Logger.Log("MainWindow: PreviewHostBorder not found");
                 }
             }
             catch (Exception ex)

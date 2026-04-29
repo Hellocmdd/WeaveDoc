@@ -40,14 +40,26 @@
     <!-- 左编辑器 / 右预览 布局 -->
     <Grid Grid.Row="3" ColumnDefinitions="*, 8, *" Margin="8">
       <!-- 左侧编辑器：使用 TextBox 控件 -->
-      <TextBox Grid.Column="0" Text="{Binding EditorContent, Mode=TwoWay}" TextWrapping="Wrap" AcceptsReturn="True" FontFamily="Consolas, Monospace" FontSize="14" Background="#1E1E1E" Foreground="White" Margin="0" Padding="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" /> 
+      <TextBox Grid.Column="0" 
+               Text="{Binding EditorContent, Mode=TwoWay}" 
+               TextWrapping="Wrap" 
+               AcceptsReturn="True" 
+               FontFamily="Consolas, Monospace" 
+               FontSize="14" 
+               Background="#1E1E1E" 
+               Foreground="#D4D4D4" 
+               Margin="0" 
+               Padding="8" 
+               HorizontalAlignment="Stretch" 
+               VerticalAlignment="Stretch"
+               CaretBrush="White" /> 
 
       <!-- 分隔线 -->
       <Grid Grid.Column="1" Background="#DDDDDD" />
 
       <!-- 右侧预览：显示由 MarkdownService 生成的 HTML -->
       <ScrollViewer Grid.Column="2" Background="White" Padding="8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-        <TextBlock Text="{Binding Html}" FontFamily="Segoe UI, Tahoma, Geneva, Verdana, sans-serif" FontSize="14" LineHeight="1.6" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding EditorContent}" FontFamily="Segoe UI, Tahoma, Geneva, Verdana, sans-serif" FontSize="14" LineHeight="1.6" TextWrapping="Wrap" />
       </ScrollViewer>
     </Grid>
   </Grid>
