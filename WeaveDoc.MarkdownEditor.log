@@ -2653,3 +2653,183 @@
 [2026-04-29 14:27:01.546] MainWindow: PreviewScrollViewer bounds: 492, 0, 492, 563.3333333333334
 [2026-04-29 14:27:01.549] MainWindow: Updated preview bounds: x=500, y=128, w=492, h=563
 [2026-04-29 14:27:01.550] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 14:28:17.220] MainWindow: Constructor called
+[2026-04-29 14:28:17.229] MainWindow: Events subscribed
+[2026-04-29 14:28:17.420] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:28:17.421] MainWindow: _previewController is null
+[2026-04-29 14:28:17.657] MainWindow: OnLoaded called
+[2026-04-29 14:28:17.773] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:28:17.774] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:28:17.775] MainWindow: Got window handle: 2556766
+[2026-04-29 14:28:17.785] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:28:18.232] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:28:18.233] MainWindow: Updated preview content
+[2026-04-29 14:28:18.234] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:28:18.237] MainWindow: PreviewScrollViewer bounds: 492, 0, 492, 563.3333333333334
+[2026-04-29 14:28:18.238] MainWindow: Updated preview bounds: x=500, y=128, w=492, h=563
+[2026-04-29 14:28:18.238] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 14:28:32.450] MainWindow: Updated preview content
+[2026-04-29 14:28:44.197] MainWindow: Updated preview content
+[2026-04-29 14:35:13.371] MainWindow: Constructor called
+[2026-04-29 14:35:13.384] MainWindow: Events subscribed
+[2026-04-29 14:35:13.595] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:35:13.596] MainWindow: _previewController is null
+[2026-04-29 14:35:13.659] MainWindow: OnLoaded called
+[2026-04-29 14:35:13.783] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:35:13.784] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:35:13.785] MainWindow: Got window handle: 526316
+[2026-04-29 14:35:13.798] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:35:14.373] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:35:14.375] MainWindow: Updated preview content
+[2026-04-29 14:35:14.375] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:35:14.380] MainWindow: PreviewScrollViewer bounds: 496, 0, 488, 563.3333333333334
+[2026-04-29 14:35:14.382] MainWindow: Updated preview bounds: x=504, y=128, w=488, h=563
+[2026-04-29 14:35:14.383] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 14:35:31.396] MainWindow: Updated preview content
+[2026-04-29 14:35:34.102] MainWindow: Updated preview content
+[2026-04-29 14:35:38.238] MainWindow: Updated preview content
+[2026-04-29 14:35:38.741] MainWindow: Updated preview content
+[2026-04-29 14:35:38.773] MainWindow: Updated preview content
+[2026-04-29 14:35:38.803] MainWindow: Updated preview content
+[2026-04-29 14:35:38.833] MainWindow: Updated preview content
+[2026-04-29 14:35:38.864] MainWindow: Updated preview content
+[2026-04-29 14:35:38.893] MainWindow: Updated preview content
+[2026-04-29 14:35:38.930] MainWindow: Updated preview content
+[2026-04-29 14:35:38.960] MainWindow: Updated preview content
+[2026-04-29 14:35:38.990] MainWindow: Updated preview content
+[2026-04-29 14:35:39.023] MainWindow: Updated preview content
+[2026-04-29 14:35:39.050] MainWindow: Updated preview content
+[2026-04-29 14:35:39.080] MainWindow: Updated preview content
+[2026-04-29 14:35:39.110] MainWindow: Updated preview content
+[2026-04-29 14:35:39.140] MainWindow: Updated preview content
+[2026-04-29 14:35:39.171] MainWindow: Updated preview content
+[2026-04-29 14:35:39.202] MainWindow: Updated preview content
+[2026-04-29 14:35:39.232] MainWindow: Updated preview content
+[2026-04-29 14:35:39.269] MainWindow: Updated preview content
+[2026-04-29 14:35:39.297] MainWindow: Updated preview content
+[2026-04-29 14:35:39.328] MainWindow: Updated preview content
+[2026-04-29 14:35:39.358] MainWindow: Updated preview content
+[2026-04-29 14:35:39.388] MainWindow: Updated preview content
+[2026-04-29 14:35:39.419] MainWindow: Updated preview content
+[2026-04-29 14:35:39.449] MainWindow: Updated preview content
+[2026-04-29 14:35:39.479] MainWindow: Updated preview content
+[2026-04-29 14:35:39.510] MainWindow: Updated preview content
+[2026-04-29 14:35:39.539] MainWindow: Updated preview content
+[2026-04-29 14:35:39.571] MainWindow: Updated preview content
+[2026-04-29 14:35:39.601] MainWindow: Updated preview content
+[2026-04-29 14:35:39.631] MainWindow: Updated preview content
+[2026-04-29 14:35:39.661] MainWindow: Updated preview content
+[2026-04-29 14:35:39.691] MainWindow: Updated preview content
+[2026-04-29 14:35:39.722] MainWindow: Updated preview content
+[2026-04-29 14:35:39.752] MainWindow: Updated preview content
+[2026-04-29 14:35:39.782] MainWindow: Updated preview content
+[2026-04-29 14:35:39.813] MainWindow: Updated preview content
+[2026-04-29 14:35:39.843] MainWindow: Updated preview content
+[2026-04-29 14:35:39.874] MainWindow: Updated preview content
+[2026-04-29 14:35:39.904] MainWindow: Updated preview content
+[2026-04-29 14:35:39.941] MainWindow: Updated preview content
+[2026-04-29 14:35:39.970] MainWindow: Updated preview content
+[2026-04-29 14:35:40.000] MainWindow: Updated preview content
+[2026-04-29 14:35:40.030] MainWindow: Updated preview content
+[2026-04-29 14:35:40.061] MainWindow: Updated preview content
+[2026-04-29 14:35:40.092] MainWindow: Updated preview content
+[2026-04-29 14:35:40.122] MainWindow: Updated preview content
+[2026-04-29 14:35:40.152] MainWindow: Updated preview content
+[2026-04-29 14:35:40.184] MainWindow: Updated preview content
+[2026-04-29 14:35:40.212] MainWindow: Updated preview content
+[2026-04-29 14:35:40.243] MainWindow: Updated preview content
+[2026-04-29 14:35:40.278] MainWindow: Updated preview content
+[2026-04-29 14:35:40.310] MainWindow: Updated preview content
+[2026-04-29 14:35:40.340] MainWindow: Updated preview content
+[2026-04-29 14:35:44.033] MainWindow: Updated preview content
+[2026-04-29 14:35:45.229] MainWindow: Updated preview content
+[2026-04-29 14:35:45.467] MainWindow: Updated preview content
+[2026-04-29 14:35:45.681] MainWindow: Updated preview content
+[2026-04-29 14:35:46.190] MainWindow: Updated preview content
+[2026-04-29 14:35:46.869] MainWindow: Updated preview content
+[2026-04-29 14:35:47.069] MainWindow: Updated preview content
+[2026-04-29 14:35:47.243] MainWindow: Updated preview content
+[2026-04-29 14:35:47.409] MainWindow: Updated preview content
+[2026-04-29 14:35:51.087] MainWindow: Updated preview content
+[2026-04-29 14:35:51.758] MainWindow: Updated preview content
+[2026-04-29 14:35:52.267] MainWindow: Updated preview content
+[2026-04-29 14:35:52.298] MainWindow: Updated preview content
+[2026-04-29 14:35:52.328] MainWindow: Updated preview content
+[2026-04-29 14:35:52.359] MainWindow: Updated preview content
+[2026-04-29 14:38:48.298] MainWindow: Updated preview content
+[2026-04-29 14:39:39.533] MainWindow: Constructor called
+[2026-04-29 14:39:39.544] MainWindow: Events subscribed
+[2026-04-29 14:39:40.318] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:39:40.319] MainWindow: _previewController is null
+[2026-04-29 14:39:40.585] MainWindow: OnLoaded called
+[2026-04-29 14:39:40.698] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:39:40.700] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:39:40.701] MainWindow: Got window handle: 133446
+[2026-04-29 14:39:40.778] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:39:41.381] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:39:41.382] MainWindow: Updated preview content
+[2026-04-29 14:39:41.383] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:39:41.384] MainWindow: PreviewScrollViewer not found
+[2026-04-29 14:39:41.384] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 14:39:58.903] MainWindow: Updated preview content
+[2026-04-29 14:39:59.397] MainWindow: Updated preview content
+[2026-04-29 14:39:59.425] MainWindow: Updated preview content
+[2026-04-29 14:39:59.455] MainWindow: Updated preview content
+[2026-04-29 14:39:59.485] MainWindow: Updated preview content
+[2026-04-29 14:39:59.516] MainWindow: Updated preview content
+[2026-04-29 14:39:59.546] MainWindow: Updated preview content
+[2026-04-29 14:39:59.576] MainWindow: Updated preview content
+[2026-04-29 14:39:59.607] MainWindow: Updated preview content
+[2026-04-29 14:39:59.637] MainWindow: Updated preview content
+[2026-04-29 14:39:59.667] MainWindow: Updated preview content
+[2026-04-29 14:39:59.698] MainWindow: Updated preview content
+[2026-04-29 14:39:59.727] MainWindow: Updated preview content
+[2026-04-29 14:39:59.758] MainWindow: Updated preview content
+[2026-04-29 14:39:59.790] MainWindow: Updated preview content
+[2026-04-29 14:39:59.825] MainWindow: Updated preview content
+[2026-04-29 14:39:59.854] MainWindow: Updated preview content
+[2026-04-29 14:39:59.884] MainWindow: Updated preview content
+[2026-04-29 14:39:59.914] MainWindow: Updated preview content
+[2026-04-29 14:39:59.945] MainWindow: Updated preview content
+[2026-04-29 14:39:59.975] MainWindow: Updated preview content
+[2026-04-29 14:40:00.006] MainWindow: Updated preview content
+[2026-04-29 14:40:00.036] MainWindow: Updated preview content
+[2026-04-29 14:40:00.066] MainWindow: Updated preview content
+[2026-04-29 14:40:00.097] MainWindow: Updated preview content
+[2026-04-29 14:40:00.127] MainWindow: Updated preview content
+[2026-04-29 14:40:00.162] MainWindow: Updated preview content
+[2026-04-29 14:40:00.194] MainWindow: Updated preview content
+[2026-04-29 14:40:00.223] MainWindow: Updated preview content
+[2026-04-29 14:40:00.254] MainWindow: Updated preview content
+[2026-04-29 14:40:00.284] MainWindow: Updated preview content
+[2026-04-29 14:40:00.314] MainWindow: Updated preview content
+[2026-04-29 14:40:00.345] MainWindow: Updated preview content
+[2026-04-29 14:40:00.375] MainWindow: Updated preview content
+[2026-04-29 14:40:00.405] MainWindow: Updated preview content
+[2026-04-29 14:40:00.435] MainWindow: Updated preview content
+[2026-04-29 14:40:00.466] MainWindow: Updated preview content
+[2026-04-29 14:40:00.496] MainWindow: Updated preview content
+[2026-04-29 14:40:00.526] MainWindow: Updated preview content
+[2026-04-29 14:40:00.557] MainWindow: Updated preview content
+[2026-04-29 14:40:00.587] MainWindow: Updated preview content
+[2026-04-29 14:40:00.617] MainWindow: Updated preview content
+[2026-04-29 14:40:00.648] MainWindow: Updated preview content
+[2026-04-29 14:40:00.678] MainWindow: Updated preview content
+[2026-04-29 14:40:00.709] MainWindow: Updated preview content
+[2026-04-29 14:40:00.740] MainWindow: Updated preview content
+[2026-04-29 14:40:00.771] MainWindow: Updated preview content
+[2026-04-29 14:40:00.799] MainWindow: Updated preview content
+[2026-04-29 14:40:02.542] MainWindow: Updated preview content
+[2026-04-29 14:40:06.550] MainWindow: Updated preview content
+[2026-04-29 14:40:07.860] MainWindow: Updated preview content
+[2026-04-29 14:40:08.436] MainWindow: Updated preview content
+[2026-04-29 14:40:08.948] MainWindow: Updated preview content
+[2026-04-29 14:40:08.976] MainWindow: Updated preview content
+[2026-04-29 14:40:09.008] MainWindow: Updated preview content
+[2026-04-29 14:40:09.037] MainWindow: Updated preview content
+[2026-04-29 14:40:09.067] MainWindow: Updated preview content
+[2026-04-29 14:40:09.099] MainWindow: Updated preview content
+[2026-04-29 14:40:09.129] MainWindow: Updated preview content
+[2026-04-29 14:40:09.159] MainWindow: Updated preview content
+[2026-04-29 14:40:09.190] MainWindow: Updated preview content
+[2026-04-29 14:40:10.722] MainWindow: Updated preview content
