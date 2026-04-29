@@ -2590,3 +2590,66 @@
 [2026-04-29 14:17:43.472] MonacoEditorControl: Updated bounds: x=12, y=193, w=492, h=563
 [2026-04-29 14:17:43.473] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
 [2026-04-29 14:17:43.474] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-29 14:20:09.491] MainWindow: Constructor called
+[2026-04-29 14:20:09.504] MainWindow: Events subscribed
+[2026-04-29 14:20:09.683] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:20:09.684] MainWindow: _previewController is null
+[2026-04-29 14:20:09.744] MonacoEditorControl: OnLoaded called
+[2026-04-29 14:20:09.747] MainWindow: OnLoaded called
+[2026-04-29 14:20:09.858] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:20:09.860] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:20:09.862] MainWindow: Got window handle: 1902140
+[2026-04-29 14:20:09.875] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:20:10.250] MonacoEditorControl: HostBorder check before InitializeWebViewAsync
+[2026-04-29 14:20:10.252] MonacoEditorControl: Starting WebView2 initialization...
+[2026-04-29 14:20:10.254] MonacoEditorControl: HostBorder is null: False
+[2026-04-29 14:20:10.480] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:20:10.482] MainWindow: Updated preview content
+[2026-04-29 14:20:10.483] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:20:10.487] MainWindow: PreviewScrollViewer bounds: 492, 0, 492, 563.3333333333334
+[2026-04-29 14:20:10.493] MainWindow: Updated preview bounds: x=500, y=128, w=492, h=563
+[2026-04-29 14:20:10.494] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 14:20:10.755] MonacoEditorControl: Got window handle: 1902140
+[2026-04-29 14:20:10.757] MonacoEditorControl: Created WebView2 environment
+[2026-04-29 14:20:10.808] MonacoEditorControl: Created WebView2 controller
+[2026-04-29 14:20:10.812] MonacoEditorControl: Loading Monaco Editor from: D:\WeaveDoc\Weavedoc.MarkdownEditor\src\bin\Debug\net8.0\Assets\monaco-editor\index.html
+[2026-04-29 14:20:10.813] MonacoEditorControl: Updated bounds: x=8, y=128, w=492, h=563
+[2026-04-29 14:20:10.815] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-29 14:20:10.821] MonacoEditorControl: WebView2 initialized successfully
+[2026-04-29 14:20:10.874] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-29 14:20:11.138] MonacoEditorControl: WebView navigation completed
+[2026-04-29 14:20:11.140] MonacoEditorControl: Hidden loading text
+[2026-04-29 14:20:11.141] MonacoEditorControl: Updated bounds: x=8, y=128, w=492, h=563
+[2026-04-29 14:20:11.141] MonacoEditorControl: Bounds: 0, 0, 492, 563.3333333333334
+[2026-04-29 14:20:11.142] MonacoEditorControl: Updated bounds after navigation
+[2026-04-29 14:20:11.151] MonacoEditorControl: Resized Monaco editor to 492x563
+[2026-04-29 14:23:47.353] MainWindow: Constructor called
+[2026-04-29 14:23:47.364] MainWindow: Events subscribed
+[2026-04-29 14:23:47.563] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:23:47.564] MainWindow: _previewController is null
+[2026-04-29 14:23:47.793] MainWindow: OnLoaded called
+[2026-04-29 14:23:47.905] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:23:47.907] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:23:47.908] MainWindow: Got window handle: 3146020
+[2026-04-29 14:23:47.921] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:23:48.513] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:23:48.516] MainWindow: Updated preview content
+[2026-04-29 14:23:48.516] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:23:48.521] MainWindow: PreviewScrollViewer bounds: 492, 0, 492, 563.3333333333334
+[2026-04-29 14:23:48.524] MainWindow: Updated preview bounds: x=500, y=128, w=492, h=563
+[2026-04-29 14:23:48.525] MainWindow: WebView2 initialized successfully for preview
+[2026-04-29 14:27:00.334] MainWindow: Constructor called
+[2026-04-29 14:27:00.344] MainWindow: Events subscribed
+[2026-04-29 14:27:00.549] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:27:00.550] MainWindow: _previewController is null
+[2026-04-29 14:27:00.813] MainWindow: OnLoaded called
+[2026-04-29 14:27:00.936] MainWindow: Calling InitializePreviewWebViewAsync
+[2026-04-29 14:27:00.937] MainWindow: Starting WebView2 initialization for preview...
+[2026-04-29 14:27:00.939] MainWindow: Got window handle: 1771466
+[2026-04-29 14:27:00.951] MainWindow: Created WebView2 environment for preview
+[2026-04-29 14:27:01.537] MainWindow: Created WebView2 controller for preview
+[2026-04-29 14:27:01.539] MainWindow: Updated preview content
+[2026-04-29 14:27:01.540] MainWindow: UpdatePreviewControllerBounds called
+[2026-04-29 14:27:01.546] MainWindow: PreviewScrollViewer bounds: 492, 0, 492, 563.3333333333334
+[2026-04-29 14:27:01.549] MainWindow: Updated preview bounds: x=500, y=128, w=492, h=563
+[2026-04-29 14:27:01.550] MainWindow: WebView2 initialized successfully for preview

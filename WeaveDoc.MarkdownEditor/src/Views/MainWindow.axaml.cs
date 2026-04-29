@@ -110,8 +110,8 @@ namespace WeaveDoc.MarkdownEditor.Views
             {
                 if (_previewWebView != null && DataContext is MainWindowViewModel vm)
                 {
-                    var previewHtml = vm.PreviewHtml;
-                    _previewWebView.Navigate(previewHtml);
+                    var previewHtml = $"<html><head><meta charset='utf-8'><title>Preview</title><style>body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; padding: 20px; }} h1, h2, h3 {{ color: #333; }} code {{ background-color: #f4f4f4; padding: 2px 4px; border-radius: 3px; }} pre {{ background-color: #f4f4f4; padding: 10px; border-radius: 3px; overflow-x: auto; }} img {{ max-width: 100%; }} blockquote {{ border-left: 4px solid #ddd; padding-left: 10px; margin: 10px 0; }}</style></head><body>{vm.Html}</body></html>";
+                    _previewWebView.NavigateToString(previewHtml);
                     Logger.Log("MainWindow: Updated preview content");
                 }
             }
