@@ -4,49 +4,61 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monaco Editor</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- 加载本地的 loader.js -->
+    <style>
+        html, body, #editor {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            background-color: #1E1E1E;
+        }
+    </style>
     <script src="min/vs/loader.js"></script>
 </head>
 <body>
     <div id="editor"></div>
     <script>
-        // 配置 RequireJS 指向本地的 vs 文件夹
         require.config({ paths: { 'vs': './min/vs' }});
+        var editor = null;
 
         require(['vs/editor/editor.main'], function() {
-            // 初始化编辑器
-            var editor = monaco.editor.create(document.getElementById('editor'), {
+            monaco.languages.register({ id: 'markdown' });
+            
+            editor = monaco.editor.create(document.getElementById('editor'), {
                 value: '# Hello WeaveDoc!\n\nStart typing markdown here...',
                 language: 'markdown',
                 theme: 'vs-dark',
                 automaticLayout: true,
                 minimap: { enabled: false },
-                scrollBeyondLastLine: false,
                 fontSize: 14,
                 lineNumbers: 'on',
                 wordWrap: 'on'
             });
 
-            // 监听内容变化并发送给 C#
-            editor.onDidChangeModelContent(function() {
+            editor.onDidChangeModelContent(function(event) {
                 try {
                     var content = editor.getValue();
                     if (window.chrome && window.chrome.webview) {
-                        window.chrome.webview.postMessage(JSON.stringify({ Type: 'contentChanged', Data: content }));
+                        var message = JSON.stringify({ Type: 'contentChanged', Data: content });
+                        window.chrome.webview.postMessage(message);
                     }
                 } catch (e) {
-                    console.error(e);
+                    console.error('Error sending content change:', e);
                 }
             });
 
-            // 监听来自 C# 的消息
             if (window.chrome && window.chrome.webview) {
                 window.chrome.webview.addEventListener('message', function(e) {
                     try {
                         var msg = e.data;
                         if (typeof msg === 'string') {
-                            try { msg = JSON.parse(msg); } catch {}
+                            try { msg = JSON.parse(msg); } catch (parseErr) {
+                                console.warn('Failed to parse message:', parseErr);
+                                return;
+                            }
                         }
                         if (msg && msg.Type === 'setContent') {
                             var current = editor.getValue();
@@ -54,32 +66,23 @@
                                 editor.setValue(msg.Data || '');
                             }
                         }
-                    } catch (err) { console.error(err); }
+                    } catch (err) { 
+                        console.error('Error handling message:', err); 
+                    }
                 });
             }
             
-            // 暴露 resizeEditor 函数给 C# 调用
             window.resizeEditor = function(width, height) {
                 try {
-                    var editorElement = document.getElementById('editor');
-                    if (editorElement) {
-                        editorElement.style.width = width + 'px';
-                        editorElement.style.height = height + 'px';
-                        // 通知 Monaco 编辑器布局发生变化
-                        if (editor) {
-                            editor.layout();
-                        }
-                        console.log('Resized editor to ' + width + 'x' + height);
+                    if (editor) {
+                        editor.layout({ width: width, height: height });
                     }
                 } catch (e) {
-                    console.error(e);
+                    console.error('Error resizing editor:', e);
                 }
             };
             
-            console.log("Monaco Editor Loaded Successfully");
-            
-            // 初始化时设置编辑器尺寸
-            window.resizeEditor(window.innerWidth, window.innerHeight);
+            console.log("Monaco Editor initialized");
         });
     </script>
 </body>

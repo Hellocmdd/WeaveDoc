@@ -3,8 +3,7 @@
              x:Class="WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl"
              HorizontalAlignment="Stretch"
              VerticalAlignment="Stretch">
-  <!-- Placeholder panel where native WebView2 will be positioned over/inside -->
-  <Border x:Name="HostBorder" Background="Transparent"
+  <Border x:Name="HostBorder" Background="#1E1E1E"
           HorizontalAlignment="Stretch"
           VerticalAlignment="Stretch">
   </Border>

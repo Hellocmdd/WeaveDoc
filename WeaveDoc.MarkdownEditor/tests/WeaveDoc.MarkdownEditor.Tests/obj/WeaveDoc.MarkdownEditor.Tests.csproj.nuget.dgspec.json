@@ -1,30 +1,30 @@
 {
   "format": 1,
   "restore": {
-    "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj": {}
+    "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj": {}
   },
   "projects": {
-    "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {
+    "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
+        "projectUniqueName": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
         "projectName": "WeaveDoc.MarkdownEditor",
-        "projectPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
+        "projectPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
         "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
-        "outputPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\obj\\",
+        "outputPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
-          "net8.0"
+          "net8.0-windows"
         ],
         "sources": {
           "https://nuget.azure.cn/v3/index.json": {}
         },
         "frameworks": {
-          "net8.0": {
-            "targetAlias": "net8.0",
+          "net8.0-windows7.0": {
+            "targetAlias": "net8.0-windows",
             "projectReferences": {}
           }
         },
@@ -37,11 +37,12 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
-        "net8.0": {
-          "targetAlias": "net8.0",
+        "net8.0-windows7.0": {
+          "targetAlias": "net8.0-windows",
           "dependencies": {
             "Avalonia": {
               "target": "Package",
@@ -56,6 +57,10 @@
               "version": "[11.1.0, )"
             },
             "Avalonia.Fonts.Inter": {
+              "target": "Package",
+              "version": "[11.1.0, )"
+            },
+            "Avalonia.Native": {
               "target": "Package",
               "version": "[11.1.0, )"
             },
@@ -84,34 +89,34 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.419/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj": {
+    "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj",
+        "projectUniqueName": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj",
         "projectName": "WeaveDoc.MarkdownEditor.Tests",
-        "projectPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj",
+        "projectPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\WeaveDoc.MarkdownEditor.Tests.csproj",
         "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
-        "outputPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\obj\\",
+        "outputPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\tests\\WeaveDoc.MarkdownEditor.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
-          "net8.0"
+          "net8.0-windows"
         ],
         "sources": {
           "https://nuget.azure.cn/v3/index.json": {}
         },
         "frameworks": {
-          "net8.0": {
-            "targetAlias": "net8.0",
+          "net8.0-windows7.0": {
+            "targetAlias": "net8.0-windows",
             "projectReferences": {
-              "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {
-                "projectPath": "d:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj"
+              "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj": {
+                "projectPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj"
               }
             }
           }
@@ -125,11 +130,12 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
-        "net8.0": {
-          "targetAlias": "net8.0",
+        "net8.0-windows7.0": {
+          "targetAlias": "net8.0-windows",
           "dependencies": {
             "Microsoft.NET.Test.Sdk": {
               "target": "Package",
@@ -160,7 +166,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.419/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

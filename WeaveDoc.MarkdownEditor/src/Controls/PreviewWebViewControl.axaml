@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="WeaveDoc.MarkdownEditor.Controls.PreviewWebViewControl"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch">
+  <Border Background="White">
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" 
+                  VerticalScrollBarVisibility="Auto"
+                  Padding="16">
+      <TextBox x:Name="PreviewContent"
+               Text="Preview content will appear here..."
+               HorizontalAlignment="Left"
+               VerticalAlignment="Top"
+               Foreground="Black"
+               TextWrapping="Wrap"
+               IsReadOnly="True"
+               BorderThickness="0"
+               Padding="0"
+               Background="Transparent" />
+    </ScrollViewer>
+  </Border>
+</UserControl>

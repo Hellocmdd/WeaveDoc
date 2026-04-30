@@ -4,9 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Microsoft.Web.WebView2.Core;
-using System.Runtime.InteropServices;
 using WeaveDoc.MarkdownEditor.ViewModels;
-using WeaveDoc.MarkdownEditor.Services;
 using WeaveDoc.MarkdownEditor.Helpers;
 
 namespace WeaveDoc.MarkdownEditor.Controls
@@ -15,65 +13,43 @@ namespace WeaveDoc.MarkdownEditor.Controls
     {
         private CoreWebView2? _webview;
         private CoreWebView2Controller? _controller;
-        private bool _isWebViewReady;
         private string _pendingContent = string.Empty;
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetActiveWindow();
+        private bool _isInitializing = false;
 
         public MonacoEditorControl()
         {
             InitializeComponent();
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
-            LayoutUpdated += OnLayoutUpdated;
             SizeChanged += OnSizeChanged;
-            PropertyChanged += OnPropertyChanged;
         }
+
+        private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 
         private async void OnLoaded(object? sender, EventArgs e)
         {
             Logger.Log("MonacoEditorControl: OnLoaded called");
-            // 增加延迟时间，确保控件完全加载
-            await Task.Delay(500);
-            Logger.Log("MonacoEditorControl: HostBorder check before InitializeWebViewAsync");
-            InitializeWebViewAsync();
+            if (!_isInitializing)
+            {
+                _isInitializing = true;
+                await InitializeWebViewAsync();
+            }
         }
 
         private void OnUnloaded(object? sender, EventArgs e)
         {
+            Logger.Log("MonacoEditorControl: OnUnloaded called");
             _controller?.Close();
+            _controller = null;
+            _webview = null;
         }
 
-        private void OnLayoutUpdated(object? sender, EventArgs e)
-        {
-            UpdateControllerBounds();
-        }
-
-        private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
-        {
-            UpdateControllerBounds();
-        }
-
-        private void OnPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
-        {
-            if (e.Property == BoundsProperty)
-            {
-                UpdateControllerBounds();
-            }
-        }
-
-        private async void InitializeWebViewAsync()
+        private async Task InitializeWebViewAsync()
         {
             try
             {
                 Logger.Log("MonacoEditorControl: Starting WebView2 initialization...");
 
-                // 检查 HostBorder 是否正确初始化
-                var hostBorder = this.FindControl<Border>("HostBorder");
-                Logger.Log($"MonacoEditorControl: HostBorder is null: {hostBorder == null}");
-
-                // 获取包含 MonacoEditorControl 的窗口
                 var root = this.VisualRoot as Window;
                 if (root == null)
                 {
@@ -81,10 +57,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
                 }
 
-                // 等待窗口完全加载
-                await Task.Delay(500);
+                await Task.Delay(300);
 
-                // 使用 P/Invoke 获取窗口句柄
                 var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                 {
@@ -100,19 +74,21 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _controller = await env.CreateCoreWebView2ControllerAsync(hwnd);
                 Logger.Log("MonacoEditorControl: Created WebView2 controller");
 
-                _webview = _controller.CoreWebView2;
+                UpdateControllerBounds();
+                _controller.IsVisible = true;
 
+                _webview = _controller.CoreWebView2;
                 _webview.WebMessageReceived += Webview_WebMessageReceived;
                 _webview.NavigationCompleted += Webview_NavigationCompleted;
 
+                _webview.Settings.AreDefaultContextMenusEnabled = false;
+
                 var htmlPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "monaco-editor", "index.html");
                 Logger.Log($"MonacoEditorControl: Loading Monaco Editor from: {htmlPath}");
+
                 _webview.Navigate(htmlPath);
 
-                // 初始化完成后立即更新控制器大小
-                UpdateControllerBounds(root);
-
-                Logger.Log("MonacoEditorControl: WebView2 initialized successfully");
+                Logger.Log("MonacoEditorControl: WebView2 initialization completed");
             }
             catch (Exception ex)
             {
@@ -120,39 +96,29 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        private void UpdateControllerBounds(Window? root = null)
+        private void UpdateControllerBounds()
         {
             try
             {
                 if (_controller == null) return;
 
-                if (root == null)
-                    root = this.VisualRoot as Window;
+                var root = this.VisualRoot as Window;
+                if (root == null) return;
 
-                if (root != null)
-                {
-                    // 计算控件在窗口中的位置和大小
-                    var bounds = this.Bounds;
-                    
-                    // 确保宽度和高度不为0
-                    var width = Math.Max(200, (int)bounds.Width);
-                    var height = Math.Max(200, (int)bounds.Height);
-                    
-                    // 使用 TranslatePoint 计算控件在窗口中的位置
-                    var point = this.TranslatePoint(new Avalonia.Point(0, 0), root);
-                    
-                    // 如果 TranslatePoint 返回有效位置，则使用它；否则使用默认位置
-                    var x = point.HasValue ? (int)point.Value.X : 0;
-                    var y = point.HasValue ? (int)point.Value.Y : 0;
-                    var w = width;
-                    var h = height;
-                    
-                    _controller.Bounds = new System.Drawing.Rectangle(x, y, w, h);
-                    Logger.Log($"MonacoEditorControl: Updated bounds: x={x}, y={y}, w={w}, h={h}");
-                    Logger.Log($"MonacoEditorControl: Bounds: {bounds}");
-                    
-                    UpdateMonacoSize(w, h);
-                }
+                var scaling = root.RenderScaling;
+                var transform = this.TransformToVisual(null);
+                var position = transform?.Transform(new Point(0, 0)) ?? new Point(0, 0);
+
+                var width = (int)(this.Bounds.Width * scaling);
+                var height = (int)(this.Bounds.Height * scaling);
+                var x = (int)(position.X * scaling);
+                var y = (int)(position.Y * scaling);
+
+                width = Math.Max(100, width);
+                height = Math.Max(100, height);
+
+                _controller.Bounds = new System.Drawing.Rectangle(x, y, width, height);
+                Logger.Log($"MonacoEditorControl: Bounds updated - X:{x}, Y:{y}, Width:{width}, Height:{height}, Scaling:{scaling}");
             }
             catch (Exception ex)
             {
@@ -160,29 +126,29 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        private void UpdateMonacoSize(int width, int height)
+        private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            UpdateControllerBounds();
+            
+            if (_webview != null)
+            {
+                ResizeMonacoEditorAsync((int)(e.NewSize.Width * 2), (int)(e.NewSize.Height * 2));
+            }
+        }
+
+        private async void ResizeMonacoEditorAsync(int width, int height)
         {
             try
             {
-                if (_webview != null)
-                {
-                    var script = $"window.resizeEditor({width}, {height});";
-                    _webview.ExecuteScriptAsync(script).ContinueWith(task =>
-                    {
-                        if (task.IsCompletedSuccessfully)
-                        {
-                            Logger.Log($"MonacoEditorControl: Resized Monaco editor to {width}x{height}");
-                        }
-                        else if (task.IsFaulted)
-                        {
-                            Logger.LogException(task.Exception);
-                        }
-                    });
-                }
+                if (_webview == null) return;
+
+                var script = $"window.resizeEditor({width}, {height});";
+                await _webview.ExecuteScriptAsync(script);
+                Logger.Log($"MonacoEditorControl: Resized Monaco editor to {width}x{height}");
             }
             catch (Exception ex)
             {
-                Logger.LogException(ex);
+                Logger.Log($"MonacoEditorControl: Failed to resize Monaco editor: {ex.Message}");
             }
         }
 
@@ -192,67 +158,48 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 var json = args.WebMessageAsJson;
                 if (string.IsNullOrWhiteSpace(json)) return;
-                
+
                 Logger.Log($"MonacoEditorControl: Received message: {json}");
-                
-                try
+
+                var doc = System.Text.Json.JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                string? msgType = null;
+                string? msgData = null;
+
+                if (root.TryGetProperty("Type", out var typeProp))
                 {
-                    var msg = System.Text.Json.JsonSerializer.Deserialize<Message?>(json);
-                    if (msg == null)
-                    {
-                        Logger.Log("MonacoEditorControl: Deserialized message is null");
-                        return;
-                    }
-
-                    Logger.Log($"MonacoEditorControl: Deserialized message - Type: {msg.Type}, Data: {msg.Data}");
-
-                    if (msg.Type == "contentChanged")
-                    {
-                        var content = msg.Data?.ToString() ?? string.Empty;
-                        Logger.Log($"MonacoEditorControl: Content changed: {content}");
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                        {
-                            try
-                            {
-                                MainWindowViewModel? vm = null;
-                                
-                                if (DataContext is MainWindowViewModel)
-                                {
-                                    vm = DataContext as MainWindowViewModel;
-                                    Logger.Log("MonacoEditorControl: Found MainWindowViewModel in DataContext");
-                                }
-                                else
-                                {
-                                    var root = this.VisualRoot;
-                                    if (root is Window window && window.DataContext is MainWindowViewModel)
-                                    {
-                                        vm = window.DataContext as MainWindowViewModel;
-                                        Logger.Log("MonacoEditorControl: Found MainWindowViewModel in root window DataContext");
-                                    }
-                                    else
-                                    {
-                                        Logger.Log("MonacoEditorControl: Could not find MainWindowViewModel in DataContext or root window");
-                                    }
-                                }
-                                
-                                if (vm != null)
-                                {
-                                    Logger.Log($"MonacoEditorControl: Updating EditorContent: {content}");
-                                    vm.EditorContent = content;
-                                    Logger.Log($"MonacoEditorControl: EditorContent updated successfully");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.LogException(ex);
-                            }
-                        });
-                    }
+                    msgType = typeProp.GetString();
                 }
-                catch (Exception jsonEx)
+
+                if (root.TryGetProperty("Data", out var dataProp))
                 {
-                    Logger.Log($"MonacoEditorControl: JSON parsing error: {jsonEx.Message}");
-                    Logger.Log($"MonacoEditorControl: Raw JSON: {json}");
+                    msgData = dataProp.GetString();
+                }
+
+                if (msgType == "contentChanged" && msgData != null)
+                {
+                    Logger.Log($"MonacoEditorControl: Content changed: {msgData.Length} chars");
+                    
+                    MainWindowViewModel? vm = null;
+
+                    if (DataContext is MainWindowViewModel)
+                    {
+                        vm = DataContext as MainWindowViewModel;
+                    }
+                    else
+                    {
+                        var visualRoot = this.VisualRoot;
+                        if (visualRoot is Window window && window.DataContext is MainWindowViewModel)
+                        {
+                            vm = window.DataContext as MainWindowViewModel;
+                        }
+                    }
+
+                    if (vm != null)
+                    {
+                        vm.EditorContent = msgData;
+                    }
                 }
             }
             catch (Exception ex)
@@ -263,54 +210,19 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         private void Webview_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs args)
         {
-            try
+            if (args.IsSuccess)
             {
-                if (args.IsSuccess)
+                Logger.Log("MonacoEditorControl: WebView navigation completed");
+
+                if (!string.IsNullOrEmpty(_pendingContent))
                 {
-                    Logger.Log("MonacoEditorControl: WebView navigation completed");
-                    _isWebViewReady = true;
-
-                    // 使用 Dispatcher.UIThread.Post 延迟执行隐藏加载文本的操作，确保在控件完全加载后执行
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    {
-                        try
-                        {
-                            // 隐藏加载文本
-                            var hostBorder = this.FindControl<Border>("HostBorder");
-                            if (hostBorder != null)
-                            {
-                                hostBorder.Child = null;
-                                Logger.Log("MonacoEditorControl: Hidden loading text");
-                            }
-                            else
-                            {
-                                Logger.Log("MonacoEditorControl: HostBorder is null, cannot hide loading text");
-                            }
-
-                            // 导航完成后手动更新控制器大小和位置
-                            UpdateControllerBounds();
-                            Logger.Log("MonacoEditorControl: Updated bounds after navigation");
-
-                            if (!string.IsNullOrEmpty(_pendingContent))
-                            {
-                                SetContentAsync(_pendingContent);
-                                _pendingContent = string.Empty;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.LogException(ex);
-                        }
-                    });
-                }
-                else
-                {
-                    Logger.Log($"MonacoEditorControl: WebView navigation failed with error: {args.WebErrorStatus}");
+                    SetContentAsync(_pendingContent);
+                    _pendingContent = string.Empty;
                 }
             }
-            catch (Exception ex)
+            else
             {
-                Logger.LogException(ex);
+                Logger.Log($"MonacoEditorControl: WebView navigation failed with error: {args.WebErrorStatus}");
             }
         }
 
@@ -318,31 +230,20 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             try
             {
-                if (!_isWebViewReady || _webview == null)
+                if (_webview == null)
                 {
                     _pendingContent = content;
-                    Logger.Log("MonacoEditorControl: WebView not ready, content queued");
                     return;
                 }
 
                 var obj = new { Type = "setContent", Data = content };
                 var json = System.Text.Json.JsonSerializer.Serialize(obj);
-                
                 _webview.PostWebMessageAsJson(json);
-                Logger.Log($"MonacoEditorControl: Content set (length: {content.Length})");
             }
             catch (Exception ex)
             {
                 Logger.LogException(ex);
             }
         }
-
-        private class Message
-        {
-            public string? Type { get; set; }
-            public string? Data { get; set; }
-        }
-
-        private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
     }
 }

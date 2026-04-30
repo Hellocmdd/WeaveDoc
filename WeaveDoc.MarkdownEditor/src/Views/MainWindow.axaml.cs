@@ -6,37 +6,70 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
 using WeaveDoc.MarkdownEditor.Helpers;
+using WeaveDoc.MarkdownEditor.Controls;
 
 namespace WeaveDoc.MarkdownEditor.Views
 {
     public partial class MainWindow : Window
     {
+        private MonacoEditorControl? _monacoEditor;
+        private PreviewWebViewControl? _previewWebView;
 
         public MainWindow()
         {
             InitializeComponent();
-            // 将 MainWindowViewModel 设置为 DataContext
-            var vm = new MainWindowViewModel();
-            DataContext = vm;
+            DataContext = new MainWindowViewModel();
             Logger.Log("MainWindow: Constructor called");
             Loaded += OnLoaded;
             Logger.Log("MainWindow: Events subscribed");
         }
 
-        private async void OnLoaded(object? sender, EventArgs e)
+        private void OnLoaded(object? sender, EventArgs e)
         {
-            Logger.Log("MainWindow: OnLoaded called");
-            // 延迟一下，确保控件完全加载
-            await Task.Delay(200);
+            _monacoEditor = this.FindControl<MonacoEditorControl>("MonacoEditor");
+            _previewWebView = this.FindControl<PreviewWebViewControl>("PreviewWebView");
             
-            // 聚焦到编辑器并设置初始内容
-            var editorTextBox = this.FindControl<TextBox>("EditorTextBox");
-            if (editorTextBox != null)
+            if (_monacoEditor != null)
             {
-                // 直接设置文本
-                editorTextBox.Text = "# Hello WeaveDoc!\n\nStart typing markdown here...";
-                editorTextBox.Focus();
-                Logger.Log("MainWindow: Focused on editor and set text");
+                Logger.Log("MainWindow: MonacoEditorControl found");
+            }
+            if (_previewWebView != null)
+            {
+                Logger.Log("MainWindow: PreviewWebView found");
+            }
+            
+            // 设置初始内容到 Monaco 编辑器和预览
+            if (DataContext is MainWindowViewModel vm)
+            {
+                if (_monacoEditor != null)
+                {
+                    _monacoEditor.SetContentAsync(vm.EditorContent);
+                }
+                if (_previewWebView != null)
+                {
+                    _previewWebView.SetContent(vm.PreviewHtml);
+                }
+            }
+            
+            // 监听 ViewModel 属性变化，同步到 Monaco 编辑器和预览
+            if (DataContext is MainWindowViewModel viewModel)
+            {
+                viewModel.PropertyChanged += ViewModel_PropertyChanged;
+            }
+        }
+        
+        private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (sender is MainWindowViewModel vm)
+            {
+                if (e.PropertyName == nameof(MainWindowViewModel.EditorContent) && _monacoEditor != null)
+                {
+                    _monacoEditor.SetContentAsync(vm.EditorContent);
+                }
+                if (e.PropertyName == nameof(MainWindowViewModel.PreviewHtml) && _previewWebView != null)
+                {
+                    _previewWebView.SetContent(vm.PreviewHtml);
+                }
             }
         }
 
