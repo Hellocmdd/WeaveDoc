@@ -92,7 +92,7 @@ LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 
 ## What The App Supports
 
-- local indexing of `.md`, `.txt`, `.json`, and `.pdf` documents from `doc/`
+- local indexing of `.md`, `.txt`, and `.json` documents from `doc/`
 - JSON ingestion into structure-aware chunks with searchable array-item section labels
 - duplicate import detection so the app does not keep copying identical files into the knowledge base
 - hybrid retrieval with sparse prefilter + semantic scoring + structure-aware reranking
@@ -103,13 +103,13 @@ LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 - intent-specific fallback paths for composition, module implementation, metadata, and engineering-paper style questions
 - offline baseline evaluation through a CLI entry point and helper script, with keyword checks plus structural answer checks
 
-## PDF Ingestion Dependency
+## SQLite Store Sync
 
-PDF text extraction currently depends on the system command `pdftotext` (Poppler).
+The legacy `rag_store.db` can be refreshed from the converted markdown and JSON corpus:
 
-- Ubuntu/Debian: `sudo apt install poppler-utils`
-- Arch: `sudo pacman -S poppler`
-- Fedora: `sudo dnf install poppler-utils`
+```bash
+./scripts/sync_markdown_json_sqlite.sh
+```
 
 ## Offline Evaluation
 

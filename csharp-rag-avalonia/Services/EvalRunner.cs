@@ -48,6 +48,12 @@ internal static class EvalRunner
         var matchedContextExpectations = 0;
         var citationPrecisionSum = 0d;
         var citationRecallSum = 0d;
+        var scopeAccuracySum = 0;
+        var evidenceKindAccuracySum = 0;
+        var slotCoverageSum = 0d;
+        var sufficiencyAccuracySum = 0;
+        var citationFromEvidenceSetSum = 0;
+        var sourceFormatAccuracySum = 0;
         var caseReports = new List<EvalCaseReport>(baseline.Cases.Count);
 
         Console.WriteLine($"[eval] baseline: {fullPath}");
@@ -80,6 +86,7 @@ internal static class EvalRunner
             var debug = service.LastRetrievalDebug;
             var rankedChunks = service.LastRankedChunkSnapshots;
             var contextChunks = service.LastContextChunkSnapshots;
+            var evidenceDebug = service.LastEvidenceDebugSnapshot;
 
             var matched = MatchExpectedKeywords(answer, item.ExpectedKeywords);
             var requiredMatches = GetRequiredMatchCount(item);
@@ -87,6 +94,8 @@ internal static class EvalRunner
             var answerCheck = EvaluateAnswerSignals(answer, item);
             var retrievalCheck = EvaluateRetrievalSignals(rankedChunks, contextChunks, item);
             var citationCheck = EvaluateCitationSignals(answer, item);
+            var evidenceCheck = EvaluateEvidenceSignals(answer, contextChunks, item, evidenceDebug);
+            var sourceFormatCheck = EvaluateSourceFormatSignals(rankedChunks, contextChunks, item, baseline);
             matchedExpectations += matched;
             totalExpectations += item.ExpectedKeywords?.Count ?? 0;
             totalRetrievalExpectations += retrievalCheck.TotalExpectedSignals;
@@ -94,10 +103,16 @@ internal static class EvalRunner
             matchedContextExpectations += retrievalCheck.ContextMatchedSignals;
             citationPrecisionSum += citationCheck.Precision;
             citationRecallSum += citationCheck.Recall;
+            scopeAccuracySum += evidenceCheck.ScopeAccurate ? 1 : 0;
+            evidenceKindAccuracySum += evidenceCheck.EvidenceKindAccurate ? 1 : 0;
+            slotCoverageSum += evidenceCheck.SlotCoverage;
+            sufficiencyAccuracySum += evidenceCheck.SufficiencyAccurate ? 1 : 0;
+            citationFromEvidenceSetSum += evidenceCheck.CitationsFromEvidenceSet ? 1 : 0;
+            sourceFormatAccuracySum += sourceFormatCheck.Passed ? 1 : 0;
             var keywordPassed = answerCheck.Passed;
             var retrievalPassed = retrievalCheck.Passed;
             var citationPassed = citationCheck.Passed;
-            var passed = keywordPassed && structuralPassed && retrievalPassed && citationPassed;
+            var passed = keywordPassed && structuralPassed && retrievalPassed && citationPassed && sourceFormatCheck.Passed;
             if (passed)
             {
                 matchedCases++;
@@ -127,6 +142,13 @@ internal static class EvalRunner
                 citationCheck.AnswerCitationCount,
                 citationCheck.Precision,
                 citationCheck.Recall,
+                evidenceCheck.ScopeAccurate,
+                evidenceCheck.EvidenceKindAccurate,
+                evidenceCheck.SlotCoverage,
+                evidenceCheck.SufficiencyAccurate,
+                evidenceCheck.CitationsFromEvidenceSet,
+                sourceFormatCheck.Passed,
+                sourceFormatCheck.ObservedExtensions,
                 answer,
                 debug,
                 rankedChunks,
@@ -160,6 +182,8 @@ internal static class EvalRunner
             {
                 Console.WriteLine($"Citation checks: {(citationPassed ? "pass" : "fail")} (matched {citationCheck.MatchedExpectedCitations}/{citationCheck.TotalExpectedCitations}, precision {citationCheck.Precision:P0}, recall {citationCheck.Recall:P0})");
             }
+            Console.WriteLine($"Evidence checks: scope={(evidenceCheck.ScopeAccurate ? "pass" : "fail")}, kind={(evidenceCheck.EvidenceKindAccurate ? "pass" : "fail")}, slots={evidenceCheck.SlotCoverage:P0}, sufficiency={(evidenceCheck.SufficiencyAccurate ? "pass" : "fail")}, citations={(evidenceCheck.CitationsFromEvidenceSet ? "pass" : "fail")}");
+            Console.WriteLine($"Source format checks: {(sourceFormatCheck.Passed ? "pass" : "fail")} ({string.Join(", ", sourceFormatCheck.ObservedExtensions)})");
 
             Console.WriteLine("Answer:");
             Console.WriteLine(answer);
@@ -193,6 +217,12 @@ internal static class EvalRunner
         {
             Console.WriteLine($"Average citation precision: {(citationPrecisionSum / caseReports.Count):P1}");
             Console.WriteLine($"Average citation recall: {(citationRecallSum / caseReports.Count):P1}");
+            Console.WriteLine($"Scope accuracy: {scopeAccuracySum}/{caseReports.Count} ({scopeAccuracySum * 100.0 / caseReports.Count:F1}%)");
+            Console.WriteLine($"Evidence kind accuracy: {evidenceKindAccuracySum}/{caseReports.Count} ({evidenceKindAccuracySum * 100.0 / caseReports.Count:F1}%)");
+            Console.WriteLine($"Average slot coverage: {slotCoverageSum / caseReports.Count:P1}");
+            Console.WriteLine($"Sufficiency accuracy: {sufficiencyAccuracySum}/{caseReports.Count} ({sufficiencyAccuracySum * 100.0 / caseReports.Count:F1}%)");
+            Console.WriteLine($"Citation from EvidenceSet: {citationFromEvidenceSetSum}/{caseReports.Count} ({citationFromEvidenceSetSum * 100.0 / caseReports.Count:F1}%)");
+            Console.WriteLine($"Source format accuracy: {sourceFormatAccuracySum}/{caseReports.Count} ({sourceFormatAccuracySum * 100.0 / caseReports.Count:F1}%)");
         }
 
         var summary = new EvalSummaryReport(
@@ -210,6 +240,12 @@ internal static class EvalRunner
             totalRetrievalExpectations > 0 ? matchedContextExpectations * 100.0 / totalRetrievalExpectations : null,
             caseReports.Count > 0 ? citationPrecisionSum / caseReports.Count : null,
             caseReports.Count > 0 ? citationRecallSum / caseReports.Count : null,
+            caseReports.Count > 0 ? scopeAccuracySum * 100.0 / caseReports.Count : null,
+            caseReports.Count > 0 ? evidenceKindAccuracySum * 100.0 / caseReports.Count : null,
+            caseReports.Count > 0 ? slotCoverageSum * 100.0 / caseReports.Count : null,
+            caseReports.Count > 0 ? sufficiencyAccuracySum * 100.0 / caseReports.Count : null,
+            caseReports.Count > 0 ? citationFromEvidenceSetSum * 100.0 / caseReports.Count : null,
+            caseReports.Count > 0 ? sourceFormatAccuracySum * 100.0 / caseReports.Count : null,
             DateTimeOffset.Now,
             caseReports);
 
@@ -298,6 +334,165 @@ internal static class EvalRunner
             precision,
             recall,
             passed);
+    }
+
+    private static EvidenceCheckResult EvaluateEvidenceSignals(
+        string answer,
+        IReadOnlyList<LocalAiService.RetrievalChunkSnapshot> contextChunks,
+        EvalCase item,
+        LocalAiService.EvidenceDebugSnapshot? evidenceDebug)
+    {
+        var contextFiles = contextChunks
+            .Select(chunk => chunk.FilePath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var scopeAccurate = contextFiles.Length <= 1
+            || !IsDocumentScopedCase(item)
+            || contextFiles.All(path => MatchesCaseDocumentScope(path, item));
+
+        var evidenceKindAccurate = evidenceDebug is null
+            || ExpectedModeForCase(item) is not { } expectedMode
+            || evidenceDebug.Mode == expectedMode;
+
+        var slotCoverage = evidenceDebug is null || evidenceDebug.RequiredSlots.Count == 0
+            ? 1d
+            : evidenceDebug.CoveredSlots.Count / (double)evidenceDebug.RequiredSlots.Count;
+
+        var expectsUnknown = (item.AnswerSignals ?? []).Any(signal => signal.Contains("我不知道", StringComparison.Ordinal));
+        var answeredUnknown = answer.Contains("我不知道", StringComparison.Ordinal) || answer.Contains("当前文档未覆盖", StringComparison.Ordinal);
+        var sufficiencyAccurate = expectsUnknown == answeredUnknown
+            || (!expectsUnknown && evidenceDebug?.IsSufficient != false);
+
+        var knownCitations = new HashSet<string>(contextChunks.Select(chunk => chunk.Citation), StringComparer.Ordinal);
+        var answerCitations = CitationRegex.Matches(answer)
+            .Select(match => match.Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var citationsFromEvidenceSet = answerCitations.Length == 0
+            || answerCitations.All(citation => knownCitations.Contains(citation));
+
+        return new EvidenceCheckResult(scopeAccurate, evidenceKindAccurate, slotCoverage, sufficiencyAccurate, citationsFromEvidenceSet);
+    }
+
+    private static SourceFormatCheckResult EvaluateSourceFormatSignals(
+        IReadOnlyList<LocalAiService.RetrievalChunkSnapshot> rankedChunks,
+        IReadOnlyList<LocalAiService.RetrievalChunkSnapshot> contextChunks,
+        EvalCase item,
+        EvalBaselineFile baseline)
+    {
+        var observedExtensions = rankedChunks
+            .Concat(contextChunks)
+            .Select(chunk => NormalizeExtension(Path.GetExtension(chunk.FilePath)))
+            .Where(extension => !string.IsNullOrWhiteSpace(extension))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(extension => extension, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var allowedExtensions = NormalizeExtensions((item.AllowedSourceExtensions ?? []).Concat(baseline.AllowedSourceExtensions ?? []));
+        var forbiddenExtensions = NormalizeExtensions((item.ForbiddenSourceExtensions ?? []).Concat(baseline.ForbiddenSourceExtensions ?? []));
+
+        var allowedPass = allowedExtensions.Count == 0
+            || observedExtensions.All(extension => allowedExtensions.Contains(extension));
+        var forbiddenPass = forbiddenExtensions.Count == 0
+            || observedExtensions.All(extension => !forbiddenExtensions.Contains(extension));
+
+        return new SourceFormatCheckResult(allowedPass && forbiddenPass, observedExtensions);
+    }
+
+    private static HashSet<string> NormalizeExtensions(IEnumerable<string> extensions)
+    {
+        return extensions
+            .Select(NormalizeExtension)
+            .Where(extension => !string.IsNullOrWhiteSpace(extension))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeExtension(string extension)
+    {
+        var normalized = extension.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return string.Empty;
+        }
+
+        return normalized.StartsWith(".", StringComparison.Ordinal) ? normalized : $".{normalized}";
+    }
+
+    private static bool IsDocumentScopedCase(EvalCase item)
+    {
+        var question = item.Question;
+        return question.Contains("《", StringComparison.Ordinal)
+            || question.Contains("这篇", StringComparison.Ordinal)
+            || question.Contains("STM32", StringComparison.OrdinalIgnoreCase)
+            || question.Contains("地质", StringComparison.Ordinal)
+            || (item.Id?.Contains("no-cross-doc", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    private static bool MatchesCaseDocumentScope(string filePath, EvalCase item)
+    {
+        var question = item.Question;
+        if (question.Contains("STM32", StringComparison.OrdinalIgnoreCase)
+            || question.Contains("浇花", StringComparison.Ordinal)
+            || item.Id?.StartsWith("stm32", StringComparison.OrdinalIgnoreCase) == true
+            || item.Id?.Equals("follow-up-detail", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return filePath.Contains("STM32", StringComparison.OrdinalIgnoreCase)
+                || filePath.Contains("浇花", StringComparison.Ordinal);
+        }
+
+        if (question.Contains("地质", StringComparison.Ordinal)
+            || item.Id?.StartsWith("geology", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return filePath.Contains("地质", StringComparison.Ordinal)
+                || filePath.Contains("Spring", StringComparison.OrdinalIgnoreCase)
+                || filePath.Contains("Vue", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return true;
+    }
+
+    private static LocalAiService.EvidenceMode? ExpectedModeForCase(EvalCase item)
+    {
+        if (string.IsNullOrWhiteSpace(item.Id))
+        {
+            return null;
+        }
+
+        var id = item.Id.ToLowerInvariant();
+        if (id.Contains("summary", StringComparison.Ordinal))
+        {
+            return LocalAiService.EvidenceMode.Summary;
+        }
+        if (id.Contains("composition", StringComparison.Ordinal) || id.Contains("architecture", StringComparison.Ordinal))
+        {
+            return LocalAiService.EvidenceMode.Composition;
+        }
+        if (id.Contains("modules", StringComparison.Ordinal))
+        {
+            return LocalAiService.EvidenceMode.ModuleList;
+        }
+        if (id.Contains("control", StringComparison.Ordinal) || id.Contains("remote", StringComparison.Ordinal))
+        {
+            return LocalAiService.EvidenceMode.Implementation;
+        }
+        if (id.Contains("definition", StringComparison.Ordinal))
+        {
+            return LocalAiService.EvidenceMode.Definition;
+        }
+        if (id.Contains("compare", StringComparison.Ordinal))
+        {
+            return LocalAiService.EvidenceMode.Compare;
+        }
+        if (id.Contains("explain", StringComparison.Ordinal))
+        {
+            return LocalAiService.EvidenceMode.Explain;
+        }
+        if (id.Contains("no-answer", StringComparison.Ordinal))
+        {
+            return LocalAiService.EvidenceMode.AbsenceCheck;
+        }
+
+        return null;
     }
 
     private static int GetRequiredMatchCount(EvalCase item)
@@ -506,6 +701,30 @@ internal static class EvalRunner
         {
             builder.AppendLine($"- Average citation recall: `{citationRecall:P1}`");
         }
+        if (summary.ScopeAccuracyPercent is double scopeAccuracy)
+        {
+            builder.AppendLine($"- Scope accuracy: `{scopeAccuracy:F1}%`");
+        }
+        if (summary.EvidenceKindAccuracyPercent is double evidenceKindAccuracy)
+        {
+            builder.AppendLine($"- Evidence kind accuracy: `{evidenceKindAccuracy:F1}%`");
+        }
+        if (summary.AverageSlotCoveragePercent is double slotCoverage)
+        {
+            builder.AppendLine($"- Average slot coverage: `{slotCoverage:F1}%`");
+        }
+        if (summary.SufficiencyAccuracyPercent is double sufficiencyAccuracy)
+        {
+            builder.AppendLine($"- Sufficiency accuracy: `{sufficiencyAccuracy:F1}%`");
+        }
+        if (summary.CitationFromEvidenceSetPercent is double citationFromEvidenceSet)
+        {
+            builder.AppendLine($"- Citation from EvidenceSet: `{citationFromEvidenceSet:F1}%`");
+        }
+        if (summary.SourceFormatAccuracyPercent is double sourceFormatAccuracy)
+        {
+            builder.AppendLine($"- Source format accuracy: `{sourceFormatAccuracy:F1}%`");
+        }
 
         builder.AppendLine();
         builder.AppendLine("## Cases");
@@ -527,6 +746,12 @@ internal static class EvalRunner
             builder.AppendLine($"- Structural checks: `{(item.StructuralChecksPassed ? "pass" : "fail")}`");
             builder.AppendLine($"- Retrieval checks: `{(item.RetrievalChecksPassed ? "pass" : "fail")}`");
             builder.AppendLine($"- Citation checks: `{(item.CitationChecksPassed ? "pass" : "fail")}`");
+            builder.AppendLine($"- Scope accuracy: `{(item.ScopeAccurate ? "pass" : "fail")}`");
+            builder.AppendLine($"- Evidence kind accuracy: `{(item.EvidenceKindAccurate ? "pass" : "fail")}`");
+            builder.AppendLine($"- Slot coverage: `{item.SlotCoverage:P1}`");
+            builder.AppendLine($"- Sufficiency accuracy: `{(item.SufficiencyAccurate ? "pass" : "fail")}`");
+            builder.AppendLine($"- Citation from EvidenceSet: `{(item.CitationsFromEvidenceSet ? "pass" : "fail")}`");
+            builder.AppendLine($"- Source format: `{(item.SourceFormatPassed ? "pass" : "fail")}` ({string.Join(", ", item.ObservedSourceExtensions)})");
             if (item.ExpectedAnswerSignals.Count > 0)
             {
                 builder.AppendLine($"- Answer signals: `{item.MatchedAnswerSignals}/{item.ExpectedAnswerSignals.Count}`");
@@ -595,7 +820,11 @@ internal static class EvalRunner
         return builder.ToString();
     }
 
-    private sealed record EvalBaselineFile(string? Name, List<EvalCase> Cases);
+    private sealed record EvalBaselineFile(
+        string? Name,
+        List<string>? AllowedSourceExtensions,
+        List<string>? ForbiddenSourceExtensions,
+        List<EvalCase> Cases);
 
     private sealed record EvalCase(
         string? Id,
@@ -610,6 +839,8 @@ internal static class EvalRunner
         int? MinContextSignals,
         List<string>? ExpectedCitations,
         int? MinMatchedCitations,
+        List<string>? AllowedSourceExtensions,
+        List<string>? ForbiddenSourceExtensions,
         List<EvalTurn>? History);
 
     private sealed record EvalTurn(string Role, string Content);
@@ -638,6 +869,13 @@ internal static class EvalRunner
         int AnswerCitationCount,
         double CitationPrecision,
         double CitationRecall,
+        bool ScopeAccurate,
+        bool EvidenceKindAccurate,
+        double SlotCoverage,
+        bool SufficiencyAccurate,
+        bool CitationsFromEvidenceSet,
+        bool SourceFormatPassed,
+        IReadOnlyList<string> ObservedSourceExtensions,
         string Answer,
         string RetrievalDebug,
         IReadOnlyList<LocalAiService.RetrievalChunkSnapshot> TopRankedChunks,
@@ -658,6 +896,12 @@ internal static class EvalRunner
         double? ContextSignalCoveragePercent,
         double? AverageCitationPrecision,
         double? AverageCitationRecall,
+        double? ScopeAccuracyPercent,
+        double? EvidenceKindAccuracyPercent,
+        double? AverageSlotCoveragePercent,
+        double? SufficiencyAccuracyPercent,
+        double? CitationFromEvidenceSetPercent,
+        double? SourceFormatAccuracyPercent,
         DateTimeOffset ExecutedAt,
         IReadOnlyList<EvalCaseReport> Cases);
 
@@ -685,6 +929,17 @@ internal static class EvalRunner
         double Precision,
         double Recall,
         bool Passed);
+
+    private sealed record EvidenceCheckResult(
+        bool ScopeAccurate,
+        bool EvidenceKindAccurate,
+        double SlotCoverage,
+        bool SufficiencyAccurate,
+        bool CitationsFromEvidenceSet);
+
+    private sealed record SourceFormatCheckResult(
+        bool Passed,
+        IReadOnlyList<string> ObservedExtensions);
 
     private static readonly Regex CitationRegex = new("\\[(?:\\d+|[^\\[\\]\\r\\n|]{1,160}\\s\\|\\s[^\\[\\]\\r\\n|]{1,160}\\s\\|\\sc\\d+)\\]", RegexOptions.Compiled);
 }

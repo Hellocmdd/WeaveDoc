@@ -3,8 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Security.Cryptography;
 using LLama;
 using LLama.Common;
@@ -18,7 +16,7 @@ public sealed class LocalAiService : IDisposable
     private const int EmbeddingContextSize = 8192;
     private const int EmbeddingSafetyMargin = 256;
     private const int MaxEmbeddingTokens = EmbeddingContextSize - EmbeddingSafetyMargin;
-    private static readonly string[] SupportedDocumentExtensions = [".md", ".txt", ".json", ".pdf"];
+    private static readonly string[] SupportedDocumentExtensions = [".md", ".txt", ".json"];
     private static readonly string[] IgnoredCorpusRelativePrefixes = ["QA/"];
 
     private static readonly Regex QueryTokenRegex = new("[a-z0-9]+|[\\u4e00-\\u9fff]{2,}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -29,6 +27,10 @@ public sealed class LocalAiService : IDisposable
     private static readonly Regex ReferenceLineRegex = new("^(\\[?\\d+\\]?\\s*)?.{0,80}\\[J\\].*(\\d{4}|\\(\\d+\\)).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex HeadingLineRegex = new("^#{1,6}\\s", RegexOptions.Compiled);
     private static readonly Regex HtmlTagRegex = new("<[^>]+>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex MarkdownImageRegex = new("!\\[[^\\]]*\\]\\([^\\)]*\\)", RegexOptions.Compiled);
+    private static readonly Regex MarkdownLinkRegex = new("\\[([^\\]]+)\\]\\([^\\)]*\\)", RegexOptions.Compiled);
+    private static readonly Regex TechnicalEntityRegex = new("(?<![A-Za-z0-9])(?:[A-Z][A-Za-z0-9]*(?:[-+./_][A-Za-z0-9]+)*(?:\\s+[A-Z][A-Za-z0-9+./_-]*){0,3}|[A-Za-z]+(?:[-+./_][A-Za-z0-9]+)+)(?![A-Za-z0-9])", RegexOptions.Compiled);
+    private static readonly Regex ChineseEntityRegex = new("[\\u4e00-\\u9fffA-Za-z0-9+./_-]{2,24}(?:模块|系统|平台|框架|架构|数据库|接口|协议|算法|控制器|传感器|芯片|处理器|显示屏|屏幕|设备|组件|服务|工具|引擎|模型|网络|电源|电机|阀|终端|客户端|服务器|层|端)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex MetadataLineRegex = new("^(关键词|key words|摘要|abstract|中图分类号|文献标识码|文章编号|doi|图\\d+|表\\d+|参考文献)[:：]?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex LeadingOutlineRegex = new("^\\s*(?:\\d+(?:\\.\\d+)*\\s+)+", RegexOptions.Compiled);
     private static readonly Regex JsonArrayIndexRegex = new("^\\[(\\d+)\\]$", RegexOptions.Compiled);
@@ -43,7 +45,7 @@ public sealed class LocalAiService : IDisposable
     ];
     private static readonly string[] ExplanationSignals = ["原因", "因为", "导致", "所以", "由于", "为了", "通过", "原理", "机制"];
     private static readonly string[] CompareSignals = ["区别", "不同", "差异", "相比", "而", "则", "一方面", "另一方面"];
-    private static readonly string[] CompositionSignals = ["组成", "构成", "包括", "包含", "模块", "架构", "配置", "条件", "环境", "硬件", "软件", "接口"];
+    private static readonly string[] CompositionSignals = ["组成", "构成", "包括", "包含", "模块", "架构", "技术栈", "前后端", "配置", "条件", "环境", "硬件", "软件", "接口"];
     private static readonly string[] DefinitionSignals = ["是一种", "是指", "作为", "选用", "采用", "负责", "用于", "核心", "模块"];
     private static readonly string[] ProcedureSignals = ["步骤", "流程", "首先", "然后", "最后", "实现", "方法", "过程"];
     private static readonly string[] ModuleImplementationSignals = ["连接", "通信", "上传", "下发", "展示", "显示", "设定", "触发", "指令", "链路", "协议", "服务器", "app", "json"];
@@ -51,8 +53,14 @@ public sealed class LocalAiService : IDisposable
     private static readonly string[] DetailSignals = ["详细", "具体", "展开", "细说", "详述", "全面", "细一点", "详细一点", "具体一点", "展开讲", "展开说", "多说", "讲讲", "说说"];
     private static readonly string[] SupplementalRequestSignals = ["补充要求", "详细一点", "具体一点", "展开一点", "展开说", "展开讲", "细一点", "继续", "再说", "多说", "讲讲", "说说"];
     private static readonly string[] EnglishMetadataSignals = ["英文标题", "英文摘要", "英文关键词", "english title", "english abstract", "english keywords"];
-    private static readonly string[] CompositionQuestionSignals = ["组成", "构成", "包括哪些", "包含哪些", "由哪些", "有哪些部分", "有哪些模块", "硬件组成", "软件组成", "硬件条件", "软件条件", "系统配置", "部署环境", "实验环境", "运行环境", "实施条件"];
-    private static readonly string[] CompositionContextSignals = ["硬件", "软件", "架构", "模块", "组成", "构成", "配置", "条件", "环境", "接口", "参数", "依赖"];
+    private static readonly string[] CompositionQuestionSignals = ["组成", "构成", "包括哪些", "包含哪些", "由哪些", "有哪些部分", "有哪些模块", "硬件组成", "软件组成", "硬件条件", "软件条件", "系统配置", "部署环境", "实验环境", "运行环境", "实施条件", "技术栈", "总体架构", "架构和技术栈", "前后端分离", "采用了什么架构", "采用了哪些技术"];
+    private static readonly string[] CompositionContextSignals = ["硬件", "软件", "架构", "技术栈", "前后端", "模块", "组成", "构成", "配置", "条件", "环境", "接口", "参数", "依赖"];
+    private static readonly string[] TechnicalStackQuestionSignals = ["技术栈", "总体架构", "架构和技术栈", "前后端分离", "采用了哪些技术", "采用了什么架构"];
+    private static readonly HashSet<string> GenericEntityStopWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "系统", "模块", "功能模块", "这个系统", "该系统", "本文", "文中", "论文", "研究", "设计", "实现", "方法",
+        "主要模块", "总体架构", "系统架构", "技术栈", "组成", "包括", "包含", "数据", "信息", "内容", "平台", "工具"
+    };
     private static readonly string[] NonCompositionAttributeSignals = ["效果", "性能", "表现", "体验", "评价", "口碑", "结论"];
     private static readonly string[] ProcedureQuestionSignals = ["如何", "步骤", "流程", "怎么做", "怎么实现", "怎么控制", "怎么完成", "怎么处理", "怎么设计", "怎么搭建", "怎么部署", "怎么进行", "怎么安装", "怎么使用", "怎么办"];
     private static readonly HashSet<string> JsonIgnoredFieldNames = new(StringComparer.OrdinalIgnoreCase)
@@ -93,6 +101,7 @@ public sealed class LocalAiService : IDisposable
     private LLamaWeights? _embeddingWeights;
     private LLamaEmbedder? _embedder;
     private float _avgDocumentLength;
+    private IReadOnlyList<string> _activeDocumentFilePaths = [];
 
     public string EmbeddingModelPath => GetModelPath(_options.EmbeddingModelFile);
 
@@ -115,6 +124,8 @@ public sealed class LocalAiService : IDisposable
     public IReadOnlyList<RetrievalChunkSnapshot> LastRankedChunkSnapshots { get; private set; } = [];
 
     public IReadOnlyList<RetrievalChunkSnapshot> LastContextChunkSnapshots { get; private set; } = [];
+
+    public EvidenceDebugSnapshot? LastEvidenceDebugSnapshot { get; private set; }
 
     public bool LastUsedSparsePrefilter { get; private set; }
 
@@ -182,6 +193,7 @@ public sealed class LocalAiService : IDisposable
         LastRetrievalDebug = BuildRetrievalDebugText(question, retrievalQuestion, retrieval);
         LastRankedChunkSnapshots = retrieval.RankedChunks.Select(CreateRetrievalChunkSnapshot).ToArray();
         LastContextChunkSnapshots = retrieval.ContextChunks.Select(CreateRetrievalChunkSnapshot).ToArray();
+        LastEvidenceDebugSnapshot = CreateEvidenceDebugSnapshot(retrieval.EvidencePlan, retrieval.EvidenceSet);
         LastUsedSparsePrefilter = retrieval.UsedSparsePrefilter;
 
         if (retrieval.RankedChunks.Count == 0)
@@ -196,6 +208,18 @@ public sealed class LocalAiService : IDisposable
 
         var queryProfile = BuildQueryProfile(retrievalQuestion);
         var topChunks = retrieval.ContextChunks;
+
+        if (!string.IsNullOrWhiteSpace(retrieval.EvidenceSet.UnknownReason))
+        {
+            return retrieval.EvidenceSet.UnknownReason;
+        }
+
+        if (!retrieval.EvidenceSet.IsSufficient)
+        {
+            return retrieval.EvidenceSet.UnknownReason ?? "我不知道（当前文档未覆盖）。";
+        }
+
+        RememberActiveDocumentScope(retrieval.EvidenceSet);
 
         if (ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
         {
@@ -240,6 +264,15 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
+        if (queryProfile.Intent == "composition")
+        {
+            var compositionAnswer = BuildCompositionFallbackAnswer(queryProfile.OriginalQuestion, topChunks);
+            if (!string.IsNullOrWhiteSpace(compositionAnswer))
+            {
+                return compositionAnswer;
+            }
+        }
+
         var prompt = BuildPrompt(retrievalQuestion, history, queryProfile, retrieval.RankedChunks, topChunks, retrieval.TargetFilePaths);
         var client = new LlamaServerChatClient(_httpClient, _options);
         var answer = await client.CompleteAsync(prompt, cancellationToken).ConfigureAwait(false);
@@ -250,6 +283,11 @@ public sealed class LocalAiService : IDisposable
             if (!IsOffTopicOrMalformedAnswer(repaired, retrievalQuestion, topChunks, retrieval.TargetFilePaths))
             {
                 return repaired;
+            }
+
+            if (ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
+            {
+                return "我不知道（当前文档未覆盖）。";
             }
 
             return BuildExtractiveFallbackAnswer(retrievalQuestion, queryProfile, topChunks, retrieval.TargetFilePaths);
@@ -272,7 +310,7 @@ public sealed class LocalAiService : IDisposable
         var extension = Path.GetExtension(fullSourcePath);
         if (!IsSupportedDocumentExtension(extension))
         {
-            throw new InvalidOperationException("仅支持 .md、.txt、.json 或 .pdf 文档。");
+            throw new InvalidOperationException("仅支持 .md、.txt 或 .json 文档。");
         }
 
         Directory.CreateDirectory(DocumentRoot);
@@ -479,11 +517,20 @@ public sealed class LocalAiService : IDisposable
         var queryProfile = BuildQueryProfile(question);
         var queryTokens = BuildRetrievalQueryTokens(question, queryProfile.RequestedDocumentTitle);
         var targetFilePaths = ApplyRequestedFileFormatPreference(question, queryProfile.Intent, ResolveRequestedDocumentFilePaths(queryProfile.RequestedDocumentTitle));
+        if (targetFilePaths.Count == 0 && ShouldUseActiveDocumentScope(queryProfile))
+        {
+            targetFilePaths = ApplyRequestedFileFormatPreference(question, queryProfile.Intent, _activeDocumentFilePaths);
+        }
+
+        var evidencePlan = BuildEvidencePlan(queryProfile, targetFilePaths);
         var targetFilePathSet = targetFilePaths.Count == 0
             ? null
             : new HashSet<string>(targetFilePaths, StringComparer.OrdinalIgnoreCase);
+        var scopedIndexedChunks = targetFilePathSet is null
+            ? _indexedChunks.ToArray()
+            : _indexedChunks.Where(item => targetFilePathSet.Contains(item.Chunk.FilePath)).ToArray();
 
-        var sparseComponents = _indexedChunks
+        var sparseComponents = scopedIndexedChunks
             .Select(indexed =>
             {
                 var bm25Raw = ComputeBm25(queryTokens, indexed);
@@ -495,6 +542,22 @@ public sealed class LocalAiService : IDisposable
                 return new SparseRetrievalComponent(indexed, bm25Raw, keywordScore, titleScore, jsonStructureScore, noisePenalty, hasDirectKeywordHit);
             })
             .ToArray();
+
+        if (sparseComponents.Length == 0 && targetFilePathSet is not null)
+        {
+            sparseComponents = _indexedChunks
+                .Select(indexed =>
+                {
+                    var bm25Raw = ComputeBm25(queryTokens, indexed);
+                    var (keywordScore, hasDirectKeywordHit) = ComputeKeywordScore(queryTokens, BuildChunkRetrievalText(indexed.Chunk));
+                    var titleScore = ComputeTitleScore(queryProfile.FocusTerms, indexed.Chunk);
+                    var jsonStructureScore = ComputeJsonStructureScore(queryProfile.FocusTerms, indexed.Chunk);
+                    var noisePenalty = ComputeNoisePenalty(indexed.Chunk);
+
+                    return new SparseRetrievalComponent(indexed, bm25Raw, keywordScore, titleScore, jsonStructureScore, noisePenalty, hasDirectKeywordHit);
+                })
+                .ToArray();
+        }
 
         var maxBm25 = sparseComponents.Length == 0 ? 1f : Math.Max(1e-6f, sparseComponents.Max(item => item.Bm25Raw));
         var sparseRanked = sparseComponents
@@ -552,20 +615,29 @@ public sealed class LocalAiService : IDisposable
             .Take(Math.Min(GetRerankCandidatePoolSize(queryProfile), candidatePool.Length))
             .ToArray();
 
-        var ruleRerankCount = Math.Min(candidates.Length, Math.Max(count, _options.RerankerTopN));
-        var ruleReranked = RerankCandidates(candidates, queryProfile, ruleRerankCount);
-        var learnedRerank = await TryRerankWithLearnedModelAsync(question, ruleReranked, count, cancellationToken).ConfigureAwait(false);
-        var reranked = learnedRerank.RankedChunks;
-        var contextChunks = BuildContextWindow(reranked, queryProfile, targetFilePaths);
+        var evidenceCandidateCount = Math.Max(count, Math.Max(_options.RerankerTopN, evidencePlan.RequiredSlots.Count * (queryProfile.WantsDetailedAnswer ? 3 : 2)));
+        var ruleRerankCount = Math.Min(candidates.Length, evidenceCandidateCount);
+        var ruleReranked = RerankCandidates(candidates, queryProfile, evidencePlan, ruleRerankCount);
+        var globalLearnedRerank = await TryRerankForGlobalRankingAsync(question, ruleReranked, evidencePlan, ruleRerankCount, cancellationToken).ConfigureAwait(false);
+        var evidenceRerank = evidencePlan.RequiredSlots.Count == 0
+            ? globalLearnedRerank
+            : await TryRerankWithinEvidenceGroupsAsync(question, ruleReranked, evidencePlan, ruleRerankCount, cancellationToken).ConfigureAwait(false);
+        var ranked = globalLearnedRerank.RankedChunks;
+        var evidenceSet = BuildEvidenceSet(evidenceRerank.RankedChunks, queryProfile, evidencePlan, targetFilePaths);
+        var rerankerStatus = evidencePlan.RequiredSlots.Count == 0
+            ? globalLearnedRerank.Status
+            : $"global:{globalLearnedRerank.Status}; evidence:{evidenceRerank.Status}";
         return new RetrievalResult(
-            reranked,
-            contextChunks,
+            ranked,
+            evidenceSet.Chunks,
             queryProfile,
+            evidencePlan,
+            evidenceSet,
             sparseRanked.Length,
             semanticInputs.Length,
             hasMeaningfulSparseEvidence,
-            learnedRerank.Used,
-            learnedRerank.Status,
+            globalLearnedRerank.Used || evidenceRerank.Used,
+            rerankerStatus,
             targetFilePaths);
     }
 
@@ -679,6 +751,96 @@ public sealed class LocalAiService : IDisposable
         {
             return new LearnedRerankResult(candidates.Take(count).ToArray(), false, exception.GetType().Name);
         }
+    }
+
+    private async Task<LearnedRerankResult> TryRerankWithinEvidenceGroupsAsync(
+        string question,
+        IReadOnlyList<ScoredChunk> candidates,
+        EvidencePlan evidencePlan,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        if (!_options.RerankerEnabled || candidates.Count <= 1)
+        {
+            return new LearnedRerankResult(candidates.Take(count).ToArray(), false, !_options.RerankerEnabled ? "disabled" : "not enough candidates");
+        }
+
+        if (evidencePlan.RequiredSlots.Count == 0)
+        {
+            var sameKind = candidates
+                .Where(candidate => IsChunkAllowedByEvidencePlan(evidencePlan, candidate.Chunk))
+                .Take(Math.Max(count, _options.RerankerTopN))
+                .ToArray();
+            return await TryRerankWithLearnedModelAsync(question, sameKind.Length > 0 ? sameKind : candidates, count, cancellationToken).ConfigureAwait(false);
+        }
+
+        var selected = new List<ScoredChunk>();
+        var usedKeys = new HashSet<string>(StringComparer.Ordinal);
+        var statusParts = new List<string>();
+        var used = false;
+        var perSlotLimit = evidencePlan.QueryProfile.WantsDetailedAnswer ? 2 : 1;
+
+        foreach (var slot in evidencePlan.RequiredSlots)
+        {
+            var slotCandidates = candidates
+                .Where(candidate => IsChunkAllowedByEvidencePlan(evidencePlan, candidate.Chunk))
+                .Where(candidate => ChunkMatchesEvidenceSlot(candidate.Chunk, slot))
+                .Take(Math.Max(perSlotLimit + 2, Math.Min(_options.RerankerTopN, 6)))
+                .ToArray();
+            if (slotCandidates.Length == 0)
+            {
+                continue;
+            }
+
+            var reranked = await TryRerankWithLearnedModelAsync(question, slotCandidates, perSlotLimit, cancellationToken).ConfigureAwait(false);
+            used |= reranked.Used;
+            statusParts.Add($"{slot.Name}:{reranked.Status}");
+            foreach (var item in reranked.RankedChunks)
+            {
+                var key = BuildChunkKey(item.Chunk);
+                if (usedKeys.Add(key))
+                {
+                    selected.Add(item);
+                }
+            }
+        }
+
+        foreach (var candidate in candidates.Where(candidate => IsChunkAllowedByEvidencePlan(evidencePlan, candidate.Chunk)))
+        {
+            if (selected.Count >= count)
+            {
+                break;
+            }
+
+            var key = BuildChunkKey(candidate.Chunk);
+            if (usedKeys.Add(key))
+            {
+                selected.Add(candidate);
+            }
+        }
+
+        if (selected.Count == 0)
+        {
+            return new LearnedRerankResult(candidates.Take(count).ToArray(), used, statusParts.Count == 0 ? "no evidence groups" : string.Join("; ", statusParts));
+        }
+
+        return new LearnedRerankResult(selected.Take(count).ToArray(), used, statusParts.Count == 0 ? "grouped fallback" : string.Join("; ", statusParts));
+    }
+
+    private async Task<LearnedRerankResult> TryRerankForGlobalRankingAsync(
+        string question,
+        IReadOnlyList<ScoredChunk> candidates,
+        EvidencePlan evidencePlan,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        var allowed = candidates
+            .Where(candidate => IsChunkAllowedByEvidencePlan(evidencePlan, candidate.Chunk))
+            .Take(Math.Max(count, _options.RerankerTopN))
+            .ToArray();
+
+        var rankingInput = allowed.Length > 0 ? allowed : candidates;
+        return await TryRerankWithLearnedModelAsync(question, rankingInput, count, cancellationToken).ConfigureAwait(false);
     }
 
     private static Uri BuildRerankerEndpoint(string baseUrl)
@@ -840,63 +1002,7 @@ public sealed class LocalAiService : IDisposable
 
     private static async Task<string> ReadDocumentContentAsync(string filePath, CancellationToken cancellationToken)
     {
-        var extension = Path.GetExtension(filePath);
-        if (extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase))
-        {
-            return await ExtractPdfTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-        }
-
         return await File.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task<string> ExtractPdfTextAsync(string filePath, CancellationToken cancellationToken)
-    {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "pdftotext",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false
-        };
-
-        startInfo.ArgumentList.Add("-enc");
-        startInfo.ArgumentList.Add("UTF-8");
-        startInfo.ArgumentList.Add("-layout");
-        startInfo.ArgumentList.Add("-nopgbrk");
-        startInfo.ArgumentList.Add(filePath);
-        startInfo.ArgumentList.Add("-");
-
-        using var process = new Process { StartInfo = startInfo };
-        try
-        {
-            if (!process.Start())
-            {
-                throw new InvalidOperationException("无法启动 pdftotext。");
-            }
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
-        {
-            throw new InvalidOperationException("PDF 解析依赖系统命令 pdftotext，但当前环境不可用。", exception);
-        }
-
-        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-
-        var stdout = await stdoutTask.ConfigureAwait(false);
-        var stderr = await stderrTask.ConfigureAwait(false);
-        if (process.ExitCode != 0)
-        {
-            throw new InvalidOperationException($"PDF 解析失败: {Path.GetFileName(filePath)}，pdftotext exit={process.ExitCode}，stderr={stderr.Trim()}");
-        }
-
-        var normalized = stdout.Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
-        if (string.IsNullOrWhiteSpace(normalized))
-        {
-            throw new InvalidOperationException($"PDF 解析失败: {Path.GetFileName(filePath)}，未提取到可用文本。");
-        }
-
-        return normalized;
     }
 
     private IReadOnlyList<DocumentChunk> BuildChunksFromJson(JsonElement root, string sourceName, string relativePath)
@@ -1713,6 +1819,16 @@ public sealed class LocalAiService : IDisposable
         builder.AppendLine($"进入语义计算: {retrieval.SemanticCandidateCount} 条");
         builder.AppendLine($"是否使用稀疏预筛: {(retrieval.UsedSparsePrefilter ? "是" : "否（回退全量语义）")}");
         builder.AppendLine($"学习式重排: {(retrieval.UsedLearnedReranker ? "BGE-Reranker" : "未使用")} ({retrieval.LearnedRerankerStatus})");
+        builder.AppendLine($"EvidencePlan: scope={retrieval.EvidencePlan.Scope}, mode={retrieval.EvidencePlan.Mode}, source={retrieval.EvidencePlan.SourcePreference}, sufficiency={retrieval.EvidencePlan.SufficiencyRule}");
+        if (retrieval.EvidencePlan.RequiredSlots.Count > 0)
+        {
+            builder.AppendLine($"EvidencePlan slots: {string.Join(", ", retrieval.EvidencePlan.RequiredSlots.Select(slot => slot.Name))}");
+        }
+        builder.AppendLine($"EvidenceSet: sufficient={(retrieval.EvidenceSet.IsSufficient ? "yes" : "no")}, coveredSlots={(retrieval.EvidenceSet.CoveredSlots.Count == 0 ? "none" : string.Join(", ", retrieval.EvidenceSet.CoveredSlots))}");
+        if (!string.IsNullOrWhiteSpace(retrieval.EvidenceSet.UnknownReason))
+        {
+            builder.AppendLine($"EvidenceSet unknown: {retrieval.EvidenceSet.UnknownReason}");
+        }
 
         if (retrieval.RankedChunks.Count == 0)
         {
@@ -1960,6 +2076,16 @@ public sealed class LocalAiService : IDisposable
         baseQuestion = RemoveRequestedDocumentMentions(baseQuestion, requestedDocumentTitle);
         baseQuestion = StripRetrievalDirectives(baseQuestion);
         var tokens = new HashSet<string>(ExtractQueryTokens(baseQuestion), StringComparer.Ordinal);
+        var subject = ExtractQuestionSubject(baseQuestion);
+        if (!string.IsNullOrWhiteSpace(subject))
+        {
+            tokens.Add(subject.ToLowerInvariant());
+            foreach (var token in ExtractQueryTokens(subject))
+            {
+                tokens.Add(token);
+            }
+        }
+
         var expansionSource = string.IsNullOrWhiteSpace(question) ? baseQuestion : RemoveRequestedDocumentMentions(question, requestedDocumentTitle);
         expansionSource = StripRetrievalDirectives(expansionSource);
         var lowerQuestion = expansionSource.ToLowerInvariant();
@@ -2157,18 +2283,9 @@ public sealed class LocalAiService : IDisposable
             }
         }
 
-        if (question.Contains("pdf", StringComparison.OrdinalIgnoreCase))
-        {
-            var pdfMatches = filePaths.Where(path => path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (pdfMatches.Length > 0)
-            {
-                return pdfMatches;
-            }
-        }
-
         if (ShouldPreferStructuredJsonForIntent(intent))
         {
-            var preferred = PreferJsonWhenSameDocumentHasPdf(filePaths);
+            var preferred = PreferJsonWhenSameDocumentHasMarkdown(filePaths);
             if (preferred.Count > 0 && preferred.Count < filePaths.Count)
             {
                 return preferred;
@@ -2183,7 +2300,7 @@ public sealed class LocalAiService : IDisposable
         return intent is "summary" or "composition" or "usage" or "module_list" or "module_implementation" or "explain" or "procedure";
     }
 
-    private static IReadOnlyList<string> PreferJsonWhenSameDocumentHasPdf(IReadOnlyList<string> filePaths)
+    private static IReadOnlyList<string> PreferJsonWhenSameDocumentHasMarkdown(IReadOnlyList<string> filePaths)
     {
         var grouped = filePaths
             .GroupBy(path => NormalizeLookupText(Path.GetFileNameWithoutExtension(path)), StringComparer.OrdinalIgnoreCase)
@@ -2195,8 +2312,8 @@ public sealed class LocalAiService : IDisposable
         {
             var paths = group.ToArray();
             var jsonPaths = paths.Where(path => path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)).ToArray();
-            var hasPdf = paths.Any(path => path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase));
-            if (jsonPaths.Length > 0 && hasPdf)
+            var hasMarkdown = paths.Any(path => path.EndsWith(".md", StringComparison.OrdinalIgnoreCase));
+            if (jsonPaths.Length > 0 && hasMarkdown)
             {
                 selected.AddRange(jsonPaths);
                 changed = true;
@@ -2265,6 +2382,11 @@ public sealed class LocalAiService : IDisposable
             expansions.Add("总体架构");
             expansions.Add("总体设计");
             expansions.Add("技术栈");
+            expansions.Add("前后端分离");
+            expansions.Add("后端");
+            expansions.Add("前端");
+            expansions.Add("数据库");
+            expansions.Add("可视化");
             expansions.Add("模块");
             expansions.Add("接口");
         }
@@ -2337,19 +2459,15 @@ public sealed class LocalAiService : IDisposable
 
         if (intent == "procedure")
         {
-            expansions.Add("方法");
             expansions.Add("步骤");
             expansions.Add("流程");
             expansions.Add("策略");
             expansions.Add("机制");
             expansions.Add("算法");
-            expansions.Add("控制");
-            expansions.Add("调节");
-            expansions.Add("动态");
             expansions.Add("反馈");
-            expansions.Add("执行");
+            expansions.Add("输入");
             expansions.Add("输出");
-            expansions.Add("偏差");
+            expansions.Add("执行");
         }
 
         if (IsModuleQuestion(question))
@@ -2456,11 +2574,13 @@ public sealed class LocalAiService : IDisposable
 
     private IReadOnlyList<DocumentChunk> SplitIntoChunks(string content, string sourceName, string relativePath)
     {
-        var normalized = content.Replace("\r\n", "\n", StringComparison.Ordinal);
+        var normalized = SanitizeMarkdownForIndex(content.Replace("\r\n", "\n", StringComparison.Ordinal));
         var chunks = new List<DocumentChunk>();
 
         var documentTitle = ExtractDocumentTitle(normalized, sourceName);
         var sectionTitle = documentTitle;
+        var structurePath = documentTitle;
+        var headingStack = new List<string>();
         var chunkIndex = 0;
         var buffer = new StringBuilder();
         var pendingOverlap = string.Empty;
@@ -2469,9 +2589,10 @@ public sealed class LocalAiService : IDisposable
         {
             if (IsHeadingParagraph(paragraph))
             {
-                FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex, allowOverlapForNextChunk: false);
+                FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, structurePath, ref chunkIndex, allowOverlapForNextChunk: false);
                 pendingOverlap = string.Empty;
-                sectionTitle = paragraph.TrimStart('#', ' ').Trim();
+                sectionTitle = NormalizeMarkdownHeading(paragraph);
+                structurePath = UpdateMarkdownHeadingPath(headingStack, paragraph, sectionTitle, documentTitle);
                 buffer.AppendLine(paragraph.Trim());
                 continue;
             }
@@ -2479,16 +2600,16 @@ public sealed class LocalAiService : IDisposable
             var trimmedParagraph = paragraph.Trim();
             if (buffer.Length > 0 && buffer.Length + trimmedParagraph.Length + 2 > _options.ChunkSize)
             {
-                pendingOverlap = FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex, allowOverlapForNextChunk: true);
+                pendingOverlap = FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, structurePath, ref chunkIndex, allowOverlapForNextChunk: true);
             }
 
             if (trimmedParagraph.Length > _options.ChunkSize)
             {
-                FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex, allowOverlapForNextChunk: false);
+                FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, structurePath, ref chunkIndex, allowOverlapForNextChunk: false);
                 pendingOverlap = string.Empty;
                 foreach (var oversizedPart in SplitLargeParagraph(trimmedParagraph))
                 {
-                    chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, oversizedPart, Array.Empty<float>(), documentTitle, sectionTitle, string.Empty, "body"));
+                    chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, oversizedPart, Array.Empty<float>(), documentTitle, sectionTitle, structurePath, "body"));
                 }
 
                 continue;
@@ -2505,9 +2626,77 @@ public sealed class LocalAiService : IDisposable
             buffer.Append(trimmedParagraph);
         }
 
-        FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, ref chunkIndex, allowOverlapForNextChunk: false);
+        FlushChunkBuffer(chunks, buffer, sourceName, relativePath, documentTitle, sectionTitle, structurePath, ref chunkIndex, allowOverlapForNextChunk: false);
 
         return chunks;
+    }
+
+    private static string SanitizeMarkdownForIndex(string content)
+    {
+        var cleanedLines = new List<string>();
+        foreach (var rawLine in content.Split('\n', StringSplitOptions.None))
+        {
+            var line = MarkdownImageRegex.Replace(rawLine, string.Empty);
+            line = MarkdownLinkRegex.Replace(line, "$1").TrimEnd();
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                cleanedLines.Add(string.Empty);
+                continue;
+            }
+
+            var trimmed = line.Trim();
+            if (HtmlTagRegex.IsMatch(trimmed) && HtmlTagRegex.Replace(trimmed, string.Empty).Trim().Length == 0)
+            {
+                continue;
+            }
+
+            line = HtmlTagRegex.Replace(line, string.Empty).TrimEnd();
+            if (string.IsNullOrWhiteSpace(line)
+                || IsMetadataLikeSentence(line)
+                || IsReferenceLikeSentence(line)
+                || IsTitleOrAuthorLikeLine(line))
+            {
+                continue;
+            }
+
+            cleanedLines.Add(line);
+        }
+
+        return string.Join('\n', cleanedLines);
+    }
+
+    private static string NormalizeMarkdownHeading(string paragraph)
+    {
+        return paragraph.Trim().TrimStart('#', ' ', '\t').Trim();
+    }
+
+    private static string UpdateMarkdownHeadingPath(List<string> headingStack, string paragraph, string sectionTitle, string documentTitle)
+    {
+        var level = GetMarkdownHeadingLevel(paragraph);
+        if (level <= 0)
+        {
+            level = headingStack.Count == 0 ? 1 : Math.Min(headingStack.Count + 1, 6);
+        }
+
+        while (headingStack.Count >= level)
+        {
+            headingStack.RemoveAt(headingStack.Count - 1);
+        }
+
+        headingStack.Add(sectionTitle);
+        return headingStack.Count == 0 ? documentTitle : string.Join(" > ", headingStack);
+    }
+
+    private static int GetMarkdownHeadingLevel(string paragraph)
+    {
+        var trimmed = paragraph.TrimStart();
+        var count = 0;
+        while (count < trimmed.Length && count < 6 && trimmed[count] == '#')
+        {
+            count++;
+        }
+
+        return count > 0 && count < trimmed.Length && char.IsWhiteSpace(trimmed[count]) ? count : 0;
     }
 
     private static string ExtractDocumentTitle(string content, string sourceName)
@@ -2536,7 +2725,35 @@ public sealed class LocalAiService : IDisposable
     {
         var trimmed = paragraph.Trim();
         return HeadingLineRegex.IsMatch(trimmed)
-            || (trimmed.Length <= 40 && !trimmed.Contains('。') && !trimmed.Contains('，') && !trimmed.Contains('.'));
+            || IsPlainTextSectionHeading(trimmed);
+    }
+
+    private static bool IsPlainTextSectionHeading(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || text.Length > 42)
+        {
+            return false;
+        }
+
+        if (text.Contains('。') || text.Contains('，') || text.Contains('.') || text.Contains(';') || text.Contains('；'))
+        {
+            return false;
+        }
+
+        if (IsMetadataLikeSentence(text) || IsReferenceLikeSentence(text) || IsTitleOrAuthorLikeLine(text))
+        {
+            return false;
+        }
+
+        if (text.StartsWith('|') || text.StartsWith('-') || text.StartsWith('*'))
+        {
+            return false;
+        }
+
+        var hasHeadingSignal = Regex.IsMatch(text, @"^\s*(?:第?[一二三四五六七八九十\d]+[章节条部分]?|[一二三四五六七八九十\d]+(?:\.\d+)*|附录|摘要|引言|结论|参考文献)(?:\s|、|：|:)")
+            || CountSignals(text, "摘要", "引言", "绪论", "方法", "系统", "设计", "实现", "实验", "结果", "讨论", "结论", "模块", "架构", "流程") > 0;
+
+        return hasHeadingSignal;
     }
 
     private string FlushChunkBuffer(
@@ -2546,6 +2763,7 @@ public sealed class LocalAiService : IDisposable
         string relativePath,
         string documentTitle,
         string sectionTitle,
+        string structurePath,
         ref int chunkIndex,
         bool allowOverlapForNextChunk)
     {
@@ -2556,7 +2774,7 @@ public sealed class LocalAiService : IDisposable
             return string.Empty;
         }
 
-        chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, text, Array.Empty<float>(), documentTitle, sectionTitle, string.Empty, "body"));
+        chunks.Add(new DocumentChunk(sourceName, relativePath, chunkIndex++, text, Array.Empty<float>(), documentTitle, sectionTitle, structurePath, "body"));
         return allowOverlapForNextChunk ? BuildChunkOverlapPrefix(text) : string.Empty;
     }
 
@@ -2792,6 +3010,11 @@ public sealed class LocalAiService : IDisposable
             penalty += 0.18f;
         }
 
+        if (HtmlTagRegex.IsMatch(text) || MarkdownImageRegex.IsMatch(text))
+        {
+            penalty += 0.18f;
+        }
+
         if (text.Contains("中图分类号", StringComparison.Ordinal)
             || text.Contains("文献标识码", StringComparison.Ordinal)
             || lower.Contains("doi", StringComparison.Ordinal))
@@ -2838,7 +3061,7 @@ public sealed class LocalAiService : IDisposable
         };
     }
 
-    private ScoredChunk[] RerankCandidates(IReadOnlyList<ScoredChunk> candidates, QueryProfile queryProfile, int count)
+    private ScoredChunk[] RerankCandidates(IReadOnlyList<ScoredChunk> candidates, QueryProfile queryProfile, EvidencePlan evidencePlan, int count)
     {
         var ranked = candidates
             .Select(candidate =>
@@ -2848,12 +3071,14 @@ public sealed class LocalAiService : IDisposable
                 var jsonBranchScore = ComputeJsonBranchSupportScore(queryProfile.FocusTerms, candidate.Chunk);
                 var intentBoost = ComputeIntentBoost(queryProfile.Intent, candidate.Chunk.Text);
                 var chunkKindBoost = ComputeQueryAwareChunkKindBoost(queryProfile, candidate.Chunk);
+                var evidenceBoost = ComputeEvidencePolicyBoost(evidencePlan, candidate.Chunk);
                 var finalScore = candidate.Score
                     + (coverageScore * _options.CoverageWeight)
                     + (neighborScore * _options.NeighborWeight)
                     + (jsonBranchScore * _options.JsonBranchWeight)
                     + intentBoost
-                    + chunkKindBoost;
+                    + chunkKindBoost
+                    + evidenceBoost;
 
                 return candidate with
                 {
@@ -3058,9 +3283,15 @@ public sealed class LocalAiService : IDisposable
         if (queryProfile.Intent == "composition")
         {
             var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
-            if (ContainsAny(structureText, "层", "模块", "环境", "配置", "硬件", "软件", "接口"))
+            if (ContainsAny(structureText, "层", "模块", "环境", "配置", "硬件", "软件", "接口", "架构", "技术栈", "前端", "后端", "可视化"))
             {
                 boost += 0.08f;
+            }
+
+            var entityHits = CountGenericAnswerEntities($"{structureText} {chunk.Text}");
+            if (entityHits > 0)
+            {
+                boost += Math.Min(0.20f, entityHits * 0.035f);
             }
         }
 
@@ -3132,6 +3363,7 @@ public sealed class LocalAiService : IDisposable
 
             seedKeys.Add($"{ranked.Chunk.FilePath}#{ranked.Chunk.Index}");
             AddJsonBranchContext(selected, ranked.Chunk, queryProfile.FocusTerms, targetFilePathSet);
+            AddSectionRelatedContext(selected, ranked.Chunk, queryProfile, targetFilePathSet);
             if (queryProfile.Intent == "procedure")
             {
                 AddJsonProcedureChapterContext(selected, ranked.Chunk, queryProfile.FocusTerms, targetFilePathSet);
@@ -3159,6 +3391,396 @@ public sealed class LocalAiService : IDisposable
             .OrderBy(item => item.FilePath, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.Index)
             .ToArray();
+    }
+
+    private EvidencePlan BuildEvidencePlan(QueryProfile queryProfile, IReadOnlyList<string> targetFilePaths)
+    {
+        var mode = MapEvidenceMode(queryProfile.Intent);
+        if (IsAbsenceCheckQuestion(queryProfile.OriginalQuestion))
+        {
+            mode = EvidenceMode.AbsenceCheck;
+        }
+
+        var allowed = mode switch
+        {
+            EvidenceMode.Metadata => new[] { "metadata", "title", "summary", "keyword", "body", "" },
+            EvidenceMode.Summary => new[] { "summary", "body", "title", "" },
+            EvidenceMode.Composition or EvidenceMode.ModuleList or EvidenceMode.Implementation or EvidenceMode.Definition or EvidenceMode.Compare or EvidenceMode.Explain or EvidenceMode.Usage => new[] { "body", "summary", "" },
+            _ => new[] { "body", "summary", "keyword", "title", "" }
+        };
+        var disallowed = mode == EvidenceMode.Metadata
+            ? Array.Empty<string>()
+            : new[] { "metadata" };
+        if (IsChineseQuestion(queryProfile.OriginalQuestion) && mode != EvidenceMode.Metadata)
+        {
+            disallowed = disallowed.Append("english").ToArray();
+        }
+
+        var sourcePreference = ShouldPreferStructuredJsonForIntent(queryProfile.Intent)
+            ? "structured-json"
+            : "balanced";
+        var scope = targetFilePaths.Count > 0
+            ? (string.IsNullOrWhiteSpace(queryProfile.RequestedDocumentTitle) ? "active-document" : "explicit-document")
+            : "corpus-wide";
+        return new EvidencePlan(
+            scope,
+            mode,
+            BuildEvidenceSlots(queryProfile, mode),
+            BuildPreferredSectionSignals(mode, queryProfile.OriginalQuestion),
+            allowed,
+            disallowed,
+            sourcePreference,
+            "group-rerank",
+            BuildSufficiencyRule(mode),
+            mode == EvidenceMode.AbsenceCheck ? "unknown-if-no-topic-hit-in-scope" : "unknown-if-insufficient",
+            queryProfile);
+    }
+
+    private EvidenceSet BuildEvidenceSet(
+        IReadOnlyList<ScoredChunk> rankedChunks,
+        QueryProfile queryProfile,
+        EvidencePlan evidencePlan,
+        IReadOnlyList<string> targetFilePaths)
+    {
+        if (rankedChunks.Count == 0)
+        {
+            return new EvidenceSet([], [], false, "我不知道（当前文档未覆盖）。");
+        }
+
+        var candidateChunks = BuildContextWindow(rankedChunks, queryProfile, targetFilePaths)
+            .Where(chunk => IsChunkAllowedByEvidencePlan(evidencePlan, chunk))
+            .ToArray();
+        if (candidateChunks.Length == 0)
+        {
+            candidateChunks = rankedChunks
+                .Select(item => item.Chunk)
+                .Where(chunk => IsChunkAllowedByEvidencePlan(evidencePlan, chunk))
+                .DistinctBy(BuildChunkKey, StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        if (evidencePlan.RequiredSlots.Count == 0)
+        {
+            var selected = candidateChunks
+                .Select(chunk => new
+                {
+                    Chunk = chunk,
+                    Score = ComputeEvidencePolicyBoost(evidencePlan, chunk)
+                        + ComputeCoverageScore(queryProfile.FocusTerms, chunk)
+                        + ComputeTitleScore(queryProfile.FocusTerms, chunk)
+                        + ComputeJsonStructureScore(queryProfile.FocusTerms, chunk)
+                })
+                .OrderByDescending(item => item.Score)
+                .ThenBy(item => item.Chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(item => item.Chunk.Index)
+                .Take(queryProfile.WantsDetailedAnswer ? 12 : 8)
+                .Select(item => item.Chunk)
+                .OrderBy(item => item.FilePath, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(item => item.Index)
+                .ToArray();
+            return BuildEvidenceSufficiencyResult(evidencePlan, selected, []);
+        }
+
+        var selectedBySlot = new List<(EvidenceSlot Slot, DocumentChunk Chunk)>();
+        var usedKeys = new HashSet<string>(StringComparer.Ordinal);
+        var perSlotLimit = queryProfile.WantsDetailedAnswer ? 2 : 1;
+        foreach (var slot in evidencePlan.RequiredSlots)
+        {
+            var slotChunks = candidateChunks
+                .Where(chunk => ChunkMatchesEvidenceSlot(chunk, slot))
+                .Select(chunk => new
+                {
+                    Chunk = chunk,
+                    Score = ScoreChunkForEvidenceSlot(chunk, slot, evidencePlan, queryProfile)
+                })
+                .Where(item => item.Score > 0)
+                .OrderByDescending(item => item.Score)
+                .ThenBy(item => item.Chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(item => item.Chunk.Index)
+                .Take(perSlotLimit)
+                .ToArray();
+
+            foreach (var item in slotChunks)
+            {
+                var key = BuildChunkKey(item.Chunk);
+                if (usedKeys.Add(key))
+                {
+                    selectedBySlot.Add((slot, item.Chunk));
+                }
+            }
+        }
+
+        foreach (var chunk in candidateChunks)
+        {
+            if (usedKeys.Count >= (queryProfile.WantsDetailedAnswer ? 14 : 10))
+            {
+                break;
+            }
+
+            var key = BuildChunkKey(chunk);
+            if (usedKeys.Add(key))
+            {
+                selectedBySlot.Add((new EvidenceSlot("补充证据", [], [], 0), chunk));
+            }
+        }
+
+        var selectedChunks = selectedBySlot
+            .Select(item => item.Chunk)
+            .DistinctBy(BuildChunkKey, StringComparer.Ordinal)
+            .OrderBy(chunk => chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(chunk => chunk.Index)
+            .ToArray();
+        var coveredSlots = selectedBySlot
+            .Where(item => item.Slot.MinimumMatches > 0 && ChunkMatchesEvidenceSlot(item.Chunk, item.Slot))
+            .Select(item => item.Slot.Name)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        return BuildEvidenceSufficiencyResult(evidencePlan, selectedChunks, coveredSlots);
+    }
+
+    private static EvidenceSet BuildEvidenceSufficiencyResult(EvidencePlan evidencePlan, IReadOnlyList<DocumentChunk> chunks, IReadOnlyList<string> coveredSlots)
+    {
+        var isSufficient = evidencePlan.Mode switch
+        {
+            EvidenceMode.AbsenceCheck => chunks.Count == 0 || !HasTopicalEvidence(evidencePlan, chunks),
+            EvidenceMode.Composition or EvidenceMode.Implementation => coveredSlots.Count >= Math.Min(3, evidencePlan.RequiredSlots.Count),
+            EvidenceMode.ModuleList => coveredSlots.Count >= Math.Min(2, evidencePlan.RequiredSlots.Count),
+            EvidenceMode.Definition => chunks.Count >= 1,
+            _ => chunks.Count >= 1
+        };
+
+        if (evidencePlan.Mode == EvidenceMode.AbsenceCheck)
+        {
+            return isSufficient
+                ? new EvidenceSet([], [], true, "我不知道（当前文档未覆盖）。")
+                : new EvidenceSet(chunks, coveredSlots, true, null);
+        }
+
+        return isSufficient
+            ? new EvidenceSet(chunks, coveredSlots, true, null)
+            : new EvidenceSet(chunks, coveredSlots, false, "我不知道（当前文档未覆盖）。");
+    }
+
+    private static bool HasTopicalEvidence(EvidencePlan evidencePlan, IReadOnlyList<DocumentChunk> chunks)
+    {
+        var tokens = evidencePlan.QueryProfile.FocusTerms
+            .Where(token => !IsIntentExpansionOnlyToken(token))
+            .Where(IsMeaningfulFocusTerm)
+            .ToArray();
+        if (tokens.Length == 0)
+        {
+            return chunks.Count > 0;
+        }
+
+        return chunks.Any(chunk =>
+        {
+            var text = BuildChunkRetrievalText(chunk).ToLowerInvariant();
+            return tokens.Any(token => text.Contains(token, StringComparison.Ordinal));
+        });
+    }
+
+    private static EvidenceMode MapEvidenceMode(string intent)
+    {
+        return intent switch
+        {
+            "summary" => EvidenceMode.Summary,
+            "procedure" or "module_implementation" => EvidenceMode.Implementation,
+            "composition" => EvidenceMode.Composition,
+            "module_list" => EvidenceMode.ModuleList,
+            "definition" => EvidenceMode.Definition,
+            "compare" => EvidenceMode.Compare,
+            "metadata" => EvidenceMode.Metadata,
+            "usage" => EvidenceMode.Usage,
+            "explain" => EvidenceMode.Explain,
+            _ => EvidenceMode.General
+        };
+    }
+
+    private static IReadOnlyList<EvidenceSlot> BuildEvidenceSlots(QueryProfile queryProfile, EvidenceMode mode)
+    {
+        return mode switch
+        {
+            EvidenceMode.Composition when ContainsAny(queryProfile.OriginalQuestion, "硬件", "设备", "部件", "器件", "元件") =>
+            [
+                new EvidenceSlot("主控/处理", ["主控", "芯片", "控制器", "处理器", "mcu", "单片机", "核心"], ["主控", "决策层"], 1),
+                new EvidenceSlot("传感/采集", ["传感器", "采集", "检测", "湿度", "温度", "感知"], ["感知层", "采集"], 1),
+                new EvidenceSlot("执行/驱动", ["执行", "驱动", "执行器", "阀", "电机", "继电器", "pwm", "输出"], ["执行层", "驱动"], 1),
+                new EvidenceSlot("显示/交互", ["显示", "oled", "屏", "交互", "状态"], ["交互层", "显示"], 1),
+                new EvidenceSlot("通信/联网", ["通信", "wifi", "esp", "串口", "联网", "协议"], ["通信", "远程"], 1)
+            ],
+            EvidenceMode.Composition =>
+            [
+                new EvidenceSlot("总体架构", ["架构", "总体", "系统", "分层", "组成", "前后端分离", "b/s", "restful", "api"], ["总体设计", "架构"], 1),
+                new EvidenceSlot("后端/服务", ["后端", "服务", "接口", "api", "控制器", "服务端", "业务层", "框架"], ["后端", "服务"], 1),
+                new EvidenceSlot("前端/交互", ["前端", "界面", "页面", "组件", "展示", "客户端", "交互", "路由"], ["前端", "交互"], 1),
+                new EvidenceSlot("数据/存储", ["数据库", "存储", "持久化", "数据表", "缓存", "配置文件", "结构化数据"], ["数据", "存储"], 1),
+                new EvidenceSlot("可视化/输出", ["可视化", "图谱", "图表", "输出", "展示", "渲染", "报表"], ["可视化", "输出"], 1)
+            ],
+            EvidenceMode.Implementation =>
+            [
+                new EvidenceSlot("输入/前提", ["输入", "采集", "获取", "接收", "检测", "监测", "读取", "数据", "参数", "状态", "条件"], ["输入", "采集", "感知", "前提"], 1),
+                new EvidenceSlot("核心处理/决策", ["处理", "计算", "判断", "决策", "规则", "算法", "模型", "策略", "控制", "生成"], ["处理", "决策", "算法", "策略", "控制"], 1),
+                new EvidenceSlot("过程/步骤", ["首先", "然后", "再", "最后", "步骤", "流程", "阶段", "过程", "链路", "转换"], ["流程", "步骤", "阶段", "过程"], 1),
+                new EvidenceSlot("输出/执行", ["输出", "执行", "驱动", "控制", "发送", "下发", "展示", "显示", "更新", "存储", "反馈"], ["输出", "执行", "展示", "反馈"], 1),
+                new EvidenceSlot("约束/补充机制", ["补偿", "校正", "优化", "异常", "阈值", "条件", "约束", "实时", "动态", "反馈"], ["补偿", "优化", "约束", "机制"], 0)
+            ],
+            EvidenceMode.ModuleList =>
+            [
+                new EvidenceSlot("模块名", ["模块", "功能模块", "子系统", "包括", "包含"], ["模块", "功能"], 1),
+                new EvidenceSlot("模块职责", ["负责", "用于", "实现", "功能", "职责"], ["模块", "功能"], 1),
+                new EvidenceSlot("模块关系", ["通信", "调用", "数据", "流程", "关系"], ["架构", "流程"], 1)
+            ],
+            EvidenceMode.Definition =>
+            [
+                new EvidenceSlot("定义/身份", ["是", "是指", "是一种", "定义", "称为", "属于", "作为"], ["定义", "概念", "简介"], 1),
+                new EvidenceSlot("作用/职责", ["用于", "负责", "实现", "支持", "提供", "完成", "作用"], ["作用", "功能", "职责"], 0),
+                new EvidenceSlot("上下位关系", ["包括", "包含", "组成", "模块", "部分", "类别", "类型"], ["组成", "架构", "模块"], 0)
+            ],
+            EvidenceMode.Compare =>
+            [
+                new EvidenceSlot("比较对象", ["区别", "不同", "差异", "相比", "对比", "分别"], ["对比", "比较", "区别"], 1),
+                new EvidenceSlot("比较维度", ["阶段", "功能", "作用", "特点", "优势", "不足", "范围", "方式"], ["阶段", "特征", "功能"], 1)
+            ],
+            _ => []
+        };
+    }
+
+    private static IReadOnlyList<string> BuildPreferredSectionSignals(EvidenceMode mode, string question)
+    {
+        return mode switch
+        {
+            EvidenceMode.Summary => ["摘要", "abstract", "overview", "概述", "结论"],
+            EvidenceMode.Implementation => ["方法", "控制", "流程", "阶段", "策略", "机制", "调节", "补偿"],
+            EvidenceMode.Composition => ["总体设计", "总体架构", "架构", "技术栈", "前后端", "组成", "模块", "硬件", "软件", "接口", "数据库", "可视化"],
+            EvidenceMode.ModuleList => ["模块", "功能", "系统设计", "架构"],
+            EvidenceMode.Metadata => ["title", "abstract", "keywords", "作者", "摘要", "关键词"],
+            EvidenceMode.AbsenceCheck => ExtractQueryTokens(question).Where(IsMeaningfulFocusTerm).ToArray(),
+            _ => []
+        };
+    }
+
+    private static string BuildSufficiencyRule(EvidenceMode mode)
+    {
+        return mode switch
+        {
+            EvidenceMode.Composition => "cover-at-least-three-composition-slots",
+            EvidenceMode.Implementation => "cover-input-decision-adjustment-execution-slots",
+            EvidenceMode.ModuleList => "cover-module-name-and-duty",
+            EvidenceMode.AbsenceCheck => "unknown-when-no-topical-evidence-in-scope",
+            EvidenceMode.Definition => "at-least-one-definition-or-identity-evidence",
+            _ => "at-least-one-allowed-evidence"
+        };
+    }
+
+    private static float ComputeEvidencePolicyBoost(EvidencePlan evidencePlan, DocumentChunk chunk)
+    {
+        var boost = 0f;
+        if (!IsChunkAllowedByEvidencePlan(evidencePlan, chunk))
+        {
+            return -1.2f;
+        }
+
+        if (evidencePlan.SourcePreference == "structured-json" && IsJsonChunk(chunk))
+        {
+            boost += 0.12f;
+        }
+
+        var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
+        var preferredHits = evidencePlan.PreferredSections.Count(signal => structureText.Contains(signal, StringComparison.OrdinalIgnoreCase));
+        boost += Math.Min(0.30f, preferredHits * 0.08f);
+
+        if (evidencePlan.Mode is EvidenceMode.Implementation && chunk.ContentKind == "summary")
+        {
+            boost -= 0.20f;
+        }
+
+        if (evidencePlan.Mode is EvidenceMode.Summary && chunk.ContentKind == "summary")
+        {
+            boost += 0.10f;
+        }
+
+        return boost;
+    }
+
+    private static bool IsChunkAllowedByEvidencePlan(EvidencePlan evidencePlan, DocumentChunk chunk)
+    {
+        if (evidencePlan.DisallowedContentKinds.Any(kind =>
+                kind.Equals("english", StringComparison.OrdinalIgnoreCase)
+                    ? IsEnglishFieldChunk(chunk)
+                    : string.Equals(kind, chunk.ContentKind, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (evidencePlan.AllowedContentKinds.Count == 0)
+        {
+            return true;
+        }
+
+        return evidencePlan.AllowedContentKinds.Any(kind => string.Equals(kind, chunk.ContentKind, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool ChunkMatchesEvidenceSlot(DocumentChunk chunk, EvidenceSlot slot)
+    {
+        var corpus = BuildChunkRetrievalText(chunk);
+        return slot.MatchTerms.Any(term => corpus.Contains(term, StringComparison.OrdinalIgnoreCase))
+            || slot.PreferredSections.Any(term => $"{chunk.SectionTitle} {chunk.StructurePath}".Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static float ScoreChunkForEvidenceSlot(DocumentChunk chunk, EvidenceSlot slot, EvidencePlan evidencePlan, QueryProfile queryProfile)
+    {
+        var corpus = BuildChunkRetrievalText(chunk);
+        var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
+        var termHits = slot.MatchTerms.Count(term => corpus.Contains(term, StringComparison.OrdinalIgnoreCase));
+        var sectionHits = slot.PreferredSections.Count(term => structureText.Contains(term, StringComparison.OrdinalIgnoreCase));
+        return (termHits * 2f)
+            + (sectionHits * 3f)
+            + ComputeEvidencePolicyBoost(evidencePlan, chunk)
+            + ComputeCoverageScore(queryProfile.FocusTerms, chunk)
+            + ComputeTitleScore(queryProfile.FocusTerms, chunk)
+            + ComputeJsonStructureScore(queryProfile.FocusTerms, chunk)
+            + (chunk.ContentKind == "body" ? 0.5f : 0f);
+    }
+
+    private static bool IsAbsenceCheckQuestion(string question)
+    {
+        return ContainsAny(question, "有写", "有没有", "是否提到", "是否涉及", "提到过", "未提及", "没有提到");
+    }
+
+    private static bool ShouldUseActiveDocumentScope(QueryProfile queryProfile)
+    {
+        if (!string.IsNullOrWhiteSpace(queryProfile.RequestedDocumentTitle))
+        {
+            return false;
+        }
+
+        return queryProfile.OriginalQuestion.Contains("这篇", StringComparison.Ordinal)
+            || queryProfile.OriginalQuestion.Contains("该文档", StringComparison.Ordinal)
+            || queryProfile.OriginalQuestion.Contains("文档里", StringComparison.Ordinal)
+            || queryProfile.OriginalQuestion.Contains("文中", StringComparison.Ordinal)
+            || queryProfile.OriginalQuestion.Contains("这个系统", StringComparison.Ordinal)
+            || queryProfile.OriginalQuestion.Contains("详细一点", StringComparison.Ordinal)
+            || queryProfile.OriginalQuestion.Contains("具体一点", StringComparison.Ordinal);
+    }
+
+    private void RememberActiveDocumentScope(EvidenceSet evidenceSet)
+    {
+        var paths = evidenceSet.Chunks
+            .GroupBy(chunk => chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Key)
+            .Take(2)
+            .ToArray();
+        if (paths.Length > 0)
+        {
+            _activeDocumentFilePaths = paths;
+        }
+    }
+
+    private static string BuildChunkKey(DocumentChunk chunk)
+    {
+        return $"{chunk.FilePath}#{chunk.Index}";
     }
 
     private void AddJsonBranchContext(
@@ -3196,6 +3818,92 @@ public sealed class LocalAiService : IDisposable
                 selected.Add(key, chunk);
             }
         }
+    }
+
+    private void AddSectionRelatedContext(
+        Dictionary<string, DocumentChunk> selected,
+        DocumentChunk seedChunk,
+        QueryProfile queryProfile,
+        IReadOnlySet<string>? targetFilePathSet)
+    {
+        if (string.IsNullOrWhiteSpace(seedChunk.StructurePath))
+        {
+            return;
+        }
+
+        var parentPath = GetParentStructurePath(seedChunk.StructurePath);
+        if (string.IsNullOrWhiteSpace(parentPath))
+        {
+            parentPath = seedChunk.StructurePath;
+        }
+
+        var limit = queryProfile.Intent is "composition" or "procedure" or "module_list" or "module_implementation"
+            ? 4
+            : 2;
+        var related = _indexedChunks
+            .Where(item => string.Equals(item.Chunk.FilePath, seedChunk.FilePath, StringComparison.OrdinalIgnoreCase))
+            .Where(item => item.Chunk.Index != seedChunk.Index)
+            .Where(item => targetFilePathSet is null || targetFilePathSet.Contains(item.Chunk.FilePath))
+            .Where(item => IsSectionRelated(seedChunk, item.Chunk, parentPath))
+            .Where(item => item.Chunk.ContentKind is "body" or "summary" or "")
+            .Select(item => new
+            {
+                item.Chunk,
+                Score = ScoreSectionRelatedChunk(item.Chunk, queryProfile)
+            })
+            .Where(item => item.Score > 0f)
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.Index)
+            .Take(limit)
+            .Select(item => item.Chunk);
+
+        foreach (var chunk in related)
+        {
+            var key = $"{chunk.FilePath}#{chunk.Index}";
+            if (!selected.ContainsKey(key))
+            {
+                selected.Add(key, chunk);
+            }
+        }
+    }
+
+    private static bool IsSectionRelated(DocumentChunk seedChunk, DocumentChunk candidate, string parentPath)
+    {
+        if (string.Equals(candidate.StructurePath, seedChunk.StructurePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(parentPath)
+            && candidate.StructurePath.StartsWith(parentPath + " > ", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return Math.Abs(candidate.Index - seedChunk.Index) <= 2;
+    }
+
+    private static float ScoreSectionRelatedChunk(DocumentChunk chunk, QueryProfile queryProfile)
+    {
+        var score = ComputeCoverageScore(queryProfile.FocusTerms, chunk)
+            + ComputeTitleScore(queryProfile.FocusTerms, chunk)
+            + ComputeJsonStructureScore(queryProfile.FocusTerms, chunk);
+        var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
+
+        score += queryProfile.Intent switch
+        {
+            "composition" => Math.Min(0.8f, (CountCompositionStructureSignals(source) + CountGenericAnswerEntities(source)) * 0.08f),
+            "procedure" or "module_implementation" => Math.Min(0.8f, (CountProcedureStructureSignals(source) + CountMethodSignals(source)) * 0.08f),
+            "module_list" => Math.Min(0.8f, CountSystemModuleSignals(source) * 0.08f),
+            _ => Math.Min(0.4f, CountGenericAnswerEntities(source) * 0.05f)
+        };
+
+        if (chunk.ContentKind == "body")
+        {
+            score += 0.15f;
+        }
+
+        return score;
     }
 
     private void AddJsonProcedureChapterContext(
@@ -3274,11 +3982,7 @@ public sealed class LocalAiService : IDisposable
             return false;
         }
 
-        if (segment.Contains("模糊PID", StringComparison.OrdinalIgnoreCase)
-            || segment.Contains("控制器", StringComparison.Ordinal)
-            || segment.Contains("控制算法", StringComparison.Ordinal)
-            || segment.Contains("控制策略", StringComparison.Ordinal)
-            || segment.Contains("环境补偿", StringComparison.Ordinal))
+        if (ContainsAny(segment, "流程", "步骤", "阶段", "过程", "策略", "机制", "方法", "算法", "控制", "处理", "执行", "实现"))
         {
             return true;
         }
@@ -3676,6 +4380,7 @@ public sealed class LocalAiService : IDisposable
         }
 
         var topicalTokens = BuildRetrievalQueryTokens(queryProfile.OriginalQuestion, queryProfile.RequestedDocumentTitle)
+            .Where(token => !IsIntentExpansionOnlyToken(token))
             .Where(IsMeaningfulFocusTerm)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
@@ -3691,6 +4396,13 @@ public sealed class LocalAiService : IDisposable
             .Where(chunk => targetFilePathSet is null || targetFilePathSet.Contains(chunk.FilePath))
             .ToArray();
         if (scopedChunks.Length == 0)
+        {
+            return false;
+        }
+
+        var subjectTerms = ExtractQuestionSubjectTerms(queryProfile.OriginalQuestion)
+            .ToArray();
+        if (HasAnyTermInChunks(subjectTerms, scopedChunks))
         {
             return false;
         }
@@ -4516,6 +5228,12 @@ public sealed class LocalAiService : IDisposable
 
     private string? BuildCompositionFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
     {
+        var slotAnswer = BuildCompositionSlotFallbackAnswer(question, chunks);
+        if (!string.IsNullOrWhiteSpace(slotAnswer))
+        {
+            return slotAnswer;
+        }
+
         var queryTokens = ExtractQueryTokens(question);
         var candidates = new List<ProcedureCandidate>();
 
@@ -4592,6 +5310,475 @@ public sealed class LocalAiService : IDisposable
         }
 
         return builder.ToString().TrimEnd();
+    }
+
+    private string? BuildCompositionSlotFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
+    {
+        if (ContainsAny(question, "硬件", "设备", "部件", "器件", "元件"))
+        {
+            return BuildHardwareCompositionSlotFallbackAnswer(question, chunks);
+        }
+
+        var documentChunks = chunks
+            .Where(chunk => chunk.ContentKind is "body" or "summary" or "")
+            .ToArray();
+        if (documentChunks.Any(IsJsonChunk))
+        {
+            documentChunks = documentChunks.Where(IsJsonChunk).ToArray();
+        }
+        if (documentChunks.Length == 0)
+        {
+            return null;
+        }
+
+        if (IsTechnologyStackQuestion(question) || ContainsAny(question, "组成", "构成", "配置", "条件", "架构", "模块"))
+        {
+            var entityAnswer = BuildCompositionEntityAnswer(question, documentChunks);
+            if (!string.IsNullOrWhiteSpace(entityAnswer))
+            {
+                return entityAnswer;
+            }
+        }
+
+        var queryTokens = ExtractQueryTokens(question)
+            .Where(token => !IsIntentExpansionOnlyToken(token))
+            .Where(IsMeaningfulFocusTerm)
+            .ToArray();
+        var usedSentences = new HashSet<string>(StringComparer.Ordinal);
+        var slots = new List<(string Label, SlotCandidate Candidate)>();
+
+        if (!ContainsAny(question, "技术栈", "架构", "前端", "后端", "软件", "组成", "配置", "系统"))
+        {
+            return null;
+        }
+
+        AddLabeledSlot(slots, "总体架构", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "架构", "前后端", "分层", "总体", "系统", "通信", "接口", "api") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "后端/服务", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "后端", "服务", "控制器", "接口", "框架", "api", "http", "模型调用") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "前端/交互", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "前端", "界面", "页面", "组件", "展示", "显示", "交互", "app", "路由") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "数据/存储", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "数据库", "存储", "持久化", "数据表", "实体表", "关系表", "缓存", "配置") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "可视化/输出", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "可视化", "图谱", "图表", "展示", "输出", "渲染", "分析", "检索") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "硬件/设备", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "硬件", "主控", "芯片", "传感器", "执行", "驱动", "显示屏", "通信模块", "电源") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+
+        var selected = slots
+            .Where(item => item.Candidate.Score >= 6)
+            .GroupBy(item => NormalizeSummarySentence(item.Candidate.Sentence), StringComparer.Ordinal)
+            .Select(group => group.First())
+            .Take(5)
+            .ToArray();
+        if (selected.Length < 2)
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("根据当前文档，相关组成可以按这些部分理解：");
+        for (var index = 0; index < selected.Length; index++)
+        {
+            builder.AppendLine($"{index + 1}. {selected[index].Label}：{selected[index].Candidate.Sentence} {BuildStableCitation(selected[index].Candidate.Chunk)}");
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string? BuildCompositionEntityAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
+    {
+        var entities = ExtractCompositionEntities(chunks)
+            .ToArray();
+        if (entities.Length < 3)
+        {
+            return null;
+        }
+
+        var groups = entities
+            .GroupBy(entity => entity.Category, StringComparer.Ordinal)
+            .Select(group => new
+            {
+                Category = group.Key,
+                Items = group
+                    .GroupBy(entity => entity.Text, StringComparer.OrdinalIgnoreCase)
+                    .Select(entityGroup => entityGroup.OrderByDescending(entity => entity.Score).First())
+                    .OrderByDescending(entity => entity.Score)
+                    .ThenBy(entity => entity.Text, StringComparer.OrdinalIgnoreCase)
+                    .Take(8)
+                    .ToArray()
+            })
+            .Where(group => group.Items.Length > 0)
+            .OrderBy(group => GetCompositionCategoryOrder(group.Category))
+            .ThenBy(group => group.Category, StringComparer.Ordinal)
+            .Take(6)
+            .ToArray();
+
+        var totalEntityCount = groups.Sum(group => group.Items.Length);
+        if (groups.Length < 2 && totalEntityCount < 4)
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine(IsTechnologyStackQuestion(question)
+            ? "根据当前文档，系统的总体架构和技术栈可以按这些层次归纳："
+            : "根据当前文档，相关组成、配置或条件可以按这些层次归纳：");
+        var written = 0;
+        foreach (var group in groups)
+        {
+            written++;
+            var terms = group.Items.Select(item => item.Text).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var representative = group.Items.OrderByDescending(item => item.Score).First().Chunk;
+            builder.AppendLine($"{written}. {group.Category}：{string.Join("、", terms)} {BuildStableCitation(representative)}");
+        }
+
+        return written >= 2 ? builder.ToString().TrimEnd() : null;
+    }
+
+    private static bool IsTechnologyStackQuestion(string question)
+    {
+        return ContainsAny(question, TechnicalStackQuestionSignals)
+            || question.Contains("采用了哪些技术", StringComparison.Ordinal)
+            || question.Contains("采用什么技术", StringComparison.Ordinal);
+    }
+
+    private static IReadOnlyList<ExtractedEntity> ExtractCompositionEntities(IReadOnlyList<DocumentChunk> chunks)
+    {
+        var entities = new List<ExtractedEntity>();
+        foreach (var chunk in chunks)
+        {
+            var context = $"{chunk.SectionTitle} {chunk.StructurePath}";
+            var structureScore = CountCompositionStructureSignals(context);
+            var sentences = GetCleanSentences(chunk.Text, 16)
+                .Where(sentence => !IsMetadataLikeSentence(sentence) && !IsReferenceLikeSentence(sentence))
+                .ToArray();
+
+            foreach (var sentence in sentences)
+            {
+                var sentenceScore = CountCompositionStructureSignals(sentence)
+                    + CountSystemModuleSignals(sentence)
+                    + CountArchitectureSignals(sentence);
+                if (structureScore + sentenceScore <= 0)
+                {
+                    continue;
+                }
+
+                foreach (var entityText in ExtractGenericAnswerEntities(sentence))
+                {
+                    var category = ClassifyCompositionEntity($"{context} {sentence}", entityText);
+                    var score = 2 + structureScore + sentenceScore + CountSignals(entityText, "模块", "系统", "框架", "协议", "数据库", "接口", "算法", "芯片", "传感器");
+                    if (chunk.ContentKind == "body")
+                    {
+                        score += 2;
+                    }
+                    else if (chunk.ContentKind == "summary")
+                    {
+                        score += 1;
+                    }
+
+                    entities.Add(new ExtractedEntity(entityText, category, chunk, score));
+                }
+            }
+
+            if (entities.Count == 0 || IsJsonChunk(chunk))
+            {
+                foreach (var line in chunk.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    var colonIndex = line.IndexOfAny([':', '：']);
+                    if (colonIndex <= 0 || colonIndex >= line.Length - 1)
+                    {
+                        continue;
+                    }
+
+                    var value = CleanStructuredSentence(line[(colonIndex + 1)..]);
+                    if (value.Length is < 2 or > 80)
+                    {
+                        continue;
+                    }
+
+                    foreach (var entityText in ExtractGenericAnswerEntities(value))
+                    {
+                        var category = ClassifyCompositionEntity($"{context} {line}", entityText);
+                        entities.Add(new ExtractedEntity(entityText, category, chunk, 3 + structureScore));
+                    }
+                }
+            }
+        }
+
+        return entities
+            .Where(entity => IsUsefulExtractedEntity(entity.Text))
+            .GroupBy(entity => $"{entity.Category}\0{entity.Text}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderByDescending(entity => entity.Score).First())
+            .OrderByDescending(entity => entity.Score)
+            .ToArray();
+    }
+
+    private static IEnumerable<string> ExtractGenericAnswerEntities(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            yield break;
+        }
+
+        foreach (Match match in TechnicalEntityRegex.Matches(text))
+        {
+            var value = NormalizeExtractedEntity(match.Value);
+            if (IsUsefulExtractedEntity(value))
+            {
+                yield return value;
+            }
+        }
+
+        foreach (Match match in ChineseEntityRegex.Matches(text))
+        {
+            var value = NormalizeExtractedEntity(match.Value);
+            if (IsUsefulExtractedEntity(value))
+            {
+                yield return value;
+            }
+        }
+    }
+
+    private static int CountGenericAnswerEntities(string text)
+    {
+        return ExtractGenericAnswerEntities(text).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+    }
+
+    private static string NormalizeExtractedEntity(string value)
+    {
+        var normalized = Regex.Replace(value.Trim(), "\\s+", " ");
+        normalized = normalized.Trim('，', '。', '；', ';', '、', ':', '：', '(', ')', '（', '）', '[', ']');
+        return normalized;
+    }
+
+    private static bool IsUsefulExtractedEntity(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var normalized = NormalizeLookupText(value);
+        if (normalized.Length < 2 || GenericEntityStopWords.Contains(value) || GenericEntityStopWords.Contains(normalized))
+        {
+            return false;
+        }
+
+        if (value.Length > 40)
+        {
+            return false;
+        }
+
+        if (value.All(char.IsDigit))
+        {
+            return false;
+        }
+
+        if (value.Count(character => character is >= '\u4e00' and <= '\u9fff') >= 12
+            && CountSignals(value, "模块", "系统", "平台", "框架", "数据库", "接口", "协议", "算法", "控制器", "传感器", "芯片", "设备") == 0)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string ClassifyCompositionEntity(string context, string entity)
+    {
+        var source = $"{context} {entity}";
+        if (ContainsAny(source, "后端", "服务端", "服务", "控制器", "api", "API", "接口服务"))
+        {
+            return "后端/服务";
+        }
+
+        if (ContainsAny(source, "前端", "客户端", "界面", "页面", "组件", "交互", "App", "APP", "移动端"))
+        {
+            return "前端/交互";
+        }
+
+        if (ContainsAny(source, "数据库", "存储", "持久化", "数据表", "缓存", "文件", "索引", "知识库"))
+        {
+            return "数据/存储";
+        }
+
+        if (ContainsAny(source, "可视化", "图表", "图谱", "展示", "渲染", "输出", "报表"))
+        {
+            return "可视化/输出";
+        }
+
+        if (ContainsAny(source, "硬件", "设备", "芯片", "处理器", "控制器", "传感器", "电源", "电机", "阀", "屏"))
+        {
+            return "硬件/设备";
+        }
+
+        if (ContainsAny(source, "通信", "联网", "协议", "串口", "总线", "接口", "上传", "下发", "传输"))
+        {
+            return "通信/接口";
+        }
+
+        if (ContainsAny(source, "算法", "模型", "规则", "策略", "控制", "识别", "抽取", "分析", "计算"))
+        {
+            return "算法/处理";
+        }
+
+        if (ContainsAny(source, "环境", "部署", "运行", "依赖", "配置", "条件", "参数"))
+        {
+            return "环境/配置";
+        }
+
+        if (ContainsAny(source, "架构", "分层", "层", "系统", "模块", "平台"))
+        {
+            return "总体架构";
+        }
+
+        return "组成项";
+    }
+
+    private static int GetCompositionCategoryOrder(string category)
+    {
+        return category switch
+        {
+            "总体架构" => 0,
+            "硬件/设备" => 1,
+            "后端/服务" => 2,
+            "前端/交互" => 3,
+            "数据/存储" => 4,
+            "通信/接口" => 5,
+            "算法/处理" => 6,
+            "可视化/输出" => 7,
+            "环境/配置" => 8,
+            _ => 20
+        };
+    }
+
+    private string? BuildHardwareCompositionSlotFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
+    {
+        var documentChunks = chunks
+            .Where(chunk => chunk.ContentKind is "body" or "summary" or "")
+            .ToArray();
+        if (documentChunks.Length == 0)
+        {
+            return null;
+        }
+
+        var queryTokens = ExtractQueryTokens(question)
+            .Where(token => !IsIntentExpansionOnlyToken(token))
+            .Where(IsMeaningfulFocusTerm)
+            .ToArray();
+        var usedSentences = new HashSet<string>(StringComparer.Ordinal);
+        var slots = new List<(string Label, SlotCandidate Candidate)>();
+
+        AddLabeledSlot(slots, "主控/处理", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "主控", "芯片", "控制器", "处理器", "mcu", "单片机", "核心") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "传感/采集", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "传感器", "采集", "检测", "测量", "湿度", "温度", "adc", "感知") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "执行/驱动", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "执行", "驱动", "阀", "电机", "继电器", "pwm", "输出", "控制") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "显示/交互", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "显示", "屏", "oled", "lcd", "界面", "按键", "交互", "状态") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "通信/联网", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "通信", "wifi", "蓝牙", "以太网", "串口", "无线", "联网", "模块", "协议") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+
+        var selected = slots
+            .Where(item => item.Candidate.Score >= 6)
+            .GroupBy(item => NormalizeSummarySentence(item.Candidate.Sentence), StringComparer.Ordinal)
+            .Select(group => group.First())
+            .Take(5)
+            .ToArray();
+        if (selected.Length < 2)
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("根据当前文档，硬件组成可以按这些部分理解：");
+        for (var index = 0; index < selected.Length; index++)
+        {
+            builder.AppendLine($"{index + 1}. {selected[index].Label}：{selected[index].Candidate.Sentence} {BuildStableCitation(selected[index].Candidate.Chunk)}");
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    private static void AddLabeledSlot(List<(string Label, SlotCandidate Candidate)> slots, string label, SlotCandidate? candidate)
+    {
+        if (candidate is not null)
+        {
+            slots.Add((label, candidate));
+        }
     }
 
     private string? BuildDefinitionFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
@@ -4698,57 +5885,6 @@ public sealed class LocalAiService : IDisposable
         if (selected.Length == 0)
         {
             return null;
-        }
-
-        if (question.Contains("远程", StringComparison.Ordinal)
-            || subject.Contains("远程", StringComparison.Ordinal)
-            || subject.Contains("状态显示", StringComparison.Ordinal)
-            || subject.Contains("控制模块", StringComparison.Ordinal))
-        {
-            var primaryChunk = selected[0].Chunk;
-            var sentences = GetCleanSentences(primaryChunk.Text, 8)
-                .Where(IsCandidateSentence)
-                .ToArray();
-
-            var linkSentence = sentences.FirstOrDefault(sentence =>
-                CountSignals(sentence, "usart", "esp-01s", "wifi", "通信", "链路") >= 2);
-            var uploadSentence = sentences.FirstOrDefault(sentence =>
-                CountSignals(sentence, "mqtt", "json", "推送", "服务器", "上传") >= 2);
-            var appSentence = sentences.FirstOrDefault(sentence =>
-                CountSignals(sentence, "app", "展示", "状态", "土壤湿度", "环境参数") >= 2);
-            var controlSentence = sentences.FirstOrDefault(sentence =>
-                CountSignals(sentence, "阈值", "指令", "手动触发", "即时灌溉", "远程设定") >= 1);
-
-            var clauses = new List<string>();
-            if (!string.IsNullOrWhiteSpace(linkSentence))
-            {
-                clauses.Add(linkSentence);
-            }
-
-            if (!string.IsNullOrWhiteSpace(uploadSentence) && !string.Equals(uploadSentence, linkSentence, StringComparison.Ordinal))
-            {
-                clauses.Add(uploadSentence);
-            }
-
-            if (!string.IsNullOrWhiteSpace(appSentence)
-                && !string.Equals(appSentence, linkSentence, StringComparison.Ordinal)
-                && !string.Equals(appSentence, uploadSentence, StringComparison.Ordinal))
-            {
-                clauses.Add(appSentence);
-            }
-
-            if (!string.IsNullOrWhiteSpace(controlSentence)
-                && !string.Equals(controlSentence, linkSentence, StringComparison.Ordinal)
-                && !string.Equals(controlSentence, uploadSentence, StringComparison.Ordinal)
-                && !string.Equals(controlSentence, appSentence, StringComparison.Ordinal))
-            {
-                clauses.Add(controlSentence);
-            }
-
-            if (clauses.Count > 0)
-            {
-                return $"根据当前文档，这个模块的实现链路是：{string.Join(" ", clauses)} {BuildStableCitation(primaryChunk)}。";
-            }
         }
 
         var builder = new StringBuilder();
@@ -4882,28 +6018,28 @@ public sealed class LocalAiService : IDisposable
             return null;
         }
 
-        var communication = SelectBestSlotCandidate(
+        var input = SelectBestSlotCandidate(
             primaryChunks,
             chunk => true,
-            sentence => CountSignals(sentence, "usart", "esp-01s", "wifi", "接口", "连接", "通信", "链路", "模块"));
-        var transport = SelectBestSlotCandidate(
+            sentence => CountSignals(sentence, "输入", "接收", "采集", "获取", "读取", "数据", "状态", "参数", "请求", "事件"));
+        var processing = SelectBestSlotCandidate(
             primaryChunks,
             chunk => true,
-            sentence => CountSignals(sentence, "mqtt", "json", "上传", "推送", "服务器", "传输"));
-        var display = SelectBestSlotCandidate(
+            sentence => CountSignals(sentence, "处理", "计算", "判断", "转换", "解析", "封装", "调用", "生成", "调度", "控制"));
+        var interfaceOrTransport = SelectBestSlotCandidate(
             primaryChunks,
             chunk => true,
-            sentence => CountSignals(sentence, "app", "展示", "显示", "状态", "同步", "土壤湿度", "环境参数"));
-        var control = SelectBestSlotCandidate(
+            sentence => CountSignals(sentence, "接口", "协议", "通信", "链路", "连接", "传输", "上传", "下发", "发送", "接收"));
+        var output = SelectBestSlotCandidate(
             primaryChunks,
             chunk => true,
-            sentence => CountSignals(sentence, "阈值", "指令", "触发", "控制", "设定", "手动", "即时灌溉"));
+            sentence => CountSignals(sentence, "输出", "展示", "显示", "存储", "更新", "执行", "驱动", "反馈", "响应", "结果"));
 
         var slots = new List<SlotCandidate>();
-        AddSlotCandidate(slots, communication);
-        AddSlotCandidate(slots, transport);
-        AddSlotCandidate(slots, display);
-        AddSlotCandidate(slots, control);
+        AddSlotCandidate(slots, input);
+        AddSlotCandidate(slots, processing);
+        AddSlotCandidate(slots, interfaceOrTransport);
+        AddSlotCandidate(slots, output);
 
         if (slots.Count == 0)
         {
@@ -4917,157 +6053,6 @@ public sealed class LocalAiService : IDisposable
 
         var lead = string.IsNullOrWhiteSpace(subject) ? "这个模块" : subject;
         return $"根据当前文档，{lead}的实现链路是：{string.Join(" ", uniqueSlots.Select(item => $"{item.Sentence} {BuildStableCitation(item.Chunk)}"))}";
-    }
-
-    private string? BuildSystemArchitectureFallbackAnswer(IReadOnlyList<DocumentChunk> chunks)
-    {
-        var documentChunks = GetPrimaryDocumentChunks(chunks);
-        if (documentChunks.Count == 0)
-        {
-            return null;
-        }
-
-        var architectureChunk = FindRepresentativeChunk(
-            documentChunks,
-            "前后端分离", "前后端", "restful api", "restfulapi", "json", "统一api", "统一接口");
-        var backendChunk = FindRepresentativeChunk(
-            documentChunks,
-            "spring boot", "spring mvc", "restful api", "restfulapi", "mybatis-plus", "mybatis - plus", "mybatis plus", "http");
-        var frontendChunk = FindRepresentativeChunk(
-            documentChunks,
-            "vue 3", "vue3", "composition api", "vue router", "element plus", "spa", "单页面应用");
-        var databaseChunk = FindRepresentativeChunk(
-            documentChunks,
-            "mysql", "数据库", "实体表", "关系表", "核心存储");
-        var visualizationChunk = FindRepresentativeChunk(
-            documentChunks,
-            "echarts", "知识图谱", "可视化", "多特征关联图", "力导向");
-
-        var hasArchitecture = ContainsAnySignal(documentChunks, "前后端分离", "前后端")
-            || (ContainsAnySignal(documentChunks, "前端") && ContainsAnySignal(documentChunks, "后端"));
-        var hasRestful = ContainsAnySignal(documentChunks, "restful api", "restfulapi", "json", "统一 api", "统一接口");
-        var hasSpringBoot = ContainsAnySignal(documentChunks, "spring boot");
-        var hasSpringMvc = ContainsAnySignal(documentChunks, "spring mvc");
-        var hasMyBatisPlus = ContainsAnySignal(documentChunks, "mybatis-plus", "mybatis - plus", "mybatis plus");
-        var hasVue3 = ContainsAnySignal(documentChunks, "vue 3", "vue3");
-        var hasCompositionApi = ContainsAnySignal(documentChunks, "composition api");
-        var hasVueRouter = ContainsAnySignal(documentChunks, "vue router");
-        var hasElementPlus = ContainsAnySignal(documentChunks, "element plus");
-        var hasMySql = ContainsAnySignal(documentChunks, "mysql");
-        var hasECharts = ContainsAnySignal(documentChunks, "echarts");
-
-        if (architectureChunk is null && backendChunk is null && frontendChunk is null && databaseChunk is null && visualizationChunk is null)
-        {
-            return null;
-        }
-
-        var clauses = new List<string>();
-        if (hasArchitecture && architectureChunk is not null)
-        {
-            var architectureText = hasRestful
-                ? "根据当前文档，系统总体上采用前后端分离架构，前后端通过 RESTful API 与 JSON 数据交换进行通信。"
-                : "根据当前文档，系统总体上采用前后端分离架构。";
-            clauses.Add($"{architectureText} {BuildStableCitation(architectureChunk)}");
-        }
-
-        if (hasSpringBoot && backendChunk is not null)
-        {
-            var backendParts = new List<string> { "后端以 Spring Boot 为核心" };
-            if (hasSpringMvc)
-            {
-                backendParts.Add("结合 Spring MVC 提供接口服务");
-            }
-
-            if (hasMyBatisPlus)
-            {
-                backendParts.Add("数据持久化层使用 MyBatis-Plus");
-            }
-
-            clauses.Add($"{string.Join("，", backendParts)}。 {BuildStableCitation(backendChunk)}");
-        }
-
-        if (hasVue3 && frontendChunk is not null)
-        {
-            var frontendParts = new List<string> { "前端基于 Vue 3 开发" };
-            if (hasCompositionApi)
-            {
-                frontendParts.Add("采用 Composition API 组织复杂逻辑");
-            }
-
-            if (hasVueRouter)
-            {
-                frontendParts.Add("结合 Vue Router 实现单页导航");
-            }
-
-            if (hasElementPlus)
-            {
-                frontendParts.Add("界面组件使用 Element Plus");
-            }
-
-            clauses.Add($"{string.Join("，", frontendParts)}。 {BuildStableCitation(frontendChunk)}");
-        }
-
-        if (hasMySql && databaseChunk is not null)
-        {
-            clauses.Add($"数据存储采用 MySQL，承载实体表、关系表等核心数据。 {BuildStableCitation(databaseChunk)}");
-        }
-
-        if (hasECharts && visualizationChunk is not null)
-        {
-            clauses.Add($"可视化层使用 ECharts 绘制知识图谱和多特征关联图。 {BuildStableCitation(visualizationChunk)}");
-        }
-
-        return string.Join("。", clauses) + "。";
-    }
-
-    private string? BuildSystemModulesFallbackAnswer(IReadOnlyList<DocumentChunk> chunks)
-    {
-        var documentChunks = GetPrimaryDocumentChunks(chunks);
-        if (documentChunks.Count == 0)
-        {
-            return null;
-        }
-
-        var moduleClauses = new List<string>();
-
-        var extractionChunk = FindRepresentativeChunk(
-            documentChunks,
-            "信息抽取模块", "信息抽取", "抽取模块", "结构化信息", "大语言模型", "模板化");
-        if (ContainsAnySignal(documentChunks, "信息抽取模块", "信息抽取", "抽取模块") && extractionChunk is not null)
-        {
-            moduleClauses.Add($"信息抽取模块：基于大语言模型和模板化配置，从非结构化地质文本中抽取结构化信息。 {BuildStableCitation(extractionChunk)}");
-        }
-
-        var graphChunk = FindRepresentativeChunk(
-            documentChunks,
-            "知识图谱", "知识网络", "实体", "关系", "图谱");
-        if (ContainsAnySignal(documentChunks, "知识图谱", "知识网络", "图谱") && graphChunk is not null)
-        {
-            moduleClauses.Add($"知识图谱模块：将抽取结果组织为实体关系网络，并支持图谱化展示。 {BuildStableCitation(graphChunk)}");
-        }
-
-        var retrievalChunk = FindRepresentativeChunk(
-            documentChunks,
-            "多模态检索", "检索模块", "文本", "图像", "联动展示", "双向验证", "图件");
-        if (ContainsAnySignal(documentChunks, "多模态检索", "检索模块", "联动展示", "双向验证") && retrievalChunk is not null)
-        {
-            moduleClauses.Add($"多模态检索模块：支持文本与图像/图件的联动展示和双向验证。 {BuildStableCitation(retrievalChunk)}");
-        }
-
-        var associationChunk = FindRepresentativeChunk(
-            documentChunks,
-            "多特征关联", "关联分析", "关联融合", "表征学习", "相似度度量", "主题索引树");
-        if (ContainsAnySignal(documentChunks, "多特征关联", "关联分析", "关联融合", "表征学习", "相似度度量") && associationChunk is not null)
-        {
-            moduleClauses.Add($"多特征关联模块：通过表征学习、相似度度量或关联融合把多源地质信息连接起来。 {BuildStableCitation(associationChunk)}");
-        }
-
-        if (moduleClauses.Count == 0)
-        {
-            return null;
-        }
-
-        return $"根据当前文档，系统主要功能模块包括：{string.Join("；", moduleClauses)}。";
     }
 
     private static string NormalizeModuleName(string moduleName)
@@ -5229,6 +6214,12 @@ public sealed class LocalAiService : IDisposable
 
     private string? BuildProcedureFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
     {
+        var slotAnswer = BuildImplementationSlotFallbackAnswer(question, chunks);
+        if (!string.IsNullOrWhiteSpace(slotAnswer))
+        {
+            return slotAnswer;
+        }
+
         var queryTokens = ExtractQueryTokens(question);
         var candidates = new List<ProcedureCandidate>();
 
@@ -5297,6 +6288,93 @@ public sealed class LocalAiService : IDisposable
         for (var index = 0; index < selected.Length; index++)
         {
             builder.AppendLine($"{index + 1}. {selected[index].Sentence} {BuildStableCitation(selected[index].Chunk)}");
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    private string? BuildImplementationSlotFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
+    {
+        if (!IsProcedureQuestion(question) && !ContainsAny(question, "实现", "流程", "步骤", "过程", "机制", "方法"))
+        {
+            return null;
+        }
+
+        var documentChunks = chunks
+            .Where(chunk => chunk.ContentKind is "body" or "summary" or "")
+            .ToArray();
+        if (documentChunks.Length == 0)
+        {
+            return null;
+        }
+
+        var queryTokens = ExtractQueryTokens(question)
+            .Where(token => !IsIntentExpansionOnlyToken(token))
+            .Where(IsMeaningfulFocusTerm)
+            .ToArray();
+        var usedSentences = new HashSet<string>(StringComparer.Ordinal);
+        var slots = new List<(string Label, SlotCandidate Candidate)>();
+
+        AddLabeledSlot(slots, "输入/前提", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "输入", "前提", "采集", "获取", "接收", "读取", "检测", "监测", "数据", "参数", "状态", "条件") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "核心处理/决策", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "处理", "计算", "判断", "决策", "规则", "算法", "模型", "策略", "控制", "生成", "解析") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "过程/步骤", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "首先", "然后", "再", "最后", "步骤", "流程", "阶段", "过程", "链路", "转换", "调用") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "输出/执行", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "输出", "执行", "驱动", "发送", "下发", "展示", "显示", "存储", "更新", "响应", "结果") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+        AddExcludedSlotSentence(usedSentences, slots.LastOrDefault().Candidate);
+
+        AddLabeledSlot(slots, "反馈/约束", SelectBestSlotCandidate(
+            documentChunks,
+            chunk => true,
+            sentence => CountSignals(sentence, "反馈", "补偿", "校正", "优化", "异常", "阈值", "条件", "约束", "实时", "动态", "闭环") * 2
+                + CountQueryTokenHits(sentence, queryTokens),
+            usedSentences,
+            preferBodyContent: true));
+
+        var selected = slots
+            .Where(item => item.Candidate.Score >= 6)
+            .GroupBy(item => NormalizeSummarySentence(item.Candidate.Sentence), StringComparer.Ordinal)
+            .Select(group => group.First())
+            .Take(5)
+            .ToArray();
+        if (selected.Length < 3)
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("根据当前文档，具体实现链路可以按证据槽位理解：");
+        for (var index = 0; index < selected.Length; index++)
+        {
+            builder.AppendLine($"{index + 1}. {selected[index].Label}：{selected[index].Candidate.Sentence} {BuildStableCitation(selected[index].Candidate.Chunk)}");
         }
 
         return builder.ToString().TrimEnd();
@@ -5613,69 +6691,6 @@ public sealed class LocalAiService : IDisposable
             || question.Contains("流程", StringComparison.Ordinal);
     }
 
-    private static bool IsPaperSystemArchitectureQuestion(string question)
-    {
-        if (string.IsNullOrWhiteSpace(question))
-        {
-            return false;
-        }
-
-        var normalized = StripQuestionBoilerplate(BuildFocusTermSourceText(question).Trim());
-        if (string.IsNullOrWhiteSpace(normalized))
-        {
-            normalized = question;
-        }
-
-        if (IsPaperSystemModuleQuestion(normalized))
-        {
-            return false;
-        }
-
-        var architectureHits = CountSignals(normalized,
-            "总体架构",
-            "系统架构",
-            "架构",
-            "技术栈",
-            "前后端分离",
-            "前后端",
-            "后端",
-            "前端",
-            "数据库",
-            "restful api",
-            "restfulapi",
-            "spring boot",
-            "vue",
-            "vue 3",
-            "vue3",
-            "mybatis-plus",
-            "mybatis plus",
-            "mysql",
-            "echarts");
-
-        var asksSystemOverview = normalized.Contains("采用了什么", StringComparison.Ordinal)
-            || normalized.Contains("用了什么", StringComparison.Ordinal)
-            || normalized.Contains("是什么", StringComparison.Ordinal)
-            || normalized.Contains("技术选型", StringComparison.Ordinal);
-
-        return architectureHits >= 2
-            || (architectureHits >= 1 && asksSystemOverview);
-    }
-
-    private static bool IsPaperSystemModuleQuestion(string question)
-    {
-        if (string.IsNullOrWhiteSpace(question))
-        {
-            return false;
-        }
-
-        return question.Contains("功能模块", StringComparison.Ordinal)
-            || question.Contains("主要模块", StringComparison.Ordinal)
-            || question.Contains("哪些模块", StringComparison.Ordinal)
-            || question.Contains("模块有哪些", StringComparison.Ordinal)
-            || question.Contains("主要有哪些功能", StringComparison.Ordinal)
-            || question.Contains("有哪些功能模块", StringComparison.Ordinal);
-    }
-
     private static bool IsCandidateSentence(string sentence)
     {
         var trimmed = sentence.Trim();
@@ -5842,6 +6857,11 @@ public sealed class LocalAiService : IDisposable
             return usageSubject;
         }
 
+        if (TryExtractDirectQuestionSubject(question, out var directSubject))
+        {
+            return directSubject;
+        }
+
         var normalized = NormalizeQuestionForSubjectExtraction(question);
         if (string.IsNullOrWhiteSpace(normalized))
         {
@@ -5870,6 +6890,101 @@ public sealed class LocalAiService : IDisposable
             .FirstOrDefault();
 
         return exactEntity ?? matches.OrderByDescending(token => token.Length).First();
+    }
+
+    private static bool TryExtractDirectQuestionSubject(string question, out string subject)
+    {
+        subject = string.Empty;
+        var normalized = NormalizeQuestionForSubjectExtraction(question);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return false;
+        }
+
+        var patterns = new[]
+        {
+            @"(?:里|中|内)?(?<subject>[\u4e00-\u9fffA-Za-z0-9_\-+/\.]{2,32})(?:是指什么|指的是什么|指什么|是什么|定义是什么)",
+            @"(?:为什么|为何)(?:需要|要|使用|采用|引入|配置)?(?<subject>[\u4e00-\u9fffA-Za-z0-9_\-+/\.]{2,32})",
+            @"(?<subject>[\u4e00-\u9fffA-Za-z0-9_\-+/\.]{2,32})(?:包括哪些|包含哪些|由哪些|有哪些部分|有哪些组成|怎么做|怎么实现|如何实现|如何设计)"
+        };
+
+        foreach (var pattern in patterns)
+        {
+            var match = Regex.Match(normalized, pattern, RegexOptions.IgnoreCase);
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var candidate = CleanExtractedQuestionSubject(match.Groups["subject"].Value);
+            if (!string.IsNullOrWhiteSpace(candidate))
+            {
+                subject = candidate;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string CleanExtractedQuestionSubject(string subject)
+    {
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = subject.Trim()
+            .Trim('，', '。', '？', '?', '！', '!', '；', ';', '：', ':', '、', ' ')
+            .Replace("文档里", string.Empty, StringComparison.Ordinal)
+            .Replace("文档中", string.Empty, StringComparison.Ordinal)
+            .Replace("文中", string.Empty, StringComparison.Ordinal)
+            .Replace("这篇论文里", string.Empty, StringComparison.Ordinal)
+            .Replace("这篇文章里", string.Empty, StringComparison.Ordinal)
+            .Replace("这份材料里", string.Empty, StringComparison.Ordinal)
+            .Trim();
+
+        var markers = new[] { "里", "中", "内", "的" };
+        foreach (var marker in markers)
+        {
+            var markerIndex = cleaned.LastIndexOf(marker, StringComparison.Ordinal);
+            if (markerIndex >= 0 && markerIndex < cleaned.Length - marker.Length)
+            {
+                cleaned = cleaned[(markerIndex + marker.Length)..].Trim();
+            }
+        }
+
+        if (FocusStopWords.Contains(cleaned) || IsIntentExpansionOnlyToken(cleaned))
+        {
+            return string.Empty;
+        }
+
+        cleaned = Regex.Replace(cleaned, "(?:是|为|指|指的|定义)$", string.Empty, RegexOptions.IgnoreCase).Trim();
+        if (cleaned.Length < 2 || FocusStopWords.Contains(cleaned) || IsIntentExpansionOnlyToken(cleaned))
+        {
+            return string.Empty;
+        }
+
+        return cleaned;
+    }
+
+    private static IReadOnlyList<string> ExtractQuestionSubjectTerms(string question)
+    {
+        var subject = ExtractQuestionSubject(question);
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            return [];
+        }
+
+        var terms = new List<string> { subject.ToLowerInvariant() };
+        terms.AddRange(ExtractQueryTokens(subject)
+            .Where(token => !IsIntentExpansionOnlyToken(token))
+            .Where(IsMeaningfulFocusTerm));
+
+        return terms
+            .Where(term => !string.IsNullOrWhiteSpace(term))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static bool TryExtractUsageQuestionSubject(string question, out string subject)
@@ -5998,125 +7113,6 @@ public sealed class LocalAiService : IDisposable
         }
 
         return best;
-    }
-
-    private static bool IsPrecisionIrrigationQuestion(string question)
-    {
-        if (string.IsNullOrWhiteSpace(question))
-        {
-            return false;
-        }
-
-        return question.Contains("精准灌溉", StringComparison.Ordinal)
-            || (question.Contains("灌溉", StringComparison.Ordinal)
-                && (question.Contains("如何", StringComparison.Ordinal)
-                    || question.Contains("怎么", StringComparison.Ordinal)
-                    || question.Contains("实现", StringComparison.Ordinal)
-                    || question.Contains("控制", StringComparison.Ordinal)));
-    }
-
-    private string? BuildPrecisionIrrigationFallbackAnswer(string question, IReadOnlyList<DocumentChunk> chunks)
-    {
-        var documentChunks = GetPrimaryDocumentChunks(chunks);
-        if (documentChunks.Count == 0)
-        {
-            return null;
-        }
-
-        var usedSlotSentences = new HashSet<string>(StringComparer.Ordinal);
-        var sensing = SelectBestSlotCandidate(
-            documentChunks,
-            chunk => (chunk.ContentKind is "body" or "summary")
-                && (chunk.StructurePath.Contains("abstract", StringComparison.OrdinalIgnoreCase)
-                    || chunk.StructurePath.Contains("1.1.2", StringComparison.OrdinalIgnoreCase)
-                    || chunk.StructurePath.Contains("1.2.1", StringComparison.OrdinalIgnoreCase)
-                    || chunk.StructurePath.Contains("1.2.2", StringComparison.OrdinalIgnoreCase)
-                    || chunk.StructurePath.Contains("感知层", StringComparison.Ordinal)),
-            sentence => CountSignals(sentence, "土壤湿度", "环境温湿度", "传感器", "采集", "环境数据", "adc", "实时") * 2
-                + (sentence.Contains("土壤湿度", StringComparison.Ordinal) && sentence.Contains("环境温湿度", StringComparison.Ordinal) ? 4 : 0),
-            excludedNormalizedSentences: usedSlotSentences);
-        AddExcludedSlotSentence(usedSlotSentences, sensing);
-        var control = SelectBestSlotCandidate(
-            documentChunks,
-            chunk => (chunk.ContentKind is "body" or "summary")
-                && (chunk.StructurePath.Contains("abstract", StringComparison.OrdinalIgnoreCase)
-                    || chunk.StructurePath.Contains("3.2", StringComparison.OrdinalIgnoreCase)
-                    || chunk.StructurePath.Contains("3.1", StringComparison.OrdinalIgnoreCase)
-                    || chunk.StructurePath.Contains("模糊PID", StringComparison.OrdinalIgnoreCase))
-                && !chunk.StructurePath.Contains("controlRulesExample", StringComparison.OrdinalIgnoreCase),
-            sentence => CountSignals(sentence, "模糊pid", "pid", "模糊", "偏差", "动态调节", "积分", "微分", "控制", "电磁阀", "开度") * 2
-                + (sentence.Contains("模糊PID", StringComparison.OrdinalIgnoreCase) ? 4 : 0)
-                + (sentence.Contains("电磁阀", StringComparison.Ordinal) ? 2 : 0)
-                + (sentence.Contains("动态调节", StringComparison.Ordinal) ? 2 : 0),
-            excludedNormalizedSentences: usedSlotSentences,
-            preferBodyContent: true);
-        AddExcludedSlotSentence(usedSlotSentences, control);
-        var execution = SelectBestSlotCandidate(
-            documentChunks,
-            chunk => (chunk.ContentKind is "body" or "summary")
-                && (chunk.StructurePath.Contains("abstract", StringComparison.OrdinalIgnoreCase)
-                    || chunk.StructurePath.Contains("1.3.2", StringComparison.OrdinalIgnoreCase)
-                    || chunk.StructurePath.Contains("PWM", StringComparison.OrdinalIgnoreCase)),
-            sentence => CountSignals(sentence, "电磁阀", "pwm", "占空比", "流量", "开度", "查找表", "校准", "驱动") * 2
-                + (sentence.Contains("PWM", StringComparison.OrdinalIgnoreCase) ? 3 : 0)
-                + (sentence.Contains("电磁阀", StringComparison.Ordinal) ? 2 : 0),
-            excludedNormalizedSentences: usedSlotSentences,
-            preferBodyContent: true);
-        AddExcludedSlotSentence(usedSlotSentences, execution);
-        var compensation = WantsDetailedAnswer(question)
-            ? SelectBestSlotCandidate(
-                documentChunks,
-                chunk => chunk.ContentKind == "body"
-                    && (chunk.StructurePath.Contains("3.3.1", StringComparison.OrdinalIgnoreCase)
-                        || chunk.StructurePath.Contains("3.3.2", StringComparison.OrdinalIgnoreCase)
-                        || chunk.StructurePath.Contains("补偿", StringComparison.Ordinal)),
-                sentence => CountSignals(sentence, "补偿", "温湿度", "蒸发", "昼夜", "环境", "灌溉量"),
-                excludedNormalizedSentences: usedSlotSentences,
-                preferBodyContent: true)
-            : null;
-        AddExcludedSlotSentence(usedSlotSentences, compensation);
-        var result = WantsDetailedAnswer(question)
-            ? SelectBestSlotCandidate(
-                documentChunks,
-                chunk => chunk.ContentKind == "summary"
-                    || chunk.StructurePath.Contains("结论", StringComparison.Ordinal)
-                    || chunk.StructurePath.Contains("测试", StringComparison.Ordinal),
-                sentence => CountSignals(sentence, "±2.8%", "偏差", "节水", "测试表明", "结果"),
-                excludedNormalizedSentences: usedSlotSentences)
-            : null;
-
-        if (sensing is null && control is null && execution is null)
-        {
-            return null;
-        }
-
-        var clauses = new List<string>();
-        if (sensing is not null)
-        {
-            clauses.Add($"根据当前文档，精准灌溉首先依赖{sensing.Sentence} {BuildStableCitation(sensing.Chunk)}");
-        }
-
-        if (control is not null)
-        {
-            clauses.Add($"在决策控制上，{control.Sentence} {BuildStableCitation(control.Chunk)}");
-        }
-
-        if (execution is not null)
-        {
-            clauses.Add($"在执行环节，{execution.Sentence} {BuildStableCitation(execution.Chunk)}");
-        }
-
-        if (compensation is not null)
-        {
-            clauses.Add($"如果展开看细节，系统还会结合环境状态做补偿，即{compensation.Sentence} {BuildStableCitation(compensation.Chunk)}");
-        }
-
-        if (result is not null && WantsDetailedAnswer(question))
-        {
-            clauses.Add($"从结果看，{result.Sentence} {BuildStableCitation(result.Chunk)}");
-        }
-
-        return clauses.Count == 0 ? null : string.Join("。", clauses) + "。";
     }
 
     private SlotCandidate? SelectBestSlotCandidate(
@@ -6279,7 +7275,7 @@ public sealed class LocalAiService : IDisposable
                     score += 3;
                 }
 
-                if (chunk.SectionTitle.Contains("主控", StringComparison.Ordinal) || chunk.SectionTitle.Contains("控制", StringComparison.Ordinal))
+                if (CountSignals(chunk.SectionTitle, "核心", "控制", "功能", "实现", "模块", "服务", "接口") > 0)
                 {
                     score += 2;
                 }
@@ -6325,6 +7321,37 @@ public sealed class LocalAiService : IDisposable
         return signals.Count(signal => sentence.Contains(signal, StringComparison.Ordinal));
     }
 
+    private static bool IsIntentExpansionOnlyToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return true;
+        }
+
+        return DefinitionSignals.Contains(token, StringComparer.OrdinalIgnoreCase)
+            || ExplanationSignals.Contains(token, StringComparer.OrdinalIgnoreCase)
+            || CompareSignals.Contains(token, StringComparer.OrdinalIgnoreCase)
+            || CompositionSignals.Contains(token, StringComparer.OrdinalIgnoreCase)
+            || ProcedureSignals.Contains(token, StringComparer.OrdinalIgnoreCase)
+            || UsageSignals.Contains(token, StringComparer.OrdinalIgnoreCase)
+            || ModuleImplementationSignals.Contains(token, StringComparer.OrdinalIgnoreCase)
+            || token is "原因" or "机制" or "原理" or "定义" or "方法" or "步骤" or "流程" or "架构";
+    }
+
+    private static bool HasAnyTermInChunks(IReadOnlyList<string> terms, IReadOnlyList<DocumentChunk> chunks)
+    {
+        if (terms.Count == 0 || chunks.Count == 0)
+        {
+            return false;
+        }
+
+        return chunks.Any(chunk =>
+        {
+            var text = BuildChunkRetrievalText(chunk).ToLowerInvariant();
+            return terms.Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase));
+        });
+    }
+
     private static int CountCompositionStructureSignals(string text)
     {
         var signals = new[] { "组成", "构成", "包括", "包含", "模块", "架构", "配置", "条件", "环境", "硬件", "软件", "接口", "依赖", "实验环境", "运行环境", "部署环境" };
@@ -6346,6 +7373,17 @@ public sealed class LocalAiService : IDisposable
     private static int CountSignals(string sentence, params string[] signals)
     {
         return signals.Count(signal => sentence.Contains(signal, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static int CountQueryTokenHits(string sentence, IReadOnlyList<string> queryTokens)
+    {
+        if (queryTokens.Count == 0)
+        {
+            return 0;
+        }
+
+        var lowerSentence = sentence.ToLowerInvariant();
+        return queryTokens.Count(token => lowerSentence.Contains(token, StringComparison.Ordinal));
     }
 
     private static bool ContainsAnySignal(IEnumerable<DocumentChunk> chunks, params string[] signals)
@@ -6422,7 +7460,7 @@ public sealed class LocalAiService : IDisposable
         var focusHits = queryProfile.FocusTerms.Count(term =>
             chunks.Any(chunk => BuildChunkRetrievalText(chunk).Contains(term, StringComparison.OrdinalIgnoreCase)));
         var mechanismHits = chunks.Count(chunk =>
-            CountSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}", "机制", "原理", "补偿", "蒸发", "灌溉量", "动态修正", "提前调整") > 0);
+            CountSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}", "机制", "原理", "原因", "影响", "导致", "由于", "因此", "反馈", "优化", "调节", "校正") > 0);
 
         return mechanismHits >= 1 && (focusHits >= 1 || queryProfile.FocusTerms.Count == 0);
     }
@@ -6693,6 +7731,7 @@ public sealed class LocalAiService : IDisposable
     {
         LastRankedChunkSnapshots = [];
         LastContextChunkSnapshots = [];
+        LastEvidenceDebugSnapshot = null;
         LastUsedSparsePrefilter = false;
     }
 
@@ -6710,6 +7749,17 @@ public sealed class LocalAiService : IDisposable
             chunk.StructurePath,
             chunk.ContentKind,
             chunk.Text);
+    }
+
+    private static EvidenceDebugSnapshot CreateEvidenceDebugSnapshot(EvidencePlan plan, EvidenceSet set)
+    {
+        return new EvidenceDebugSnapshot(
+            plan.Scope,
+            plan.Mode,
+            plan.RequiredSlots.Select(slot => slot.Name).ToArray(),
+            set.CoveredSlots,
+            set.IsSufficient,
+            set.UnknownReason);
     }
 
     private sealed record IndexedChunk(DocumentChunk Chunk, float[] Embedding, IReadOnlyDictionary<string, int> TokenFrequency, int TokenCount);
@@ -6735,7 +7785,55 @@ public sealed class LocalAiService : IDisposable
         string ContentKind,
         string Text);
 
+    public sealed record EvidenceDebugSnapshot(
+        string Scope,
+        EvidenceMode Mode,
+        IReadOnlyList<string> RequiredSlots,
+        IReadOnlyList<string> CoveredSlots,
+        bool IsSufficient,
+        string? UnknownReason);
+
+    public enum EvidenceMode
+    {
+        General,
+        Summary,
+        Implementation,
+        Composition,
+        ModuleList,
+        Definition,
+        Compare,
+        AbsenceCheck,
+        Metadata,
+        Usage,
+        Explain
+    }
+
     private sealed record QueryProfile(string OriginalQuestion, IReadOnlyList<string> FocusTerms, string Intent, bool WantsDetailedAnswer, string? RequestedDocumentTitle, bool AvoidsEnglishMetadata);
+
+    private sealed record EvidenceSlot(
+        string Name,
+        IReadOnlyList<string> MatchTerms,
+        IReadOnlyList<string> PreferredSections,
+        int MinimumMatches);
+
+    private sealed record EvidencePlan(
+        string Scope,
+        EvidenceMode Mode,
+        IReadOnlyList<EvidenceSlot> RequiredSlots,
+        IReadOnlyList<string> PreferredSections,
+        IReadOnlyList<string> AllowedContentKinds,
+        IReadOnlyList<string> DisallowedContentKinds,
+        string SourcePreference,
+        string RerankerPolicy,
+        string SufficiencyRule,
+        string UnknownPolicy,
+        QueryProfile QueryProfile);
+
+    private sealed record EvidenceSet(
+        IReadOnlyList<DocumentChunk> Chunks,
+        IReadOnlyList<string> CoveredSlots,
+        bool IsSufficient,
+        string? UnknownReason);
 
     private sealed record ScoredChunk(
         DocumentChunk Chunk,
@@ -6753,6 +7851,7 @@ public sealed class LocalAiService : IDisposable
 
     private sealed record ProcedureCandidate(DocumentChunk Chunk, string Sentence, int Score);
     private sealed record SlotCandidate(DocumentChunk Chunk, string Sentence, int Score);
+    private sealed record ExtractedEntity(string Text, string Category, DocumentChunk Chunk, int Score);
 
     private sealed record SummaryCandidate(DocumentChunk Chunk, string Sentence, int Score);
 
@@ -6770,6 +7869,8 @@ public sealed class LocalAiService : IDisposable
         IReadOnlyList<ScoredChunk> RankedChunks,
         IReadOnlyList<DocumentChunk> ContextChunks,
         QueryProfile QueryProfile,
+        EvidencePlan EvidencePlan,
+        EvidenceSet EvidenceSet,
         int SparseCandidateCount,
         int SemanticCandidateCount,
         bool UsedSparsePrefilter,
