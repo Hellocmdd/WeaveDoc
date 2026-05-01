@@ -1,5 +1,12 @@
 {
   "name": "weavedoc-rag-baseline",
+  "allowedSourceExtensions": [
+    ".md",
+    ".json"
+  ],
+  "forbiddenSourceExtensions": [
+    ".pdf"
+  ],
   "cases": [
     {
       "id": "stm32-summary",

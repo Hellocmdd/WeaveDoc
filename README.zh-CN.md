@@ -87,7 +87,7 @@ LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
 
 ## 当前能力
 
-- 支持索引 `doc/` 中的 `.md`、`.txt`、`.json`、`.pdf`
+- 支持索引 `doc/` 中的 `.md`、`.txt`、`.json`
 - JSON 会先转成带结构路径的 chunk，并为数组项生成可检索的小节标题
 - 导入阶段会避免把相同文件一遍遍复制进知识库
 - 检索采用“稀疏预筛 + 局部语义打分 + 结构感知重排”
@@ -98,13 +98,13 @@ LLAMA_SERVER_PORT=8081 ./scripts/run_weavedoc.sh
 - 对组成类、模块实现类、元数据类与工程论文类问题提供更细的意图化回退
 - 提供离线基线评测入口（关键词覆盖 + 结构化校验）
 
-## PDF 解析依赖
+## SQLite 存储同步
 
-当前 PDF 文本解析依赖系统命令 `pdftotext`（Poppler）。
+旧版 `rag_store.db` 可从已转换的 markdown 和 JSON 语料刷新：
 
-- Ubuntu/Debian：`sudo apt install poppler-utils`
-- Arch：`sudo pacman -S poppler`
-- Fedora：`sudo dnf install poppler-utils`
+```bash
+./scripts/sync_markdown_json_sqlite.sh
+```
 
 ## 离线评测
 
