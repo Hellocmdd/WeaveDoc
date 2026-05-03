@@ -8,15 +8,22 @@ internal sealed class LlamaServerChatClient
 {
     private readonly HttpClient _httpClient;
     private readonly RagOptions _options;
+    private readonly bool _isCloud;
 
     public LlamaServerChatClient(HttpClient httpClient, RagOptions options)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _isCloud = options.ChatProvider == "deepseek";
     }
 
     public async Task EnsureServerAvailableAsync(CancellationToken cancellationToken)
     {
+        if (_isCloud)
+        {
+            return;
+        }
+
         var request = new HttpRequestMessage(HttpMethod.Get, BuildUri("/health"));
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(Math.Max(10, Math.Min(_options.HttpTimeoutSeconds, 30))));
@@ -28,11 +35,13 @@ internal sealed class LlamaServerChatClient
         }
     }
 
-    public async Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken)
+    public async Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken, string? systemPrompt = null)
     {
         var messages = new List<ChatCompletionMessage>
         {
-            new("system", "你是一个严格遵守上下文约束的本地文档问答助手。"),
+            new("system", string.IsNullOrWhiteSpace(systemPrompt)
+                ? "你是一个严格遵守上下文约束的本地文档问答助手。"
+                : systemPrompt.Trim()),
             new("user", prompt)
         };
 
@@ -72,25 +81,50 @@ internal sealed class LlamaServerChatClient
         CancellationToken timeoutToken,
         CancellationToken callerToken)
     {
+        ThinkingParam? thinking = null;
+        string model;
+
+        if (_isCloud)
+        {
+            model = _options.DeepSeekModel;
+            if (_options.DeepSeekEnableThinking)
+            {
+                thinking = new ThinkingParam("enabled", _options.DeepSeekReasoningEffort);
+            }
+        }
+        else
+        {
+            model = _options.ChatModel;
+        }
+
         var payload = new ChatCompletionRequest(
-            _options.ChatModel,
+            model,
             messages,
             _options.Temperature,
             _options.MaxTokens,
-            false);
+            false,
+            thinking);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, BuildUri("/chat/completions"))
+        {
+            Content = JsonContent.Create(payload)
+        };
+
+        if (_isCloud)
+        {
+            request.Headers.Add("Authorization", $"Bearer {_options.DeepSeekApiKey}");
+        }
 
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.PostAsJsonAsync(
-                BuildUri("/v1/chat/completions"),
-                payload,
-                timeoutToken).ConfigureAwait(false);
+            response = await _httpClient.SendAsync(request, timeoutToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!callerToken.IsCancellationRequested)
         {
+            var label = _isCloud ? "DeepSeek API" : "llama-server";
             throw new TimeoutException(
-                $"调用 llama-server 超时（{_options.HttpTimeoutSeconds} 秒）。可通过环境变量 LLAMA_SERVER_TIMEOUT_SECONDS 调大超时时间。");
+                $"调用 {label} 超时（{_options.HttpTimeoutSeconds} 秒）。可通过环境变量 LLAMA_SERVER_TIMEOUT_SECONDS 调大超时时间。");
         }
 
         using (response)
@@ -98,7 +132,8 @@ internal sealed class LlamaServerChatClient
             if (!response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadAsStringAsync(callerToken).ConfigureAwait(false);
-                throw new InvalidOperationException($"llama-server 调用失败: {(int)response.StatusCode} {response.ReasonPhrase}, body={body}");
+                var label = _isCloud ? "DeepSeek API" : "llama-server";
+                throw new InvalidOperationException($"{label} 调用失败: {(int)response.StatusCode} {response.ReasonPhrase}, body={body}");
             }
 
             return await response.Content.ReadFromJsonAsync<ChatCompletionResponse>(cancellationToken: callerToken).ConfigureAwait(false);
@@ -107,7 +142,8 @@ internal sealed class LlamaServerChatClient
 
     private Uri BuildUri(string relativePath)
     {
-        var normalizedBase = _options.LlamaServerBaseUrl.TrimEnd('/');
+        var baseUrl = _isCloud ? _options.DeepSeekBaseUrl : _options.LlamaServerBaseUrl;
+        var normalizedBase = baseUrl.TrimEnd('/');
         return new Uri($"{normalizedBase}{relativePath}", UriKind.Absolute);
     }
 
@@ -116,7 +152,14 @@ internal sealed class LlamaServerChatClient
         [property: JsonPropertyName("messages")] IReadOnlyList<ChatCompletionMessage> Messages,
         [property: JsonPropertyName("temperature")] float Temperature,
         [property: JsonPropertyName("max_tokens")] int MaxTokens,
-        [property: JsonPropertyName("stream")] bool Stream);
+        [property: JsonPropertyName("stream")] bool Stream,
+        [property: JsonPropertyName("thinking")]
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        ThinkingParam? Thinking);
+
+    private sealed record ThinkingParam(
+        [property: JsonPropertyName("type")] string Type,
+        [property: JsonPropertyName("effort")] string Effort);
 
     private sealed record ChatCompletionMessage(
         [property: JsonPropertyName("role")] string Role,

@@ -127,6 +127,7 @@ dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eva
 - `RAG_RERANKER_ENABLED` 默认 `true`
 - `RAG_RERANKER_BASE_URL` 默认 `http://127.0.0.1:8081`
 - `RAG_RERANKER_MODEL` 默认 `bge-reranker-v2-m3`
+- `RAG_PIPELINE_MODE` 默认 `legacy`，可选 `legacy`、`simple`、`refactored`
 - `RAG_TOP_K` 默认 `4`
 - `RAG_CANDIDATE_POOL_SIZE` 默认 `12`
 - `RAG_SPARSE_CANDIDATE_POOL_SIZE` 默认 `48`

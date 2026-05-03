@@ -25,11 +25,18 @@ public sealed record RagOptions(
     string RerankerModel,
     int RerankerTopN,
     int RerankerTimeoutSeconds,
+    string PipelineMode,
     string LlamaServerBaseUrl,
     string ChatModel,
     float Temperature,
     int MaxTokens,
-    int HttpTimeoutSeconds)
+    int HttpTimeoutSeconds,
+    string ChatProvider,
+    string DeepSeekApiKey,
+    string DeepSeekModel,
+    string DeepSeekBaseUrl,
+    bool DeepSeekEnableThinking,
+    string DeepSeekReasoningEffort)
 {
     public static RagOptions LoadFromEnvironment()
     {
@@ -58,11 +65,18 @@ public sealed record RagOptions(
             RerankerModel: GetString("RAG_RERANKER_MODEL", "bge-reranker-v2-m3"),
             RerankerTopN: GetInt("RAG_RERANKER_TOP_N", 8, 1, 50),
             RerankerTimeoutSeconds: GetInt("RAG_RERANKER_TIMEOUT_SECONDS", 30, 1, 300),
+            PipelineMode: GetPipelineMode("RAG_PIPELINE_MODE", "legacy"),
             LlamaServerBaseUrl: GetString("LLAMA_SERVER_BASE_URL", "http://127.0.0.1:8080"),
             ChatModel: GetString("LLAMA_SERVER_CHAT_MODEL", "local-model"),
             Temperature: GetFloat("LLAMA_SERVER_TEMPERATURE", 0.2f, 0f, 2f),
             MaxTokens: GetInt("LLAMA_SERVER_MAX_TOKENS", 1536, 128, 8192),
-            HttpTimeoutSeconds: GetInt("LLAMA_SERVER_TIMEOUT_SECONDS", 300, 10, 1800));
+            HttpTimeoutSeconds: GetInt("LLAMA_SERVER_TIMEOUT_SECONDS", 300, 10, 1800),
+            ChatProvider: GetChatProvider("RAG_CHAT_PROVIDER", "llama_server"),
+            DeepSeekApiKey: GetString("DEEPSEEK_API_KEY", ""),
+            DeepSeekModel: GetString("DEEPSEEK_MODEL", "deepseek-v4-pro"),
+            DeepSeekBaseUrl: GetString("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+            DeepSeekEnableThinking: GetBool("DEEPSEEK_ENABLE_THINKING", false),
+            DeepSeekReasoningEffort: GetString("DEEPSEEK_REASONING_EFFORT", "medium"));
     }
 
     private static int GetInt(string name, int defaultValue, int min, int max)
@@ -105,6 +119,26 @@ public sealed record RagOptions(
         {
             "1" or "true" or "yes" or "y" or "on" => true,
             "0" or "false" or "no" or "n" or "off" => false,
+            _ => defaultValue
+        };
+    }
+
+    private static string GetPipelineMode(string name, string defaultValue)
+    {
+        var value = GetString(name, defaultValue).ToLowerInvariant();
+        return value switch
+        {
+            "legacy" or "simple" or "refactored" => value,
+            _ => defaultValue
+        };
+    }
+
+    private static string GetChatProvider(string name, string defaultValue)
+    {
+        var value = GetString(name, defaultValue).ToLowerInvariant();
+        return value switch
+        {
+            "llama_server" or "deepseek" => value,
             _ => defaultValue
         };
     }

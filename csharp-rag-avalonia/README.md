@@ -127,6 +127,7 @@ You can override runtime behavior with env vars:
 - `RAG_RERANKER_ENABLED` (default: `true`)
 - `RAG_RERANKER_BASE_URL` (default: `http://127.0.0.1:8081`)
 - `RAG_RERANKER_MODEL` (default: `bge-reranker-v2-m3`)
+- `RAG_PIPELINE_MODE` (default: `legacy`; allowed: `legacy`, `simple`, `refactored`)
 - `RAG_TOP_K` (default: `4`)
 - `RAG_CANDIDATE_POOL_SIZE` (default: `12`)
 - `RAG_SPARSE_CANDIDATE_POOL_SIZE` (default: `48`)
