@@ -30,3 +30,6 @@ models/
 
 # evaluation results
 .eval/
+
+#claude
+.claude/

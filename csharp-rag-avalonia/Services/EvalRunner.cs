@@ -86,7 +86,6 @@ internal static class EvalRunner
             var debug = service.LastRetrievalDebug;
             var rankedChunks = service.LastRankedChunkSnapshots;
             var contextChunks = service.LastContextChunkSnapshots;
-            var evidenceDebug = service.LastEvidenceDebugSnapshot;
 
             var matched = MatchExpectedKeywords(answer, item.ExpectedKeywords);
             var requiredMatches = GetRequiredMatchCount(item);
@@ -94,7 +93,7 @@ internal static class EvalRunner
             var answerCheck = EvaluateAnswerSignals(answer, item);
             var retrievalCheck = EvaluateRetrievalSignals(rankedChunks, contextChunks, item);
             var citationCheck = EvaluateCitationSignals(answer, item);
-            var evidenceCheck = EvaluateEvidenceSignals(answer, contextChunks, item, evidenceDebug);
+            var evidenceCheck = EvaluateEvidenceSignals(answer, contextChunks, item);
             var sourceFormatCheck = EvaluateSourceFormatSignals(rankedChunks, contextChunks, item, baseline);
             matchedExpectations += matched;
             totalExpectations += item.ExpectedKeywords?.Count ?? 0;
@@ -339,8 +338,7 @@ internal static class EvalRunner
     private static EvidenceCheckResult EvaluateEvidenceSignals(
         string answer,
         IReadOnlyList<LocalAiService.RetrievalChunkSnapshot> contextChunks,
-        EvalCase item,
-        LocalAiService.EvidenceDebugSnapshot? evidenceDebug)
+        EvalCase item)
     {
         var contextFiles = contextChunks
             .Select(chunk => chunk.FilePath)
@@ -350,18 +348,13 @@ internal static class EvalRunner
             || !IsDocumentScopedCase(item)
             || contextFiles.All(path => MatchesCaseDocumentScope(path, item));
 
-        var evidenceKindAccurate = evidenceDebug is null
-            || ExpectedModeForCase(item) is not { } expectedMode
-            || evidenceDebug.Mode == expectedMode;
+        var evidenceKindAccurate = true;
 
-        var slotCoverage = evidenceDebug is null || evidenceDebug.RequiredSlots.Count == 0
-            ? 1d
-            : evidenceDebug.CoveredSlots.Count / (double)evidenceDebug.RequiredSlots.Count;
+        var slotCoverage = 1d;
 
         var expectsUnknown = (item.AnswerSignals ?? []).Any(signal => signal.Contains("我不知道", StringComparison.Ordinal));
         var answeredUnknown = answer.Contains("我不知道", StringComparison.Ordinal) || answer.Contains("当前文档未覆盖", StringComparison.Ordinal);
-        var sufficiencyAccurate = expectsUnknown == answeredUnknown
-            || (!expectsUnknown && evidenceDebug?.IsSufficient != false);
+        var sufficiencyAccurate = expectsUnknown == answeredUnknown;
 
         var knownCitations = new HashSet<string>(contextChunks.Select(chunk => chunk.Citation), StringComparer.Ordinal);
         var answerCitations = CitationRegex.Matches(answer)
@@ -451,49 +444,6 @@ internal static class EvalRunner
         return true;
     }
 
-    private static LocalAiService.EvidenceMode? ExpectedModeForCase(EvalCase item)
-    {
-        if (string.IsNullOrWhiteSpace(item.Id))
-        {
-            return null;
-        }
-
-        var id = item.Id.ToLowerInvariant();
-        if (id.Contains("summary", StringComparison.Ordinal))
-        {
-            return LocalAiService.EvidenceMode.Summary;
-        }
-        if (id.Contains("composition", StringComparison.Ordinal) || id.Contains("architecture", StringComparison.Ordinal))
-        {
-            return LocalAiService.EvidenceMode.Composition;
-        }
-        if (id.Contains("modules", StringComparison.Ordinal))
-        {
-            return LocalAiService.EvidenceMode.ModuleList;
-        }
-        if (id.Contains("control", StringComparison.Ordinal) || id.Contains("remote", StringComparison.Ordinal))
-        {
-            return LocalAiService.EvidenceMode.Implementation;
-        }
-        if (id.Contains("definition", StringComparison.Ordinal))
-        {
-            return LocalAiService.EvidenceMode.Definition;
-        }
-        if (id.Contains("compare", StringComparison.Ordinal))
-        {
-            return LocalAiService.EvidenceMode.Compare;
-        }
-        if (id.Contains("explain", StringComparison.Ordinal))
-        {
-            return LocalAiService.EvidenceMode.Explain;
-        }
-        if (id.Contains("no-answer", StringComparison.Ordinal))
-        {
-            return LocalAiService.EvidenceMode.AbsenceCheck;
-        }
-
-        return null;
-    }
 
     private static int GetRequiredMatchCount(EvalCase item)
     {
