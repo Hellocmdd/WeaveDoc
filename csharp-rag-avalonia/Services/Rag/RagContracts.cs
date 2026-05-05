@@ -8,7 +8,10 @@ internal sealed record QueryProfile(
     string Intent,
     bool WantsDetailedAnswer,
     string? RequestedDocumentTitle,
-    bool AvoidsEnglishMetadata);
+    bool RequestsEnglishMetadata,
+    bool AvoidsEnglishMetadata,
+    bool DisallowKeywordLikeLeadChunksForSummary,
+    bool PreferFallbackOverUnknown);
 
 internal sealed record ScoredChunk(
     DocumentChunk Chunk,

@@ -60,12 +60,10 @@ public sealed partial class LocalAiService
         
         // Task 3.2: For definition questions, boost chunks whose section title
         // matches focus terms so they surface in top-chunk-signal checks.
-        if (queryProfile.Intent == "definition" && queryProfile.FocusTerms.Count > 0 && ranked.Count > 1)
+        if ((queryProfile.Intent == "definition" || queryProfile.Intent == "compare") && queryProfile.FocusTerms.Count > 0 && ranked.Count > 1)
         {
             ranked = ranked
-                .Select(c => SectionTitleContainsAnyTerm(c.Chunk, queryProfile.FocusTerms)
-                    ? c with { Score = c.Score + 1.0f }
-                    : c)
+                .Select(c => c with { Score = c.Score + ComputeTopChunkIntentBoost(c.Chunk, queryProfile) })
                 .OrderByDescending(c => c.Score)
                 .ToArray();
         }
@@ -133,7 +131,7 @@ public sealed partial class LocalAiService
             AddFirstMatchingContextChunk(metadataSelected, filteredRanked, IsEnglishTitleChunk);
             AddFirstMatchingContextChunk(metadataSelected, filteredRanked, IsEnglishAbstractChunk);
             AddFirstMatchingContextChunk(metadataSelected, filteredRanked, IsEnglishKeywordsChunk);
-            AddFirstMatchingContextChunk(metadataSelected, scopedRanked, IsAbstractChunk);
+            AddFirstMatchingContextChunk(metadataSelected, filteredRanked, IsAbstractChunk);
 
             foreach (var chunk in filteredRanked)
             {
@@ -143,6 +141,14 @@ public sealed partial class LocalAiService
                 }
 
                 if (metadataSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                // Keep at most one chunk per English content kind to avoid
+                // englishAbstract segments (c11,c12,c13) crowding the window.
+                if (IsEnglishFieldChunk(chunk)
+                    && metadataSelected.Any(item => string.Equals(item.ContentKind, chunk.ContentKind, StringComparison.OrdinalIgnoreCase)))
                 {
                     continue;
                 }
@@ -248,10 +254,38 @@ public sealed partial class LocalAiService
         }
 
         var selected = new List<DocumentChunk>();
-        AddFirstMatchingContextChunk(selected, filteredRanked, IsAbstractChunk);
-        AddFirstMatchingContextChunk(selected, scopedRanked, IsOverviewChunk);
+        var summaryCoreChunks = filteredRanked
+            .Where(chunk => IsSummaryLeadCandidate(chunk, queryProfile))
+            .Select(chunk => new
+            {
+                Chunk = chunk,
+                Score = GetSummaryContextPriority(chunk, queryProfile)
+            })
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.Index)
+            .Select(item => item.Chunk)
+            .Take(2)
+            .ToArray();
 
-        foreach (var chunk in filteredRanked)
+        foreach (var chunk in summaryCoreChunks)
+        {
+            AddSpecificChunk(selected, chunk);
+        }
+
+        var summarySupportChunks = filteredRanked
+            .Where(chunk => !selected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+            .Where(chunk => IsSummarySupportCandidate(chunk, queryProfile))
+            .Select(chunk => new
+            {
+                Chunk = chunk,
+                Score = GetSummarySupportPriority(chunk)
+            })
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.Index)
+            .Select(item => item.Chunk)
+            .ToArray();
+
+        foreach (var chunk in summarySupportChunks.Concat(filteredRanked))
         {
             if (selected.Count >= limit)
             {
@@ -267,6 +301,21 @@ public sealed partial class LocalAiService
         }
 
         return selected.Take(limit).ToArray();
+    }
+
+    private static void AddSpecificChunk(List<DocumentChunk> selected, DocumentChunk? chunk)
+    {
+        if (chunk is null)
+        {
+            return;
+        }
+
+        if (selected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        selected.Add(chunk);
     }
 
     private static void AddFirstMatchingContextChunk(
@@ -335,6 +384,124 @@ public sealed partial class LocalAiService
         }
 
         return terms.Any(term => chunk.SectionTitle.Contains(term, StringComparison.Ordinal));
+    }
+
+    private static float ComputeTopChunkIntentBoost(DocumentChunk chunk, QueryProfile queryProfile)
+    {
+        var score = 0f;
+        var retrievalText = BuildChunkRetrievalText(chunk).ToLowerInvariant();
+        var sectionTitle = chunk.SectionTitle.ToLowerInvariant();
+
+        foreach (var term in queryProfile.FocusTerms)
+        {
+            if (string.IsNullOrWhiteSpace(term))
+            {
+                continue;
+            }
+
+            if (sectionTitle.Contains(term, StringComparison.Ordinal))
+            {
+                score += 0.9f;
+            }
+
+            if (retrievalText.Contains(term, StringComparison.Ordinal))
+            {
+                score += 0.35f;
+            }
+        }
+
+        if (chunk.ContentKind == "body")
+        {
+            score += 0.35f;
+        }
+
+        if (queryProfile.Intent == "compare")
+        {
+            score += CountSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}",
+                "模糊控制阶段", "pid调节阶段", "PID调节阶段", "大偏差", "快速响应", "精确控制", "动态调整") * 0.2f;
+        }
+
+        return score;
+    }
+
+    private static bool IsSummaryLeadCandidate(DocumentChunk chunk, QueryProfile queryProfile)
+    {
+        if (queryProfile.AvoidsEnglishMetadata && IsEnglishFieldChunk(chunk))
+        {
+            return false;
+        }
+
+        if (queryProfile.DisallowKeywordLikeLeadChunksForSummary && chunk.ContentKind == "keyword")
+        {
+            return false;
+        }
+
+        if (queryProfile.DisallowKeywordLikeLeadChunksForSummary
+            && (IsEnglishTitleChunk(chunk) || IsEnglishAbstractChunk(chunk) || IsEnglishKeywordsChunk(chunk)))
+        {
+            return false;
+        }
+
+        if (chunk.ContentKind == "keyword")
+        {
+            return false;
+        }
+
+        return IsAbstractChunk(chunk) || IsOverviewChunk(chunk) || chunk.ContentKind == "conclusion";
+    }
+
+    private static bool IsSummarySupportCandidate(DocumentChunk chunk, QueryProfile queryProfile)
+    {
+        if (queryProfile.AvoidsEnglishMetadata && IsEnglishFieldChunk(chunk))
+        {
+            return false;
+        }
+
+        if (chunk.ContentKind == "keyword")
+        {
+            return false;
+        }
+
+        if (queryProfile.DisallowKeywordLikeLeadChunksForSummary
+            && (IsEnglishTitleChunk(chunk) || IsEnglishAbstractChunk(chunk) || IsEnglishKeywordsChunk(chunk)))
+        {
+            return false;
+        }
+
+        var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
+        return CountSignals(source, "数据采集", "决策控制", "执行机构", "交互显示", "workflow", "架构", "模块", "结论", "测试", "感知", "决策", "执行") > 0;
+    }
+
+    private static int GetSummaryContextPriority(DocumentChunk chunk, QueryProfile queryProfile)
+    {
+        var score = 0;
+        if (IsAbstractChunk(chunk))
+        {
+            score += 8;
+        }
+        if (IsOverviewChunk(chunk))
+        {
+            score += 7;
+        }
+        if (chunk.ContentKind == "conclusion")
+        {
+            score += 6;
+        }
+        if (chunk.ContentKind == "summary")
+        {
+            score += 4;
+        }
+        if (queryProfile.DisallowKeywordLikeLeadChunksForSummary && chunk.StructurePath.Contains("workflow", StringComparison.OrdinalIgnoreCase))
+        {
+            score -= 4;
+        }
+        return score + CountSignals($"{chunk.SectionTitle} {chunk.StructurePath}", "摘要", "概述", "overview", "结论", "架构");
+    }
+
+    private static int GetSummarySupportPriority(DocumentChunk chunk)
+    {
+        return CountSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}",
+            "数据采集", "决策控制", "执行机构", "交互显示", "感知", "决策", "执行", "workflow", "结论", "测试", "架构", "模块");
     }
 
     private async Task<float[]> GetEmbeddingVectorAsync(string text, CancellationToken cancellationToken)
