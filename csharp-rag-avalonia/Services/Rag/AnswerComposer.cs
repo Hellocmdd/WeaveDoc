@@ -15,6 +15,8 @@ public sealed partial class LocalAiService
 4) 回答要先给结论，再按逻辑条理展开。流程题按步骤，架构/组成题按层次，模块实现题按数据流和控制链路，对比题按维度，摘要题按主题主线。
 5) 不要泛泛而谈，不要输出“系统很重要”“提高效率”等没有被上下文支撑的空话；每个要点都应落到上下文中的具体事实、参数、实现或术语。
 6) 每个自然段或每个要点末尾必须附 1-2 个稳定来源标签，且只能复制上下文中已经出现过的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。禁止使用 [1]、[2]，禁止编造来源。
+   关键: 来源标签必须与你引用的具体上下文块一一对应。如果你引用了某个上下文块的内容，必须使用该块前面标注的“来源标签:”后面的完整标签，不要使用其他块的标签代替。
+   示例: 如果你引用了“来源标签: [json/... | 1.4.2 远程状态显示及控制模块 > content | c25]”的内容，就在该段末尾附 [json/... | 1.4.2 远程状态显示及控制模块 > content | c25]，而不是附 [json/... | abstract | c10]。
 7) 多个上下文块能互补时，要综合组织答案；多个块互相冲突时，优先采用排序更靠前的证据，并说明差异来自不同来源。
 8) 回答语言必须与用户问题一致。中文问题用中文回答，英文问题用英文回答。
 9) 禁止直接输出论文题目、作者名单、单位信息、HTML/Markdown 标题块；不要把 title:、abstract:、content: 等字段名前缀原样抄进答案，除非用户明确询问这些字段。
@@ -36,6 +38,14 @@ public sealed partial class LocalAiService
         builder.AppendLine($"证据综合要求: {BuildCrossSourceSynthesisRule(queryProfile)}");
         builder.AppendLine($"领域细节要求: {BuildDomainGuidance(queryProfile)}");
         builder.AppendLine("输出要求: 保留上下文中的关键术语、技术栈、参数、代码实现、模块名和专业名词；按逻辑条理组织，拒绝泛泛而谈。");
+        if (queryProfile.Intent == "metadata")
+        {
+            builder.AppendLine("元数据提取指令: 上下文中已包含 englishTitle、englishAbstract、englishKeywords 等元数据字段，请直接从对应上下文块中提取原文内容，逐项列出。不要翻译，保留英文原文。不要回答'未覆盖'。");
+        }
+        if (queryProfile.Intent == "procedure")
+        {
+            builder.AppendLine("流程综合指令: 流程类问题的答案通常分散在控制算法、传感器、执行机构、测试结果等多个上下文块中，很少有单个块直接完整描述整个流程。你必须综合所有相关上下文块，按\"前提条件→核心步骤/算法→输出/效果\"的链路组织完整答案。不要因为单个块信息不完整就回答'未覆盖'。");
+        }
         if (!string.IsNullOrWhiteSpace(queryProfile.RequestedDocumentTitle) && targetFilePaths.Count > 0)
         {
             builder.AppendLine($"指定文档约束: 用户明确在问《{queryProfile.RequestedDocumentTitle}》相关内容。除非上下文明确要求跨文档补充，否则优先只使用该文档来源，不要跳到其他文档。");
@@ -115,7 +125,15 @@ public sealed partial class LocalAiService
         builder.AppendLine($"领域细节要求: {BuildDomainGuidance(queryProfile)}");
         builder.AppendLine($"证据综合要求: {BuildCrossSourceSynthesisRule(queryProfile)}");
         builder.AppendLine("修正重点: 不要输出无关题目模板、算法示例、代码题、标题作者块或无来源内容；保留上下文里的具体术语、技术栈、参数和实现细节。");
-        builder.AppendLine("重要: 本次绝对不能输出“我不知道”、“当前文档未覆盖”或类似拒答语句。你必须基于下方上下文综合出具体、完整的回答，引用上下文中的事实和术语。");
+        builder.AppendLine("重要: 本次绝对不能输出\"我不知道\"、\"当前文档未覆盖\"或类似拒答语句。你必须基于下方上下文综合出具体、完整的回答，引用上下文中的事实和术语。");
+        if (queryProfile.Intent == "metadata")
+        {
+            builder.AppendLine("元数据提取指令: 上下文中已包含 englishTitle、englishAbstract、englishKeywords 等元数据字段，请直接从对应上下文块中提取原文内容，逐项列出。不要翻译，保留英文原文。不要回答'未覆盖'。");
+        }
+        if (queryProfile.Intent == "procedure")
+        {
+            builder.AppendLine("流程综合指令: 流程类问题的答案通常分散在控制算法、传感器、执行机构、测试结果等多个上下文块中，很少有单个块直接完整描述整个流程。你必须综合所有相关上下文块，按\"前提条件→核心步骤/算法→输出/效果\"的链路组织完整答案。不要因为单个块信息不完整就回答'未覆盖'。");
+        }
         if (!string.IsNullOrWhiteSpace(queryProfile.RequestedDocumentTitle) && targetFilePaths.Count > 0)
         {
             builder.AppendLine($"指定文档约束: 用户明确在问《{queryProfile.RequestedDocumentTitle}》，本次回答优先使用该文档来源，不要跳到其他文档。");

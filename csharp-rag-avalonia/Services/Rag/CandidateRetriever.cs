@@ -58,6 +58,18 @@ public sealed partial class LocalAiService
         var globalLearnedRerank = await TryRerankWithLearnedModelAsync(question, candidates, queryProfile, ruleRerankCount, cancellationToken).ConfigureAwait(false);
         var ranked = globalLearnedRerank.RankedChunks;
         
+        // Task 3.2: For definition questions, boost chunks whose section title
+        // matches focus terms so they surface in top-chunk-signal checks.
+        if (queryProfile.Intent == "definition" && queryProfile.FocusTerms.Count > 0 && ranked.Count > 1)
+        {
+            ranked = ranked
+                .Select(c => SectionTitleContainsAnyTerm(c.Chunk, queryProfile.FocusTerms)
+                    ? c with { Score = c.Score + 1.0f }
+                    : c)
+                .OrderByDescending(c => c.Score)
+                .ToArray();
+        }
+
         // Task 3.2: Strictly ordered by Reranker score, Top-8 to Top-12
         var limit = queryProfile.WantsDetailedAnswer ? 12 : 8;
         var contextChunks = BuildAnswerContextChunks(ranked, queryProfile, targetFilePaths, limit);
@@ -115,6 +127,121 @@ public sealed partial class LocalAiService
             filteredRanked = scopedRanked;
         }
 
+        if (queryProfile.Intent == "metadata")
+        {
+            var metadataSelected = new List<DocumentChunk>();
+            AddFirstMatchingContextChunk(metadataSelected, filteredRanked, IsEnglishTitleChunk);
+            AddFirstMatchingContextChunk(metadataSelected, filteredRanked, IsEnglishAbstractChunk);
+            AddFirstMatchingContextChunk(metadataSelected, filteredRanked, IsEnglishKeywordsChunk);
+            AddFirstMatchingContextChunk(metadataSelected, scopedRanked, IsAbstractChunk);
+
+            foreach (var chunk in filteredRanked)
+            {
+                if (metadataSelected.Count >= limit)
+                {
+                    break;
+                }
+
+                if (metadataSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                metadataSelected.Add(chunk);
+            }
+
+            return metadataSelected.Take(limit).ToArray();
+        }
+
+        if (queryProfile.Intent == "procedure")
+        {
+            // Markdown body chunks are often fragmented by sliding-window chunking
+            // (start mid-sentence, end mid-sentence). For procedure questions that
+            // require synthesis across chunks, prefer well-structured chunks first
+            // so the model sees coherent context before fragmented pieces.
+            var procSelected = new List<DocumentChunk>();
+            foreach (var chunk in scopedRanked)
+            {
+                if (procSelected.Count >= limit)
+                {
+                    break;
+                }
+
+                if (procSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                if (IsWellStructuredSourceChunk(chunk) && ShouldKeepChunkForAnswer(queryProfile, chunk))
+                {
+                    procSelected.Add(chunk);
+                }
+            }
+
+            foreach (var chunk in filteredRanked)
+            {
+                if (procSelected.Count >= limit)
+                {
+                    break;
+                }
+
+                if (procSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                procSelected.Add(chunk);
+            }
+
+            return procSelected.ToArray();
+        }
+
+        if (queryProfile.Intent == "definition")
+        {
+            // For definition questions, prioritize chunks whose section title
+            // contains focus terms — these are likely the defining sections.
+            var defSelected = new List<DocumentChunk>();
+            var focusTerms = queryProfile.FocusTerms;
+
+            if (focusTerms.Count > 0)
+            {
+                foreach (var chunk in scopedRanked)
+                {
+                    if (defSelected.Count >= limit)
+                    {
+                        break;
+                    }
+
+                    if (defSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    if (ShouldKeepChunkForAnswer(queryProfile, chunk) && SectionTitleContainsAnyTerm(chunk, focusTerms))
+                    {
+                        defSelected.Add(chunk);
+                    }
+                }
+            }
+
+            foreach (var chunk in filteredRanked)
+            {
+                if (defSelected.Count >= limit)
+                {
+                    break;
+                }
+
+                if (defSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                defSelected.Add(chunk);
+            }
+
+            return defSelected.ToArray();
+        }
+
         if (queryProfile.Intent != "summary")
         {
             return filteredRanked.Take(limit).ToArray();
@@ -159,6 +286,55 @@ public sealed partial class LocalAiService
         }
 
         selected.Add(chunk);
+    }
+
+    private static bool IsEnglishTitleChunk(DocumentChunk chunk)
+    {
+        return chunk.ContentKind == "englishTitle"
+            || chunk.SectionTitle.Contains("englishTitle", StringComparison.OrdinalIgnoreCase)
+            || (chunk.StructurePath.Contains("englishTitle", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsEnglishAbstractChunk(DocumentChunk chunk)
+    {
+        return chunk.ContentKind == "englishAbstract"
+            || chunk.SectionTitle.Contains("englishAbstract", StringComparison.OrdinalIgnoreCase)
+            || (chunk.StructurePath.Contains("englishAbstract", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsEnglishKeywordsChunk(DocumentChunk chunk)
+    {
+        return chunk.ContentKind == "englishKeywords"
+            || chunk.SectionTitle.Contains("englishKeywords", StringComparison.OrdinalIgnoreCase)
+            || (chunk.StructurePath.Contains("englishKeywords", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsWellStructuredSourceChunk(DocumentChunk chunk)
+    {
+        // JSON chunks are parsed from structured document sections and
+        // are inherently complete sentences/paragraphs.
+        if (chunk.FilePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Markdown abstract/conclusion/intro chunks are also structured.
+        if (chunk.ContentKind is "abstract" or "conclusion" or "intro" or "metadata" or "summary")
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool SectionTitleContainsAnyTerm(DocumentChunk chunk, IReadOnlyList<string> terms)
+    {
+        if (string.IsNullOrWhiteSpace(chunk.SectionTitle))
+        {
+            return false;
+        }
+
+        return terms.Any(term => chunk.SectionTitle.Contains(term, StringComparison.Ordinal));
     }
 
     private async Task<float[]> GetEmbeddingVectorAsync(string text, CancellationToken cancellationToken)
