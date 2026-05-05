@@ -3106,6 +3106,13 @@ public sealed partial class LocalAiService : IDisposable
         }
 
         var normalized = answer.Trim();
+        if (normalized.Contains("我不知道", StringComparison.Ordinal)
+            || normalized.Contains("当前文档未覆盖", StringComparison.Ordinal)
+            || normalized.Contains("未找到相关信息", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
         if (normalized.Contains("Problem:", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("Constraints:", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("Approach:", StringComparison.OrdinalIgnoreCase)
@@ -3285,6 +3292,12 @@ public sealed partial class LocalAiService : IDisposable
             return !string.IsNullOrWhiteSpace(answer);
         }
 
+        if (queryProfile.Intent == "metadata")
+        {
+            answer = BuildLocalMetadataFallbackAnswer(queryProfile, chunks, targetFilePaths);
+            return !string.IsNullOrWhiteSpace(answer);
+        }
+
         return false;
     }
 
@@ -3391,6 +3404,70 @@ public sealed partial class LocalAiService : IDisposable
         return builder.ToString().TrimEnd();
     }
 
+    private static string BuildLocalMetadataFallbackAnswer(
+        QueryProfile queryProfile,
+        IReadOnlyList<DocumentChunk> chunks,
+        IReadOnlyList<string> targetFilePaths)
+    {
+        var targetFilePathSet = targetFilePaths.Count == 0
+            ? null
+            : new HashSet<string>(targetFilePaths, StringComparer.OrdinalIgnoreCase);
+
+        var scopedChunks = chunks
+            .Where(chunk => targetFilePathSet is null || targetFilePathSet.Contains(chunk.FilePath))
+            .ToArray();
+
+        var englishTitleChunk = scopedChunks
+            .FirstOrDefault(chunk => chunk.ContentKind == "englishTitle"
+                || chunk.SectionTitle.Contains("englishTitle", StringComparison.OrdinalIgnoreCase));
+        var englishAbstractChunk = scopedChunks
+            .FirstOrDefault(chunk => chunk.ContentKind == "englishAbstract"
+                || chunk.SectionTitle.Contains("englishAbstract", StringComparison.OrdinalIgnoreCase));
+        var englishKeywordsChunk = scopedChunks
+            .FirstOrDefault(chunk => chunk.ContentKind == "englishKeywords"
+                || chunk.SectionTitle.Contains("englishKeywords", StringComparison.OrdinalIgnoreCase));
+
+        if (englishTitleChunk is null && englishAbstractChunk is null && englishKeywordsChunk is null)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("以下是该 JSON 文档的英文元数据：");
+        builder.AppendLine();
+
+        if (englishTitleChunk is not null)
+        {
+            builder.Append("英文标题: ");
+            builder.Append(englishTitleChunk.Text.Trim());
+            builder.Append(' ');
+            builder.Append(BuildStableCitation(englishTitleChunk));
+            builder.AppendLine();
+            builder.AppendLine();
+        }
+
+        if (englishAbstractChunk is not null)
+        {
+            builder.Append("英文摘要: ");
+            builder.Append(englishAbstractChunk.Text.Trim());
+            builder.Append(' ');
+            builder.Append(BuildStableCitation(englishAbstractChunk));
+            builder.AppendLine();
+            builder.AppendLine();
+        }
+
+        if (englishKeywordsChunk is not null)
+        {
+            builder.Append("英文关键词: ");
+            builder.Append(englishKeywordsChunk.Text.Trim());
+            builder.Append(' ');
+            builder.Append(BuildStableCitation(englishKeywordsChunk));
+            builder.AppendLine();
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
     private static string BuildSummaryLeadText(DocumentChunk chunk)
     {
         var sentences = GetCleanSentences(chunk.Text, 3)
@@ -3447,7 +3524,7 @@ public sealed partial class LocalAiService : IDisposable
         var score = GetSummaryChunkBias(chunk);
         score += chunk.ContentKind switch
         {
-            "abstract" => 8,
+            "abstract" => 5,
             "summary" => 7,
             "conclusion" => 6,
             "intro" => 4,
@@ -3457,7 +3534,7 @@ public sealed partial class LocalAiService : IDisposable
 
         if (IsAbstractChunk(chunk))
         {
-            score += 10;
+            score += 3;
         }
 
         if (IsOverviewChunk(chunk))

@@ -125,6 +125,7 @@ public sealed partial class LocalAiService
             // Module implementation: look for the specific operational details of that module
             "module_implementation" => " (关注：该模块的技术参数、工作原理、接口与控制策略的直接描述)",
             "composition" or "module_list" or "list" => " (关注：关键模块名称、硬件组成、技术栈、并列项的直接列举)",
+            "definition" => " (关注：术语定义、概念解释、对象身份与职责的直接描述，优先匹配section标题中包含问题关键词的片段)",
             _ => ""
         };
         return question + suffix;
