@@ -19,6 +19,9 @@ internal static class QueryUnderstandingService
             intent,
             wantsDetailedAnswer,
             requestedDocumentTitle,
-            LocalAiService.AvoidsEnglishMetadata(question));
+            LocalAiService.RequestsEnglishMetadata(question),
+            LocalAiService.AvoidsEnglishMetadata(question),
+            LocalAiService.DisallowKeywordLikeLeadChunksForSummary(question),
+            LocalAiService.PreferFallbackOverUnknown(question));
     }
 }

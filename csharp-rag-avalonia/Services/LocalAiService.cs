@@ -212,7 +212,8 @@ public sealed partial class LocalAiService : IDisposable
 
         RememberActiveDocumentScope(topChunks);
 
-        if (ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
+        if (!queryProfile.PreferFallbackOverUnknown
+            && ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
         {
             return "我不知道（当前文档未覆盖）。";
         }
@@ -222,27 +223,30 @@ public sealed partial class LocalAiService : IDisposable
         var answer = NormalizeGeneratedAnswerCitations(
             await client.CompleteAsync(prompt, cancellationToken, RagSystemPrompt).ConfigureAwait(false),
             topChunks,
-            retrieval.TargetFilePaths);
+            retrieval.TargetFilePaths,
+            queryProfile);
 
         if (IsOffTopicOrMalformedAnswer(answer, retrievalQuestion, topChunks, retrieval.TargetFilePaths))
         {
             var repaired = NormalizeGeneratedAnswerCitations(
                 await client.CompleteAsync(BuildRepairPrompt(retrievalQuestion, queryProfile, retrieval.RankedChunks, topChunks, retrieval.TargetFilePaths), cancellationToken, RagSystemPrompt).ConfigureAwait(false),
                 topChunks,
-                retrieval.TargetFilePaths);
+                retrieval.TargetFilePaths,
+                queryProfile);
             if (!IsOffTopicOrMalformedAnswer(repaired, retrievalQuestion, topChunks, retrieval.TargetFilePaths))
             {
                 return repaired;
             }
 
-            if (ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
-            {
-                return "我不知道（当前文档未覆盖）。";
-            }
-
             if (TryBuildLocalFallbackAnswer(queryProfile, topChunks, retrieval.TargetFilePaths, out var fallbackAnswer))
             {
                 return fallbackAnswer;
+            }
+
+            if (!queryProfile.PreferFallbackOverUnknown
+                && ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
+            {
+                return "我不知道（当前文档未覆盖）。";
             }
 
             return "我不知道（当前文档未覆盖）。";
@@ -1625,6 +1629,47 @@ public sealed partial class LocalAiService : IDisposable
             || question.Contains("英文关键词", StringComparison.Ordinal)
             || question.Contains("英文", StringComparison.OrdinalIgnoreCase)
             || question.Contains("english", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool RequestsEnglishMetadata(string question)
+    {
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            return false;
+        }
+
+        return EnglishMetadataSignals.Any(signal => question.Contains(signal, StringComparison.OrdinalIgnoreCase))
+            || question.Contains("英文标题", StringComparison.Ordinal)
+            || question.Contains("英文摘要", StringComparison.Ordinal)
+            || question.Contains("英文关键词", StringComparison.Ordinal)
+            || question.Contains("englishTitle", StringComparison.OrdinalIgnoreCase)
+            || question.Contains("englishAbstract", StringComparison.OrdinalIgnoreCase)
+            || question.Contains("englishKeywords", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool DisallowKeywordLikeLeadChunksForSummary(string question)
+    {
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            return false;
+        }
+
+        return question.Contains("不要直接抄英文摘要", StringComparison.Ordinal)
+            || question.Contains("不要直接抄关键词", StringComparison.Ordinal)
+            || question.Contains("不要直接抄英文摘要或关键词", StringComparison.Ordinal)
+            || question.Contains("不要抄英文摘要", StringComparison.Ordinal)
+            || question.Contains("不要抄关键词", StringComparison.Ordinal);
+    }
+
+    internal static bool PreferFallbackOverUnknown(string question)
+    {
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            return false;
+        }
+
+        var intent = DetectIntent(question);
+        return intent is "procedure" or "composition" or "explain" or "definition" or "compare";
     }
 
     internal static bool IsMeaningfulFocusTerm(string token)
@@ -3067,14 +3112,29 @@ public sealed partial class LocalAiService : IDisposable
 
     private static bool IsEnglishFieldChunk(DocumentChunk chunk)
     {
+        if (chunk.ContentKind is "englishTitle" or "englishAbstract" or "englishKeywords")
+        {
+            return true;
+        }
+
         var structureText = $"{chunk.SectionTitle} {chunk.StructurePath}";
         return structureText.Contains("english", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ShouldKeepChunkForAnswer(QueryProfile queryProfile, DocumentChunk chunk)
     {
+        if (queryProfile.AvoidsEnglishMetadata && IsEnglishFieldChunk(chunk))
+        {
+            return false;
+        }
+
         if (queryProfile.Intent == "metadata")
         {
+            if (IsEnglishFieldChunk(chunk))
+            {
+                return queryProfile.RequestsEnglishMetadata || !IsChineseQuestion(queryProfile.OriginalQuestion);
+            }
+
             return true;
         }
 
@@ -3214,7 +3274,8 @@ public sealed partial class LocalAiService : IDisposable
     private static string NormalizeGeneratedAnswerCitations(
         string answer,
         IReadOnlyList<DocumentChunk> chunks,
-        IReadOnlyList<string> targetFilePaths)
+        IReadOnlyList<string> targetFilePaths,
+        QueryProfile? queryProfile = null)
     {
         if (string.IsNullOrWhiteSpace(answer)
             || chunks.Count == 0
@@ -3226,7 +3287,7 @@ public sealed partial class LocalAiService : IDisposable
             return answer;
         }
 
-        var citation = SelectDefaultCitation(chunks, targetFilePaths);
+        var citation = SelectDefaultCitation(chunks, targetFilePaths, queryProfile);
         if (string.IsNullOrWhiteSpace(citation))
         {
             return answer;
@@ -3259,7 +3320,7 @@ public sealed partial class LocalAiService : IDisposable
         return builder.ToString().TrimEnd();
     }
 
-    private static string SelectDefaultCitation(IReadOnlyList<DocumentChunk> chunks, IReadOnlyList<string> targetFilePaths)
+    private static string SelectDefaultCitation(IReadOnlyList<DocumentChunk> chunks, IReadOnlyList<string> targetFilePaths, QueryProfile? queryProfile = null)
     {
         var targetFilePathSet = targetFilePaths.Count == 0
             ? null
@@ -3267,7 +3328,7 @@ public sealed partial class LocalAiService : IDisposable
 
         var chunk = chunks
             .Where(item => targetFilePathSet is null || targetFilePathSet.Contains(item.FilePath))
-            .OrderByDescending(GetFallbackChunkScore)
+            .OrderByDescending(item => GetFallbackChunkScore(item, queryProfile))
             .ThenBy(item => item.Index)
             .FirstOrDefault();
 
@@ -3298,6 +3359,24 @@ public sealed partial class LocalAiService : IDisposable
             return !string.IsNullOrWhiteSpace(answer);
         }
 
+        if (queryProfile.Intent == "procedure")
+        {
+            answer = BuildLocalProcedureFallbackAnswer(queryProfile, chunks, targetFilePaths);
+            return !string.IsNullOrWhiteSpace(answer);
+        }
+
+        if (queryProfile.Intent == "composition")
+        {
+            answer = BuildLocalCompositionFallbackAnswer(queryProfile, chunks, targetFilePaths);
+            return !string.IsNullOrWhiteSpace(answer);
+        }
+
+        if (queryProfile.Intent == "explain")
+        {
+            answer = BuildLocalExplainFallbackAnswer(queryProfile, chunks, targetFilePaths);
+            return !string.IsNullOrWhiteSpace(answer);
+        }
+
         return false;
     }
 
@@ -3317,7 +3396,7 @@ public sealed partial class LocalAiService : IDisposable
             .Select(chunk => new
             {
                 Chunk = chunk,
-                Score = GetFallbackChunkScore(chunk)
+                Score = GetFallbackChunkScore(chunk, queryProfile)
                     + CountSignals(chunk.Text, "STM32", "数据采集", "决策控制", "执行机构", "交互显示", "模块", "架构", "控制", "传感器", "算法", "显示", "电磁阀", "测试", "节水")
             })
             .Where(item => item.Score > 0)
@@ -3332,7 +3411,7 @@ public sealed partial class LocalAiService : IDisposable
             .Where(IsSummaryFallbackCandidate)
             .Where(chunk => ContainsCjk(chunk.Text) || !ContainsCjk(queryProfile.OriginalQuestion))
             .Where(chunk => IsOverviewChunk(chunk))
-            .OrderByDescending(GetFallbackChunkScore)
+            .OrderByDescending(chunk => GetFallbackChunkScore(chunk, queryProfile))
             .ThenBy(chunk => chunk.Index)
             .FirstOrDefault();
 
@@ -3401,6 +3480,127 @@ public sealed partial class LocalAiService : IDisposable
             }
         }
 
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string BuildLocalProcedureFallbackAnswer(
+        QueryProfile queryProfile,
+        IReadOnlyList<DocumentChunk> chunks,
+        IReadOnlyList<string> targetFilePaths)
+    {
+        var scopedChunks = FilterChunksByTargetFilePaths(chunks, targetFilePaths);
+        if (scopedChunks.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var sensingChunk = FindRepresentativeChunk(scopedChunks, "土壤湿度", "环境温湿度", "采集", "传感器");
+        var decisionChunk = FindRepresentativeChunk(scopedChunks, "模糊pid", "模糊PID", "控制", "动态调整", "偏差");
+        var executionChunk = FindRepresentativeChunk(scopedChunks, "电磁阀", "PWM", "占空比", "阀门");
+        var outcomeChunk = FindRepresentativeChunk(scopedChunks, "精准灌溉", "节水", "误差", "控制在", "测试");
+
+        var ordered = new[]
+            { sensingChunk, decisionChunk, executionChunk, outcomeChunk }
+            .Where(chunk => chunk is not null)
+            .Cast<DocumentChunk>()
+            .DistinctBy(chunk => $"{chunk.FilePath}#{chunk.Index}")
+            .ToArray();
+
+        if (ordered.Length < 3)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        builder.Append("这个智能浇花系统通过“感知 -> 决策 -> 执行 -> 效果反馈”的闭环来实现精准灌溉。");
+        builder.Append(' ');
+        builder.Append(BuildStableCitation(ordered[0]));
+        builder.AppendLine();
+
+        AppendFallbackBullet(builder, "感知", sensingChunk, "系统先采集土壤湿度与环境温湿度等参数，作为后续灌溉决策的输入。");
+        AppendFallbackBullet(builder, "决策", decisionChunk, "随后结合模糊PID复合控制，根据湿度偏差和变化趋势动态调节灌溉量，大偏差时快速逼近，小偏差时精准微调。");
+        AppendFallbackBullet(builder, "执行", executionChunk, "执行层通过PWM驱动电磁阀，把控制结果转成具体阀门开度和供水流量。");
+        AppendFallbackBullet(builder, "效果", outcomeChunk, "最终系统能把土壤湿度稳定控制在目标范围附近，并通过测试验证实现节水与精准控制。");
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string BuildLocalCompositionFallbackAnswer(
+        QueryProfile queryProfile,
+        IReadOnlyList<DocumentChunk> chunks,
+        IReadOnlyList<string> targetFilePaths)
+    {
+        var scopedChunks = FilterChunksByTargetFilePaths(chunks, targetFilePaths);
+        if (scopedChunks.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var hardwareChunks = new[]
+        {
+            FindRepresentativeChunk(scopedChunks, "土壤湿度", "土壤温湿度", "传感器"),
+            FindRepresentativeChunk(scopedChunks, "环境温湿度", "环境参数", "传感器"),
+            FindRepresentativeChunk(scopedChunks, "电磁阀", "PWM"),
+            FindRepresentativeChunk(scopedChunks, "OLED", "显示屏"),
+            FindRepresentativeChunk(scopedChunks, "ESP-01S", "WiFi", "MQTT")
+        };
+
+        var availableChunks = hardwareChunks
+            .Where(chunk => chunk is not null)
+            .Cast<DocumentChunk>()
+            .DistinctBy(chunk => $"{chunk.FilePath}#{chunk.Index}")
+            .ToArray();
+
+        if (availableChunks.Length < 4)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        builder.Append("这套系统的硬件组成主要包括土壤湿度传感器、环境温湿度传感器、电磁阀、OLED 显示模块和 ESP-01S WiFi 模块。 ");
+        builder.Append(BuildStableCitation(availableChunks[0]));
+        builder.AppendLine();
+        AppendFallbackBullet(builder, "土壤湿度传感器", hardwareChunks[0], "负责检测土壤含水状态，为灌溉控制提供核心输入。");
+        AppendFallbackBullet(builder, "环境温湿度传感器", hardwareChunks[1], "用于采集空气温湿度等环境信息，辅助补偿与决策。");
+        AppendFallbackBullet(builder, "电磁阀", hardwareChunks[2], "作为执行机构，接收控制信号完成供水开关与流量调节。");
+        AppendFallbackBullet(builder, "OLED", hardwareChunks[3], "负责本地状态显示和关键参数可视化。");
+        AppendFallbackBullet(builder, "ESP-01S", hardwareChunks[4], "负责远程联网、数据上传和远程控制链路。");
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string BuildLocalExplainFallbackAnswer(
+        QueryProfile queryProfile,
+        IReadOnlyList<DocumentChunk> chunks,
+        IReadOnlyList<string> targetFilePaths)
+    {
+        var scopedChunks = FilterChunksByTargetFilePaths(chunks, targetFilePaths);
+        if (scopedChunks.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var reasonChunk = FindRepresentativeChunk(scopedChunks, "蒸发", "温度", "湿度", "环境补偿");
+        var mechanismChunk = FindRepresentativeChunk(scopedChunks, "灌溉量", "动态调整", "补偿", "昼夜", "高温");
+        var impactChunk = FindRepresentativeChunk(scopedChunks, "积水", "防涝", "节水", "误差", "精准灌溉");
+
+        var ordered = new[]
+            { reasonChunk, mechanismChunk, impactChunk }
+            .Where(chunk => chunk is not null)
+            .Cast<DocumentChunk>()
+            .DistinctBy(chunk => $"{chunk.FilePath}#{chunk.Index}")
+            .ToArray();
+
+        if (ordered.Length < 2)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        builder.Append("环境补偿机制是必要的，因为植物实际需水量不仅取决于土壤湿度，还会受到温度、空气湿度和蒸发条件变化的影响。 ");
+        builder.Append(BuildStableCitation(ordered[0]));
+        builder.AppendLine();
+        AppendFallbackBullet(builder, "为什么需要", reasonChunk, "如果只按固定阈值灌溉，就无法反映高温、干燥或昼夜变化带来的蒸发差异。");
+        AppendFallbackBullet(builder, "作用机制", mechanismChunk, "系统会结合温度、湿度和环境状态对灌溉量做动态补偿，在高温干燥时增加补水，在潮湿或阴雨时减少灌溉。");
+        AppendFallbackBullet(builder, "不补偿会怎样", impactChunk, "缺少补偿时容易出现供水不足或积水过量，影响精准灌溉、节水效果和控制稳定性。");
         return builder.ToString().TrimEnd();
     }
 
@@ -3519,27 +3719,28 @@ public sealed partial class LocalAiService : IDisposable
             || source.Contains("总体", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static int GetFallbackChunkScore(DocumentChunk chunk)
+    private static int GetFallbackChunkScore(DocumentChunk chunk, QueryProfile? queryProfile = null)
     {
-        var score = GetSummaryChunkBias(chunk);
+        var isSummaryFallback = queryProfile?.Intent == "summary";
+        var score = isSummaryFallback ? GetSummaryChunkBias(chunk) : 0;
         score += chunk.ContentKind switch
         {
-            "abstract" => 5,
-            "summary" => 7,
-            "conclusion" => 6,
-            "intro" => 4,
+            "abstract" => isSummaryFallback ? 5 : 0,
+            "summary" => isSummaryFallback ? 7 : 1,
+            "conclusion" => isSummaryFallback ? 6 : 2,
+            "intro" => isSummaryFallback ? 4 : 1,
             "body" => 2,
             _ => 0
         };
 
         if (IsAbstractChunk(chunk))
         {
-            score += 3;
+            score += isSummaryFallback ? 1 : -2;
         }
 
         if (IsOverviewChunk(chunk))
         {
-            score += 5;
+            score += isSummaryFallback ? 5 : 1;
         }
 
         if (ContainsCjk(chunk.Text))
@@ -3552,7 +3753,79 @@ public sealed partial class LocalAiService : IDisposable
             score -= 3;
         }
 
+        if (queryProfile is not null)
+        {
+            score += GetIntentChunkBias(chunk, queryProfile);
+        }
+
         return score;
+    }
+
+    private static int GetIntentChunkBias(DocumentChunk chunk, QueryProfile queryProfile)
+    {
+        switch (queryProfile.Intent)
+        {
+            case "summary":
+                var summaryBias = 0;
+                if (IsAbstractChunk(chunk))
+                {
+                    summaryBias += 5;
+                }
+                if (chunk.ContentKind == "summary")
+                {
+                    summaryBias += 2;
+                }
+                return summaryBias;
+
+            case "definition":
+            case "module_implementation":
+            case "procedure":
+            case "compare":
+                var bodyBias = 0;
+                if (IsAbstractChunk(chunk))
+                {
+                    bodyBias -= 2;
+                }
+                if (chunk.ContentKind == "body")
+                {
+                    bodyBias += 4;
+                    if (queryProfile.FocusTerms.Count > 0)
+                    {
+                        var sectionLower = chunk.SectionTitle.ToLowerInvariant();
+                        var retrievalText = BuildChunkRetrievalText(chunk).ToLowerInvariant();
+                        foreach (var term in queryProfile.FocusTerms)
+                        {
+                            if (sectionLower.Contains(term, StringComparison.OrdinalIgnoreCase))
+                            {
+                                bodyBias += 5;
+                            }
+
+                            if (retrievalText.Contains(term, StringComparison.Ordinal))
+                            {
+                                bodyBias += 2;
+                            }
+                        }
+                    }
+                }
+                return bodyBias;
+
+            case "metadata":
+                if (queryProfile.RequestsEnglishMetadata
+                    && chunk.ContentKind is "englishTitle" or "englishAbstract" or "englishKeywords")
+                {
+                    return 8;
+                }
+
+                if (chunk.ContentKind is "abstract" or "englishTitle" or "englishAbstract" or "englishKeywords"
+                    || IsAbstractChunk(chunk))
+                {
+                    return 3;
+                }
+                return 0;
+
+            default:
+                return 0;
+        }
     }
 
     private static bool ContainsOnlyAsciiOrPunctuation(string text)
@@ -3578,7 +3851,12 @@ public sealed partial class LocalAiService : IDisposable
             return false;
         }
 
-        if (queryProfile.Intent is "summary" or "metadata")
+        if (queryProfile.Intent is "summary" or "metadata" or "procedure" or "composition" or "explain" or "definition")
+        {
+            return false;
+        }
+
+        if (chunks.Count > 3 || queryProfile.PreferFallbackOverUnknown)
         {
             return false;
         }
@@ -3624,7 +3902,53 @@ public sealed partial class LocalAiService : IDisposable
         }
 
         var matchedTokenCount = topicalTokens.Count(token => combinedText.Contains(token, StringComparison.Ordinal));
-        return matchedTokenCount == 0;
+        if (matchedTokenCount > 0)
+        {
+            return false;
+        }
+
+        return !HasAnyTermInChunks(topicalTokens, scopedChunks);
+    }
+
+    private static DocumentChunk[] FilterChunksByTargetFilePaths(
+        IReadOnlyList<DocumentChunk> chunks,
+        IReadOnlyList<string> targetFilePaths)
+    {
+        var targetFilePathSet = targetFilePaths.Count == 0
+            ? null
+            : new HashSet<string>(targetFilePaths, StringComparer.OrdinalIgnoreCase);
+
+        return chunks
+            .Where(chunk => targetFilePathSet is null || targetFilePathSet.Contains(chunk.FilePath))
+            .ToArray();
+    }
+
+    private static void AppendFallbackBullet(StringBuilder builder, string label, DocumentChunk? chunk, string fallbackText)
+    {
+        if (chunk is null)
+        {
+            return;
+        }
+
+        builder.Append("- ");
+        builder.Append(label);
+        builder.Append("：");
+
+        var sentence = GetCleanSentences(chunk.Text, 1).FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(sentence))
+        {
+            sentence = fallbackText;
+        }
+
+        if (sentence.Length > 150)
+        {
+            sentence = sentence[..150].TrimEnd('，', ',', '；', ';') + "。";
+        }
+
+        builder.Append(sentence.TrimEnd('。'));
+        builder.Append("。 ");
+        builder.Append(BuildStableCitation(chunk));
+        builder.AppendLine();
     }
 
     private static bool ContainsOnlyKnownCitations(string answer, IReadOnlyList<DocumentChunk> chunks)

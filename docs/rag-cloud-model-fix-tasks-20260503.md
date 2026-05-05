@@ -117,7 +117,7 @@
 
 ## P1 — 严重影响（影响多个 case 或关键指标）
 
-### 任务 P1-1：改善 definition 类问题的检索排序
+### 任务 P1-1：改善 definition 类问题的检索排序 ✅ 已完成
 
 - **影响 case**: `stm32-definition-mcu`, `stm32-compare-fuzzy-pid` (2个)
 - **现象**: 
@@ -139,7 +139,7 @@
 
 ---
 
-### 任务 P1-2：修复 `NormalizeGeneratedAnswerCitations` 自动补引用的偏置
+### 任务 P1-2：修复 `NormalizeGeneratedAnswerCitations` 自动补引用的偏置 ✅ 已完成
 
 - **影响 case**: 所有模型生成了正确回答但缺少引用的 case
 - **现象**: 当 LLM 输出语义正确的回答但没有加引用时，`NormalizeGeneratedAnswerCitations` 自动补引用，但 `SelectDefaultCitation` 几乎总是选 c10 (abstract)，导致引用精度下降
@@ -164,9 +164,14 @@
   1. 构造测试：LLM 输出"STM32L031G6 是主控芯片"（无引用），自动补引用后标签指向 c18 而非 c10
   2. summary 类 case (stm32-summary) 不受影响，fallback 仍优先选 abstract
 
+- **实际修改**:
+  - `NormalizeGeneratedAnswerCitations` / `SelectDefaultCitation` 传入 `QueryProfile`
+  - fallback 评分改为按 intent 分流：`summary` 保留摘要/概述偏好；`definition` / `module_implementation` / `procedure` 偏好正文、section title 命中和正文焦点词命中；`metadata` 在明确询问英文元数据时优先 `englishTitle` / `englishAbstract` / `englishKeywords`
+  - 抽象段的通用偏置降为 summary 专属，避免普通补引用默认落到 abstract/c10
+
 ---
 
-### 任务 P1-3：英文元数据/摘要 chunk 过滤
+### 任务 P1-3：英文元数据/摘要 chunk 过滤 ✅ 已完成
 
 - **影响 case**: `json-metadata-english` 修复后的验证，以及其他中文问题场景
 - **现象**: 上下文窗口只有 8 个 chunk。在中文问题 + 中文文档场景下，`englishAbstract` 分段占 3 个位置 (c11, c12, c13)，挤占了中文正文内容的空间
@@ -184,6 +189,11 @@
 - **验收标准**:
   1. 中文问题场景下，上下文窗口中的 englishAbstract chunk 数量 ≤ 1（仅当确实没有中文内容替代时）
   2. `json-metadata-english` 场景下（问题明确问英文），英文元数据 chunk 正常保留
+
+- **实际修改**:
+  - `QueryProfile` 增加 `RequestsEnglishMetadata`，用于区分“普通中文问题”和“明确询问英文标题/摘要/关键词”
+  - `ShouldKeepChunkForAnswer` 对中文非英文元数据问题过滤 `englishTitle` / `englishAbstract` / `englishKeywords`，metadata intent 下也遵守该规则
+  - metadata context 构建只从过滤后的 chunks 补 abstract，并保留同一英文字段类型最多一个 chunk，避免 `englishAbstract` 多分片挤占窗口
 
 ---
 
