@@ -2,43 +2,52 @@
 
 [简体中文](rag-architecture.zh-CN.md)
 
-This document summarizes the current RAG design implemented in `csharp-rag-avalonia`, mainly covering:
+This document summarizes the current RAG design implemented in `csharp-rag-avalonia`. The pipeline has undergone a major V2 refactoring (completed 2026-05-02) and now follows a **model-driven** architecture that delegates retrieval ranking authority to the BGE-Reranker cross-encoder instead of hand-crafted heuristic rules.
+
+Primary source files:
 
 - `csharp-rag-avalonia/Services/LocalAiService.cs`
+- `csharp-rag-avalonia/Services/Rag/CandidateRetriever.cs`
+- `csharp-rag-avalonia/Services/Rag/ChunkRanker.cs`
+- `csharp-rag-avalonia/Services/Rag/EvidenceSelector.cs`
+- `csharp-rag-avalonia/Services/Rag/AnswerComposer.cs`
+- `csharp-rag-avalonia/Services/Rag/QueryUnderstandingService.cs`
+- `csharp-rag-avalonia/Services/Rag/RagContracts.cs`
 - `csharp-rag-avalonia/Services/LlamaServerChatClient.cs`
 - `csharp-rag-avalonia/Services/RagOptions.cs`
 - `csharp-rag-avalonia/Services/EvalRunner.cs`
 
 ## 1. System Overview
 
-The current system is a local-first desktop RAG pipeline with seven layers:
+The current system is a local-first desktop RAG pipeline structured in seven layers:
 
 1. document ingestion and normalization
 2. chunking and metadata generation
 3. embedding and local cache
-4. two-stage retrieval
-5. lightweight reranking
-6. answer generation through `llama-server`
-7. answer validation, fallback, and offline evaluation
+4. semantic candidate retrieval (pure vector cosine, Top-N)
+5. BGE-Reranker cross-encoder ranking (authoritative)
+6. intent-aware context assembly
+7. answer generation, quality validation, fallback, and offline evaluation
 
-High-level flow:
+High-level flow (`refactored` pipeline mode):
 
 ```text
 user question
   -> AskAsync
     -> NormalizeQuestionForRetrieval
-    -> BuildQueryProfile
+    -> BuildQueryProfile          (intent, focus terms, doc scope)
     -> FindRelevantChunksAsync
-      -> sparse prefilter
-      -> semantic scoring on the filtered candidate pool
-      -> RerankCandidates
-      -> BuildContextWindow
+      -> (optional) hard FilePath scope filter
+      -> vector cosine similarity over all scoped chunks
+      -> Top-N candidates (default cap 50–100)
+      -> TryRerankWithLearnedModelAsync  (BGE-Reranker via /v1/rerank)
+      -> post-rerank intent boost nudge (definition / compare / procedure / summary)
+      -> BuildAnswerContextChunks        (intent-specific slot assembly)
     -> BuildPrompt
     -> llama-server /v1/chat/completions
-    -> answer quality checks
+    -> IsOffTopicOrMalformedAnswer
       -> repair prompt retry
-      -> summary-aware fallback
-      -> extractive fallback
+      -> intent-specific fallback answer builders
 ```
 
 ## 2. Document Ingestion
@@ -62,7 +71,7 @@ For PDFs, the app shells out to `pdftotext` and feeds extracted UTF-8 text into 
 - if the knowledge base already contains a file with identical content, the app reuses the existing file instead of creating a duplicate
 - only truly new files are copied into `doc/`
 
-This avoids repeated “same document with another timestamp suffix” artifacts.
+This avoids repeated "same document with another timestamp suffix" artifacts.
 
 ### 2.3 JSON normalization
 
@@ -73,9 +82,7 @@ JSON files are not chunked as raw JSON text. They are first converted into struc
 - arrays are expanded into section blocks or bullet-style lists, and object items receive `item N + preview` section labels
 - the resulting text is then fed into the normal text/Markdown chunking pipeline
 
-This makes JSON searchable through title and section signals instead of treating the whole file as a noisy blob.
-
-It also avoids weak citations such as bare `[1]` / `[2]` labels for deep array items.
+This makes JSON searchable through title and section signals instead of treating the whole file as a noisy blob. Deep array items get stable `StructurePath` labels and are citable as `[file | section > sub | cN]`.
 
 ## 3. Chunking and Metadata
 
@@ -101,7 +108,7 @@ Each `DocumentChunk` includes:
 - `ContentKind`
 - `Text`
 
-These fields are used by retrieval and the stable citation system. `StructurePath` and `ContentKind` are also reused by JSON-aware reranking, context expansion, and summary fallback selection.
+`StructurePath` and `ContentKind` are used throughout: by the reranker document builder, by intent-specific context assembly, and by the stable citation system.
 
 ## 4. Embedding and Cache
 
@@ -140,13 +147,13 @@ Besides embeddings, the service also maintains:
 - global `_documentFrequency`
 - global `_avgDocumentLength`
 
-These are required for BM25 and other sparse retrieval signals.
+These are available for BM25 and other sparse retrieval signals, though the default `refactored` pipeline does not use BM25 in the primary candidate retrieval path.
 
 ## 5. Query Understanding
 
 ### 5.1 Question normalization
 
-`NormalizeQuestionForRetrieval` removes greeting/noise prefixes and can expand follow-up questions such as “be more detailed” or “continue” by borrowing the previous user turn.
+`NormalizeQuestionForRetrieval` removes greeting/noise prefixes and can expand follow-up questions such as "be more detailed" or "continue" by borrowing the previous user turn.
 
 ### 5.2 Query token extraction
 
@@ -158,13 +165,14 @@ These are required for BM25 and other sparse retrieval signals.
 
 ### 5.3 QueryProfile
 
-`BuildQueryProfile` generates:
+`BuildQueryProfile` (via `QueryUnderstandingService`) generates:
 
-- `FocusTerms`
-- `Intent`
+- `FocusTerms` — up to 8 meaningful tokens from the current question
+- `Intent` — document-classified query intent
 - `WantsDetailedAnswer`
-
-`FocusTerms` now come from the current user question itself, while follow-up expansion still borrows prior turns through `BuildFocusTermSourceText` when needed.
+- `RequestedDocumentTitle` — for document-scoped queries like `《...》这篇论文`
+- `CompareSubjects` — for `compare` intent
+- metadata preference flags (`RequestsEnglishMetadata`, `AvoidsEnglishMetadata`, etc.)
 
 Supported intent types:
 
@@ -174,124 +182,108 @@ Supported intent types:
 - `usage`
 - `summary`
 - `definition`
+- `module_list`
+- `module_implementation`
+- `composition`
+- `metadata`
 - `general`
 
-The `summary` intent now explicitly covers prompts such as “主要讲什么 / 主要内容 / 概述 / 总结”.
+The `summary` intent explicitly covers prompts such as "主要讲什么 / 主要内容 / 概述 / 总结".
 
-These values influence reranking, prompt structure, and fallback answer selection.
+These values influence the reranker query suffix, context window assembly, prompt structure, and fallback answer selection.
 
-## 6. Two-Stage Retrieval
+## 6. Candidate Retrieval (Model-Driven)
 
-`FindRelevantChunksAsync` now uses a two-stage retrieval design.
+`FindRelevantChunksAsync` now implements a lean, model-driven retrieval design. The heuristic-heavy two-stage sparse+semantic pipeline has been replaced in the `refactored` pipeline mode.
 
-### 6.1 Stage 1: sparse prefilter
+### 6.1 Hard scope filter
 
-Every chunk first receives sparse-only signals:
+If the question names a specific document (via title detection or active-document context), the candidate set is first restricted to chunks from the matching file(s). This is a hard `FilePath` equality filter, not a score bonus.
 
-- `BM25`
-- `KeywordScore`
-- `TitleScore`
-- `JsonStructureScore`
-- `HasDirectKeywordHit`
-- `NoisePenalty`
+### 6.2 Vector-only candidate retrieval
 
-This produces:
+The primary retrieval step scores all in-scope chunks by **cosine similarity** between the question embedding and each chunk embedding:
 
 ```text
-sparseScore =
-  bm25 * Bm25Weight
-  + keyword * KeywordWeight
-  + title * TitleWeight
-  + jsonStructure * JsonStructureWeight
-  + directHitBonus
-  - noisePenalty
+semanticScore = CosineSimilarity(questionVector, chunkEmbedding)
 ```
 
-Chunks are sorted by this score to form a larger prefilter candidate pool.
+Chunks are sorted descending by `semanticScore`. The top `vectorCandidateLimit` candidates proceed to reranking. `vectorCandidateLimit` is clamped to `[SparseCandidatePoolSize, 100]` (default 50–100).
 
-### 6.2 Stage 2: semantic scoring
+BM25, keyword scoring, and title scoring are **not** applied to this candidate selection step in the `refactored` mode. Their computed values are stored for debug output but do not influence ranking.
 
-Only the filtered candidate pool is sent to the embedding similarity stage:
+### 6.3 Key retrieval knobs
 
-```text
-finalCandidateScore =
-  semantic * VectorWeight
-  + sparseScore
-```
-
-This avoids running cosine similarity over every chunk in the corpus.
-
-### 6.3 Semantic fallback
-
-If sparse evidence is too weak for a query, such as:
-
-- no meaningful keyword hits
-- no title hits
-- near-zero BM25 evidence
-
-the system falls back to full semantic scoring so paraphrased or fuzzy questions are not over-pruned by the sparse stage.
-
-### 6.4 Key retrieval knobs
-
-- `RAG_CANDIDATE_POOL_SIZE`
-  final candidate count sent into reranking
 - `RAG_SPARSE_CANDIDATE_POOL_SIZE`
-  sparse prefilter size before semantic scoring
+  lower bound for the vector candidate limit (default 48; effective range after clamping: 50–100)
+- `RAG_TOP_K`
+  final context chunk count (default 8; bumped to 12 for `WantsDetailedAnswer` queries)
 
-## 7. Reranking
+## 7. BGE-Reranker Ranking (Authoritative)
 
-`RerankCandidates` first adds rule-based features on top of the candidate score. If the local reranker server is reachable, the top rule-ranked candidates are then sent to BGE-Reranker through llama.cpp's `/v1/rerank` endpoint for learned cross-encoder reranking.
+`TryRerankWithLearnedModelAsync` sends the full vector candidate pool to the BGE-Reranker cross-encoder via llama.cpp's `/v1/rerank` endpoint. The reranker score becomes the **sole ordering criterion** for the ranked list.
 
-### 7.1 Coverage
+### 7.1 Reranker query construction
 
-`ComputeCoverageScore` measures how completely the candidate covers the focus terms.
+`BuildRerankerQuery` appends an intent-specific focus hint to the raw question before sending to the reranker:
 
-### 7.2 Neighbor support
+| Intent | Appended hint |
+|--------|--------------|
+| `procedure` / `implementation` | 关注：精确技术参数、单一功能点的直接描述、具体数值/公式/代码逻辑 |
+| `module_implementation` | 关注：该模块的技术参数、工作原理、接口与控制策略的直接描述 |
+| `composition` / `module_list` / `list` | 关注：关键模块名称、硬件组成、技术栈、并列项的直接列举 |
+| `definition` | 关注：术语定义、概念解释、对象身份与职责的直接描述 |
+| other | (no suffix) |
 
-`ComputeNeighborSupportScore` checks whether adjacent chunks from the same file also support the same topic.
+### 7.2 Reranker document format
 
-### 7.3 JSON branch support
-
-`ComputeJsonBranchSupportScore` checks whether sibling / parent / child chunks from the same JSON structure branch also support the focus terms.
-
-This is mainly useful when:
-
-- the best hit is a single array item and nearby structured evidence should remain attached
-- the best hit is a deep node and the answer needs parent/child details from the same branch
-
-### 7.4 Intent boost
-
-`ComputeIntentBoost` adds a small extra score when the chunk contains intent-specific signals:
-
-- `usage` prefers “作用 / 用途 / 功能 / 用于”
-- `procedure` prefers “步骤 / 流程 / 首先 / 然后”
-- `explain` prefers “原因 / 机制 / 因为 / 由于”
-
-### 7.5 Rule rerank formula
+Each chunk sent to the reranker is formatted as:
 
 ```text
-rerankScore =
-  candidateScore
-  + coverage * CoverageWeight
-  + neighbor * NeighborWeight
-  + jsonBranch * JsonBranchWeight
-  + intentBoost
+file: <FilePath>
+section: <StructurePath or SectionTitle>
+kind: <ContentKind>
+<chunk retrieval text>
 ```
 
-The learned reranker reorders this candidate set when available. If the reranker server is disabled, unreachable, times out, or returns an unusable response, retrieval falls back to the rule-ranked order.
+### 7.3 Ranking output
 
-The final top `TopK` chunks become the main answer evidence.
+The reranker returns a relevance score per candidate. Chunks are sorted in descending score order. If two chunks tie on reranker score, the one with a higher original vector score wins, then the lower original rank.
 
-## 8. Context Window Expansion
+### 7.4 Post-rerank intent boost
 
-`BuildContextWindow` expands the top-ranked chunks with nearby chunks. For JSON hits it also pulls in supporting chunks from the same structure branch:
+After the reranker orders the list, a lightweight **intent boost nudge** is applied to the reranked scores for `definition`, `compare`, `procedure`, and `summary` intents. This is additive and does not override the reranker — it only resolves near-tie ordering within intent-specific signals:
 
-- the radius is controlled by `ContextWindowRadius`
-- JSON branch supplements are capped at `max(1, ContextWindowRadius + 1)` per seed chunk
-- each chunk appears at most once
-- output is ordered by `FilePath + Index`
+- `sectionTitle` match to intent term: +0.9
+- `structurePath` match: +0.7
+- retrieval text match: +0.35
+- `body` ContentKind: +0.35
+- well-structured source (JSON / abstract / conclusion): +0.2
+- `compare` subject match: +0.8
+- `procedure` JSON source: +1.4, unstructured Markdown body: −2.1
 
-This helps preserve local context and reduces hard boundary loss caused by chunking.
+### 7.5 Reranker fallback
+
+If the reranker server is disabled, unreachable, times out, or returns an unusable response, retrieval falls back to the vector-sorted candidate order (no rule-based rerankScore is applied in `refactored` mode).
+
+## 8. Context Window Assembly
+
+`BuildAnswerContextChunks` assembles the final context from the reranked list. Assembly is **intent-specific**:
+
+| Intent | Assembly strategy |
+|--------|-----------------|
+| `metadata` | Priority slots: englishTitle → englishAbstract → englishKeywords → abstract; then fill to limit, deduplicate English fields |
+| `procedure` | Prefer well-structured (JSON / abstract / conclusion) chunks first, then fill from filtered list |
+| `definition` | Prefer chunks whose `SectionTitle` contains focus terms, then fill |
+| `compare` | Prefer chunks matching both compare subjects, then chunks matching any compare term, then fill |
+| `summary` | 2 summary-lead chunks (abstract / overview / conclusion) + support chunks by priority score, then fill |
+| other | Top-N from filtered ranked list |
+
+The limit is 8 chunks by default and 12 for `WantsDetailedAnswer` queries.
+
+An additional `ShouldKeepChunkForAnswer` filter removes chunks that should not appear in final context for the given intent (e.g. English-only chunks for Chinese summary questions).
+
+> **Note:** Context window radius expansion (`BuildContextWindow`) and JSON branch supplement logic are available but not invoked in the current `refactored` pipeline mode. The intent-specific assembly in `BuildAnswerContextChunks` effectively replaces them.
 
 ## 9. Answer Generation
 
@@ -300,19 +292,34 @@ This helps preserve local context and reduces hard boundary loss caused by chunk
 - health check: `/health`
 - generation endpoint: `/v1/chat/completions`
 
-### 9.1 Prompt structure
+### 9.1 System prompt
 
-`BuildPrompt` and `BuildRepairPrompt` explicitly include:
+A strong system prompt (`RagSystemPrompt`) is embedded in every request. It enforces:
+
+1. answer only from the provided context — no external knowledge
+2. synthesize across multiple context blocks, do not collapse to "not found"
+3. preserve specific parameters, terminology, module names, and technical vocabulary verbatim
+4. structure answers by intent: conclusion-first, then details; steps for procedure; dimensions for compare
+5. one stable citation label per claim — must copy the `来源标签:` exactly, no short `[c3]` references
+6. language must match the question language
+
+### 9.2 Prompt structure
+
+`BuildPrompt` explicitly includes:
 
 - intent description
-- prioritized evidence list
-- context body
-- answer rules
-- an intent-aware cross-source synthesis rule
+- answer structure rule
+- cross-source synthesis rule
+- domain guidance
+- output requirement reminder
+- intent-specific instruction block (metadata / procedure / compare / document-scope constraint)
+- conversation history (up to 6 recent turns, for pronoun resolution only)
+- prioritized evidence list (ranked chunk citations)
+- context body (all context chunks with stable labels)
 
-### 9.2 Stable citations
+### 9.3 Stable citations
 
-The system no longer relies on temporary prompt-local numbering like `[1] [2]`. Instead, it uses stable source labels such as:
+The system does not use temporary prompt-local numbering like `[1] [2]`. Instead it uses stable source labels:
 
 ```text
 [doc/json/a.json | section name | c3]
@@ -324,7 +331,7 @@ Each label includes:
 - `SectionTitle`
 - chunk index
 
-This makes citations far more stable even when context ordering changes.
+Citations are stable even when context ordering changes between calls.
 
 ## 10. Answer Validation and Fallback
 
@@ -339,11 +346,11 @@ This makes citations far more stable even when context ordering changes.
 - short answers to detailed questions
 - generic answers for usage/function questions
 
-For very short summary-style queries, the overlap check is intentionally relaxed so valid high-level summaries are not rejected just because the user only asked “what does this article mainly discuss”.
+For very short summary-style queries, the overlap check is intentionally relaxed so valid high-level summaries are not rejected.
 
 ### 10.2 Repair retry
 
-If the first answer is weak, the service retries with a stricter repair prompt.
+If the first answer is weak, the service retries with a stricter repair prompt. The repair prompt adds a hard "must not say 我不知道 or 未覆盖" rule and repeats the citation correction instruction.
 
 ### 10.3 Extractive fallback
 
@@ -354,20 +361,21 @@ If repair still fails, the service falls back to intent-specific builders:
 - `BuildExtractiveFallbackAnswer`
 - `BuildUsageFallbackAnswer`
 
-Summary fallback prefers sentences from summary / overview / architecture / method / result sections, filters out parameter-heavy fragments, and still emits stable citations instead of temporary numbering.
+Summary fallback prefers sentences from summary / overview / architecture / method / result sections, filters out parameter-heavy fragments, and still emits stable citations.
 
 ## 11. Observability
 
-`LastRetrievalDebug` now reports:
+`LastRetrievalDebug` reports:
 
 - original vs retrieval question
-- detected intent and focus terms
-- sparse prefilter candidate count
-- semantic-stage candidate count
-- whether sparse prefilter was used or semantic fallback was triggered
-- per-hit score breakdown
+- detected intent, focus terms, target document
+- number of chunks entering vector scoring
+- whether sparse prefilter was used (always `false` / full semantic in `refactored` mode)
+- learned reranker status: `global:ok (N/N)` or failure reason
+- per-hit score breakdown (reranker score as `score`, semantic cosine as `semantic`, all other fields zero in `refactored` mode)
+- context window chunk count
 
-This is useful for tuning and regression analysis.
+This makes it straightforward to inspect reranker behavior and pinpoint retrieval regressions.
 
 ## 12. Offline Evaluation
 
@@ -377,34 +385,53 @@ The repository includes a minimal offline evaluation workflow:
 - baseline file: `docs/eval-baseline.json`
 - runner script: `scripts/eval_rag.sh`
 
-The evaluation mode:
+The evaluator measures:
 
-- runs a batch of questions
-- prints the generated answers
-- prints retrieval debug output
-- computes answer-signal / keyword coverage statistics
-- computes retrieval signal coverage for top-hit chunks and final context windows
-- computes citation precision / recall against expected evidence labels
-- runs per-case structural checks for selected baseline case IDs
+- **Case pass count** — fraction of cases meeting required keyword + structural checks
+- **Keyword coverage** — fraction of expected keywords present in the answer
+- **Top chunk signal coverage** — fraction of expected signal chunks appearing in the reranked top list
+- **Context signal coverage** — fraction of expected signal chunks appearing in the final context window
+- **Citation precision / recall** — against expected citation labels per case
+- **Scope accuracy** — whether the answer stays in the correct document scope
+- **Evidence kind accuracy** — whether the correct content types were retrieved
+- **Slot coverage / Sufficiency accuracy** — legacy compatibility metrics
 
-The baseline schema can now express answer expectations, retrieval expectations, and citation expectations separately, so regressions can be localized to generation, retrieval, or grounding instead of collapsing into a single keyword score.
+The baseline schema expresses answer expectations, retrieval expectations, and citation expectations separately, so regressions can be localized to generation, retrieval, or grounding.
 
-This is still not a full semantic automatic grader, but it is materially stronger for day-to-day regression checks and before/after comparisons when tuning retrieval behavior.
+### Latest benchmark (2026-05-06)
+
+| Metric | Value |
+|--------|-------|
+| Case pass count | 15 / 20 (75.0%) |
+| Keyword coverage | 79 / 88 (89.8%) |
+| Top chunk signal coverage | 37 / 64 (57.8%) |
+| Context signal coverage | 63 / 64 (98.4%) |
+| Avg citation precision | 74.3% |
+| Avg citation recall | 95.0% |
+| Scope accuracy | 100.0% |
+| Evidence kind accuracy | 100.0% |
+
+**Key observations from the latest run:**
+
+- Context signal coverage (98.4%) is excellent — the final context window nearly always contains the expected evidence.
+- Top chunk signal coverage (57.8%) is the main remaining gap — the expected key chunks are retrieved but sometimes not ranked in the top few positions by the reranker.
+- Citation recall (95.0%) is strong; precision (74.3%) has room to improve (answers cite more chunks than strictly necessary).
+- The `stm32-control` case failure is a known pattern: for `procedure` questions, markdown body chunks from the companion `.md` file compete with and outrank the equivalent structured `.json` chunks in the reranker, because the `.md` fragments contain more continuous natural-language text.
 
 ## 13. Main Parameters
 
-Important current parameters include:
+Important current parameters (defaults in `RagOptions.LoadFromEnvironment`):
 
 - `RAG_CHUNK_SIZE = 520`
 - `RAG_CHUNK_OVERLAP = 96`
-- `RAG_TOP_K = 4`
-- `RAG_CANDIDATE_POOL_SIZE = 12`
-- `RAG_SPARSE_CANDIDATE_POOL_SIZE = 48`
+- `RAG_TOP_K = 8`  ← effective default for `refactored` mode; env var default is 8
+- `RAG_CANDIDATE_POOL_SIZE = 12`  (pool size multiplier base; not the hard vector cap in `refactored` mode)
+- `RAG_SPARSE_CANDIDATE_POOL_SIZE = 48`  (lower bound for vector candidate limit; clamped to 50–100)
 - `RAG_CONTEXT_WINDOW_RADIUS = 1`
 - `RAG_MIN_COMBINED_THRESHOLD = 0.18`
 - `RAG_VECTOR_WEIGHT = 0.38`
-- `RAG_BM25_WEIGHT = 0.20`
-- `RAG_KEYWORD_WEIGHT = 0.18`
+- `RAG_BM25_WEIGHT = 0.20`  (maintained for legacy mode; not used in `refactored` ranking)
+- `RAG_KEYWORD_WEIGHT = 0.18`  (same — legacy mode only)
 - `RAG_TITLE_WEIGHT = 0.12`
 - `RAG_JSON_STRUCTURE_WEIGHT = 0.10`
 - `RAG_COVERAGE_WEIGHT = 0.08`
@@ -412,32 +439,53 @@ Important current parameters include:
 - `RAG_JSON_BRANCH_WEIGHT = 0.06`
 - `RAG_DIRECT_KEYWORD_BONUS = 0.08`
 - `RAG_FALLBACK_SENTENCE_COUNT = 2`
+- `RAG_PIPELINE_MODE = refactored`  ← actual runtime mode (overrides env default `legacy`)
+- `RAG_RERANKER_ENABLED = true`
+- `RAG_RERANKER_BASE_URL = http://127.0.0.1:8081`
+- `RAG_RERANKER_MODEL = bge-reranker-v2-m3`
+- `RAG_RERANKER_TOP_N = 12`
+- `RAG_RERANKER_TIMEOUT_SECONDS = 30`
 - `LLAMA_SERVER_TEMPERATURE = 0.2`
 - `LLAMA_SERVER_MAX_TOKENS = 1536`
 - `LLAMA_SERVER_TIMEOUT_SECONDS = 300`
+- `RAG_CHAT_PROVIDER = llama_server`  (also supports `deepseek` for cloud fallback)
 
 The default parameter style is intentionally conservative: stable, debuggable, and low-hallucination rather than aggressively long or overly permissive generation.
 
-## 14. Strengths and Limitations
+## 14. Pipeline Mode Reference
+
+`RAG_PIPELINE_MODE` accepts three values:
+
+| Mode | Description |
+|------|-------------|
+| `refactored` | **Default runtime mode.** Pure vector cosine Top-N candidate retrieval → BGE-Reranker as sole ordering authority → intent-specific context assembly. No BM25 in primary path. |
+| `legacy` | Original heuristic pipeline: BM25 sparse prefilter + semantic scoring + rule-based rerank formula. Kept for regression comparison. |
+| `simple` | Minimal mode retained for debugging. |
+
+## 15. Strengths and Limitations
 
 ### Strengths
 
 - no external vector database is required
 - supports `.md`, `.txt`, `.json`, and `.pdf`
-- JSON is normalized into a retrievable text structure
-- retrieval already uses a two-stage design instead of full semantic scanning only
-- document-title-aware retrieval can prioritize chunks from a user-requested source file
+- JSON is normalized into a retrievable text structure with stable section-level citations
+- BGE-Reranker cross-encoder acts as the authoritative ranker — no hand-crafted score formula in the primary path
+- document-title-aware hard-scope filter isolates queries to the requested source file
 - citations are stable and easier to trace
-- repair retry, summary-aware fallback, extractive fallback, and offline evaluation are already built in
+- intent-specific context assembly ensures the right chunk types are prioritized per query type
+- strong system prompt enforces grounding, terminology preservation, and citation discipline
+- repair retry, summary-aware fallback, and offline evaluation with multi-dimensional metrics are built in
+- cloud chat provider (DeepSeek) is supported as an alternative to local `llama-server`
 
 ### Limitations
 
-- learned reranking requires a separate local reranker server; the pipeline falls back to rule reranking when it is unavailable
+- learned reranking requires a separate local reranker server; the pipeline falls back to vector-sorted order when unavailable
 - PDF ingestion currently depends on external `pdftotext` availability and text extraction quality
-- sparse prefilter improves performance but is not yet an ANN vector index
-- stable citations currently resolve to “file + section + chunk”, not page numbers or finer structural locations
+- top chunk signal coverage (57.8%) indicates the reranker sometimes surfaces markdown body fragments over equivalent structured JSON chunks for procedure-type queries — this is an active known issue
+- stable citations currently resolve to "file + section + chunk", not page numbers or finer structural locations
 - offline evaluation is mainly keyword + rule checks, not a stronger semantic automatic grading model
+- `RAG_PIPELINE_MODE` env var default is `legacy` but the actual runtime uses `refactored` — this inconsistency should be resolved
 
-## 15. One-Sentence Summary
+## 16. One-Sentence Summary
 
-The current WeaveDoc RAG design normalizes local documents into section-aware chunks, retrieves evidence through sparse prefiltering plus localized semantic scoring and BGE reranking, sends grounded context to local `llama-server`, and uses stable citations, repair retry, summary-aware fallback, and offline evaluation to keep answers more reliable.
+The current WeaveDoc RAG design normalizes local documents into section-aware chunks, retrieves evidence through pure vector cosine candidate retrieval and BGE-Reranker cross-encoder ranking, assembles intent-specific context windows, sends grounded prompts to local `llama-server`, and uses stable citations, a strong system prompt, repair retry, and offline evaluation to keep answers reliable and traceable.

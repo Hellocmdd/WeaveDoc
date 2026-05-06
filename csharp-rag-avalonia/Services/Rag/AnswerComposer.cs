@@ -11,10 +11,10 @@ public sealed partial class LocalAiService
 硬性规则：
 1) 只能依据用户消息里的“上下文”回答，不得使用外部常识、训练记忆或猜测补全。
 2) 上下文由多个信息块组成，需要你主动提炼、归纳和综合。即使信息分散在多个块中，没有单个块直接完整回答，你也必须尽力整合出完整答案。只有当上下文中确实找不到任何与问题相关的信息时，才能回答“根据当前文档，未找到相关信息”。
-3) 必须优先遵循上下文块中的具体参数、代码实现、模块名、技术栈、字段名、协议名、算法名、工具名和专业术语；原文出现 vue 3、mybatis-plus、Spring Boot、STM32、JSON、MQTT 等术语时要按原词保留，不要改写成泛称。
+3) 必须优先遵循上下文块中的具体参数、代码实现、模块名、技术栈、字段名、协议名、算法名、工具名和专业术语；原文出现专有名词、缩写、协议名、框架名或字段名时要按原词保留，不要改写成泛称。
 4) 回答要先给结论，再按逻辑条理展开。流程题按步骤，架构/组成题按层次，模块实现题按数据流和控制链路，对比题按维度，摘要题按主题主线。
 5) 不要泛泛而谈，不要输出“系统很重要”“提高效率”等没有被上下文支撑的空话；每个要点都应落到上下文中的具体事实、参数、实现或术语。
-6) 每个自然段或每个要点末尾必须附 1-2 个稳定来源标签，且只能复制上下文中已经出现过的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。禁止使用 [1]、[2]，禁止编造来源。
+6) 每个自然段或每个要点末尾必须附 1-2 个稳定来源标签，且只能复制上下文中已经出现过的“来源标签”，例如 [doc/a.md | 方法设计 | c3]。禁止使用 [1]、[2]、[c3] 这类短引用，禁止编造来源。
    关键: 来源标签必须与你引用的具体上下文块一一对应。如果你引用了某个上下文块的内容，必须使用该块前面标注的“来源标签:”后面的完整标签，不要使用其他块的标签代替。
    示例: 如果你引用了“来源标签: [json/... | 1.4.2 远程状态显示及控制模块 > content | c25]”的内容，就在该段末尾附 [json/... | 1.4.2 远程状态显示及控制模块 > content | c25]，而不是附 [json/... | abstract | c10]。
 7) 多个上下文块能互补时，要综合组织答案；多个块互相冲突时，优先采用排序更靠前的证据，并说明差异来自不同来源。
@@ -37,14 +37,18 @@ public sealed partial class LocalAiService
         builder.AppendLine($"结构要求: {BuildAnswerStructureRule(queryProfile)}");
         builder.AppendLine($"证据综合要求: {BuildCrossSourceSynthesisRule(queryProfile)}");
         builder.AppendLine($"领域细节要求: {BuildDomainGuidance(queryProfile)}");
-        builder.AppendLine("输出要求: 保留上下文中的关键术语、技术栈、参数、代码实现、模块名和专业名词；按逻辑条理组织，拒绝泛泛而谈。");
+        builder.AppendLine("输出要求: 保留上下文中的关键术语、技术栈、参数、代码实现、模块名和专业名词；按逻辑条理组织，拒绝泛泛而谈；引用只能复制完整“来源标签”，不要写 [c3] 这类短引用。");
         if (queryProfile.Intent == "metadata")
         {
             builder.AppendLine("元数据提取指令: 上下文中已包含 englishTitle、englishAbstract、englishKeywords 等元数据字段，请直接从对应上下文块中提取原文内容，逐项列出。不要翻译，保留英文原文。不要回答'未覆盖'。");
         }
         if (queryProfile.Intent == "procedure")
         {
-            builder.AppendLine("流程综合指令: 流程类问题的答案通常分散在控制算法、传感器、执行机构、测试结果等多个上下文块中，很少有单个块直接完整描述整个流程。你必须综合所有相关上下文块，按\"前提条件→核心步骤/算法→输出/效果\"的链路组织完整答案。不要因为单个块信息不完整就回答'未覆盖'。");
+            builder.AppendLine("流程综合指令: 流程类问题的答案通常分散在多个上下文块中，很少有单个块直接完整描述整个流程。你必须综合所有相关上下文块，按\"输入/前提→判断或处理→执行动作→结果/效果\"的链路组织完整答案。不要因为单个块信息不完整就回答'未覆盖'。");
+        }
+        if (queryProfile.Intent == "compare")
+        {
+            builder.AppendLine("对比综合指令: 对比类问题必须同时覆盖问题中的两个对象。若上下文中分别或共同包含两边对象的信息，请按比较维度说明两边特点与差异，不要只解释其中一边，也不要回答'未覆盖'。");
         }
         if (!string.IsNullOrWhiteSpace(queryProfile.RequestedDocumentTitle) && targetFilePaths.Count > 0)
         {
@@ -126,13 +130,18 @@ public sealed partial class LocalAiService
         builder.AppendLine($"证据综合要求: {BuildCrossSourceSynthesisRule(queryProfile)}");
         builder.AppendLine("修正重点: 不要输出无关题目模板、算法示例、代码题、标题作者块或无来源内容；保留上下文里的具体术语、技术栈、参数和实现细节。");
         builder.AppendLine("重要: 本次绝对不能输出\"我不知道\"、\"当前文档未覆盖\"或类似拒答语句。你必须基于下方上下文综合出具体、完整的回答，引用上下文中的事实和术语。");
+        builder.AppendLine("引用修正: 只能复制完整“来源标签”，禁止使用 [c3] 这类短引用；如果要引用某个块，必须使用该块完整稳定标签。");
         if (queryProfile.Intent == "metadata")
         {
             builder.AppendLine("元数据提取指令: 上下文中已包含 englishTitle、englishAbstract、englishKeywords 等元数据字段，请直接从对应上下文块中提取原文内容，逐项列出。不要翻译，保留英文原文。不要回答'未覆盖'。");
         }
         if (queryProfile.Intent == "procedure")
         {
-            builder.AppendLine("流程综合指令: 流程类问题的答案通常分散在控制算法、传感器、执行机构、测试结果等多个上下文块中，很少有单个块直接完整描述整个流程。你必须综合所有相关上下文块，按\"前提条件→核心步骤/算法→输出/效果\"的链路组织完整答案。不要因为单个块信息不完整就回答'未覆盖'。");
+            builder.AppendLine("流程综合指令: 流程类问题的答案通常分散在多个上下文块中，很少有单个块直接完整描述整个流程。你必须综合所有相关上下文块，按\"输入/前提→判断或处理→执行动作→结果/效果\"的链路组织完整答案。不要因为单个块信息不完整就回答'未覆盖'。");
+        }
+        if (queryProfile.Intent == "compare")
+        {
+            builder.AppendLine("对比综合指令: 对比类问题必须同时覆盖问题中的两个对象。若上下文中分别或共同包含两边对象的信息，请按比较维度说明两边特点与差异，不要只解释其中一边，也不要回答'未覆盖'。");
         }
         if (!string.IsNullOrWhiteSpace(queryProfile.RequestedDocumentTitle) && targetFilePaths.Count > 0)
         {

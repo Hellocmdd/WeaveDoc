@@ -43,7 +43,7 @@ public sealed record RagOptions(
         return new RagOptions(
             ChunkSize: GetInt("RAG_CHUNK_SIZE", 520, 128, 6000),
             ChunkOverlap: GetInt("RAG_CHUNK_OVERLAP", 96, 0, 1200),
-            TopK: GetInt("RAG_TOP_K", 4, 1, 20),
+            TopK: GetInt("RAG_TOP_K", 8, 1, 20),
             CandidatePoolSize: GetInt("RAG_CANDIDATE_POOL_SIZE", 12, 4, 50),
             SparseCandidatePoolSize: GetInt("RAG_SPARSE_CANDIDATE_POOL_SIZE", 48, 8, 400),
             ContextWindowRadius: GetInt("RAG_CONTEXT_WINDOW_RADIUS", 1, 0, 3),
@@ -63,7 +63,7 @@ public sealed record RagOptions(
             RerankerEnabled: GetBool("RAG_RERANKER_ENABLED", true),
             RerankerBaseUrl: GetString("RAG_RERANKER_BASE_URL", "http://127.0.0.1:8081"),
             RerankerModel: GetString("RAG_RERANKER_MODEL", "bge-reranker-v2-m3"),
-            RerankerTopN: GetInt("RAG_RERANKER_TOP_N", 8, 1, 50),
+            RerankerTopN: GetInt("RAG_RERANKER_TOP_N", 12, 1, 50),
             RerankerTimeoutSeconds: GetInt("RAG_RERANKER_TIMEOUT_SECONDS", 30, 1, 300),
             PipelineMode: GetPipelineMode("RAG_PIPELINE_MODE", "legacy"),
             LlamaServerBaseUrl: GetString("LLAMA_SERVER_BASE_URL", "http://127.0.0.1:8080"),

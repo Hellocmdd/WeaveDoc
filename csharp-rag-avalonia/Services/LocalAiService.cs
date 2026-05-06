@@ -21,6 +21,7 @@ public sealed partial class LocalAiService : IDisposable
 
     private static readonly Regex QueryTokenRegex = new("[a-z0-9]+|[\\u4e00-\\u9fff]{2,}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex CitationRegex = new("\\[(?:\\d+|[^\\[\\]\\r\\n|]{1,160}\\s\\|\\s[^\\[\\]\\r\\n|]{1,160}\\s\\|\\sc\\d+)\\]", RegexOptions.Compiled);
+    private static readonly Regex BareChunkCitationRegex = new("\\[c(?<index>\\d+)\\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SentenceSplitRegex = new("(?<=[。！？!?])(?:\\s+)?|(?<=\\.)\\s+", RegexOptions.Compiled);
     private static readonly Regex LeadingGreetingRegex = new("^(?:\\s*(?:你好|您好|嗨|哈喽|hello|hi|hey|请问|麻烦问一下|我想问一下|想请教一下|请教一下)\\s*[,，.。!！?？:：;；/+|、-]*)+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex BoundaryNoiseRegex = new("^[\\s,，.。!！?？:：;；/+|、-]+|[\\s,，.。!！?？:：;；/+|、-]+$", RegexOptions.Compiled);
@@ -1672,6 +1673,47 @@ public sealed partial class LocalAiService : IDisposable
         return intent is "procedure" or "composition" or "explain" or "definition" or "compare";
     }
 
+    internal static IReadOnlyList<string> ExtractCompareSubjects(string question)
+    {
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            return [];
+        }
+
+        var normalized = NormalizeQuestionForSubjectExtraction(RemoveRequestedDocumentMentions(question, ExtractRequestedDocumentTitle(question)));
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            normalized = question.Trim();
+        }
+
+        var patterns = new[]
+        {
+            @"(?<left>[^，。！？?;；]{2,80}?)(?:和|与|跟|及|以及|、|/|\\|vs\.?|versus)(?<right>[^，。！？?;；]{2,80}?)(?:有什么区别|有何区别|区别是什么|有什么不同|有何不同|差异是什么|的区别|的差异|区别|差异|不同|对比|比较)",
+            @"(?:between|compare)\s+(?<left>[A-Za-z0-9_\-+./\s]{2,80}?)\s+(?:and|vs\.?|versus)\s+(?<right>[A-Za-z0-9_\-+./\s]{2,80})",
+            @"(?<left>[A-Za-z0-9_\-+./\s]{2,80}?)\s+(?:vs\.?|versus)\s+(?<right>[A-Za-z0-9_\-+./\s]{2,80})"
+        };
+
+        foreach (var pattern in patterns)
+        {
+            var match = Regex.Match(normalized, pattern, RegexOptions.IgnoreCase);
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var left = CleanCompareSubject(match.Groups["left"].Value);
+            var right = CleanCompareSubject(match.Groups["right"].Value);
+            if (!string.IsNullOrWhiteSpace(left)
+                && !string.IsNullOrWhiteSpace(right)
+                && !string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
+            {
+                return [left, right];
+            }
+        }
+
+        return [];
+    }
+
     internal static bool IsMeaningfulFocusTerm(string token)
     {
         if (string.IsNullOrWhiteSpace(token))
@@ -3194,6 +3236,11 @@ public sealed partial class LocalAiService : IDisposable
             return true;
         }
 
+        if (ContainsUnknownBareChunkCitation(normalized, chunks))
+        {
+            return true;
+        }
+
         var hasCitation = CitationRegex.IsMatch(normalized);
         if (hasCitation && !ContainsOnlyKnownCitations(normalized, chunks))
         {
@@ -3271,7 +3318,7 @@ public sealed partial class LocalAiService : IDisposable
         return overlap == 0;
     }
 
-    private static string NormalizeGeneratedAnswerCitations(
+    internal static string NormalizeGeneratedAnswerCitations(
         string answer,
         IReadOnlyList<DocumentChunk> chunks,
         IReadOnlyList<string> targetFilePaths,
@@ -3279,10 +3326,15 @@ public sealed partial class LocalAiService : IDisposable
     {
         if (string.IsNullOrWhiteSpace(answer)
             || chunks.Count == 0
-            || CitationRegex.IsMatch(answer)
             || answer.Contains("我不知道", StringComparison.Ordinal)
             || answer.Contains("当前文档未覆盖", StringComparison.Ordinal)
             || answer.Contains("未找到相关信息", StringComparison.Ordinal))
+        {
+            return answer;
+        }
+
+        answer = ExpandKnownBareChunkCitations(answer, chunks);
+        if (CitationRegex.IsMatch(answer))
         {
             return answer;
         }
@@ -3335,6 +3387,49 @@ public sealed partial class LocalAiService : IDisposable
         return chunk is null ? string.Empty : BuildStableCitation(chunk);
     }
 
+    internal static string ExpandKnownBareChunkCitations(string answer, IReadOnlyList<DocumentChunk> chunks)
+    {
+        if (string.IsNullOrWhiteSpace(answer) || chunks.Count == 0)
+        {
+            return answer;
+        }
+
+        var citationsByIndex = chunks
+            .GroupBy(chunk => chunk.Index + 1)
+            .ToDictionary(group => group.Key, group => BuildStableCitation(group.First()));
+
+        return BareChunkCitationRegex.Replace(answer, match =>
+        {
+            if (!int.TryParse(match.Groups["index"].Value, out var index))
+            {
+                return match.Value;
+            }
+
+            return citationsByIndex.TryGetValue(index, out var citation)
+                ? citation
+                : match.Value;
+        });
+    }
+
+    internal static bool ContainsUnknownBareChunkCitation(string answer, IReadOnlyList<DocumentChunk> chunks)
+    {
+        if (string.IsNullOrWhiteSpace(answer))
+        {
+            return false;
+        }
+
+        var knownIndexes = chunks.Select(chunk => chunk.Index + 1).ToHashSet();
+        foreach (Match match in BareChunkCitationRegex.Matches(answer))
+        {
+            if (!int.TryParse(match.Groups["index"].Value, out var index) || !knownIndexes.Contains(index))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool TryBuildLocalFallbackAnswer(
         QueryProfile queryProfile,
         IReadOnlyList<DocumentChunk> chunks,
@@ -3365,6 +3460,12 @@ public sealed partial class LocalAiService : IDisposable
             return !string.IsNullOrWhiteSpace(answer);
         }
 
+        if (queryProfile.Intent == "compare")
+        {
+            answer = BuildLocalCompareFallbackAnswer(queryProfile, chunks, targetFilePaths);
+            return !string.IsNullOrWhiteSpace(answer);
+        }
+
         if (queryProfile.Intent == "composition")
         {
             answer = BuildLocalCompositionFallbackAnswer(queryProfile, chunks, targetFilePaths);
@@ -3380,7 +3481,7 @@ public sealed partial class LocalAiService : IDisposable
         return false;
     }
 
-    private static string BuildLocalSummaryFallbackAnswer(
+    internal static string BuildLocalSummaryFallbackAnswer(
         QueryProfile queryProfile,
         IReadOnlyList<DocumentChunk> chunks,
         IReadOnlyList<string> targetFilePaths)
@@ -3389,15 +3490,41 @@ public sealed partial class LocalAiService : IDisposable
             ? null
             : new HashSet<string>(targetFilePaths, StringComparer.OrdinalIgnoreCase);
 
-        var selected = chunks
+        var scopedChunks = chunks
             .Where(chunk => targetFilePathSet is null || targetFilePathSet.Contains(chunk.FilePath))
             .Where(chunk => IsSummaryFallbackCandidate(chunk))
+            .Where(chunk => !IsEnglishFieldChunk(chunk))
             .Where(chunk => ContainsCjk(chunk.Text) || !ContainsCjk(queryProfile.OriginalQuestion))
+            .ToArray();
+
+        if (scopedChunks.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var leadChunk = scopedChunks
+            .Where(IsSummaryFallbackLeadCandidate)
             .Select(chunk => new
             {
                 Chunk = chunk,
-                Score = GetFallbackChunkScore(chunk, queryProfile)
-                    + CountSignals(chunk.Text, "STM32", "数据采集", "决策控制", "执行机构", "交互显示", "模块", "架构", "控制", "传感器", "算法", "显示", "电磁阀", "测试", "节水")
+                Score = GetSummaryFallbackLeadScore(chunk, queryProfile)
+            })
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.Index)
+            .Select(item => item.Chunk)
+            .FirstOrDefault()
+            ?? scopedChunks
+                .OrderByDescending(chunk => GetFallbackChunkScore(chunk, queryProfile))
+                .ThenBy(chunk => chunk.Index)
+                .First();
+
+        var supportChunks = scopedChunks
+            .Where(chunk => chunk.Index != leadChunk.Index || !string.Equals(chunk.FilePath, leadChunk.FilePath, StringComparison.OrdinalIgnoreCase))
+            .Select(chunk => new
+            {
+                Chunk = chunk,
+                Score = GetSummaryFallbackSupportScore(chunk, queryProfile)
+                    + CountQueryTokenHits(BuildChunkRetrievalText(chunk), queryProfile.FocusTerms)
             })
             .Where(item => item.Score > 0)
             .OrderByDescending(item => item.Score)
@@ -3406,30 +3533,15 @@ public sealed partial class LocalAiService : IDisposable
             .Take(4)
             .ToArray();
 
-        var overviewChunk = chunks
-            .Where(chunk => targetFilePathSet is null || targetFilePathSet.Contains(chunk.FilePath))
-            .Where(IsSummaryFallbackCandidate)
-            .Where(chunk => ContainsCjk(chunk.Text) || !ContainsCjk(queryProfile.OriginalQuestion))
-            .Where(chunk => IsOverviewChunk(chunk))
-            .OrderByDescending(chunk => GetFallbackChunkScore(chunk, queryProfile))
-            .ThenBy(chunk => chunk.Index)
-            .FirstOrDefault();
-
-        if (overviewChunk is not null && selected.All(chunk => chunk.Index != overviewChunk.Index))
+        if (supportChunks.Length < 3)
         {
-            selected = selected
-                .Concat([overviewChunk])
-                .DistinctBy(chunk => chunk.Index)
+            supportChunks = supportChunks
+                .Concat(scopedChunks.Where(chunk => chunk.Index != leadChunk.Index || !string.Equals(chunk.FilePath, leadChunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                .DistinctBy(chunk => $"{chunk.FilePath}#{chunk.Index}")
                 .Take(4)
                 .ToArray();
         }
 
-        if (selected.Length == 0)
-        {
-            return string.Empty;
-        }
-
-        var leadChunk = selected[0];
         var leadSummary = BuildSummaryLeadText(leadChunk);
         if (string.IsNullOrWhiteSpace(leadSummary))
         {
@@ -3444,24 +3556,17 @@ public sealed partial class LocalAiService : IDisposable
         var builder = new StringBuilder();
         var title = string.IsNullOrWhiteSpace(leadChunk.DocumentTitle) ? "这篇文档" : $"《{leadChunk.DocumentTitle}》";
         builder.Append(title);
-        builder.Append("主要围绕");
+        builder.Append("主要讲的是");
         builder.Append(leadSummary.TrimEnd('。'));
         builder.Append("。 ");
         builder.Append(BuildStableCitation(leadChunk));
 
-        var detailChunks = selected
-            .Skip(1)
-            .Concat(selected.Take(1))
-            .DistinctBy(chunk => chunk.Index)
-            .Take(3)
-            .ToArray();
-
-        if (detailChunks.Length > 0)
+        if (supportChunks.Length > 0)
         {
             builder.AppendLine();
-            foreach (var chunk in detailChunks)
+            foreach (var chunk in supportChunks)
             {
-                var sentence = GetCleanSentences(chunk.Text, 1).FirstOrDefault();
+                var sentence = BuildSummarySupportSentence(chunk, queryProfile);
                 if (string.IsNullOrWhiteSpace(sentence))
                 {
                     continue;
@@ -3473,6 +3578,8 @@ public sealed partial class LocalAiService : IDisposable
                 }
 
                 builder.Append("- ");
+                builder.Append(BuildSummaryFallbackLabel(chunk));
+                builder.Append("：");
                 builder.Append(sentence.TrimEnd('。'));
                 builder.Append("。 ");
                 builder.Append(BuildStableCitation(chunk));
@@ -3494,13 +3601,18 @@ public sealed partial class LocalAiService : IDisposable
             return string.Empty;
         }
 
-        var sensingChunk = FindRepresentativeChunk(scopedChunks, "土壤湿度", "环境温湿度", "采集", "传感器");
-        var decisionChunk = FindRepresentativeChunk(scopedChunks, "模糊pid", "模糊PID", "控制", "动态调整", "偏差");
-        var executionChunk = FindRepresentativeChunk(scopedChunks, "电磁阀", "PWM", "占空比", "阀门");
-        var outcomeChunk = FindRepresentativeChunk(scopedChunks, "精准灌溉", "节水", "误差", "控制在", "测试");
+        var inputSignals = new[] { "输入", "前提", "条件", "数据", "参数", "采集", "获取", "来源", "准备" };
+        var processSignals = new[] { "判断", "计算", "分析", "处理", "算法", "规则", "策略", "生成", "调节", "控制", "匹配", "根据", "结合" };
+        var actionSignals = new[] { "执行", "输出", "驱动", "调用", "写入", "发送", "上传", "下发", "展示", "显示", "保存", "触发", "连接" };
+        var resultSignals = new[] { "结果", "效果", "最终", "实现", "完成", "提升", "降低", "减少", "控制在", "验证", "测试", "稳定" };
+
+        var inputChunk = FindRepresentativeChunk(scopedChunks, queryProfile, inputSignals);
+        var processChunk = FindRepresentativeChunk(scopedChunks, queryProfile, processSignals);
+        var actionChunk = FindRepresentativeChunk(scopedChunks, queryProfile, actionSignals);
+        var resultChunk = FindRepresentativeChunk(scopedChunks, queryProfile, resultSignals);
 
         var ordered = new[]
-            { sensingChunk, decisionChunk, executionChunk, outcomeChunk }
+            { inputChunk, processChunk, actionChunk, resultChunk }
             .Where(chunk => chunk is not null)
             .Cast<DocumentChunk>()
             .DistinctBy(chunk => $"{chunk.FilePath}#{chunk.Index}")
@@ -3512,15 +3624,69 @@ public sealed partial class LocalAiService : IDisposable
         }
 
         var builder = new StringBuilder();
-        builder.Append("这个智能浇花系统通过“感知 -> 决策 -> 执行 -> 效果反馈”的闭环来实现精准灌溉。");
+        builder.Append("可以按“输入/前提 -> 判断或处理 -> 执行动作 -> 结果/效果”的链路来理解。");
         builder.Append(' ');
         builder.Append(BuildStableCitation(ordered[0]));
         builder.AppendLine();
 
-        AppendFallbackBullet(builder, "感知", sensingChunk, "系统先采集土壤湿度与环境温湿度等参数，作为后续灌溉决策的输入。");
-        AppendFallbackBullet(builder, "决策", decisionChunk, "随后结合模糊PID复合控制，根据湿度偏差和变化趋势动态调节灌溉量，大偏差时快速逼近，小偏差时精准微调。");
-        AppendFallbackBullet(builder, "执行", executionChunk, "执行层通过PWM驱动电磁阀，把控制结果转成具体阀门开度和供水流量。");
-        AppendFallbackBullet(builder, "效果", outcomeChunk, "最终系统能把土壤湿度稳定控制在目标范围附近，并通过测试验证实现节水与精准控制。");
+        AppendFallbackBullet(builder, "输入/前提", inputChunk, queryProfile, inputSignals, "上下文给出了该流程的输入、前提或准备条件。");
+        AppendFallbackBullet(builder, "判断或处理", processChunk, queryProfile, processSignals, "上下文给出了该流程中的判断、处理或策略生成方式。");
+        AppendFallbackBullet(builder, "执行动作", actionChunk, queryProfile, actionSignals, "上下文给出了该流程如何转化为执行、输出或外部动作。");
+        AppendFallbackBullet(builder, "结果/效果", resultChunk, queryProfile, resultSignals, "上下文给出了该流程最终形成的结果、效果或验证信息。");
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string BuildLocalCompareFallbackAnswer(
+        QueryProfile queryProfile,
+        IReadOnlyList<DocumentChunk> chunks,
+        IReadOnlyList<string> targetFilePaths)
+    {
+        var scopedChunks = FilterChunksByTargetFilePaths(chunks, targetFilePaths);
+        if (scopedChunks.Length == 0 || queryProfile.CompareSubjects.Count < 2)
+        {
+            return string.Empty;
+        }
+
+        var leftSubject = queryProfile.CompareSubjects[0];
+        var rightSubject = queryProfile.CompareSubjects[1];
+        var leftTerms = BuildSubjectTerms(leftSubject);
+        var rightTerms = BuildSubjectTerms(rightSubject);
+
+        var jointChunk = scopedChunks
+            .Where(chunk => ChunkContainsAnyTerm(chunk, leftTerms) && ChunkContainsAnyTerm(chunk, rightTerms))
+            .OrderByDescending(chunk => ScoreChunkForTerms(chunk, leftTerms.Concat(rightTerms).ToArray()))
+            .ThenBy(chunk => chunk.Index)
+            .FirstOrDefault();
+        var leftChunk = jointChunk ?? FindRepresentativeChunk(scopedChunks, queryProfile, leftTerms);
+        var rightChunk = jointChunk ?? FindRepresentativeChunk(scopedChunks, queryProfile, rightTerms);
+
+        if (leftChunk is null || rightChunk is null)
+        {
+            return string.Empty;
+        }
+
+        var evidence = new[] { leftChunk, rightChunk, jointChunk }
+            .Where(chunk => chunk is not null)
+            .Cast<DocumentChunk>()
+            .DistinctBy(chunk => $"{chunk.FilePath}#{chunk.Index}")
+            .ToArray();
+        if (evidence.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        builder.Append("二者的区别可以按上下文中的对应证据分别比较。 ");
+        builder.Append(BuildStableCitation(evidence[0]));
+        builder.AppendLine();
+        AppendFallbackBullet(builder, leftSubject, leftChunk, queryProfile, leftTerms, "上下文给出了该对象的特点或作用方式。");
+        AppendFallbackBullet(builder, rightSubject, rightChunk, queryProfile, rightTerms, "上下文给出了该对象的特点或作用方式。");
+
+        var combinedSignals = CompareSignals.Concat(leftTerms).Concat(rightTerms).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var contrastChunk = jointChunk
+            ?? FindRepresentativeChunk(scopedChunks, queryProfile, combinedSignals)
+            ?? evidence[0];
+        AppendFallbackBullet(builder, "差异归纳", contrastChunk, queryProfile, combinedSignals, "对比时应同时看两边对象在条件、处理方式和输出结果上的差别。");
         return builder.ToString().TrimEnd();
     }
 
@@ -3535,35 +3701,42 @@ public sealed partial class LocalAiService : IDisposable
             return string.Empty;
         }
 
-        var hardwareChunks = new[]
-        {
-            FindRepresentativeChunk(scopedChunks, "土壤湿度", "土壤温湿度", "传感器"),
-            FindRepresentativeChunk(scopedChunks, "环境温湿度", "环境参数", "传感器"),
-            FindRepresentativeChunk(scopedChunks, "电磁阀", "PWM"),
-            FindRepresentativeChunk(scopedChunks, "OLED", "显示屏"),
-            FindRepresentativeChunk(scopedChunks, "ESP-01S", "WiFi", "MQTT")
-        };
-
-        var availableChunks = hardwareChunks
-            .Where(chunk => chunk is not null)
-            .Cast<DocumentChunk>()
+        var compositionTerms = CompositionContextSignals
+            .Concat(queryProfile.FocusTerms)
+            .Where(term => !IsIntentExpansionOnlyToken(term))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var availableChunks = scopedChunks
+            .Select(chunk => new
+            {
+                Chunk = chunk,
+                Score = ScoreChunkForTerms(chunk, compositionTerms)
+                    + CountCompositionStructureSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}")
+                    + CountGenericAnswerEntities(chunk.Text)
+                    + (chunk.ContentKind == "body" ? 2 : 0)
+            })
+            .Where(item => item.Score > 0)
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.Index)
+            .Select(item => item.Chunk)
             .DistinctBy(chunk => $"{chunk.FilePath}#{chunk.Index}")
+            .Take(5)
             .ToArray();
 
-        if (availableChunks.Length < 4)
+        if (availableChunks.Length < 3)
         {
             return string.Empty;
         }
 
         var builder = new StringBuilder();
-        builder.Append("这套系统的硬件组成主要包括土壤湿度传感器、环境温湿度传感器、电磁阀、OLED 显示模块和 ESP-01S WiFi 模块。 ");
+        builder.Append("这类组成/配置问题可以按上下文中的关键组成项归纳。 ");
         builder.Append(BuildStableCitation(availableChunks[0]));
         builder.AppendLine();
-        AppendFallbackBullet(builder, "土壤湿度传感器", hardwareChunks[0], "负责检测土壤含水状态，为灌溉控制提供核心输入。");
-        AppendFallbackBullet(builder, "环境温湿度传感器", hardwareChunks[1], "用于采集空气温湿度等环境信息，辅助补偿与决策。");
-        AppendFallbackBullet(builder, "电磁阀", hardwareChunks[2], "作为执行机构，接收控制信号完成供水开关与流量调节。");
-        AppendFallbackBullet(builder, "OLED", hardwareChunks[3], "负责本地状态显示和关键参数可视化。");
-        AppendFallbackBullet(builder, "ESP-01S", hardwareChunks[4], "负责远程联网、数据上传和远程控制链路。");
+        foreach (var chunk in availableChunks)
+        {
+            AppendFallbackBullet(builder, BuildFallbackLabel(chunk), chunk, queryProfile, compositionTerms, "上下文给出了一个组成项、配置项或模块职责。");
+        }
+
         return builder.ToString().TrimEnd();
     }
 
@@ -3578,9 +3751,13 @@ public sealed partial class LocalAiService : IDisposable
             return string.Empty;
         }
 
-        var reasonChunk = FindRepresentativeChunk(scopedChunks, "蒸发", "温度", "湿度", "环境补偿");
-        var mechanismChunk = FindRepresentativeChunk(scopedChunks, "灌溉量", "动态调整", "补偿", "昼夜", "高温");
-        var impactChunk = FindRepresentativeChunk(scopedChunks, "积水", "防涝", "节水", "误差", "精准灌溉");
+        var reasonSignals = new[] { "原因", "由于", "因为", "为了", "前提", "条件", "影响", "需要" };
+        var mechanismSignals = new[] { "机制", "通过", "结合", "根据", "动态", "调整", "处理", "策略", "模型", "规则" };
+        var impactSignals = new[] { "结果", "影响", "因此", "从而", "避免", "提升", "降低", "减少", "效果", "稳定" };
+
+        var reasonChunk = FindRepresentativeChunk(scopedChunks, queryProfile, reasonSignals);
+        var mechanismChunk = FindRepresentativeChunk(scopedChunks, queryProfile, mechanismSignals);
+        var impactChunk = FindRepresentativeChunk(scopedChunks, queryProfile, impactSignals);
 
         var ordered = new[]
             { reasonChunk, mechanismChunk, impactChunk }
@@ -3595,12 +3772,12 @@ public sealed partial class LocalAiService : IDisposable
         }
 
         var builder = new StringBuilder();
-        builder.Append("环境补偿机制是必要的，因为植物实际需水量不仅取决于土壤湿度，还会受到温度、空气湿度和蒸发条件变化的影响。 ");
+        builder.Append("这个问题可以按“为什么需要 -> 如何起作用 -> 带来什么影响”来解释。 ");
         builder.Append(BuildStableCitation(ordered[0]));
         builder.AppendLine();
-        AppendFallbackBullet(builder, "为什么需要", reasonChunk, "如果只按固定阈值灌溉，就无法反映高温、干燥或昼夜变化带来的蒸发差异。");
-        AppendFallbackBullet(builder, "作用机制", mechanismChunk, "系统会结合温度、湿度和环境状态对灌溉量做动态补偿，在高温干燥时增加补水，在潮湿或阴雨时减少灌溉。");
-        AppendFallbackBullet(builder, "不补偿会怎样", impactChunk, "缺少补偿时容易出现供水不足或积水过量，影响精准灌溉、节水效果和控制稳定性。");
+        AppendFallbackBullet(builder, "为什么需要", reasonChunk, queryProfile, reasonSignals, "上下文说明了该机制或做法出现的背景、条件或原因。");
+        AppendFallbackBullet(builder, "作用机制", mechanismChunk, queryProfile, mechanismSignals, "上下文说明了它如何通过规则、模型、流程或策略发挥作用。");
+        AppendFallbackBullet(builder, "结果影响", impactChunk, queryProfile, impactSignals, "上下文说明了该机制带来的结果、效果或风险控制。");
         return builder.ToString().TrimEnd();
     }
 
@@ -3689,9 +3866,117 @@ public sealed partial class LocalAiService : IDisposable
             sentences.Take(2).Select(sentence => sentence.EndsWith('。') ? sentence : sentence + "。"));
     }
 
+    private static bool IsSummaryFallbackLeadCandidate(DocumentChunk chunk)
+    {
+        return (IsAbstractChunk(chunk) || IsOverviewChunk(chunk) || chunk.ContentKind is "summary" or "conclusion")
+            && !IsEnglishFieldChunk(chunk)
+            && ContainsCjk(chunk.Text);
+    }
+
+    private static int GetSummaryFallbackLeadScore(DocumentChunk chunk, QueryProfile queryProfile)
+    {
+        var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
+        var score = GetFallbackChunkScore(chunk, queryProfile);
+        if (IsAbstractChunk(chunk))
+        {
+            score += 10;
+        }
+
+        if (IsOverviewChunk(chunk))
+        {
+            score += 8;
+        }
+
+        if (chunk.ContentKind == "conclusion")
+        {
+            score += 5;
+        }
+
+        score += CountSummarySignals(source);
+        return score;
+    }
+
+    private static int GetSummaryFallbackSupportScore(DocumentChunk chunk, QueryProfile queryProfile)
+    {
+        var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
+        var score = CountSummarySignals(source)
+            + CountArchitectureSignals(source)
+            + CountMethodSignals(source)
+            + CountGenericAnswerEntities(chunk.Text);
+
+        if (chunk.ContentKind == "body")
+        {
+            score += 4;
+        }
+
+        if (!string.IsNullOrWhiteSpace(chunk.StructurePath))
+        {
+            score += 3;
+        }
+
+        if (IsAbstractChunk(chunk) || IsOverviewChunk(chunk))
+        {
+            score -= 2;
+        }
+
+        if (IsEnglishFieldChunk(chunk) || chunk.ContentKind == "keyword")
+        {
+            score -= 10;
+        }
+
+        return score;
+    }
+
+    private static string BuildSummaryFallbackLabel(DocumentChunk chunk)
+    {
+        var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
+        if (CountSignals(source, "目标", "问题", "面向", "针对", "背景") > 0)
+        {
+            return "目标";
+        }
+
+        if (CountSignals(source, "系统", "架构", "模块", "组成", "层", "平台") > 0)
+        {
+            return "系统设计";
+        }
+
+        if (CountSignals(source, "方法", "算法", "模型", "机制", "策略", "控制", "流程") > 0)
+        {
+            return "控制方法";
+        }
+
+        if (CountSignals(source, "显示", "交互", "接口", "通信", "上传", "下发", "执行", "驱动") > 0)
+        {
+            return "模块流程";
+        }
+
+        if (CountSignals(source, "结果", "效果", "测试", "验证", "提升", "降低", "减少", "评估", "结论") > 0)
+        {
+            return "效果";
+        }
+
+        return BuildFallbackLabel(chunk);
+    }
+
+    private static string BuildSummarySupportSentence(DocumentChunk chunk, QueryProfile queryProfile)
+    {
+        var signals = new[]
+        {
+            "目标", "问题", "系统", "架构", "模块", "方法", "算法", "机制", "策略", "控制",
+            "流程", "执行", "驱动", "显示", "交互", "结果", "效果", "测试", "验证", "提升"
+        };
+
+        return GetBestEvidenceSentence(chunk, queryProfile, signals);
+    }
+
     private static bool IsSummaryFallbackCandidate(DocumentChunk chunk)
     {
         if (chunk.ContentKind is "reference" or "noise" or "title" or "keyword")
+        {
+            return false;
+        }
+
+        if (IsEnglishFieldChunk(chunk))
         {
             return false;
         }
@@ -3925,6 +4210,17 @@ public sealed partial class LocalAiService : IDisposable
 
     private static void AppendFallbackBullet(StringBuilder builder, string label, DocumentChunk? chunk, string fallbackText)
     {
+        AppendFallbackBullet(builder, label, chunk, null, [], fallbackText);
+    }
+
+    private static void AppendFallbackBullet(
+        StringBuilder builder,
+        string label,
+        DocumentChunk? chunk,
+        QueryProfile? queryProfile,
+        IReadOnlyList<string> signals,
+        string fallbackText)
+    {
         if (chunk is null)
         {
             return;
@@ -3934,7 +4230,7 @@ public sealed partial class LocalAiService : IDisposable
         builder.Append(label);
         builder.Append("：");
 
-        var sentence = GetCleanSentences(chunk.Text, 1).FirstOrDefault();
+        var sentence = GetBestEvidenceSentence(chunk, queryProfile, signals);
         if (string.IsNullOrWhiteSpace(sentence))
         {
             sentence = fallbackText;
@@ -4090,7 +4386,7 @@ public sealed partial class LocalAiService : IDisposable
 
         // 纯英文长句，且有 design/system/was/used/implemented 等典型摘要词
         var lower = text.ToLowerInvariant();
-        if (lower.Contains("was designed") || lower.Contains("system based on") || lower.Contains("implemented") || lower.Contains("is proposed") || lower.Contains("is used") || lower.Contains("microcontroller"))
+        if (lower.Contains("was designed") || lower.Contains("system based on") || lower.Contains("implemented") || lower.Contains("is proposed") || lower.Contains("is used"))
         {
             return true;
         }
@@ -4829,6 +5125,27 @@ public sealed partial class LocalAiService : IDisposable
         return !string.IsNullOrWhiteSpace(subject);
     }
 
+    private static string CleanCompareSubject(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = StripQuestionBoilerplate(value.Trim());
+        cleaned = Regex.Replace(cleaned, @"^(?:在|于)?(?:.+?[里中内的])", string.Empty, RegexOptions.IgnoreCase).Trim();
+        cleaned = Regex.Replace(cleaned, @"(?:有什么区别|有何区别|区别是什么|有什么不同|有何不同|差异是什么|区别|差异|不同|对比|比较).*$", string.Empty, RegexOptions.IgnoreCase).Trim();
+        cleaned = cleaned.Trim('，', '。', '？', '?', '！', '!', '；', ';', '：', ':', '、', ' ', '"', '\'', '“', '”');
+        cleaned = BoundaryNoiseRegex.Replace(cleaned, string.Empty).Trim();
+
+        if (cleaned.Length < 2 || FocusStopWords.Contains(cleaned) || IsIntentExpansionOnlyToken(cleaned))
+        {
+            return string.Empty;
+        }
+
+        return cleaned;
+    }
+
 
     private static int CountArchitectureSignals(string sentence)
     {
@@ -4940,6 +5257,140 @@ public sealed partial class LocalAiService : IDisposable
             .ThenBy(item => item.Chunk.Index)
             .Select(item => item.Chunk)
             .FirstOrDefault();
+    }
+
+    private static DocumentChunk? FindRepresentativeChunk(
+        IReadOnlyList<DocumentChunk> chunks,
+        QueryProfile queryProfile,
+        IReadOnlyList<string> signals)
+    {
+        var focusTerms = queryProfile.FocusTerms
+            .Where(term => !IsIntentExpansionOnlyToken(term))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        return chunks
+            .Select(chunk => new
+            {
+                Chunk = chunk,
+                Score = ScoreChunkForTerms(chunk, signals)
+                    + ScoreChunkForTerms(chunk, focusTerms)
+                    + (chunk.ContentKind == "body" ? 2 : 0)
+            })
+            .Where(item => item.Score > 0)
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.Index)
+            .Select(item => item.Chunk)
+            .FirstOrDefault();
+    }
+
+    private static IReadOnlyList<string> BuildSubjectTerms(string subject)
+    {
+        var terms = new List<string>();
+        if (!string.IsNullOrWhiteSpace(subject))
+        {
+            terms.Add(subject.ToLowerInvariant());
+            terms.AddRange(ExtractQueryTokens(subject)
+                .Where(IsMeaningfulFocusTerm)
+                .Where(term => !IsIntentExpansionOnlyToken(term)));
+        }
+
+        return terms
+            .Where(term => !string.IsNullOrWhiteSpace(term))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static bool ChunkContainsAnyTerm(DocumentChunk chunk, IReadOnlyList<string> terms)
+    {
+        if (terms.Count == 0)
+        {
+            return false;
+        }
+
+        var text = BuildChunkRetrievalText(chunk).ToLowerInvariant();
+        return terms.Any(term => text.Contains(term, StringComparison.Ordinal));
+    }
+
+    private static int ScoreChunkForTerms(DocumentChunk chunk, IReadOnlyList<string> terms)
+    {
+        if (terms.Count == 0)
+        {
+            return 0;
+        }
+
+        var section = $"{chunk.SectionTitle} {chunk.StructurePath}".ToLowerInvariant();
+        var text = BuildChunkRetrievalText(chunk).ToLowerInvariant();
+        var score = 0;
+        foreach (var term in terms.Where(term => !string.IsNullOrWhiteSpace(term)))
+        {
+            if (section.Contains(term, StringComparison.Ordinal))
+            {
+                score += 3;
+            }
+
+            if (text.Contains(term, StringComparison.Ordinal))
+            {
+                score += 1;
+            }
+        }
+
+        return score;
+    }
+
+    private static string GetBestEvidenceSentence(
+        DocumentChunk chunk,
+        QueryProfile? queryProfile,
+        IReadOnlyList<string> signals)
+    {
+        var focusTerms = queryProfile?.FocusTerms
+            .Where(term => !IsIntentExpansionOnlyToken(term))
+            .ToArray() ?? [];
+        var sentences = SentenceSplitRegex.Split(chunk.Text)
+            .Select(CleanStructuredSentence)
+            .Where(sentence => !string.IsNullOrWhiteSpace(sentence))
+            .Take(8)
+            .ToArray();
+
+        if (sentences.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        return sentences
+            .Select(sentence => new
+            {
+                Sentence = sentence,
+                Score = CountSignals(sentence, signals.ToArray())
+                    + CountQueryTokenHits(sentence, focusTerms)
+                    + CountMethodSignals(sentence)
+            })
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Sentence.Length)
+            .Select(item => item.Sentence)
+            .FirstOrDefault() ?? sentences[0];
+    }
+
+    private static string BuildFallbackLabel(DocumentChunk chunk)
+    {
+        var candidates = new[]
+        {
+            chunk.SectionTitle,
+            chunk.StructurePath.Split('>', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault() ?? string.Empty,
+            chunk.ContentKind
+        };
+
+        foreach (var candidate in candidates)
+        {
+            var cleaned = CleanStructuredSentence(candidate)
+                .Trim('，', '。', '；', '：', ':', '/', '\\', '|', ' ');
+            if (!string.IsNullOrWhiteSpace(cleaned))
+            {
+                return cleaned.Length <= 24 ? cleaned : cleaned[..24].TrimEnd();
+            }
+        }
+
+        return "组成项";
     }
 
     private static bool ContainsAny(string text, params string[] signals)
