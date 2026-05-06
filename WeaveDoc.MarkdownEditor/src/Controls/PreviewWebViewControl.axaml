@@ -3,21 +3,22 @@
              x:Class="WeaveDoc.MarkdownEditor.Controls.PreviewWebViewControl"
              HorizontalAlignment="Stretch"
              VerticalAlignment="Stretch">
-  <Border Background="White">
-    <ScrollViewer HorizontalScrollBarVisibility="Auto" 
+  <Border Background="White" Padding="0">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" 
                   VerticalScrollBarVisibility="Auto"
-                  Padding="16">
-      <TextBox x:Name="PreviewContent"
+                  Padding="16"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch">
+      <TextBlock x:Name="PreviewContent"
                Text="Preview content will appear here..."
                HorizontalAlignment="Stretch"
-               VerticalAlignment="Stretch"
                Foreground="Black"
                TextWrapping="Wrap"
-               IsReadOnly="True"
-               BorderThickness="0"
                Padding="0"
                Background="Transparent"
-               AcceptsReturn="True" />
+               FontFamily="Segoe UI"
+               FontSize="14"
+               LineHeight="20" />
     </ScrollViewer>
   </Border>
 </UserControl>

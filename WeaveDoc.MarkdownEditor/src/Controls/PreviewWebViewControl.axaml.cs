@@ -9,12 +9,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
 {
     public partial class PreviewWebViewControl : UserControl
     {
-        private TextBox? _previewContent;
+        private TextBlock? _previewContent;
 
         public PreviewWebViewControl()
         {
             InitializeComponent();
-            _previewContent = this.FindControl<TextBox>("PreviewContent");
+            _previewContent = this.FindControl<TextBlock>("PreviewContent");
             Logger.Log($"PreviewWebViewControl: Constructor - PreviewContent: {_previewContent != null}");
         }
 
@@ -45,7 +45,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
             base.OnLoaded(e);
             Logger.Log("PreviewWebViewControl: OnLoaded called");
             
-            // 显示初始预览内容
             if (_previewContent != null)
             {
                 _previewContent.Text = "Welcome to WeaveDoc Preview\n\nStart typing in the editor to see the preview!";
@@ -56,7 +55,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             if (_previewContent != null)
             {
-                // 显示内容（去除 HTML 标签）
                 var plainText = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]*>", string.Empty);
                 _previewContent.Text = plainText;
                 Logger.Log("PreviewWebViewControl: Preview updated");
