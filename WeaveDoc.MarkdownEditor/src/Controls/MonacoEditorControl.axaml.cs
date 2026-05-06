@@ -15,6 +15,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private CoreWebView2Controller? _controller;
         private string _pendingContent = string.Empty;
         private bool _isInitializing = false;
+        private bool _isBoundsSet = false;
 
         public MonacoEditorControl()
         {
@@ -74,9 +75,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _controller = await env.CreateCoreWebView2ControllerAsync(hwnd);
                 Logger.Log("MonacoEditorControl: Created WebView2 controller");
 
-                UpdateControllerBounds();
                 _controller.IsVisible = true;
-
+                _controller.CoreWebView2.Settings.IsScriptEnabled = true;
+                
                 _webview = _controller.CoreWebView2;
                 _webview.WebMessageReceived += Webview_WebMessageReceived;
                 _webview.NavigationCompleted += Webview_NavigationCompleted;
@@ -96,7 +97,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        private void UpdateControllerBounds()
+        private void UpdateControllerBounds(bool force = false)
         {
             try
             {
@@ -106,7 +107,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 if (root == null) return;
 
                 var scaling = root.RenderScaling;
-                var transform = this.TransformToVisual(null);
+                
+                var transform = this.TransformToVisual(root);
                 var position = transform?.Transform(new Point(0, 0)) ?? new Point(0, 0);
 
                 var width = (int)(this.Bounds.Width * scaling);
@@ -119,6 +121,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 _controller.Bounds = new System.Drawing.Rectangle(x, y, width, height);
                 Logger.Log($"MonacoEditorControl: Bounds updated - X:{x}, Y:{y}, Width:{width}, Height:{height}, Scaling:{scaling}");
+                _isBoundsSet = true;
             }
             catch (Exception ex)
             {
@@ -132,11 +135,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
             
             if (_webview != null)
             {
-                ResizeMonacoEditorAsync((int)(e.NewSize.Width * 2), (int)(e.NewSize.Height * 2));
+                _ = ResizeMonacoEditorAsync((int)(e.NewSize.Width * 2), (int)(e.NewSize.Height * 2));
             }
         }
 
-        private async void ResizeMonacoEditorAsync(int width, int height)
+        private async Task ResizeMonacoEditorAsync(int width, int height)
         {
             try
             {
@@ -208,11 +211,30 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        private void Webview_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs args)
+        private async void Webview_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs args)
         {
             if (args.IsSuccess)
             {
                 Logger.Log("MonacoEditorControl: WebView navigation completed");
+
+                await Task.Delay(200);
+
+                UpdateControllerBounds(true);
+                
+                await Task.Delay(100);
+
+                if (_webview != null && _controller != null)
+                {
+                    var root = VisualRoot as Window;
+                    if (root != null)
+                    {
+                        var scaling = root.RenderScaling;
+                        var width = (int)(this.Bounds.Width * scaling * 2);
+                        var height = (int)(this.Bounds.Height * scaling * 2);
+                        
+                        await ResizeMonacoEditorAsync(width, height);
+                    }
+                }
 
                 if (!string.IsNullOrEmpty(_pendingContent))
                 {

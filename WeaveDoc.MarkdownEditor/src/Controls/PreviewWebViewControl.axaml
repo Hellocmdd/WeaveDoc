@@ -9,14 +9,15 @@
                   Padding="16">
       <TextBox x:Name="PreviewContent"
                Text="Preview content will appear here..."
-               HorizontalAlignment="Left"
-               VerticalAlignment="Top"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Stretch"
                Foreground="Black"
                TextWrapping="Wrap"
                IsReadOnly="True"
                BorderThickness="0"
                Padding="0"
-               Background="Transparent" />
+               Background="Transparent"
+               AcceptsReturn="True" />
     </ScrollViewer>
   </Border>
 </UserControl>

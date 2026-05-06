@@ -5,15 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monaco Editor</title>
     <style>
-        html, body, #editor {
+        html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
-        }
-        body {
             background-color: #1E1E1E;
+        }
+        #editor {
+            width: 100%;
+            height: 100%;
         }
     </style>
     <script src="min/vs/loader.js"></script>
@@ -27,7 +29,9 @@
         require(['vs/editor/editor.main'], function() {
             monaco.languages.register({ id: 'markdown' });
             
-            editor = monaco.editor.create(document.getElementById('editor'), {
+            var editorContainer = document.getElementById('editor');
+            
+            editor = monaco.editor.create(editorContainer, {
                 value: '# Hello WeaveDoc!\n\nStart typing markdown here...',
                 language: 'markdown',
                 theme: 'vs-dark',
@@ -35,7 +39,14 @@
                 minimap: { enabled: false },
                 fontSize: 14,
                 lineNumbers: 'on',
-                wordWrap: 'on'
+                wordWrap: 'on',
+                wordWrapColumn: 0,
+                wrappingIndent: 'indent',
+                scrollBeyondLastLine: false,
+                scrollBeyondLastColumn: 0,
+                readOnly: false,
+                tabSize: 4,
+                padding: { top: 8, bottom: 8, left: 8, right: 8 }
             });
 
             editor.onDidChangeModelContent(function(event) {
@@ -74,15 +85,23 @@
             
             window.resizeEditor = function(width, height) {
                 try {
-                    if (editor) {
-                        editor.layout({ width: width, height: height });
+                    if (editor && editorContainer) {
+                        editorContainer.style.width = '100%';
+                        editorContainer.style.height = '100%';
+                        editor.layout();
                     }
                 } catch (e) {
                     console.error('Error resizing editor:', e);
                 }
             };
             
-            console.log("Monaco Editor initialized");
+            window.addEventListener('resize', function() {
+                if (editor) {
+                    editor.layout();
+                }
+            });
+            
+            console.log("Monaco Editor initialized with wordWrap enabled");
         });
     </script>
 </body>

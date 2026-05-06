@@ -1613,11 +1613,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
+      "projectUniqueName": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
       "projectName": "WeaveDoc.MarkdownEditor",
-      "projectPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
+      "projectPath": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\WeaveDoc.MarkdownEditor.csproj",
       "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
-      "outputPath": "D:\\WeaveDoc\\WeaveDoc.MarkdownEditor\\src\\obj\\",
+      "outputPath": "D:\\WeaveDoc\\Weavedoc.MarkdownEditor\\src\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -1643,8 +1643,7 @@
         "enableAudit": "true",
         "auditLevel": "low",
         "auditMode": "direct"
-      },
-      "SdkAnalysisLevel": "10.0.200"
+      }
     },
     "frameworks": {
       "net8.0-windows7.0": {
@@ -1695,7 +1694,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.419/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
