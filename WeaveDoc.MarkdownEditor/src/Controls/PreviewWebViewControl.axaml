@@ -1,31 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="WeaveDoc.MarkdownEditor.Controls.PreviewWebViewControl"
-             HorizontalAlignment="Stretch"
-             VerticalAlignment="Stretch">
-  <Border Background="White" Padding="0" Margin="0">
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled" 
-                  VerticalScrollBarVisibility="Auto"
-                  Padding="16"
-                  Margin="0"
-                  HorizontalAlignment="Stretch"
-                  VerticalAlignment="Stretch">
-      <TextBox x:Name="PreviewContent"
-               Text="Preview content will appear here..."
-               HorizontalAlignment="Stretch"
-               VerticalAlignment="Stretch"
+             x:Class="WeaveDoc.MarkdownEditor.Controls.PreviewWebViewControl">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" 
+                VerticalScrollBarVisibility="Auto"
+                Background="White">
+    <TextBlock x:Name="PreviewContent"
+               Margin="16"
                Foreground="Black"
                TextWrapping="Wrap"
-               IsReadOnly="True"
-               BorderThickness="0"
-               Padding="0"
-               Margin="0"
-               Background="Transparent"
                FontFamily="Segoe UI"
                FontSize="14"
-               LineHeight="20"
-               AcceptsReturn="True"
-               SelectionBrush="#ADD8E6" />
-    </ScrollViewer>
-  </Border>
+               LineHeight="20" />
+  </ScrollViewer>
 </UserControl>

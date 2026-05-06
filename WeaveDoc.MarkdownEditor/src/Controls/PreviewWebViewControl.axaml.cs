@@ -9,13 +9,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
 {
     public partial class PreviewWebViewControl : UserControl
     {
-        private TextBox? _previewContent;
+        private TextBlock? _previewContent;
 
         public PreviewWebViewControl()
         {
             InitializeComponent();
-            _previewContent = this.FindControl<TextBox>("PreviewContent");
-            Logger.Log($"PreviewWebViewControl: Constructor - PreviewContent: {_previewContent != null}");
+            _previewContent = this.FindControl<TextBlock>("PreviewContent");
         }
 
         public static readonly StyledProperty<string> HtmlContentProperty =
@@ -35,7 +34,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
             if (change.Property == HtmlContentProperty)
             {
                 var newContent = change.NewValue as string;
-                Logger.Log($"PreviewWebViewControl: HtmlContent property changed, length: {newContent?.Length ?? 0}");
                 UpdatePreview(newContent ?? string.Empty);
             }
         }
@@ -43,7 +41,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
         protected override void OnLoaded(RoutedEventArgs e)
         {
             base.OnLoaded(e);
-            Logger.Log("PreviewWebViewControl: OnLoaded called");
             
             if (_previewContent != null)
             {
@@ -57,7 +54,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 var plainText = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]*>", string.Empty);
                 _previewContent.Text = plainText;
-                Logger.Log("PreviewWebViewControl: Preview updated");
             }
         }
 
