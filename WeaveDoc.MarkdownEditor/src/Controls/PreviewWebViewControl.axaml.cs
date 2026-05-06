@@ -9,12 +9,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
 {
     public partial class PreviewWebViewControl : UserControl
     {
-        private TextBlock? _previewContent;
+        private TextBox? _previewContent;
 
         public PreviewWebViewControl()
         {
             InitializeComponent();
-            _previewContent = this.FindControl<TextBlock>("PreviewContent");
+            _previewContent = this.FindControl<TextBox>("PreviewContent");
             Logger.Log($"PreviewWebViewControl: Constructor - PreviewContent: {_previewContent != null}");
         }
 
