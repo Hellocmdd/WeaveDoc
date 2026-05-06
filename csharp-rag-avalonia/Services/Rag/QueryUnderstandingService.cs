@@ -22,6 +22,7 @@ internal static class QueryUnderstandingService
             LocalAiService.RequestsEnglishMetadata(question),
             LocalAiService.AvoidsEnglishMetadata(question),
             LocalAiService.DisallowKeywordLikeLeadChunksForSummary(question),
-            LocalAiService.PreferFallbackOverUnknown(question));
+            LocalAiService.PreferFallbackOverUnknown(question),
+            LocalAiService.ExtractCompareSubjects(question));
     }
 }

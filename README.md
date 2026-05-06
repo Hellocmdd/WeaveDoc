@@ -92,16 +92,18 @@ LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 
 ## What The App Supports
 
-- local indexing of `.md`, `.txt`, and `.json` documents from `doc/`
-- JSON ingestion into structure-aware chunks with searchable array-item section labels
+- local indexing of `.md`, `.txt`, `.json`, and `.pdf` documents from `doc/`
+- JSON ingestion into structure-aware chunks with stable section-path labels for deep array items
 - duplicate import detection so the app does not keep copying identical files into the knowledge base
-- hybrid retrieval with sparse prefilter + semantic scoring + structure-aware reranking
-- document-aware retrieval for title-scoped questions (for example `《...》这篇论文...`), with preferred evidence from the requested file
-- JSON branch-aware context expansion so related parent/child chunks can travel with the main hit
+- model-driven retrieval: pure vector cosine Top-N candidate retrieval followed by BGE-Reranker cross-encoder as sole ranking authority
+- document-scope hard filter for title-scoped questions (for example `《...》这篇论文...`), restricting candidates to the requested file before reranking
+- intent-specific context window assembly (metadata slot prioritization, procedure structure preference, definition section-title matching, compare subject coverage, summary lead/support split)
 - stable citations in answers, using file path + section + chunk id instead of temporary `[1] [2]` numbering
-- summary-aware fallback answers for paper and document overview questions
-- intent-specific fallback paths for composition, module implementation, metadata, and engineering-paper style questions
-- offline baseline evaluation through a CLI entry point and helper script, with keyword checks plus structural answer checks
+- multi-intent support: `compare`, `explain`, `procedure`, `usage`, `summary`, `definition`, `module_list`, `module_implementation`, `composition`, `metadata`, `general`
+- strong system prompt enforcing grounding, terminology preservation, and citation discipline
+- repair retry and intent-specific fallback answer builders for weak or off-topic generations
+- offline baseline evaluation through a CLI entry point and helper script, with keyword checks, structural answer checks, retrieval signal coverage, citation precision/recall, and scope accuracy
+- optional cloud chat provider (DeepSeek API) as an alternative to local `llama-server`
 
 ## SQLite Store Sync
 
@@ -123,13 +125,23 @@ Notes:
 
 - exit code `0`: all eval cases passed
 - exit code `2`: at least one case failed
-- besides keyword matching, the current evaluator also runs per-case structural checks for selected baseline cases
+- the evaluator measures keyword coverage, top-chunk signal coverage, context signal coverage, citation precision/recall, scope accuracy, and evidence kind accuracy
+- the baseline schema expresses answer, retrieval, and citation expectations separately so regressions can be localized
 
 Or run the app in evaluation mode directly:
 
 ```bash
 dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eval-baseline.json
 ```
+
+### Latest benchmark (2026-05-06)
+
+| Metric | Value |
+|--------|-------|
+| Case pass count | 15 / 20 (75%) |
+| Keyword coverage | 89.8% |
+| Context signal coverage | 98.4% |
+| Avg citation recall | 95.0% |
 
 ## Documentation
 

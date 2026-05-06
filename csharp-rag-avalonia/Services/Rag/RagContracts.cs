@@ -11,7 +11,8 @@ internal sealed record QueryProfile(
     bool RequestsEnglishMetadata,
     bool AvoidsEnglishMetadata,
     bool DisallowKeywordLikeLeadChunksForSummary,
-    bool PreferFallbackOverUnknown);
+    bool PreferFallbackOverUnknown,
+    IReadOnlyList<string> CompareSubjects);
 
 internal sealed record ScoredChunk(
     DocumentChunk Chunk,

@@ -58,9 +58,9 @@ public sealed partial class LocalAiService
         var globalLearnedRerank = await TryRerankWithLearnedModelAsync(question, candidates, queryProfile, ruleRerankCount, cancellationToken).ConfigureAwait(false);
         var ranked = globalLearnedRerank.RankedChunks;
         
-        // Task 3.2: For definition questions, boost chunks whose section title
-        // matches focus terms so they surface in top-chunk-signal checks.
-        if ((queryProfile.Intent == "definition" || queryProfile.Intent == "compare") && queryProfile.FocusTerms.Count > 0 && ranked.Count > 1)
+        // Intent-level nudges keep structurally relevant chunks visible after
+        // reranking without baking in document- or case-specific terms.
+        if (queryProfile.Intent is "definition" or "compare" or "procedure" or "summary" && ranked.Count > 1)
         {
             ranked = ranked
                 .Select(c => c with { Score = c.Score + ComputeTopChunkIntentBoost(c.Chunk, queryProfile) })
@@ -248,6 +248,66 @@ public sealed partial class LocalAiService
             return defSelected.ToArray();
         }
 
+        if (queryProfile.Intent == "compare")
+        {
+            var compareSelected = new List<DocumentChunk>();
+            var compareTerms = BuildIntentTerms(queryProfile);
+
+            if (queryProfile.CompareSubjects.Count >= 2)
+            {
+                foreach (var chunk in filteredRanked)
+                {
+                    if (compareSelected.Count >= limit)
+                    {
+                        break;
+                    }
+
+                    if (compareSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    if (ChunkMatchesCompareSubjects(chunk, queryProfile.CompareSubjects))
+                    {
+                        compareSelected.Add(chunk);
+                    }
+                }
+            }
+
+            foreach (var chunk in filteredRanked)
+            {
+                if (compareSelected.Count >= limit)
+                {
+                    break;
+                }
+
+                if (compareSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                if (compareTerms.Count == 0 || ChunkMatchesAnyTerm(chunk, compareTerms))
+                {
+                    compareSelected.Add(chunk);
+                }
+            }
+
+            foreach (var chunk in filteredRanked)
+            {
+                if (compareSelected.Count >= limit)
+                {
+                    break;
+                }
+
+                if (!compareSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    compareSelected.Add(chunk);
+                }
+            }
+
+            return compareSelected.ToArray();
+        }
+
         if (queryProfile.Intent != "summary")
         {
             return filteredRanked.Take(limit).ToArray();
@@ -386,13 +446,14 @@ public sealed partial class LocalAiService
         return terms.Any(term => chunk.SectionTitle.Contains(term, StringComparison.Ordinal));
     }
 
-    private static float ComputeTopChunkIntentBoost(DocumentChunk chunk, QueryProfile queryProfile)
+    internal static float ComputeTopChunkIntentBoost(DocumentChunk chunk, QueryProfile queryProfile)
     {
         var score = 0f;
         var retrievalText = BuildChunkRetrievalText(chunk).ToLowerInvariant();
         var sectionTitle = chunk.SectionTitle.ToLowerInvariant();
+        var structurePath = chunk.StructurePath.ToLowerInvariant();
 
-        foreach (var term in queryProfile.FocusTerms)
+        foreach (var term in BuildIntentTerms(queryProfile))
         {
             if (string.IsNullOrWhiteSpace(term))
             {
@@ -402,6 +463,11 @@ public sealed partial class LocalAiService
             if (sectionTitle.Contains(term, StringComparison.Ordinal))
             {
                 score += 0.9f;
+            }
+
+            if (structurePath.Contains(term, StringComparison.Ordinal))
+            {
+                score += 0.7f;
             }
 
             if (retrievalText.Contains(term, StringComparison.Ordinal))
@@ -415,13 +481,176 @@ public sealed partial class LocalAiService
             score += 0.35f;
         }
 
+        if (IsWellStructuredSourceChunk(chunk))
+        {
+            score += 0.2f;
+        }
+
         if (queryProfile.Intent == "compare")
         {
-            score += CountSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}",
-                "模糊控制阶段", "pid调节阶段", "PID调节阶段", "大偏差", "快速响应", "精确控制", "动态调整") * 0.2f;
+            score += CountSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}", CompareSignals) * 0.15f;
+            if (queryProfile.CompareSubjects.Count >= 2 && ChunkMatchesCompareSubjects(chunk, queryProfile.CompareSubjects))
+            {
+                score += 0.8f;
+            }
+        }
+
+        if (queryProfile.Intent == "procedure")
+        {
+            score += CountProcedureStructureSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}") * 0.12f;
+            score += ComputeProcedureTopChunkQualityBoost(chunk);
+        }
+
+        if (queryProfile.Intent == "summary" && IsSummaryLeadCandidate(chunk, queryProfile))
+        {
+            score += 0.45f;
         }
 
         return score;
+    }
+
+    private static float ComputeProcedureTopChunkQualityBoost(DocumentChunk chunk)
+    {
+        var score = 0f;
+        var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
+
+        if (chunk.FilePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            score += 1.4f;
+        }
+
+        if (chunk.ContentKind == "body")
+        {
+            score += 0.8f;
+        }
+
+        if (!string.IsNullOrWhiteSpace(chunk.SectionTitle))
+        {
+            score += 0.35f;
+        }
+
+        if (!string.IsNullOrWhiteSpace(chunk.StructurePath))
+        {
+            score += 0.75f;
+        }
+
+        score += Math.Min(10, CountSignals(source,
+            "输入", "前提", "处理", "执行", "输出", "结果", "控制", "调节", "机制", "策略",
+            "算法", "反馈", "误差", "驱动", "补偿", "判断", "计算", "生成", "监测", "模型")) * 0.22f;
+
+        if (chunk.ContentKind is "abstract" or "intro" or "summary")
+        {
+            score -= 1.25f;
+        }
+        else if (chunk.ContentKind == "conclusion")
+        {
+            score -= 0.75f;
+        }
+
+        if (IsUnstructuredMarkdownBodyChunk(chunk))
+        {
+            score -= 2.1f;
+        }
+
+        if (LooksLikeFragmentedChunk(chunk.Text))
+        {
+            score -= 0.65f;
+        }
+
+        return score;
+    }
+
+    private static bool IsUnstructuredMarkdownBodyChunk(DocumentChunk chunk)
+    {
+        return chunk.FilePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+            && chunk.ContentKind == "body"
+            && string.IsNullOrWhiteSpace(chunk.StructurePath);
+    }
+
+    private static bool LooksLikeFragmentedChunk(string text)
+    {
+        var trimmed = text.Trim();
+        if (trimmed.Length == 0)
+        {
+            return false;
+        }
+
+        if (trimmed.StartsWith('，') || trimmed.StartsWith(',') || trimmed.StartsWith('、') || trimmed.StartsWith('。') || trimmed.StartsWith('.'))
+        {
+            return true;
+        }
+
+        if (trimmed.EndsWith("...", StringComparison.Ordinal) || trimmed.EndsWith('…'))
+        {
+            return true;
+        }
+
+        return trimmed.Length > 160
+            && !trimmed.EndsWith('。')
+            && !trimmed.EndsWith('！')
+            && !trimmed.EndsWith('？')
+            && !trimmed.EndsWith('.')
+            && !trimmed.EndsWith('!')
+            && !trimmed.EndsWith('?');
+    }
+
+    private static IReadOnlyList<string> BuildIntentTerms(QueryProfile queryProfile)
+    {
+        var terms = new List<string>();
+        terms.AddRange(queryProfile.FocusTerms);
+        foreach (var subject in queryProfile.CompareSubjects)
+        {
+            terms.Add(subject.ToLowerInvariant());
+            terms.AddRange(ExtractQueryTokens(subject).Where(IsMeaningfulFocusTerm));
+        }
+
+        return terms
+            .Where(term => !string.IsNullOrWhiteSpace(term))
+            .Where(term => !IsIntentExpansionOnlyToken(term))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static bool ChunkMatchesAnyTerm(DocumentChunk chunk, IReadOnlyList<string> terms)
+    {
+        if (terms.Count == 0)
+        {
+            return false;
+        }
+
+        var text = BuildChunkRetrievalText(chunk).ToLowerInvariant();
+        return terms.Any(term => text.Contains(term, StringComparison.Ordinal));
+    }
+
+    private static bool ChunkMatchesCompareSubjects(DocumentChunk chunk, IReadOnlyList<string> subjects)
+    {
+        if (subjects.Count < 2)
+        {
+            return false;
+        }
+
+        var text = BuildChunkRetrievalText(chunk).ToLowerInvariant();
+        return subjects.Take(2).All(subject => SubjectMatchesText(subject, text));
+    }
+
+    private static bool SubjectMatchesText(string subject, string lowerText)
+    {
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            return false;
+        }
+
+        var normalized = subject.ToLowerInvariant();
+        if (lowerText.Contains(normalized, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var terms = ExtractQueryTokens(subject)
+            .Where(IsMeaningfulFocusTerm)
+            .Where(term => !IsIntentExpansionOnlyToken(term))
+            .ToArray();
+        return terms.Length > 0 && terms.Any(term => lowerText.Contains(term, StringComparison.Ordinal));
     }
 
     private static bool IsSummaryLeadCandidate(DocumentChunk chunk, QueryProfile queryProfile)
