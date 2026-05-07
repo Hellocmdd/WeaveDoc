@@ -216,7 +216,7 @@ public sealed partial class LocalAiService : IDisposable
         if (!queryProfile.PreferFallbackOverUnknown
             && ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
         {
-            return "我不知道（当前文档未覆盖）。";
+            return BuildUnknownAnswer(queryProfile, topChunks, retrieval.TargetFilePaths);
         }
 
         var prompt = BuildPrompt(retrievalQuestion, history, queryProfile, retrieval.RankedChunks, topChunks, retrieval.TargetFilePaths);
@@ -247,10 +247,10 @@ public sealed partial class LocalAiService : IDisposable
             if (!queryProfile.PreferFallbackOverUnknown
                 && ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
             {
-                return "我不知道（当前文档未覆盖）。";
+                return BuildUnknownAnswer(queryProfile, topChunks, retrieval.TargetFilePaths);
             }
 
-            return "我不知道（当前文档未覆盖）。";
+            return BuildUnknownAnswer(queryProfile, topChunks, retrieval.TargetFilePaths);
         }
 
         return answer;
@@ -1518,11 +1518,58 @@ public sealed partial class LocalAiService : IDisposable
 
             if (!string.IsNullOrWhiteSpace(previousQuestion))
             {
-                return $"{previousQuestion}；补充要求：{normalized}";
+                var previousAssistantAnswer = history
+                    .Where(turn => !turn.IsUser)
+                    .Select(turn => turn.Content.Trim())
+                    .Where(content => !string.IsNullOrWhiteSpace(content) && content.Length > 10)
+                    .Reverse()
+                    .FirstOrDefault();
+
+                var anchorTerms = ExtractAnchorTerms(previousAssistantAnswer, normalized, previousQuestion);
+                var augmented = $"{previousQuestion}；补充要求：{normalized}";
+                if (anchorTerms.Count > 0)
+                {
+                    augmented = $"{augmented}。重点关注：{string.Join("、", anchorTerms)}";
+                }
+
+                return augmented;
             }
         }
 
         return normalized.Trim();
+    }
+
+    private static IReadOnlyList<string> ExtractAnchorTerms(string? previousAssistantAnswer, string currentQuestion, string previousUserQuestion)
+    {
+        if (string.IsNullOrWhiteSpace(previousAssistantAnswer))
+        {
+            return [];
+        }
+
+        var answerTokens = ExtractQueryTokens(previousAssistantAnswer)
+            .Where(IsMeaningfulFocusTerm)
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (answerTokens.Count == 0)
+        {
+            return [];
+        }
+
+        var previousUserTokens = ExtractQueryTokens(previousUserQuestion)
+            .Where(IsMeaningfulFocusTerm)
+            .ToHashSet(StringComparer.Ordinal);
+
+        // Keep only terms that are in the assistant answer but NOT already
+        // covered by the previous user question — these are the new concepts
+        // that the assistant introduced and the follow-up should stay anchored on.
+        return answerTokens
+            .Where(t => !IsSupplementalRequestToken(t))
+            .Where(t => !IsIntentExpansionOnlyToken(t))
+            .Where(t => !previousUserTokens.Contains(t))
+            .Where(t => t.Length <= 12)
+            .OrderByDescending(t => t.Length)
+            .Take(4)
+            .ToArray();
     }
 
     private static string StripQuestionBoilerplate(string question)
@@ -3339,16 +3386,23 @@ public sealed partial class LocalAiService : IDisposable
             return answer;
         }
 
-        var citation = SelectDefaultCitation(chunks, targetFilePaths, queryProfile);
-        if (string.IsNullOrWhiteSpace(citation))
+        var defaultCitation = SelectDefaultCitation(chunks, targetFilePaths, queryProfile);
+        if (string.IsNullOrWhiteSpace(defaultCitation))
         {
             return answer;
         }
 
+        var targetFilePathSet = targetFilePaths.Count == 0
+            ? null
+            : new HashSet<string>(targetFilePaths, StringComparer.OrdinalIgnoreCase);
+        var scopedChunks = chunks
+            .Where(item => targetFilePathSet is null || targetFilePathSet.Contains(item.FilePath))
+            .ToArray();
+
         var lines = answer
             .Replace("\r\n", "\n", StringComparison.Ordinal)
             .Split('\n');
-        var builder = new StringBuilder(answer.Length + (citation.Length * Math.Max(1, lines.Length)));
+        var builder = new StringBuilder(answer.Length + (defaultCitation.Length * Math.Max(1, lines.Length)));
 
         foreach (var rawLine in lines)
         {
@@ -3362,14 +3416,88 @@ public sealed partial class LocalAiService : IDisposable
             builder.Append(line);
             if (!CitationRegex.IsMatch(line))
             {
+                var lineCitation = SelectCitationForAnswerLine(line, scopedChunks, queryProfile);
                 builder.Append(' ');
-                builder.Append(citation);
+                builder.Append(string.IsNullOrWhiteSpace(lineCitation) ? defaultCitation : lineCitation);
             }
 
             builder.AppendLine();
         }
 
         return builder.ToString().TrimEnd();
+    }
+
+    private static string SelectCitationForAnswerLine(string line, IReadOnlyList<DocumentChunk> chunks, QueryProfile? queryProfile)
+    {
+        if (string.IsNullOrWhiteSpace(line) || chunks.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var normalizedLine = NormalizeSummarySentence(CitationRegex.Replace(line, string.Empty));
+        if (string.IsNullOrWhiteSpace(normalizedLine))
+        {
+            return string.Empty;
+        }
+
+        var lineTerms = ExtractQueryTokens(normalizedLine)
+            .Where(IsMeaningfulFocusTerm)
+            .Where(term => !IsIntentExpansionOnlyToken(term))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        var bestChunk = chunks
+            .Select(chunk => new
+            {
+                Chunk = chunk,
+                Score = ScoreAnswerLineAgainstChunk(normalizedLine, lineTerms, chunk, queryProfile)
+            })
+            .Where(item => item.Score > 0)
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Chunk.Index)
+            .Select(item => item.Chunk)
+            .FirstOrDefault();
+
+        return bestChunk is null ? string.Empty : BuildStableCitation(bestChunk);
+    }
+
+    private static int ScoreAnswerLineAgainstChunk(string normalizedLine, IReadOnlyList<string> lineTerms, DocumentChunk chunk, QueryProfile? queryProfile)
+    {
+        var score = GetFallbackChunkScore(chunk, queryProfile);
+        var retrievalText = NormalizeSummarySentence(BuildChunkRetrievalText(chunk));
+        var sectionText = NormalizeSummarySentence($"{chunk.SectionTitle} {chunk.StructurePath}");
+
+        foreach (var term in lineTerms)
+        {
+            var normalizedTerm = NormalizeSummarySentence(term);
+            if (string.IsNullOrWhiteSpace(normalizedTerm))
+            {
+                continue;
+            }
+
+            if (sectionText.Contains(normalizedTerm, StringComparison.Ordinal))
+            {
+                score += 4;
+            }
+
+            if (retrievalText.Contains(normalizedTerm, StringComparison.Ordinal))
+            {
+                score += 2;
+            }
+        }
+
+        if (normalizedLine.Length >= 8)
+        {
+            var overlap = lineTerms.Count(term => retrievalText.Contains(NormalizeSummarySentence(term), StringComparison.Ordinal));
+            score += overlap * 2;
+        }
+
+        if (queryProfile?.Intent == "procedure")
+        {
+            score += CountProcedureStructureSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}");
+        }
+
+        return score;
     }
 
     private static string SelectDefaultCitation(IReadOnlyList<DocumentChunk> chunks, IReadOnlyList<string> targetFilePaths, QueryProfile? queryProfile = null)
@@ -3624,8 +3752,6 @@ public sealed partial class LocalAiService : IDisposable
         }
 
         var builder = new StringBuilder();
-        builder.Append("可以按“输入/前提 -> 判断或处理 -> 执行动作 -> 结果/效果”的链路来理解。");
-        builder.Append(' ');
         builder.Append(BuildStableCitation(ordered[0]));
         builder.AppendLine();
 
@@ -4195,6 +4321,27 @@ public sealed partial class LocalAiService : IDisposable
         return !HasAnyTermInChunks(topicalTokens, scopedChunks);
     }
 
+    private static string BuildUnknownAnswer(
+        QueryProfile queryProfile,
+        IReadOnlyList<DocumentChunk> chunks,
+        IReadOnlyList<string> targetFilePaths)
+    {
+        var subjectTerms = ExtractQuestionSubjectTerms(queryProfile.OriginalQuestion);
+        if (subjectTerms.Count == 0)
+        {
+            return "未找到相关内容。";
+        }
+
+        var termList = string.Join("、", subjectTerms.Take(6));
+        var citation = SelectDefaultCitation(chunks, targetFilePaths, queryProfile);
+        if (string.IsNullOrWhiteSpace(citation))
+        {
+            return $"未找到关于{termList}的相关内容。";
+        }
+
+        return $"未找到关于{termList}的相关内容。 {citation}";
+    }
+
     private static DocumentChunk[] FilterChunksByTargetFilePaths(
         IReadOnlyList<DocumentChunk> chunks,
         IReadOnlyList<string> targetFilePaths)
@@ -4527,6 +4674,32 @@ public sealed partial class LocalAiService : IDisposable
             || question.Contains("从哪些方面", StringComparison.Ordinal);
     }
 
+    internal static bool IsFollowUpExpansionRequest(string question)
+    {
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            return false;
+        }
+
+        var normalized = question.Trim();
+        var focusTerms = ExtractQueryTokens(normalized).Where(IsMeaningfulFocusTerm).ToArray();
+        if (focusTerms.Length >= 2)
+        {
+            return false;
+        }
+
+        return SupplementalRequestSignals.Any(signal => normalized.Contains(signal, StringComparison.Ordinal))
+            || normalized.Contains("详细一点", StringComparison.Ordinal)
+            || normalized.Contains("具体一点", StringComparison.Ordinal)
+            || normalized.Contains("展开一点", StringComparison.Ordinal)
+            || normalized.Contains("展开说", StringComparison.Ordinal)
+            || normalized.Contains("展开讲", StringComparison.Ordinal)
+            || normalized.Contains("细一点", StringComparison.Ordinal)
+            || normalized.Contains("继续", StringComparison.Ordinal)
+            || normalized.Contains("再说", StringComparison.Ordinal)
+            || normalized.Contains("具体呢", StringComparison.Ordinal);
+    }
+
     private static bool IsModuleQuestion(string question)
     {
         if (string.IsNullOrWhiteSpace(question))
@@ -4553,13 +4726,8 @@ public sealed partial class LocalAiService : IDisposable
             return false;
         }
 
-        return WantsDetailedAnswer(question)
-            || IsSummaryQuestion(question)
-            || question.Contains("再说", StringComparison.Ordinal)
-            || question.Contains("继续", StringComparison.Ordinal)
-            || question.Contains("展开一点", StringComparison.Ordinal)
-            || question.Contains("具体呢", StringComparison.Ordinal)
-            || question.Contains("细一点", StringComparison.Ordinal);
+        return IsFollowUpExpansionRequest(question)
+            || IsSummaryQuestion(question);
     }
 
     private static string BuildAnswerStructureRule(QueryProfile queryProfile)
@@ -4615,7 +4783,7 @@ public sealed partial class LocalAiService : IDisposable
 
         if (queryProfile.Intent == "compare")
         {
-            return "如果是在做对比，先点明比较维度，再分别说明两边的特点与差异；不要只解释其中一边。";
+            return "如果是在做对比，先一句话点明核心差异，再按 2-3 个维度分别展开两边在该维度上的具体差异；每个维度下必须同时覆盖双边，差异归纳不能只是重复单侧。不要只解释其中一边。";
         }
 
         if (queryProfile.Intent == "explain")
@@ -4628,10 +4796,17 @@ public sealed partial class LocalAiService : IDisposable
             return "如果是在问概念或对象是什么，先给出定义或身份，再补充它的职责、特征或在系统中的位置。";
         }
 
+        if (queryProfile.Intent == "procedure")
+        {
+            return queryProfile.WantsDetailedAnswer
+                ? "如果是在问流程或实现方式，按\"核心目标 → 关键机制 → 具体步骤 → 执行方式 → 效果\"的结构组织。直接陈述每个环节中系统实际使用的算法、组件、参数和结果，不要用\"可以按...链路来理解\"等元描述开头。优先使用描述系统核心控制或处理逻辑的上下文块，不要偏到通信接口配置、显示模块等外围环节。若上下文同时包含多个可能的流程链路，优先选择与问题核心动词直接相关的那一条。"
+                : "如果是在问流程或实现方式，按\"核心目标 → 关键机制 → 具体步骤 → 结果\"的结构组织。直接陈述每个环节的系统实际实现，不要用\"可以按...链路来理解\"等元描述开头。优先围绕系统核心功能展开，不要偏到通信配置等辅助环节。";
+        }
+
         if (queryProfile.Intent == "module_implementation")
         {
             return queryProfile.WantsDetailedAnswer
-                ? "如果是在问某个模块怎么做的，先点明该模块的目标和通信链路，再按“数据/状态从哪里来 -> 通过什么接口或协议传输 -> 在哪里显示或由谁下发控制 -> 系统如何执行或由哪一层完成”的顺序展开；不要泛化成整个系统流程。"
+                ? "如果是在问某个模块怎么做的，先点明该模块的目标和通信链路，再按”数据/状态从哪里来 -> 通过什么接口或协议传输 -> 在哪里显示或由谁下发控制 -> 系统如何执行或由哪一层完成”的顺序展开；不要泛化成整个系统流程。"
                 : "如果是在问某个模块怎么做的，先说这个模块的实现链路，再列关键接口、协议、显示端和控制动作；不要答成整个系统的通用流程。";
         }
 
@@ -4707,7 +4882,7 @@ public sealed partial class LocalAiService : IDisposable
 
         if (queryProfile.Intent == "compare")
         {
-            return "对比类问题优先同时保留两边的原始术语、阶段名或模块名，并明确差异点，不要只答单侧。";
+            return "对比类问题必须点出核心差异维度（如适用阶段、触发条件、处理方式、输出效果），同时保留两边的原始术语、阶段名或模块名；每项对比必须覆盖双边，不要只答单侧。";
         }
 
         if (queryProfile.Intent == "explain")
@@ -4735,8 +4910,8 @@ public sealed partial class LocalAiService : IDisposable
         if (queryProfile.Intent == "procedure")
         {
             return queryProfile.WantsDetailedAnswer
-                ? "流程类问题优先按“输入或前提 -> 核心步骤 -> 输出或结果”展开；如果原文出现模块名、算法名、协议名或控制信号，尽量直接保留。"
-                : "流程类问题优先点出前提、关键步骤和结果；如果原文出现模块名、算法名、协议名或控制信号，尽量直接保留。";
+                ? "流程类问题优先按“输入或前提 -> 核心步骤 -> 输出或结果”展开，聚焦系统核心功能链路；如果原文出现模块名、算法名、协议名或控制信号，尽量直接保留。"
+                : "流程类问题优先点出前提、关键步骤和结果，聚焦系统核心功能链路；如果原文出现模块名、算法名、协议名或控制信号，尽量直接保留。";
         }
 
         return queryProfile.WantsDetailedAnswer

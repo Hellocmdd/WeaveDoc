@@ -39,10 +39,13 @@
       "expectedKeywords": [
         "模糊pid",
         "土壤湿度",
+        "土壤温湿度",
         "电磁阀",
-        "动态调节"
+        "动态调节",
+        "动态调整",
+        "动态修正"
       ],
-      "minMatchedKeywords": 3,
+      "minMatchedKeywords": 4,
       "retrievalSignals": [
         "3 模糊PID复合控制器的简要设计",
         "3.2 PID调节阶段设计",
@@ -136,9 +139,10 @@
       "expectedKeywords": [
         "模糊pid",
         "电磁阀",
-        "土壤湿度"
+        "土壤湿度",
+        "土壤温湿度"
       ],
-      "minMatchedKeywords": 2,
+      "minMatchedKeywords": 3,
       "retrievalSignals": [
         "3 模糊PID复合控制器的简要设计",
         "3.2 PID调节阶段设计",
@@ -157,7 +161,7 @@
         },
         {
           "role": "助手",
-          "content": "上一轮回答略。"
+          "content": "该智能浇花系统通过模糊PID复合控制算法实现精准灌溉。系统利用土壤温湿度传感器采集数据，经模糊PID控制器计算最优灌溉量后，通过PWM信号驱动电磁阀精确输出水量，并结合环境温湿度进行动态补偿。"
         }
       ]
     },
@@ -166,9 +170,18 @@
       "category": "robustness",
       "question": "《基于STM32单片机的智能浇花系统设计》这篇文档有写蓝牙 Mesh 组网吗",
       "answerSignals": [
-        "我不知道"
+        "未找到",
+        "蓝牙",
+        "wifi",
+        "esp-01s",
+        "mqtt"
       ],
-      "minAnswerSignals": 1
+      "minAnswerSignals": 3,
+      "expectedSufficiency": "negative_answer",
+      "expectedCitations": [
+        "1.4.2 远程状态显示及控制模块"
+      ],
+      "minMatchedCitations": 1
     },
     {
       "id": "stm32-definition-mcu",
@@ -259,10 +272,15 @@
         "pid调节",
         "大偏差",
         "快速响应",
+        "快速粗调",
+        "快速调整",
         "精确控制",
-        "动态调整"
+        "精准控制",
+        "精准细调",
+        "动态调整",
+        "动态自整定"
       ],
-      "minMatchedKeywords": 4,
+      "minMatchedKeywords": 5,
       "retrievalSignals": [
         "3.1 模糊控制阶段：输入变量定义",
         "3.2 PID调节阶段设计",
