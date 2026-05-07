@@ -161,11 +161,45 @@ public sealed partial class LocalAiService
 
         if (queryProfile.Intent == "procedure")
         {
-            // Markdown body chunks are often fragmented by sliding-window chunking
-            // (start mid-sentence, end mid-sentence). For procedure questions that
-            // require synthesis across chunks, prefer well-structured chunks first
-            // so the model sees coherent context before fragmented pieces.
+            // Procedure questions (e.g. "如何实现精准灌溉") need chunks whose section
+            // titles contain procedure-relevant terms (control, regulation, compensation
+            // stages, etc). Build a combined term list from question focus terms plus
+            // structural procedure keywords, then select in three passes:
+            //   1. Section-title matches (most specific, regardless of source)
+            //   2. Well-structured chunks (JSON / abstract / conclusion / etc)
+            //   3. Fill remaining from filtered ranked list.
             var procSelected = new List<DocumentChunk>();
+            var combinedTerms = queryProfile.FocusTerms
+                .Where(t => !IsIntentExpansionOnlyToken(t))
+                .Concat(ProcedureSectionBoostTerms)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+
+            // Pass 1: chunks whose section title contains procedure terms.
+            // Cap at limit/3 (max 4) so Pass 2 and Pass 3 still have room.
+            var pass1Limit = Math.Min(limit / 3, 4);
+            if (combinedTerms.Length > 0)
+            {
+                foreach (var chunk in scopedRanked)
+                {
+                    if (procSelected.Count >= pass1Limit)
+                    {
+                        break;
+                    }
+
+                    if (procSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    if (ShouldKeepChunkForAnswer(queryProfile, chunk) && SectionTitleContainsAnyTerm(chunk, combinedTerms))
+                    {
+                        procSelected.Add(chunk);
+                    }
+                }
+            }
+
+            // Pass 2: well-structured chunks (JSON source or non-body content kind)
             foreach (var chunk in scopedRanked)
             {
                 if (procSelected.Count >= limit)
@@ -184,6 +218,7 @@ public sealed partial class LocalAiService
                 }
             }
 
+            // Pass 3: fill remaining slots from filtered ranked
             foreach (var chunk in filteredRanked)
             {
                 if (procSelected.Count >= limit)
@@ -418,6 +453,9 @@ public sealed partial class LocalAiService
             || (chunk.StructurePath.Contains("englishKeywords", StringComparison.OrdinalIgnoreCase));
     }
 
+    private static readonly string[] ProcedureSectionBoostTerms =
+        { "控制", "调节", "补偿", "策略", "机制", "阶段", "执行", "算法", "传感器", "驱动", "检测", "采集", "设定", "阈值" };
+
     private static bool IsWellStructuredSourceChunk(DocumentChunk chunk)
     {
         // JSON chunks are parsed from structured document sections and
@@ -443,7 +481,7 @@ public sealed partial class LocalAiService
             return false;
         }
 
-        return terms.Any(term => chunk.SectionTitle.Contains(term, StringComparison.Ordinal));
+        return terms.Any(term => chunk.SectionTitle.Contains(term, StringComparison.OrdinalIgnoreCase));
     }
 
     internal static float ComputeTopChunkIntentBoost(DocumentChunk chunk, QueryProfile queryProfile)
@@ -513,6 +551,8 @@ public sealed partial class LocalAiService
     {
         var score = 0f;
         var source = $"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}";
+        var lowerSection = chunk.SectionTitle.ToLowerInvariant();
+        var lowerStructure = chunk.StructurePath.ToLowerInvariant();
 
         if (chunk.FilePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
         {
@@ -534,18 +574,35 @@ public sealed partial class LocalAiService
             score += 0.75f;
         }
 
-        score += Math.Min(10, CountSignals(source,
-            "输入", "前提", "处理", "执行", "输出", "结果", "控制", "调节", "机制", "策略",
-            "算法", "反馈", "误差", "驱动", "补偿", "判断", "计算", "生成", "监测", "模型")) * 0.22f;
-
-        if (chunk.ContentKind is "abstract" or "intro" or "summary")
+        if (chunk.ContentKind is "abstract" or "summary" or "intro")
         {
-            score -= 1.25f;
+            score -= 1.5f;
         }
         else if (chunk.ContentKind == "conclusion")
         {
-            score -= 0.75f;
+            score -= 1.0f;
         }
+
+        if (lowerSection.Contains("workflow", StringComparison.Ordinal)
+            || lowerSection.Contains("overview", StringComparison.Ordinal)
+            || lowerSection.Contains("概述", StringComparison.Ordinal)
+            || lowerSection.Contains("总体", StringComparison.Ordinal)
+            || lowerStructure.Contains("workflow", StringComparison.Ordinal)
+            || lowerStructure.Contains("overview", StringComparison.Ordinal)
+            || lowerStructure.Contains("概述", StringComparison.Ordinal)
+            || lowerStructure.Contains("总体", StringComparison.Ordinal))
+        {
+            score -= 0.95f;
+        }
+
+        if (ProcedureSectionBoostTerms.Any(t => lowerSection.Contains(t, StringComparison.Ordinal) || lowerStructure.Contains(t, StringComparison.Ordinal)))
+        {
+            score += 1.15f;
+        }
+
+        score += Math.Min(10, CountSignals(source,
+            "输入", "前提", "处理", "执行", "输出", "结果", "控制", "调节", "机制", "策略",
+            "算法", "反馈", "误差", "驱动", "补偿", "判断", "计算", "生成", "监测", "模型")) * 0.22f;
 
         if (IsUnstructuredMarkdownBodyChunk(chunk))
         {

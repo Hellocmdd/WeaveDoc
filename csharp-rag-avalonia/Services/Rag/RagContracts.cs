@@ -7,6 +7,7 @@ internal sealed record QueryProfile(
     IReadOnlyList<string> FocusTerms,
     string Intent,
     bool WantsDetailedAnswer,
+    bool IsFollowUpExpansion,
     string? RequestedDocumentTitle,
     bool RequestsEnglishMetadata,
     bool AvoidsEnglishMetadata,

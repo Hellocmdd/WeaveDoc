@@ -18,6 +18,7 @@ internal static class QueryUnderstandingService
             focusTerms,
             intent,
             wantsDetailedAnswer,
+            LocalAiService.IsFollowUpExpansionRequest(question),
             requestedDocumentTitle,
             LocalAiService.RequestsEnglishMetadata(question),
             LocalAiService.AvoidsEnglishMetadata(question),

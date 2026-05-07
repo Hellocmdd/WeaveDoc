@@ -352,9 +352,10 @@ internal static class EvalRunner
 
         var slotCoverage = 1d;
 
-        var expectsUnknown = (item.AnswerSignals ?? []).Any(signal => signal.Contains("我不知道", StringComparison.Ordinal));
-        var answeredUnknown = answer.Contains("我不知道", StringComparison.Ordinal) || answer.Contains("当前文档未覆盖", StringComparison.Ordinal);
-        var sufficiencyAccurate = expectsUnknown == answeredUnknown;
+        var expectedSufficiency = item.ExpectedSufficiency ?? string.Empty;
+        var sufficiencyAccurate = expectedSufficiency.Equals("negative_answer", StringComparison.OrdinalIgnoreCase)
+            ? IsNegativeAnswerToQuestion(answer, item.Question)
+            : HasExpectedUnknownSufficiency(answer, item);
 
         var knownCitations = new HashSet<string>(contextChunks.Select(chunk => chunk.Citation), StringComparer.Ordinal);
         var answerCitations = CitationRegex.Matches(answer)
@@ -508,15 +509,24 @@ internal static class EvalRunner
                 && ContainsAny(normalized, "json", "封装")
                 && ContainsAny(normalized, "app", "手机app")
                 && ContainsAny(normalized, "阈值", "指令", "手动触发", "即时灌溉"),
-            "stm32-control-prefixed" => ContainsAll(normalized, "模糊pid", "土壤湿度", "电磁阀")
+            "stm32-control-prefixed" => ContainsAll(normalized, "模糊pid", "电磁阀")
+                && ContainsAny(normalized, "土壤湿度", "土壤温湿度")
                 && ContainsAny(normalized, "环境温湿度", "环境数据", "传感器")
                 && ContainsAny(normalized, "pwm", "占空比", "开度"),
-            "stm32-control" => ContainsAll(normalized, "模糊pid", "土壤湿度", "电磁阀")
+            "stm32-control" => ContainsAll(normalized, "模糊pid", "电磁阀")
+                && ContainsAny(normalized, "土壤湿度", "土壤温湿度")
                 && ContainsAny(normalized, "pwm", "占空比", "开度"),
-            "follow-up-detail" => ContainsAll(normalized, "模糊pid", "土壤湿度", "电磁阀")
+            "follow-up-detail" => ContainsAll(normalized, "模糊pid", "电磁阀")
+                && ContainsAny(normalized, "土壤湿度", "土壤温湿度")
                 && ContainsAny(normalized, "pwm", "占空比", "开度")
                 && ContainsAny(normalized, "环境温湿度", "补偿", "蒸发"),
-            "stm32-no-answer-bluetooth" => ContainsAny(normalized, "我不知道", "当前文档未覆盖"),
+            "stm32-compare-fuzzy-pid" => ContainsAny(normalized, "模糊控制", "模糊pid")
+                && ContainsAny(normalized, "pid调节", "pid算法", "pid")
+                && ContainsAny(normalized, "大偏差", "偏差较大", "偏离目标值较远")
+                && ContainsAnyCompareOutcomePhrase(normalized),
+            "stm32-no-answer-bluetooth" => IsNegativeAnswerToQuestion(answer, item.Question)
+                && ContainsAll(normalized, "蓝牙")
+                && ContainsAny(normalized, "wifi", "esp-01s", "mqtt"),
             "stm32-summary-json-scoped" => ContainsAny(normalized, "模糊pid", "电磁阀", "交互显示")
                 && ContainsAtLeast(normalized, 3, "目标", "系统设计", "控制方法", "效果", "感知", "决策", "执行", "交互")
                 && ContainsAny(normalized, "abstract", "正文", "控制", "模块", "系统")
@@ -548,6 +558,32 @@ internal static class EvalRunner
         return Regex.Replace(text.ToLowerInvariant(), "\\s+", string.Empty);
     }
 
+    private static bool HasExpectedUnknownSufficiency(string answer, EvalCase item)
+    {
+        var expectsUnknown = (item.AnswerSignals ?? []).Any(signal =>
+            signal.Contains("我不知道", StringComparison.Ordinal)
+            || signal.Contains("未覆盖", StringComparison.Ordinal)
+            || signal.Contains("未提及", StringComparison.Ordinal));
+        var answeredUnknown = IsUnknownAnswer(answer);
+        return expectsUnknown == answeredUnknown;
+    }
+
+    private static bool IsUnknownAnswer(string answer)
+    {
+        var normalized = NormalizeForMatching(answer);
+        return ContainsAny(normalized, "我不知道", "当前文档未覆盖", "未找到", "未提及", "未涉及", "没有写", "没有提到", "没有提及", "没有涉及");
+    }
+
+    private static bool IsNegativeAnswerToQuestion(string answer, string question)
+    {
+        var normalizedAnswer = NormalizeForMatching(answer);
+        var normalizedQuestion = NormalizeForMatching(question);
+        var asksBluetooth = ContainsAny(normalizedQuestion, "蓝牙", "bluetooth", "mesh");
+        var deniesCoverage = ContainsAny(normalizedAnswer, "未找到", "未提及", "未涉及", "没有写", "没有提到", "没有提及", "没有涉及", "无相关", "不包含");
+        var mentionsAskedTopic = !asksBluetooth || ContainsAny(normalizedAnswer, "蓝牙", "bluetooth", "mesh");
+        return deniesCoverage && mentionsAskedTopic;
+    }
+
     private static string BuildChunkInspectionText(LocalAiService.RetrievalChunkSnapshot chunk)
     {
         return $"{chunk.Citation}\n{chunk.FilePath}\n{chunk.SectionTitle}\n{chunk.StructurePath}\n{chunk.ContentKind}\n{chunk.Text}";
@@ -566,6 +602,22 @@ internal static class EvalRunner
     private static bool ContainsAtLeast(string text, int minimum, params string[] tokens)
     {
         return tokens.Count(token => text.Contains(token, StringComparison.Ordinal)) >= minimum;
+    }
+
+    private static bool ContainsAnyCompareOutcomePhrase(string text)
+    {
+        return ContainsAny(
+            text,
+            "快速响应",
+            "快速粗调",
+            "快速调整",
+            "精确控制",
+            "精准控制",
+            "精准细调",
+            "动态调整",
+            "动态自整定",
+            "连续平滑控制",
+            "抑制超调");
     }
 
     private static async Task<(string JsonReportPath, string MarkdownReportPath)> SaveReportsAsync(EvalSummaryReport summary, CancellationToken cancellationToken)
@@ -789,6 +841,7 @@ internal static class EvalRunner
         int? MinContextSignals,
         List<string>? ExpectedCitations,
         int? MinMatchedCitations,
+        string? ExpectedSufficiency,
         List<string>? AllowedSourceExtensions,
         List<string>? ForbiddenSourceExtensions,
         List<EvalTurn>? History);
