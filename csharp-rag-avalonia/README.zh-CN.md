@@ -8,7 +8,7 @@
 
 - Embedding 与切块索引在本地通过 LLamaSharp 完成
 - 聊天生成通过本地 `llama-server` 提供的 OpenAI 兼容接口完成
-- 检索采用“稀疏预筛 + 语义打分 + BGE 学习式重排 + 规则补充排序 + 邻接上下文窗口”
+- 检索采用**模型驱动管线**（`refactored` 模式）：纯向量余弦 Top-N 候选召回 → BGE-Reranker 交叉编码器作为唯一排序权威 → 意图感知上下文窗口组装
 - 回答中的引用使用稳定来源标签，例如 `[doc/json/a.json | 某章节 | c3]`
 
 ## 模型
@@ -29,11 +29,11 @@
 - 从 `doc/` 加载 `.md`、`.txt`、`.json`
 - 对文档做本地 embedding 与语义分块
 - 复用 `.rag/embedding-cache.json` 中的 embedding 缓存
-- 检索链路包括：
-  稀疏预筛 = BM25 + keyword + title + direct-hit bonus + noise penalty
-  语义阶段 = 只对候选池做向量相似度计算，稀疏信号过弱时可回退全量语义
-  重排阶段 = coverage + neighbor support + JSON branch support + intent boost，之后在 reranker 服务可用时交给 BGE-Reranker 精排
-- 会把相邻 chunk 和同一 JSON 结构分支上的相关 chunk 一并补进上下文
+- 检索链路（`refactored` 模式）：
+  候选召回 = 全量 in-scope chunk 的纯向量余弦相似度 Top-N（默认 50–100）
+  精排 = BGE-Reranker 交叉编码器作为唯一排序权威
+  后处理 = 意图分数微调（definition / compare / procedure / summary）→ 意图感知上下文组装（procedure 三趟槽位、summary 主块+支撑块等）
+- 对 procedure / compare / composition / explain 意图有专用本地回退答案生成器
 - 通过 `llama-server` 生成带引用的回答
 - 首答不可靠时会走更严格的 repair prompt；总结类问题还有专门的 summary 回退
 - UI 支持添加、删除、刷新 `.md` / `.txt` / `.json`
@@ -112,9 +112,9 @@ dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eva
 
 检索调试还会额外输出：
 
-- 稀疏预筛候选数
-- 进入语义阶段的候选数
-- 当前问题是否使用了稀疏预筛，还是回退到全量语义
+- 进入语义评分的 chunk 总数
+- 学习式重排状态（`global:ok (N/N)` 或失败原因）
+- 每个主命中 chunk 的 reranker 分数拆解
 
 ## 环境变量
 
@@ -127,8 +127,8 @@ dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eva
 - `RAG_RERANKER_ENABLED` 默认 `true`
 - `RAG_RERANKER_BASE_URL` 默认 `http://127.0.0.1:8081`
 - `RAG_RERANKER_MODEL` 默认 `bge-reranker-v2-m3`
-- `RAG_PIPELINE_MODE` 默认 `legacy`，可选 `legacy`、`simple`、`refactored`
-- `RAG_TOP_K` 默认 `4`
+- `RAG_PIPELINE_MODE`（可选 `legacy`、`simple`、`refactored`；环境变量默认 `legacy`；实际运行默认 `refactored`）
+- `RAG_TOP_K` 默认 `8`
 - `RAG_CANDIDATE_POOL_SIZE` 默认 `12`
 - `RAG_SPARSE_CANDIDATE_POOL_SIZE` 默认 `48`
 - `RAG_CONTEXT_WINDOW_RADIUS` 默认 `1`

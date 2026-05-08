@@ -134,14 +134,18 @@ Or run the app in evaluation mode directly:
 dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eval-baseline.json
 ```
 
-### Latest benchmark (2026-05-06)
+### Latest benchmark (2026-05-07)
 
 | Metric | Value |
 |--------|-------|
-| Case pass count | 15 / 20 (75%) |
-| Keyword coverage | 89.8% |
+| Case pass count | 18 / 20 (90.0%) |
+| Keyword coverage | 77.3% |
+| Top chunk signal coverage | 67.2% |
 | Context signal coverage | 98.4% |
-| Avg citation recall | 95.0% |
+| Avg citation precision | 72.7% |
+| Avg citation recall | 100.0% |
+| Scope accuracy | 100.0% |
+| Evidence kind accuracy | 100.0% |
 
 ## Documentation
 
