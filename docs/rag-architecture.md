@@ -153,7 +153,7 @@ These are available for BM25 and other sparse retrieval signals, though the defa
 
 ### 5.1 Question normalization
 
-`NormalizeQuestionForRetrieval` removes greeting/noise prefixes and can expand follow-up questions such as "be more detailed" or "continue" by borrowing the previous user turn.
+`NormalizeQuestionForRetrieval` removes greeting/noise prefixes and can expand follow-up questions such as "be more detailed" or "continue". For follow-up questions, `ShouldAugmentWithPreviousQuestion` → `IsFollowUpExpansionRequest` detects the pattern (requires < 2 meaningful focus terms in the current question), then `ExtractAnchorTerms` extracts anchor terms from the previous assistant answer — new concepts introduced by the assistant that weren't in the original user question (up to 4). These are appended as "重点关注：..." to the augmented question, keeping follow-ups anchored on the established conversation topic.
 
 ### 5.2 Query token extraction
 
@@ -170,6 +170,7 @@ These are available for BM25 and other sparse retrieval signals, though the defa
 - `FocusTerms` — up to 8 meaningful tokens from the current question
 - `Intent` — document-classified query intent
 - `WantsDetailedAnswer`
+- `IsFollowUpExpansion` — whether this is a follow-up expansion on the previous topic (e.g. "be more detailed")
 - `RequestedDocumentTitle` — for document-scoped queries like `《...》这篇论文`
 - `CompareSubjects` — for `compare` intent
 - metadata preference flags (`RequestsEnglishMetadata`, `AvoidsEnglishMetadata`, etc.)
@@ -262,6 +263,15 @@ After the reranker orders the list, a lightweight **intent boost nudge** is appl
 - `compare` subject match: +0.8
 - `procedure` JSON source: +1.4, unstructured Markdown body: −2.1
 
+The `procedure` intent has an additional specialized boost via `ComputeProcedureTopChunkQualityBoost`:
+
+- `abstract` / `summary` / `intro` ContentKind: −1.5 (prevent summary blocks from crowding out technical detail)
+- `conclusion` ContentKind: −1.0
+- section title / structure path containing `workflow`, `overview`, `概述`, or `总体`: −0.95 (prevent generic main-loop descriptions from taking slots)
+- section title / structure path matching `ProcedureSectionBoostTerms` (14 domain terms: 控制, 调节, 补偿, 策略, 机制, 阶段, 执行, 算法, 传感器, 驱动, 检测, 采集, 设定, 阈值): +1.15
+- 20 procedure signal terms (输入, 前提, 处理, 执行, 输出...) hit count × 0.22
+- Signal counting executes after section boost/penalty to avoid being suppressed by penalties
+
 ### 7.5 Reranker fallback
 
 If the reranker server is disabled, unreachable, times out, or returns an unusable response, retrieval falls back to the vector-sorted candidate order (no rule-based rerankScore is applied in `refactored` mode).
@@ -273,7 +283,7 @@ If the reranker server is disabled, unreachable, times out, or returns an unusab
 | Intent | Assembly strategy |
 |--------|-----------------|
 | `metadata` | Priority slots: englishTitle → englishAbstract → englishKeywords → abstract; then fill to limit, deduplicate English fields |
-| `procedure` | Prefer well-structured (JSON / abstract / conclusion) chunks first, then fill from filtered list |
+| `procedure` | **Three-pass assembly**: Pass 1a — prefer chunks whose SectionTitle matches query focus terms (FocusTerms), capped at `limit/3` (max 4); Pass 1b — fill remaining Pass 1 slots with `ProcedureSectionBoostTerms` matches (14 generic procedure terms); Pass 2 — add well-structured chunks (JSON / abstract / conclusion); Pass 3 — fill to limit from filtered ranked list. Pass 1a priority ensures question-specific anchor terms aren't crowded out by generic matches |
 | `definition` | Prefer chunks whose `SectionTitle` contains focus terms, then fill |
 | `compare` | Prefer chunks matching both compare subjects, then chunks matching any compare term, then fill |
 | `summary` | 2 summary-lead chunks (abstract / overview / conclusion) + support chunks by priority score, then fill |
@@ -348,11 +358,17 @@ Citations are stable even when context ordering changes between calls.
 
 For very short summary-style queries, the overlap check is intentionally relaxed so valid high-level summaries are not rejected.
 
-### 10.2 Repair retry
+When the question concerns a topic not covered by the current documents, the system no longer returns a generic "I don't know." Instead, `BuildUnknownAnswer` extracts subject terms from the question (e.g. "Bluetooth Mesh networking") and returns "未找到关于{subject}的相关内容" with a default citation, making negative answers more informative.
+
+### 10.2 Per-line citation selection
+
+After answer generation, instead of appending the same default citation to every line, `SelectCitationForAnswerLine` scores each answer line against all available chunks (term overlap in section/text + procedure structure signals) and selects the most relevant citation per line. This makes citations more precisely traceable to specific portions of the answer.
+
+### 10.3 Repair retry
 
 If the first answer is weak, the service retries with a stricter repair prompt. The repair prompt adds a hard "must not say 我不知道 or 未覆盖" rule and repeats the citation correction instruction.
 
-### 10.3 Extractive fallback
+### 10.4 Extractive fallback
 
 If repair still fails, the service falls back to intent-specific builders:
 
@@ -360,6 +376,12 @@ If repair still fails, the service falls back to intent-specific builders:
 - `BuildSummaryFallbackAnswer`
 - `BuildExtractiveFallbackAnswer`
 - `BuildUsageFallbackAnswer`
+- **`BuildLocalProcedureFallbackAnswer`** — builds a four-part answer (input/precondition → judgment/processing → action/execution → result/effect) by selecting representative chunks per part via `FindRepresentativeChunk`; chunks matching focus terms are prioritized over those matching only generic signals
+- **`BuildLocalCompareFallbackAnswer`** — selects representative chunks per compare subject
+- **`BuildLocalCompositionFallbackAnswer`** — constructs structured composition list fallback
+- **`BuildLocalExplainFallbackAnswer`** — builds a three-part answer (reason → mechanism → impact)
+
+All local fallbacks use the `FindRepresentativeChunk` (QueryProfile overload), which adds focus-term scores atop signal-term scores and sorts by `FocusScore > 0` first — ensuring chunks completely unrelated to the question focus (e.g. a data-acquisition section for an irrigation-control question) cannot take representative slots.
 
 Summary fallback prefers sentences from summary / overview / architecture / method / result sections, filters out parameter-heavy fragments, and still emits stable citations.
 
@@ -398,25 +420,29 @@ The evaluator measures:
 
 The baseline schema expresses answer expectations, retrieval expectations, and citation expectations separately, so regressions can be localized to generation, retrieval, or grounding.
 
-### Latest benchmark (2026-05-06)
+### Latest benchmark (2026-05-07)
 
 | Metric | Value |
 |--------|-------|
-| Case pass count | 15 / 20 (75.0%) |
-| Keyword coverage | 79 / 88 (89.8%) |
-| Top chunk signal coverage | 37 / 64 (57.8%) |
+| Case pass count | 18 / 20 (90.0%) |
+| Keyword coverage | 75 / 97 (77.3%) |
+| Top chunk signal coverage | 43 / 64 (67.2%) |
 | Context signal coverage | 63 / 64 (98.4%) |
-| Avg citation precision | 74.3% |
-| Avg citation recall | 95.0% |
-| Scope accuracy | 100.0% |
-| Evidence kind accuracy | 100.0% |
+| Avg citation precision | 72.7% |
+| Avg citation recall | 100.0% |
+| Scope accuracy | 20/20 (100.0%) |
+| Evidence kind accuracy | 20/20 (100.0%) |
+| Sufficiency accuracy | 19/20 (95.0%) |
+| Citation from EvidenceSet | 20/20 (100.0%) |
+| Source format accuracy | 20/20 (100.0%) |
 
-**Key observations from the latest run:**
+**Key observations (2026-05-07):**
 
-- Context signal coverage (98.4%) is excellent — the final context window nearly always contains the expected evidence.
-- Top chunk signal coverage (57.8%) is the main remaining gap — the expected key chunks are retrieved but sometimes not ranked in the top few positions by the reranker.
-- Citation recall (95.0%) is strong; precision (74.3%) has room to improve (answers cite more chunks than strictly necessary).
-- The `stm32-control` case failure is a known pattern: for `procedure` questions, markdown body chunks from the companion `.md` file compete with and outrank the equivalent structured `.json` chunks in the reranker, because the `.md` fragments contain more continuous natural-language text.
+- Case pass improved from 15/20 to 18/20. R0-1~3 fixes (Pass 1 cap + anti-meta-description + AnswerComposer instruction softening) resolved the regressions on `stm32-control-prefixed` and `stm32-control`.
+- Citation recall reached 100% — all expected citations are present in answers.
+- Context signal coverage (98.4%) remains excellent.
+- Top chunk signal coverage improved from 57.8% to 67.2% — the Pass 1 focus-term-first strategy improved chunk ordering for procedure-type queries.
+- 2 remaining failures: `follow-up-detail` (follow-up expansion chunk selection drifts to peripheral communication-interface sections) and `stm32-compare-fuzzy-pid` (compare instruction bloat causes meta-description to crowd out technical content); both are addressed in R0-5 pending verification.
 
 ## 13. Main Parameters
 
@@ -481,10 +507,12 @@ The default parameter style is intentionally conservative: stable, debuggable, a
 
 - learned reranking requires a separate local reranker server; the pipeline falls back to vector-sorted order when unavailable
 - PDF ingestion currently depends on external `pdftotext` availability and text extraction quality
-- top chunk signal coverage (57.8%) indicates the reranker sometimes surfaces markdown body fragments over equivalent structured JSON chunks for procedure-type queries — this is an active known issue
+- top chunk signal coverage (67.2%) still has room for improvement — generic terms in `ProcedureSectionBoostTerms` (e.g. "采集"/acquisition) can sometimes elevate data-acquisition/communication-interface sections over technically core sections like PID control
+- `ProcedureSectionBoostTerms` currently consists of 14 static Chinese terms biased toward embedded/IoT domains; cross-domain coverage may degrade for non-engineering documents (dynamic corpus extraction planned in `task-generalize-procedure-terms.md`)
 - stable citations currently resolve to "file + section + chunk", not page numbers or finer structural locations
 - offline evaluation is mainly keyword + rule checks, not a stronger semantic automatic grading model
 - `RAG_PIPELINE_MODE` env var default is `legacy` but the actual runtime uses `refactored` — this inconsistency should be resolved
+- follow-up expansion chunk selection still has optimization room: for very short follow-ups (e.g. "more detail"), even with anchor term extraction, Pass 1 generic-term matching in context assembly can pull peripheral sections into the context window
 
 ## 16. One-Sentence Summary
 

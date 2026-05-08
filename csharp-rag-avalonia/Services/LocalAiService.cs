@@ -3746,7 +3746,7 @@ public sealed partial class LocalAiService : IDisposable
             .DistinctBy(chunk => $"{chunk.FilePath}#{chunk.Index}")
             .ToArray();
 
-        if (ordered.Length < 3)
+        if (ordered.Length < 4)
         {
             return string.Empty;
         }
@@ -4783,7 +4783,7 @@ public sealed partial class LocalAiService : IDisposable
 
         if (queryProfile.Intent == "compare")
         {
-            return "如果是在做对比，先一句话点明核心差异，再按 2-3 个维度分别展开两边在该维度上的具体差异；每个维度下必须同时覆盖双边，差异归纳不能只是重复单侧。不要只解释其中一边。";
+            return "如果是在做对比，直接陈述两边的具体差异，不要用\"可以按...比较\"等元描述开头。先一句话点明核心差异，再按 2-3 个维度分别展开两边在该维度上的表现；每个维度下必须同时覆盖双边。不要只解释其中一边。";
         }
 
         if (queryProfile.Intent == "explain")
@@ -4882,7 +4882,7 @@ public sealed partial class LocalAiService : IDisposable
 
         if (queryProfile.Intent == "compare")
         {
-            return "对比类问题必须点出核心差异维度（如适用阶段、触发条件、处理方式、输出效果），同时保留两边的原始术语、阶段名或模块名；每项对比必须覆盖双边，不要只答单侧。";
+            return "对比类问题必须点出核心差异维度（如适用阶段、触发条件、处理方式、输出效果），同时保留两边的原始术语、阶段名或模块名；每项对比必须覆盖双边。直接陈述差异内容，不要用\"可以按...比较\"等元描述开头。";
         }
 
         if (queryProfile.Intent == "explain")

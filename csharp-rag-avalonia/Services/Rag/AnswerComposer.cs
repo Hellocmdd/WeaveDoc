@@ -52,7 +52,7 @@ public sealed partial class LocalAiService
         }
         if (queryProfile.Intent == "compare")
         {
-            builder.AppendLine("对比综合指令: 对比类问题必须同时覆盖问题中的两个对象，并按以下结构组织：(1) 先一句话点明核心差异；(2) 按”触发条件/适用阶段、控制或处理方式、输出动作或执行方式、目标效果或结果”中至少 3 个维度逐项对比，每项必须同时描述两边在该维度上的具体表现与差异；(3) 最后做差异归纳。禁止用单侧描述代替差异归纳、禁止差异归纳只是重复其中一侧内容。不要回答'未覆盖'。");
+            builder.AppendLine("对比综合指令: 对比类问题必须同时覆盖问题中提及的每个对象。直接陈述每个对象的具体差异，不要用元描述开头。按触发条件、处理方式、输出效果等维度逐项对比，每项同时描述每个对象在该维度上的具体表现，最后做差异归纳。不要只解释其中一边，不要回答'未覆盖'。");
         }
         if (!string.IsNullOrWhiteSpace(queryProfile.RequestedDocumentTitle) && targetFilePaths.Count > 0)
         {
@@ -149,7 +149,7 @@ public sealed partial class LocalAiService
         }
         if (queryProfile.Intent == "compare")
         {
-            builder.AppendLine("对比综合指令: 对比类问题必须同时覆盖问题中的两个对象，并按以下结构组织：(1) 先一句话点明核心差异；(2) 按”触发条件/适用阶段、控制或处理方式、输出动作或执行方式、目标效果或结果”中至少 3 个维度逐项对比，每项必须同时描述两边在该维度上的具体表现与差异；(3) 最后做差异归纳。禁止用单侧描述代替差异归纳、禁止差异归纳只是重复其中一侧内容。不要回答'未覆盖'。");
+            builder.AppendLine("对比综合指令: 对比类问题必须同时覆盖问题中的两个对象。直接陈述两边的具体差异，不要用元描述开头。按触发条件、处理方式、输出效果等维度逐项对比，每项同时描述两边在该维度上的具体表现，最后做差异归纳。不要只解释其中一边，不要回答'未覆盖'。");
         }
         if (!string.IsNullOrWhiteSpace(queryProfile.RequestedDocumentTitle) && targetFilePaths.Count > 0)
         {
