@@ -229,6 +229,7 @@ public sealed partial class LocalAiService : IDisposable
 
         if (IsOffTopicOrMalformedAnswer(answer, retrievalQuestion, topChunks, retrieval.TargetFilePaths))
         {
+            Console.Error.WriteLine($"[QA-Flow] LLM-answer-rejected, attempting repair... q='{TruncateForLog(retrievalQuestion)}'");
             var repaired = NormalizeGeneratedAnswerCitations(
                 await client.CompleteAsync(BuildRepairPrompt(retrievalQuestion, queryProfile, retrieval.RankedChunks, topChunks, retrieval.TargetFilePaths), cancellationToken, RagSystemPrompt).ConfigureAwait(false),
                 topChunks,
@@ -236,14 +237,18 @@ public sealed partial class LocalAiService : IDisposable
                 queryProfile);
             if (!IsOffTopicOrMalformedAnswer(repaired, retrievalQuestion, topChunks, retrieval.TargetFilePaths))
             {
+                Console.Error.WriteLine("[QA-Flow] Repair-accepted");
                 return repaired;
             }
 
+            Console.Error.WriteLine("[QA-Flow] Repair-rejected, falling back to local fallback...");
             if (TryBuildLocalFallbackAnswer(queryProfile, topChunks, retrieval.TargetFilePaths, out var fallbackAnswer))
             {
+                Console.Error.WriteLine("[QA-Flow] Fallback-accepted");
                 return fallbackAnswer;
             }
 
+            Console.Error.WriteLine("[QA-Flow] Fallback-empty, returning unknown...");
             if (!queryProfile.PreferFallbackOverUnknown
                 && ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
             {
@@ -253,6 +258,7 @@ public sealed partial class LocalAiService : IDisposable
             return BuildUnknownAnswer(queryProfile, topChunks, retrieval.TargetFilePaths);
         }
 
+        Console.Error.WriteLine("[QA-Flow] LLM-answer-accepted");
         return answer;
     }
 
@@ -1792,18 +1798,6 @@ public sealed partial class LocalAiService : IDisposable
         var hasAsciiLetterOrDigit = token.Any(character => char.IsAsciiLetterOrDigit(character));
         if (!hasAsciiLetterOrDigit)
         {
-            if (FocusStopWords.Any(stopWord => token.Contains(stopWord, StringComparison.Ordinal)))
-            {
-                return false;
-            }
-
-            if (SupplementalRequestSignals.Any(signal =>
-                    token.Contains(signal, StringComparison.Ordinal)
-                    || signal.Contains(token, StringComparison.Ordinal)))
-            {
-                return false;
-            }
-
             if (token.Length <= 2)
             {
                 return false;
@@ -1864,6 +1858,47 @@ public sealed partial class LocalAiService : IDisposable
             {
                 tokens.Add(expansion.ToLowerInvariant());
             }
+        }
+
+        var stopWordsByLengthDesc = FocusStopWords
+            .Where(w => w.Length >= 2)
+            .OrderByDescending(w => w.Length)
+            .ToArray();
+
+        var tokensToRemove = new List<string>();
+        var tokensToAdd = new List<string>();
+        foreach (var token in tokens.ToList())
+        {
+            if (token.Length <= 6 || token.Any(char.IsAsciiLetterOrDigit))
+            {
+                continue;
+            }
+
+            var working = token;
+            foreach (var stopWord in stopWordsByLengthDesc)
+            {
+                working = working.Replace(stopWord, "\n");
+            }
+
+            var fragments = working.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Where(f => f.Length >= 2)
+                .ToArray();
+
+            if (fragments.Length > 0)
+            {
+                tokensToRemove.Add(token);
+                tokensToAdd.AddRange(fragments);
+            }
+        }
+
+        foreach (var token in tokensToRemove)
+        {
+            tokens.Remove(token);
+        }
+
+        foreach (var token in tokensToAdd)
+        {
+            tokens.Add(token);
         }
 
         return tokens.ToArray();
@@ -3262,6 +3297,7 @@ public sealed partial class LocalAiService : IDisposable
     {
         if (string.IsNullOrWhiteSpace(answer))
         {
+            Console.Error.WriteLine("[QA-Reject] A1-empty-answer");
             return true;
         }
 
@@ -3270,6 +3306,7 @@ public sealed partial class LocalAiService : IDisposable
             || normalized.Contains("当前文档未覆盖", StringComparison.Ordinal)
             || normalized.Contains("未找到相关信息", StringComparison.Ordinal))
         {
+            Console.Error.WriteLine("[QA-Reject] A2-refusal-phrase");
             return true;
         }
 
@@ -3280,28 +3317,33 @@ public sealed partial class LocalAiService : IDisposable
             || normalized.Contains("target =", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("two numbers", StringComparison.OrdinalIgnoreCase))
         {
+            Console.Error.WriteLine("[QA-Reject] A3-code-leak");
             return true;
         }
 
         if (HasTitleOrAuthorBlock(normalized))
         {
+            Console.Error.WriteLine("[QA-Reject] A4-title-author-block");
             return true;
         }
 
         // 新增：判定全英文摘要片段或无关英文内容
         if (IsLikelyEnglishAbstract(normalized, question))
         {
+            Console.Error.WriteLine("[QA-Reject] A5-english-abstract");
             return true;
         }
 
         if (ContainsUnknownBareChunkCitation(normalized, chunks))
         {
+            Console.Error.WriteLine("[QA-Reject] A6-unknown-bare-citation");
             return true;
         }
 
         var hasCitation = CitationRegex.IsMatch(normalized);
         if (hasCitation && !ContainsOnlyKnownCitations(normalized, chunks))
         {
+            Console.Error.WriteLine("[QA-Reject] A7-unknown-citation");
             return true;
         }
 
@@ -3309,6 +3351,7 @@ public sealed partial class LocalAiService : IDisposable
             && targetFilePaths.Count > 0
             && !ContainsAnyCitationFromTargetDocument(normalized, chunks, targetFilePaths))
         {
+            Console.Error.WriteLine("[QA-Reject] A8-cross-doc-citation");
             return true;
         }
 
@@ -3319,16 +3362,19 @@ public sealed partial class LocalAiService : IDisposable
             || question.Contains("概述", StringComparison.Ordinal))
             && normalized.Length < 40)
         {
+            Console.Error.WriteLine($"[QA-Reject] A9-too-short-wh length={normalized.Length} q='{TruncateForLog(question)}' a='{TruncateForLog(normalized)}'");
             return true;
         }
 
         if (WantsDetailedAnswer(question) && normalized.Length < 120)
         {
+            Console.Error.WriteLine($"[QA-Reject] A10-too-short-detailed length={normalized.Length} q='{TruncateForLog(question)}'");
             return true;
         }
 
         if (IsUsageQuestion(question) && IsGenericUsageAnswer(normalized))
         {
+            Console.Error.WriteLine("[QA-Reject] A11-generic-usage");
             return true;
         }
 
@@ -3340,17 +3386,20 @@ public sealed partial class LocalAiService : IDisposable
             if (!englishCheckAnswer.Contains("english", StringComparison.Ordinal)
                 && !ContainsOnlyAsciiOrPunctuation(normalized))
             {
+                Console.Error.WriteLine("[QA-Reject] A12-english-required-but-missing");
                 return true;
             }
         }
 
         if (IsModuleImplementationQuestion(question) && !HasGenericModuleImplementationAnswerShape(normalized))
         {
+            Console.Error.WriteLine("[QA-Reject] A13-module-impl-shape");
             return true;
         }
 
         if (IsReferenceStyleAnswer(normalized))
         {
+            Console.Error.WriteLine("[QA-Reject] A14-reference-style");
             return true;
         }
 
@@ -3373,7 +3422,18 @@ public sealed partial class LocalAiService : IDisposable
         }
 
         var overlap = meaningfulTokens.Count(token => lowerAnswer.Contains(token, StringComparison.Ordinal));
-        return overlap == 0;
+        if (overlap == 0)
+        {
+            Console.Error.WriteLine($"[QA-Reject] A15-zero-token-overlap tokens=[{string.Join(", ", meaningfulTokens)}] q='{TruncateForLog(question)}' a='{TruncateForLog(normalized)}'");
+            return true;
+        }
+        return false;
+    }
+
+    private static string TruncateForLog(string text)
+    {
+        var normalized = text.Replace('\n', ' ').Replace('\r', ' ');
+        return normalized.Length <= 120 ? normalized : normalized[..120] + "...";
     }
 
     internal static string NormalizeGeneratedAnswerCitations(
@@ -3757,7 +3817,7 @@ public sealed partial class LocalAiService : IDisposable
             .DistinctBy(chunk => $"{chunk.FilePath}#{chunk.Index}")
             .ToArray();
 
-        if (ordered.Length < 4)
+        if (ordered.Length < 3)
         {
             return string.Empty;
         }

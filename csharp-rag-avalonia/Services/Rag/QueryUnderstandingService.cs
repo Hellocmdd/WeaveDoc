@@ -7,7 +7,8 @@ internal static class QueryUnderstandingService
         var requestedDocumentTitle = LocalAiService.ExtractRequestedDocumentTitle(question);
         var focusTerms = LocalAiService.BuildRetrievalQueryTokens(question, requestedDocumentTitle)
             .Where(LocalAiService.IsMeaningfulFocusTerm)
-            .OrderByDescending(token => token.Length)
+            .OrderBy(token => token.Length)
+            .ThenByDescending(token => token.Any(char.IsAsciiLetterOrDigit))
             .Take(8)
             .ToArray();
 
