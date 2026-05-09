@@ -161,41 +161,49 @@ public sealed partial class LocalAiService
 
         if (queryProfile.Intent == "procedure")
         {
-            // Procedure questions (e.g. "如何实现精准灌溉") need chunks whose section
-            // titles contain procedure-relevant terms (control, regulation, compensation
-            // stages, etc). Build a combined term list from question focus terms plus
-            // structural procedure keywords, then select in three passes:
-            //   1. Section-title matches (most specific, regardless of source)
+            // Procedure context assembly in three passes:
+            //   1a. Section-title match with question focus terms (highest precision)
+            //   1b. Section-title match with generic boost terms (fill, first-turn only)
             //   2. Well-structured chunks (JSON / abstract / conclusion / etc)
             //   3. Fill remaining from filtered ranked list.
             var procSelected = new List<DocumentChunk>();
-            var combinedTerms = queryProfile.FocusTerms
-                .Where(t => !IsIntentExpansionOnlyToken(t))
-                .Concat(ProcedureSectionBoostTerms)
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-
-            // Pass 1: chunks whose section title contains procedure terms.
-            // Cap at limit/3 (max 4) so Pass 2 and Pass 3 still have room.
             var pass1Limit = Math.Min(limit / 3, 4);
-            if (combinedTerms.Length > 0)
+
+            // Pass 1a: FocusTerms only — these are question-specific and have
+            // higher precision than the generic boost terms below.
+            var focusOnly = queryProfile.FocusTerms
+                .Where(t => !IsIntentExpansionOnlyToken(t))
+                .ToArray();
+            if (focusOnly.Length > 0)
             {
                 foreach (var chunk in scopedRanked)
                 {
                     if (procSelected.Count >= pass1Limit)
-                    {
                         break;
-                    }
 
                     if (procSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
-                    {
                         continue;
-                    }
 
-                    if (ShouldKeepChunkForAnswer(queryProfile, chunk) && SectionTitleContainsAnyTerm(chunk, combinedTerms))
-                    {
+                    if (ShouldKeepChunkForAnswer(queryProfile, chunk) && SectionTitleContainsAnyTerm(chunk, focusOnly))
                         procSelected.Add(chunk);
-                    }
+                }
+            }
+
+            // Pass 1b: BoostTerms fill remaining Pass 1 slots.
+            // Skip for follow-up expansion — the topic is already established
+            // by conversation history and generic boost terms only add noise.
+            if (!queryProfile.IsFollowUpExpansion && procSelected.Count < pass1Limit)
+            {
+                foreach (var chunk in scopedRanked)
+                {
+                    if (procSelected.Count >= pass1Limit)
+                        break;
+
+                    if (procSelected.Any(item => item.Index == chunk.Index && string.Equals(item.FilePath, chunk.FilePath, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
+                    if (ShouldKeepChunkForAnswer(queryProfile, chunk) && SectionTitleContainsAnyTerm(chunk, ProcedureSectionBoostTerms))
+                        procSelected.Add(chunk);
                 }
             }
 
