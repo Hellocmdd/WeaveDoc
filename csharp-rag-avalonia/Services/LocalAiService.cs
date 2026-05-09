@@ -1559,16 +1559,27 @@ public sealed partial class LocalAiService : IDisposable
             .Where(IsMeaningfulFocusTerm)
             .ToHashSet(StringComparer.Ordinal);
 
-        // Keep only terms that are in the assistant answer but NOT already
-        // covered by the previous user question — these are the new concepts
-        // that the assistant introduced and the follow-up should stay anchored on.
-        return answerTokens
+        // Prefer short, specific tokens (abbreviations, technical entities, short
+        // Chinese terms) over long sentence fragments. Long fragments (>8 chars)
+        // almost never match section titles and add noise to the retrieval query.
+        var techEntities = TechnicalEntityRegex.Matches(previousAssistantAnswer)
+            .Select(m => m.Value)
+            .Where(t => t.Length is >= 2 and <= 8);
+        var chineseEntities = ChineseEntityRegex.Matches(previousAssistantAnswer)
+            .Select(m => m.Value)
+            .Where(t => t.Length is >= 2 and <= 8);
+
+        return techEntities
+            .Concat(chineseEntities)
+            .Concat(answerTokens)
             .Where(t => !IsSupplementalRequestToken(t))
             .Where(t => !IsIntentExpansionOnlyToken(t))
             .Where(t => !previousUserTokens.Contains(t))
-            .Where(t => t.Length <= 12)
-            .OrderByDescending(t => t.Length)
-            .Take(4)
+            .Where(t => t.Length <= 8)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(t => t.Length)
+            .ThenByDescending(t => t.Any(char.IsAsciiLetterOrDigit))
+            .Take(6)
             .ToArray();
     }
 
