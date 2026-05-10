@@ -80,7 +80,7 @@ After models are prepared in `models/`, start the full local stack with:
 ./scripts/run_weavedoc.sh
 ```
 
-This launcher will build and start the chat `llama-server` and the BGE reranker server when needed, then launch the Avalonia desktop app.
+This launcher will build and start the chat `llama-server` when needed, then launch the Avalonia desktop app. **The reranker service (port `8081`) is now auto-managed by the app** — no separate script launch required.
 
 Useful overrides:
 
@@ -95,7 +95,9 @@ LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 - local indexing of `.md`, `.txt`, `.json`, and `.pdf` documents from `doc/`
 - JSON ingestion into structure-aware chunks with stable section-path labels for deep array items
 - duplicate import detection so the app does not keep copying identical files into the knowledge base
-- model-driven retrieval: pure vector cosine Top-N candidate retrieval followed by BGE-Reranker cross-encoder as sole ranking authority
+- **safe document deletion**: removing a document from the index does not delete the original file on disk; re-adding restores indexing
+- unified model-driven retrieval: pure vector cosine Top-N candidate retrieval → BGE-Reranker cross-encoder as sole ranking authority → intent-specific context window assembly
+- **auto-start reranker**: the BGE-Reranker service is automatically launched during app initialization and cleaned up on exit
 - document-scope hard filter for title-scoped questions (for example `《...》这篇论文...`), restricting candidates to the requested file before reranking
 - intent-specific context window assembly (metadata slot prioritization, procedure structure preference, definition section-title matching, compare subject coverage, summary lead/support split)
 - stable citations in answers, using file path + section + chunk id instead of temporary `[1] [2]` numbering
@@ -103,7 +105,7 @@ LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 - strong system prompt enforcing grounding, terminology preservation, and citation discipline
 - repair retry and intent-specific fallback answer builders for weak or off-topic generations
 - offline baseline evaluation through a CLI entry point and helper script, with keyword checks, structural answer checks, retrieval signal coverage, citation precision/recall, and scope accuracy
-- optional cloud chat provider (DeepSeek API) as an alternative to local `llama-server`
+- **cloud API configuration UI**: supports any OpenAI-compatible API (DeepSeek, OpenAI, Groq, etc.) via a settings panel with Base URL + API Key + Model Name; settings persist across restarts
 
 ## SQLite Store Sync
 

@@ -14,6 +14,8 @@ Primary source files:
 - `csharp-rag-avalonia/Services/Rag/QueryUnderstandingService.cs`
 - `csharp-rag-avalonia/Services/Rag/RagContracts.cs`
 - `csharp-rag-avalonia/Services/LlamaServerChatClient.cs`
+- `csharp-rag-avalonia/Services/CloudApiSettings.cs`
+- `csharp-rag-avalonia/Services/LlamaServerProcess.cs`
 - `csharp-rag-avalonia/Services/RagOptions.cs`
 - `csharp-rag-avalonia/Services/EvalRunner.cs`
 
@@ -229,6 +231,8 @@ BM25, keyword scoring, and title scoring are **not** applied to this candidate s
 
 `TryRerankWithLearnedModelAsync` sends the full vector candidate pool to the BGE-Reranker cross-encoder via llama.cpp's `/v1/rerank` endpoint. The reranker score becomes the **sole ordering criterion** for the ranked list.
 
+The reranker service is **auto-started** by `LlamaServerProcess` during app initialization (when `RerankerEnabled=true` and using the local ChatProvider). The startup logic first checks if a reranker is already running at the configured endpoint; if not, it launches `llama-server` with the reranker model. Only processes started by the app are killed on exit. If startup fails, the RAG pipeline falls back gracefully to vector-score ordering.
+
 ### 7.1 Reranker query construction
 
 `BuildRerankerQuery` appends an intent-specific focus hint to the raw question before sending to the reranker:
@@ -302,10 +306,21 @@ An additional `ShouldKeepChunkForAnswer` filter removes chunks that should not a
 
 ## 9. Answer Generation
 
-`LlamaServerChatClient` talks to local `llama-server` through the OpenAI-compatible API:
+`LlamaServerChatClient` uses an OpenAI-compatible API and supports two modes:
+
+- **Local** (`ChatProvider=llama_server`): connects to a local `llama-server`, no API key required
+- **Cloud** (`ChatProvider=cloud`): connects to any OpenAI-compatible API (DeepSeek, OpenAI, Groq, Ollama, vLLM, etc.) configured via `CloudApiSettings`
+
+Configuration is managed through:
+- A settings panel in the app UI (left-side "API Settings" tab)
+- JSON persistence to `.rag/cloud-settings.json`
+- Environment variable fallback: `CLOUD_BASE_URL` / `CLOUD_API_KEY` / `CLOUD_MODEL` (legacy `DEEPSEEK_*` variables still work)
+- DeepSeek thinking mode support (`CLOUD_ENABLE_THINKING` / `CLOUD_REASONING_EFFORT`)
+
+Endpoints (OpenAI-compatible):
 
 - health check: `/health`
-- generation endpoint: `/v1/chat/completions`
+- generation endpoint: `/chat/completions`
 
 ### 9.1 System prompt
 
@@ -470,7 +485,6 @@ Important current parameters (defaults in `RagOptions.LoadFromEnvironment`):
 - `RAG_JSON_BRANCH_WEIGHT = 0.06`
 - `RAG_DIRECT_KEYWORD_BONUS = 0.08`
 - `RAG_FALLBACK_SENTENCE_COUNT = 2`
-- `RAG_PIPELINE_MODE = refactored`  ← runtime mode is hardcoded in `LocalAiService`; `RagOptions` does not expose this as an env var — the service always uses `refactored`
 - `RAG_RERANKER_ENABLED = true`
 - `RAG_RERANKER_BASE_URL = http://127.0.0.1:8081`
 - `RAG_RERANKER_MODEL = bge-reranker-v2-m3`
@@ -483,15 +497,11 @@ Important current parameters (defaults in `RagOptions.LoadFromEnvironment`):
 
 The default parameter style is intentionally conservative: stable, debuggable, and low-hallucination rather than aggressively long or overly permissive generation.
 
-## 14. Pipeline Mode Reference
+## 14. Pipeline Mode
 
-`RAG_PIPELINE_MODE` accepts three values:
+The pipeline is now **unified** to a single `refactored` mode. The `RAG_PIPELINE_MODE` environment variable and related dead code have been removed. The current flow:
 
-| Mode | Description |
-|------|-------------|
-| `refactored` | **Default runtime mode.** Pure vector cosine Top-N candidate retrieval → BGE-Reranker as sole ordering authority → intent-specific context assembly. No BM25 in primary path. |
-| `legacy` | Original heuristic pipeline: BM25 sparse prefilter + semantic scoring + rule-based rerank formula. Kept for regression comparison. |
-| `simple` | Minimal mode retained for debugging. |
+Pure vector cosine Top-N candidate retrieval → BGE-Reranker as sole ordering authority → intent-specific context assembly. No BM25 in primary path.
 
 ## 15. Strengths and Limitations
 
@@ -501,24 +511,26 @@ The default parameter style is intentionally conservative: stable, debuggable, a
 - supports `.md`, `.txt`, `.json`, and `.pdf`
 - JSON is normalized into a retrievable text structure with stable section-level citations
 - BGE-Reranker cross-encoder acts as the authoritative ranker — no hand-crafted score formula in the primary path
+- **auto-start reranker service** via `LlamaServerProcess` during app initialization; no external scripts needed
 - document-title-aware hard-scope filter isolates queries to the requested source file
+- **safe document deletion**: removing a document from the index does not delete the original file on disk (exclusion list); re-adding restores indexing
 - citations are stable and easier to trace
 - intent-specific context assembly ensures the right chunk types are prioritized per query type
 - strong system prompt enforces grounding, terminology preservation, and citation discipline
 - repair retry, summary-aware fallback, and offline evaluation with multi-dimensional metrics are built in
-- cloud chat provider (DeepSeek) is supported as an alternative to local `llama-server`
+- **support for any OpenAI-compatible cloud API** (DeepSeek, OpenAI, Groq, etc.) via UI panel with Base URL + API Key + Model Name; settings persist to JSON file; environment variable configuration still available
+- **pipeline unified** to single `refactored` mode; `RAG_PIPELINE_MODE` and related dead code removed
 
 ### Limitations
 
-- learned reranking requires a separate local reranker server; the pipeline falls back to vector-sorted order when unavailable
+- learned reranking requires the local reranker model; the pipeline falls back to vector-sorted order when unavailable
 - PDF ingestion currently depends on external `pdftotext` availability and text extraction quality
 - top chunk signal coverage (67.2%) still has room for improvement — generic terms in `ProcedureSectionBoostTerms` (e.g. "采集"/acquisition) can sometimes elevate data-acquisition/communication-interface sections over technically core sections like PID control
 - `ProcedureSectionBoostTerms` currently consists of 14 static Chinese terms biased toward embedded/IoT domains; cross-domain coverage may degrade for non-engineering documents (dynamic corpus extraction planned in `task-generalize-procedure-terms.md`)
 - stable citations currently resolve to "file + section + chunk", not page numbers or finer structural locations
 - offline evaluation is mainly keyword + rule checks, not a stronger semantic automatic grading model
-- the pipeline mode is hardcoded to `refactored` inside `LocalAiService`; `RagOptions` does not expose `RAG_PIPELINE_MODE` as a user-facing env var, which can cause confusion when users read the env var table expecting to control the mode
 - follow-up expansion chunk selection still has optimization room: for very short follow-ups (e.g. "more detail"), even with anchor term extraction, Pass 1 generic-term matching in context assembly can pull peripheral sections into the context window
 
 ## 16. One-Sentence Summary
 
-The current WeaveDoc RAG design normalizes local documents into section-aware chunks, retrieves evidence through pure vector cosine candidate retrieval and BGE-Reranker cross-encoder ranking, assembles intent-specific context windows, sends grounded prompts to local `llama-server`, and uses stable citations, a strong system prompt, repair retry, and offline evaluation to keep answers reliable and traceable.
+The current WeaveDoc RAG design normalizes local documents into section-aware chunks, retrieves evidence through pure vector cosine candidate retrieval and BGE-Reranker cross-encoder ranking, assembles intent-specific context windows, sends grounded prompts to the chat provider (local `llama-server` or any OpenAI-compatible cloud API), auto-starts the reranker service at launch, and uses stable citations, a strong system prompt, repair retry, and offline evaluation to keep answers reliable and traceable.
