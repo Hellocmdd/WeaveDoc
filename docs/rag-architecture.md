@@ -201,6 +201,11 @@ These values influence the reranker query suffix, context window assembly, promp
 
 If the question names a specific document (via title detection or active-document context), the candidate set is first restricted to chunks from the matching file(s). This is a hard `FilePath` equality filter, not a score bonus.
 
+Two mechanisms can activate the scope filter:
+
+1. **Explicit title detection** (`ExtractRequestedDocumentTitle`): the question contains a `《title》` pattern; the matching file path is used as the scope.
+2. **Active-document context** (`ShouldUseActiveDocumentScope`): the question does not have an explicit title but contains context-relative phrases: `这篇` / `该文档` / `文档里` / `文中` / `这个系统` / `详细一点` / `具体一点`. In this case the scope is set to the most recently retrieved file path(s).
+
 ### 6.2 Vector-only candidate retrieval
 
 The primary retrieval step scores all in-scope chunks by **cosine similarity** between the question embedding and each chunk embedding:
@@ -233,7 +238,7 @@ BM25, keyword scoring, and title scoring are **not** applied to this candidate s
 | `procedure` / `implementation` | 关注：精确技术参数、单一功能点的直接描述、具体数值/公式/代码逻辑 |
 | `module_implementation` | 关注：该模块的技术参数、工作原理、接口与控制策略的直接描述 |
 | `composition` / `module_list` / `list` | 关注：关键模块名称、硬件组成、技术栈、并列项的直接列举 |
-| `definition` | 关注：术语定义、概念解释、对象身份与职责的直接描述 |
+| `definition` | 关注：术语定义、概念解释、对象身份与职责的直接描述，优先匹配section标题中包含问题关键词的片段 |
 | other | (no suffix) |
 
 ### 7.2 Reranker document format
@@ -465,7 +470,7 @@ Important current parameters (defaults in `RagOptions.LoadFromEnvironment`):
 - `RAG_JSON_BRANCH_WEIGHT = 0.06`
 - `RAG_DIRECT_KEYWORD_BONUS = 0.08`
 - `RAG_FALLBACK_SENTENCE_COUNT = 2`
-- `RAG_PIPELINE_MODE = refactored`  ← actual runtime mode (overrides env default `legacy`)
+- `RAG_PIPELINE_MODE = refactored`  ← runtime mode is hardcoded in `LocalAiService`; `RagOptions` does not expose this as an env var — the service always uses `refactored`
 - `RAG_RERANKER_ENABLED = true`
 - `RAG_RERANKER_BASE_URL = http://127.0.0.1:8081`
 - `RAG_RERANKER_MODEL = bge-reranker-v2-m3`
@@ -474,7 +479,7 @@ Important current parameters (defaults in `RagOptions.LoadFromEnvironment`):
 - `LLAMA_SERVER_TEMPERATURE = 0.2`
 - `LLAMA_SERVER_MAX_TOKENS = 1536`
 - `LLAMA_SERVER_TIMEOUT_SECONDS = 300`
-- `RAG_CHAT_PROVIDER = llama_server`  (also supports `deepseek` for cloud fallback)
+- `RAG_CHAT_PROVIDER = llama_server`  (set to `deepseek` to use cloud; also accepts `CLOUD_API_KEY` / `CLOUD_MODEL` / `CLOUD_BASE_URL` / `CLOUD_ENABLE_THINKING` / `CLOUD_REASONING_EFFORT`, with `DEEPSEEK_*` as fallback aliases)
 
 The default parameter style is intentionally conservative: stable, debuggable, and low-hallucination rather than aggressively long or overly permissive generation.
 
@@ -511,7 +516,7 @@ The default parameter style is intentionally conservative: stable, debuggable, a
 - `ProcedureSectionBoostTerms` currently consists of 14 static Chinese terms biased toward embedded/IoT domains; cross-domain coverage may degrade for non-engineering documents (dynamic corpus extraction planned in `task-generalize-procedure-terms.md`)
 - stable citations currently resolve to "file + section + chunk", not page numbers or finer structural locations
 - offline evaluation is mainly keyword + rule checks, not a stronger semantic automatic grading model
-- `RAG_PIPELINE_MODE` env var default is `legacy` but the actual runtime uses `refactored` — this inconsistency should be resolved
+- the pipeline mode is hardcoded to `refactored` inside `LocalAiService`; `RagOptions` does not expose `RAG_PIPELINE_MODE` as a user-facing env var, which can cause confusion when users read the env var table expecting to control the mode
 - follow-up expansion chunk selection still has optimization room: for very short follow-ups (e.g. "more detail"), even with anchor term extraction, Pass 1 generic-term matching in context assembly can pull peripheral sections into the context window
 
 ## 16. One-Sentence Summary

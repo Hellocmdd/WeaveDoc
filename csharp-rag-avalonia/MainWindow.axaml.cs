@@ -85,6 +85,31 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnSelectDocumentsTabClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.SelectedPanelTab = 0;
+    }
+
+    private void OnSelectSettingsTabClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.SelectedPanelTab = 1;
+    }
+
+    private void OnSelectLocalProviderClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.ChatProvider = "llama_server";
+    }
+
+    private void OnSelectCloudProviderClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.ChatProvider = "cloud";
+    }
+
+    private void OnSaveCloudSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.SaveCloudSettings();
+    }
+
     private void OnClosed(object? sender, EventArgs e)
     {
         _viewModel.Dispose();

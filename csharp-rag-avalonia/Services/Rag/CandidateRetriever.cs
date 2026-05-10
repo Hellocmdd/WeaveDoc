@@ -34,8 +34,7 @@ public sealed partial class LocalAiService
                 false,
                 false,
                 "no scoped chunks",
-                targetFilePaths,
-                _options.PipelineMode);
+                targetFilePaths);
         }
 
         // Task 2.1: Step 1 - Only rely on vector cosine similarity
@@ -81,8 +80,7 @@ public sealed partial class LocalAiService
             false,
             globalLearnedRerank.Used,
             $"global:{globalLearnedRerank.Status}",
-            targetFilePaths,
-            _options.PipelineMode);
+            targetFilePaths);
     }
 
     private IReadOnlyList<string> ResolveRetrievalScopeFilePaths(string question, QueryProfile queryProfile)

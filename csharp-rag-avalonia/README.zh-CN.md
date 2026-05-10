@@ -26,7 +26,7 @@
 
 ## 功能
 
-- 从 `doc/` 加载 `.md`、`.txt`、`.json`
+- 从 `doc/` 加载 `.md`、`.txt`、`.json`，以及通过 `pdftotext` 的 `.pdf`
 - 对文档做本地 embedding 与语义分块
 - 复用 `.rag/embedding-cache.json` 中的 embedding 缓存
 - 检索链路（`refactored` 模式）：
@@ -36,7 +36,7 @@
 - 对 procedure / compare / composition / explain 意图有专用本地回退答案生成器
 - 通过 `llama-server` 生成带引用的回答
 - 首答不可靠时会走更严格的 repair prompt；总结类问题还有专门的 summary 回退
-- UI 支持添加、删除、刷新 `.md` / `.txt` / `.json`
+- UI 支持添加、删除、刷新 `.md` / `.txt` / `.json` / `.pdf`
 - JSON 会先展平为带标题层级的文本再切块
 - 导入时会避免重复复制相同内容的文件
 
@@ -118,29 +118,51 @@ dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eva
 
 ## 环境变量
 
+**本地 llama-server（默认聊天后端）：**
+
 - `LLAMA_SERVER_BASE_URL` 默认 `http://127.0.0.1:8080`
 - `LLAMA_SERVER_CHAT_MODEL` 默认 `local-model`
 - `LLAMA_SERVER_TEMPERATURE` 默认 `0.2`
 - `LLAMA_SERVER_MAX_TOKENS` 默认 `1536`
+- `LLAMA_SERVER_TIMEOUT_SECONDS` 默认 `300`
+
+**云端 Chat Provider（可选，替代本地 llama-server）：**
+
+- `RAG_CHAT_PROVIDER` 默认 `llama_server`；设为 `deepseek` 使用云端 DeepSeek API
+- `CLOUD_API_KEY`（别名：`DEEPSEEK_API_KEY`）
+- `CLOUD_MODEL`（别名：`DEEPSEEK_MODEL`）默认 `deepseek-v4-pro`
+- `CLOUD_BASE_URL`（别名：`DEEPSEEK_BASE_URL`）默认 `https://api.deepseek.com`
+- `CLOUD_ENABLE_THINKING`（别名：`DEEPSEEK_ENABLE_THINKING`）默认 `false`
+- `CLOUD_REASONING_EFFORT`（别名：`DEEPSEEK_REASONING_EFFORT`）默认 `medium`
+
+**Embedding 与 Reranker：**
+
 - `RAG_EMBEDDING_MODEL_FILE` 默认 `bge-m3.gguf`
 - `RAG_EMBEDDING_GPU_LAYERS` 默认 `999`，需要 GPU 版 LLamaSharp backend 才会真正走 GPU
 - `RAG_RERANKER_ENABLED` 默认 `true`
 - `RAG_RERANKER_BASE_URL` 默认 `http://127.0.0.1:8081`
 - `RAG_RERANKER_MODEL` 默认 `bge-reranker-v2-m3`
-- `RAG_PIPELINE_MODE`（可选 `legacy`、`simple`、`refactored`；环境变量默认 `legacy`；实际运行默认 `refactored`）
+- `RAG_RERANKER_TOP_N` 默认 `12`
+- `RAG_RERANKER_TIMEOUT_SECONDS` 默认 `30`
+
+**检索参数：**
+
+- `RAG_PIPELINE_MODE`（可选 `legacy`、`simple`、`refactored`；实际运行固定使用 `refactored`）
 - `RAG_TOP_K` 默认 `8`
 - `RAG_CANDIDATE_POOL_SIZE` 默认 `12`
-- `RAG_SPARSE_CANDIDATE_POOL_SIZE` 默认 `48`
+- `RAG_SPARSE_CANDIDATE_POOL_SIZE` 默认 `48`（`refactored` 模式下的向量候选数量下限）
 - `RAG_CONTEXT_WINDOW_RADIUS` 默认 `1`
-- `RAG_VECTOR_WEIGHT` / `RAG_BM25_WEIGHT` / `RAG_KEYWORD_WEIGHT`
-- `RAG_TITLE_WEIGHT` / `RAG_JSON_STRUCTURE_WEIGHT`
-- `RAG_COVERAGE_WEIGHT` / `RAG_NEIGHBOR_WEIGHT` / `RAG_JSON_BRANCH_WEIGHT`
+- `RAG_MIN_COMBINED_THRESHOLD` 默认 `0.18`
+- `RAG_VECTOR_WEIGHT` 默认 `0.38`
+- `RAG_BM25_WEIGHT` / `RAG_KEYWORD_WEIGHT` / `RAG_TITLE_WEIGHT`（仅 `legacy` 模式生效）
+- `RAG_JSON_STRUCTURE_WEIGHT` / `RAG_COVERAGE_WEIGHT` / `RAG_NEIGHBOR_WEIGHT` / `RAG_JSON_BRANCH_WEIGHT`
+- `RAG_DIRECT_KEYWORD_BONUS` 默认 `0.08`
+
+**切块：**
+
 - `RAG_CHUNK_SIZE` 默认 `520`
 - `RAG_CHUNK_OVERLAP` 默认 `96`
-- `RAG_MIN_COMBINED_THRESHOLD` 默认 `0.18`
-- `RAG_DIRECT_KEYWORD_BONUS` 默认 `0.08`
 - `RAG_FALLBACK_SENTENCE_COUNT` 默认 `2`
-- `LLAMA_SERVER_TIMEOUT_SECONDS` 默认 `300`
 
 ## 备注
 

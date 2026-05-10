@@ -8,13 +8,15 @@ internal sealed class LlamaServerChatClient
 {
     private readonly HttpClient _httpClient;
     private readonly RagOptions _options;
+    private readonly CloudApiSettings _cloudSettings;
     private readonly bool _isCloud;
 
-    public LlamaServerChatClient(HttpClient httpClient, RagOptions options)
+    public LlamaServerChatClient(HttpClient httpClient, RagOptions options, CloudApiSettings cloudSettings)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        _isCloud = options.ChatProvider == "deepseek";
+        _cloudSettings = cloudSettings ?? throw new ArgumentNullException(nameof(cloudSettings));
+        _isCloud = _cloudSettings.ChatProvider == "cloud";
     }
 
     public async Task EnsureServerAvailableAsync(CancellationToken cancellationToken)
@@ -86,10 +88,10 @@ internal sealed class LlamaServerChatClient
 
         if (_isCloud)
         {
-            model = _options.DeepSeekModel;
-            if (_options.DeepSeekEnableThinking)
+            model = _cloudSettings.CloudModel;
+            if (_cloudSettings.CloudEnableThinking)
             {
-                thinking = new ThinkingParam("enabled", _options.DeepSeekReasoningEffort);
+                thinking = new ThinkingParam("enabled", _cloudSettings.CloudReasoningEffort);
             }
         }
         else
@@ -112,7 +114,7 @@ internal sealed class LlamaServerChatClient
 
         if (_isCloud)
         {
-            request.Headers.Add("Authorization", $"Bearer {_options.DeepSeekApiKey}");
+            request.Headers.Add("Authorization", $"Bearer {_cloudSettings.CloudApiKey}");
         }
 
         HttpResponseMessage response;
@@ -122,7 +124,7 @@ internal sealed class LlamaServerChatClient
         }
         catch (OperationCanceledException) when (!callerToken.IsCancellationRequested)
         {
-            var label = _isCloud ? "DeepSeek API" : "llama-server";
+            var label = _isCloud ? _cloudSettings.EffectiveProviderLabel : "llama-server";
             throw new TimeoutException(
                 $"调用 {label} 超时（{_options.HttpTimeoutSeconds} 秒）。可通过环境变量 LLAMA_SERVER_TIMEOUT_SECONDS 调大超时时间。");
         }
@@ -132,7 +134,7 @@ internal sealed class LlamaServerChatClient
             if (!response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadAsStringAsync(callerToken).ConfigureAwait(false);
-                var label = _isCloud ? "DeepSeek API" : "llama-server";
+                var label = _isCloud ? _cloudSettings.EffectiveProviderLabel : "llama-server";
                 throw new InvalidOperationException($"{label} 调用失败: {(int)response.StatusCode} {response.ReasonPhrase}, body={body}");
             }
 
@@ -142,7 +144,7 @@ internal sealed class LlamaServerChatClient
 
     private Uri BuildUri(string relativePath)
     {
-        var baseUrl = _isCloud ? _options.DeepSeekBaseUrl : _options.LlamaServerBaseUrl;
+        var baseUrl = _isCloud ? _cloudSettings.CloudBaseUrl : _options.LlamaServerBaseUrl;
         var normalizedBase = baseUrl.TrimEnd('/');
         return new Uri($"{normalizedBase}{relativePath}", UriKind.Absolute);
     }

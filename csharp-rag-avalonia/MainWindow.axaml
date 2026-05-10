@@ -97,75 +97,202 @@
             BorderBrush="#30415E"
             Background="#0F1728"
             Padding="14">
-      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" RowSpacing="8">
-        <TextBlock Grid.Row="0"
-                   Text="RAG 文档管理"
-                   FontSize="13"
-                   FontWeight="SemiBold"
-                   Foreground="White" />
-
-        <TextBox Grid.Row="1"
-                 Text="{Binding NewDocumentPath, Mode=TwoWay}"
-                 Watermark="手动输入路径，或点击“选择导入”"
-                 BorderThickness="1"
-                 BorderBrush="#32405F"
-                 Background="#0D1424"
-                 Foreground="#E2E8F0"
-                 FontSize="12"
-                 Padding="10,8" />
-
-        <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10">
+        <!-- Tab buttons -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,*" ColumnSpacing="0">
           <Button Grid.Column="0"
-                  Content="选择导入"
-                  Click="OnPickDocumentClick"
+                  Content="文档管理"
+                  Click="OnSelectDocumentsTabClick"
                   HorizontalAlignment="Stretch"
-                  Background="#B45309"
+                  Background="{Binding IsDocumentsTabSelected, Mode=OneWay}"
                   Foreground="White"
-                  Padding="12,8"
-                  FontWeight="SemiBold" />
+                  Padding="10,8"
+                  FontWeight="SemiBold">
+            <Button.Styles>
+              <Style Selector="Button">
+                <Setter Property="Background" Value="{StaticResource InteractiveSurfaceBrush}" />
+              </Style>
+              <Style Selector="Button:pointerover">
+                <Setter Property="Background" Value="{StaticResource InteractiveHoverBrush}" />
+              </Style>
+            </Button.Styles>
+          </Button>
           <Button Grid.Column="1"
-                  Content="添加文档"
-                  Click="OnAddDocumentClick"
+                  Content="API 设置"
+                  Click="OnSelectSettingsTabClick"
                   HorizontalAlignment="Stretch"
-                  Background="#1D4ED8"
                   Foreground="White"
-                  Padding="12,8"
-                  FontWeight="SemiBold" />
-          <Button Grid.Column="2"
-                  Content="刷新索引"
-                  Click="OnRefreshCorpusClick"
+                  Padding="10,8"
+                  FontWeight="SemiBold">
+            <Button.Styles>
+              <Style Selector="Button">
+                <Setter Property="Background" Value="{StaticResource InteractiveSurfaceBrush}" />
+              </Style>
+              <Style Selector="Button:pointerover">
+                <Setter Property="Background" Value="{StaticResource InteractiveHoverBrush}" />
+              </Style>
+            </Button.Styles>
+          </Button>
+        </Grid>
+
+        <!-- Document management tab -->
+        <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="8"
+              IsVisible="{Binding IsDocumentsTabSelected}">
+          <TextBox Grid.Row="0"
+                   Text="{Binding NewDocumentPath, Mode=TwoWay}"
+                   Watermark="手动输入路径，或点击「选择导入」"
+                   BorderThickness="1"
+                   BorderBrush="#32405F"
+                   Background="#0D1424"
+                   Foreground="#E2E8F0"
+                   FontSize="12"
+                   Padding="10,8" />
+
+          <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+            <Button Grid.Column="0"
+                    Content="选择导入"
+                    Click="OnPickDocumentClick"
+                    HorizontalAlignment="Stretch"
+                    Background="#B45309"
+                    Foreground="White"
+                    Padding="12,8"
+                    FontWeight="SemiBold" />
+            <Button Grid.Column="1"
+                    Content="添加文档"
+                    Click="OnAddDocumentClick"
+                    HorizontalAlignment="Stretch"
+                    Background="#1D4ED8"
+                    Foreground="White"
+                    Padding="12,8"
+                    FontWeight="SemiBold" />
+            <Button Grid.Column="2"
+                    Content="刷新索引"
+                    Click="OnRefreshCorpusClick"
+                    HorizontalAlignment="Stretch"
+                    Background="#0F766E"
+                    Foreground="White"
+                    Padding="12,8"
+                    FontWeight="SemiBold" />
+          </Grid>
+
+          <TextBlock Grid.Row="2"
+                     Text="已索引文档"
+                     Margin="0,4,0,0"
+                     FontSize="12"
+                     Foreground="{StaticResource TextMutedBrush}" />
+
+          <ListBox Grid.Row="3"
+                   ItemsSource="{Binding CorpusFiles}"
+                   SelectedItem="{Binding SelectedDocument, Mode=TwoWay}"
+                   BorderThickness="1"
+                   BorderBrush="#32405F"
+                   Background="#0D1424"
+                   Foreground="#E2E8F0"
+                   MinHeight="120" />
+
+          <Button Grid.Row="4"
+                  Content="删除选中文档"
+                  Click="OnDeleteDocumentClick"
                   HorizontalAlignment="Stretch"
-                  Background="#0F766E"
+                  Background="#7F1D1D"
                   Foreground="White"
                   Padding="12,8"
                   FontWeight="SemiBold" />
         </Grid>
 
-        <TextBlock Grid.Row="3"
-                   Text="已索引文档"
-                   Margin="0,4,0,0"
-                   FontSize="12"
-                   Foreground="{StaticResource TextMutedBrush}" />
+        <!-- API Settings tab -->
+        <ScrollViewer Grid.Row="1" IsVisible="{Binding IsSettingsTabSelected}">
+          <StackPanel Spacing="8">
+            <TextBlock Text="云 API 设置"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="White" />
 
-        <ListBox Grid.Row="4"
-                 ItemsSource="{Binding CorpusFiles}"
-                 SelectedItem="{Binding SelectedDocument, Mode=TwoWay}"
-                 BorderThickness="1"
-                 BorderBrush="#32405F"
-                 Background="#0D1424"
-                 Foreground="#E2E8F0"
-                 MinHeight="120" />
+            <!-- Provider toggle -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="提供商:" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="12" />
+              <Button Content="本地" Click="OnSelectLocalProviderClick"
+                      Background="{Binding !IsCloudProviderSelected, Mode=OneWay}"
+                      Foreground="White" Padding="10,6" FontSize="12">
+                <Button.Styles>
+                  <Style Selector="Button">
+                    <Setter Property="Background" Value="{StaticResource InteractiveSurfaceBrush}" />
+                  </Style>
+                  <Style Selector="Button:pointerover">
+                    <Setter Property="Background" Value="{StaticResource InteractiveHoverBrush}" />
+                  </Style>
+                </Button.Styles>
+              </Button>
+              <Button Content="云端" Click="OnSelectCloudProviderClick"
+                      Foreground="White" Padding="10,6" FontSize="12">
+                <Button.Styles>
+                  <Style Selector="Button">
+                    <Setter Property="Background" Value="{StaticResource InteractiveSurfaceBrush}" />
+                  </Style>
+                  <Style Selector="Button:pointerover">
+                    <Setter Property="Background" Value="{StaticResource InteractiveHoverBrush}" />
+                  </Style>
+                </Button.Styles>
+              </Button>
+            </StackPanel>
 
-        <Button Grid.Row="5"
-                Content="删除选中文档"
-                Click="OnDeleteDocumentClick"
-                HorizontalAlignment="Stretch"
-                Background="#7F1D1D"
-                Foreground="White"
-                Padding="12,8"
-                FontWeight="SemiBold" />
+            <!-- Cloud-specific fields -->
+            <StackPanel Spacing="8" IsVisible="{Binding IsCloudProviderSelected}">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Base URL" Foreground="{StaticResource TextMutedBrush}" FontSize="11" />
+                <TextBox Text="{Binding CloudBaseUrl, Mode=TwoWay}"
+                         Watermark="https://api.openai.com"
+                         BorderThickness="1" BorderBrush="#32405F"
+                         Background="#0D1424" Foreground="#E2E8F0"
+                         FontSize="12" Padding="10,8" />
+              </StackPanel>
 
-        <TextBlock Grid.Row="6"
+              <StackPanel Spacing="4">
+                <TextBlock Text="API Key" Foreground="{StaticResource TextMutedBrush}" FontSize="11" />
+                <TextBox Text="{Binding CloudApiKey, Mode=TwoWay}"
+                         PasswordChar="*"
+                         Watermark="sk-..."
+                         BorderThickness="1" BorderBrush="#32405F"
+                         Background="#0D1424" Foreground="#E2E8F0"
+                         FontSize="12" Padding="10,8" />
+              </StackPanel>
+
+              <StackPanel Spacing="4">
+                <TextBlock Text="模型名称" Foreground="{StaticResource TextMutedBrush}" FontSize="11" />
+                <TextBox Text="{Binding CloudModel, Mode=TwoWay}"
+                         Watermark="gpt-4o / deepseek-v4-pro"
+                         BorderThickness="1" BorderBrush="#32405F"
+                         Background="#0D1424" Foreground="#E2E8F0"
+                         FontSize="12" Padding="10,8" />
+              </StackPanel>
+
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <CheckBox IsChecked="{Binding CloudEnableThinking, Mode=TwoWay}" />
+                <TextBlock Text="启用思考模式 (DeepSeek)" Foreground="#E2E8F0" FontSize="12" VerticalAlignment="Center" />
+              </StackPanel>
+
+              <StackPanel Spacing="4" IsVisible="{Binding CloudEnableThinking}">
+                <TextBlock Text="推理深度" Foreground="{StaticResource TextMutedBrush}" FontSize="11" />
+                <TextBox Text="{Binding CloudReasoningEffort, Mode=TwoWay}"
+                         Watermark="low / medium / high"
+                         BorderThickness="1" BorderBrush="#32405F"
+                         Background="#0D1424" Foreground="#E2E8F0"
+                         FontSize="12" Padding="10,8" />
+              </StackPanel>
+            </StackPanel>
+
+            <Button Content="保存设置"
+                    Click="OnSaveCloudSettingsClick"
+                    HorizontalAlignment="Stretch"
+                    Background="#1D4ED8"
+                    Foreground="White"
+                    Padding="12,8"
+                    FontWeight="SemiBold" />
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- Source info (shared) -->
+        <TextBlock Grid.Row="2"
                    Text="{Binding SourceText}"
                    FontSize="11"
                    TextWrapping="Wrap"

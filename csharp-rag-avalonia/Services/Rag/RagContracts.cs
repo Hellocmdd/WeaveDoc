@@ -40,5 +40,4 @@ internal sealed record RetrievalResult(
     bool UsedSparsePrefilter,
     bool UsedLearnedReranker,
     string LearnedRerankerStatus,
-    IReadOnlyList<string> TargetFilePaths,
-    string PipelineMode);
+    IReadOnlyList<string> TargetFilePaths);
