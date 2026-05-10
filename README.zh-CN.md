@@ -80,7 +80,7 @@ git submodule update --init --recursive
 ./scripts/run_weavedoc.sh
 ```
 
-这个脚本会在需要时自动构建并启动聊天 `llama-server`（端口 `8080`）和 BGE Reranker 服务（端口 `8081`），然后拉起桌面应用。
+这个脚本会在需要时自动构建并启动聊天 `llama-server`（端口 `8080`），然后拉起桌面应用。**Reranker 服务（端口 `8081`）现在由应用自动管理**，无需脚本单独启动。
 
 常用覆盖参数：
 
@@ -95,12 +95,14 @@ LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 - 支持索引 `doc/` 中的 `.md`、`.txt`、`.json`，以及通过 `pdftotext` 的 `.pdf`
 - JSON 会先转成带结构路径的 chunk，并为数组项生成可检索的小节标题
 - 导入阶段会避免把相同文件一遍遍复制进知识库
-- 检索采用**模型驱动管线**（`refactored` 模式）：纯向量余弦 Top-N 候选召回 → BGE-Reranker 交叉编码器作为唯一排序权威 → 意图感知上下文窗口组装
+- **安全删除**：从索引中移除文档时不会删除磁盘上的原始文件，重新添加即可恢复索引
+- 检索采用**统一模型驱动管线**：纯向量余弦 Top-N 候选召回 → BGE-Reranker 交叉编码器作为唯一排序权威 → 意图感知上下文窗口组装
+- **Reranker 自动启动**：应用初始化时自动拉起本地 BGE-Reranker 服务，退出时自动清理
 - 对”《标题》这篇论文/文档...”这类问题支持文档定向 scope 硬过滤
 - 回答引用使用稳定标签（`[文件 | 章节 | cN]`），而不是临时 `[1][2]`
 - `procedure` / `compare` / `composition` / `explain` 等意图各有专用的本地回退答案生成器
 - 对”论文/文档主要讲什么”这类问题提供 summary-aware 回退答案
-- 支持可选的云端 Chat Provider（DeepSeek API），可替代本地 `llama-server`
+- **云端 API 配置界面**：支持任意 OpenAI 兼容 API（DeepSeek、OpenAI、Groq 等），通过 UI 面板输入 Base URL + API Key + Model Name，配置持久化保存
 - 提供离线基线评测入口（关键词覆盖 + 结构化校验 + 引用精确率/召回率 + scope 准确度 + evidence kind 准确度）
 
 ### 最新基线结果（2026-05-07）

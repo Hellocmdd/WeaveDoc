@@ -7,8 +7,9 @@
 ## 概览
 
 - Embedding 与切块索引在本地通过 LLamaSharp 完成
-- 聊天生成通过本地 `llama-server` 提供的 OpenAI 兼容接口完成
-- 检索采用**模型驱动管线**（`refactored` 模式）：纯向量余弦 Top-N 候选召回 → BGE-Reranker 交叉编码器作为唯一排序权威 → 意图感知上下文窗口组装
+- 聊天生成通过 OpenAI 兼容接口完成，支持本地 `llama-server` 或任意云端 API（DeepSeek、OpenAI、Groq 等）
+- 检索采用**统一模型驱动管线**：纯向量余弦 Top-N 候选召回 → BGE-Reranker 交叉编码器作为唯一排序权威 → 意图感知上下文窗口组装
+- Reranker 服务由应用自动管理和启动，无需外部脚本
 - 回答中的引用使用稳定来源标签，例如 `[doc/json/a.json | 某章节 | c3]`
 
 ## 模型
@@ -29,14 +30,17 @@
 - 从 `doc/` 加载 `.md`、`.txt`、`.json`，以及通过 `pdftotext` 的 `.pdf`
 - 对文档做本地 embedding 与语义分块
 - 复用 `.rag/embedding-cache.json` 中的 embedding 缓存
-- 检索链路（`refactored` 模式）：
+- 检索链路：
   候选召回 = 全量 in-scope chunk 的纯向量余弦相似度 Top-N（默认 50–100）
   精排 = BGE-Reranker 交叉编码器作为唯一排序权威
   后处理 = 意图分数微调（definition / compare / procedure / summary）→ 意图感知上下文组装（procedure 三趟槽位、summary 主块+支撑块等）
+- **Reranker 自动管理**：应用启动时自动拉起 BGE-Reranker 服务，退出时自动清理
 - 对 procedure / compare / composition / explain 意图有专用本地回退答案生成器
-- 通过 `llama-server` 生成带引用的回答
+- 生成带引用的回答（本地 `llama-server` 或任意 OpenAI 兼容云端 API）
+- **云端 API 配置界面**：左侧面板支持 UI 切换 Base URL、API Key、Model Name，配置持久化
 - 首答不可靠时会走更严格的 repair prompt；总结类问题还有专门的 summary 回退
 - UI 支持添加、删除、刷新 `.md` / `.txt` / `.json` / `.pdf`
+- **安全删除**：从索引中移除文档时不会删除磁盘上的原始文件
 - JSON 会先展平为带标题层级的文本再切块
 - 导入时会避免重复复制相同内容的文件
 
@@ -57,8 +61,9 @@ git submodule update --init --recursive
 启动脚本会：
 
 - 在缺少 `llama-server` 时先构建 `llama.cpp`
-- 如果本地服务不可用，就启动 8080 端口的聊天 `llama-server` 和 8081 端口的 reranker `llama-server`
+- 如果本地服务不可用，就启动 8080 端口的聊天 `llama-server`
 - 若已有健康服务则直接复用
+- **Reranker（8081）由应用自动管理**，脚本不再单独启动
 - 健康检查通过后启动 Avalonia 桌面应用
 
 常用覆盖参数：
@@ -69,19 +74,16 @@ LLAMA_SERVER_PORT=8082 ./scripts/run_weavedoc.sh
 LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 ```
 
-如果你想手动运行两个进程，也可以：
+如果你想手动运行，也可以：
 
 ```bash
+# 聊天服务（需要手动启动）
 ./llama.cpp/build/bin/llama-server \
   -m ./models/Qwen3.5-4B-Q4_K_M.gguf \
   --host 127.0.0.1 --port 8080 \
   --gpu-layers auto
 
-./llama.cpp/build/bin/llama-server \
-  -m ./models/bge-reranker-v2-m3.gguf \
-  --host 127.0.0.1 --port 8081 \
-  --embedding --pooling rank --reranking \
-  --gpu-layers auto
+# Reranker 由应用自动启动，无需手动管理
 
 dotnet restore csharp-rag-avalonia/RagAvalonia.csproj
 dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj
@@ -115,8 +117,13 @@ dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eva
 - 进入语义评分的 chunk 总数
 - 学习式重排状态（`global:ok (N/N)` 或失败原因）
 - 每个主命中 chunk 的 reranker 分数拆解
+- 上下文窗口 chunk 数
 
 ## 环境变量
+
+**Chat Provider：**
+
+- `RAG_CHAT_PROVIDER` 默认 `llama_server`；设为 `cloud`（或 `deepseek`）使用云端 API
 
 **本地 llama-server（默认聊天后端）：**
 
@@ -126,13 +133,12 @@ dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eva
 - `LLAMA_SERVER_MAX_TOKENS` 默认 `1536`
 - `LLAMA_SERVER_TIMEOUT_SECONDS` 默认 `300`
 
-**云端 Chat Provider（可选，替代本地 llama-server）：**
+**云端 API（通过 UI 面板或环境变量配置）：**
 
-- `RAG_CHAT_PROVIDER` 默认 `llama_server`；设为 `deepseek` 使用云端 DeepSeek API
 - `CLOUD_API_KEY`（别名：`DEEPSEEK_API_KEY`）
 - `CLOUD_MODEL`（别名：`DEEPSEEK_MODEL`）默认 `deepseek-v4-pro`
 - `CLOUD_BASE_URL`（别名：`DEEPSEEK_BASE_URL`）默认 `https://api.deepseek.com`
-- `CLOUD_ENABLE_THINKING`（别名：`DEEPSEEK_ENABLE_THINKING`）默认 `false`
+- `CLOUD_ENABLE_THINKING`（别名：`DEEPSEEK_ENABLE_THINKING`）默认 `false`（DeepSeek 思考模式）
 - `CLOUD_REASONING_EFFORT`（别名：`DEEPSEEK_REASONING_EFFORT`）默认 `medium`
 
 **Embedding 与 Reranker：**
@@ -142,19 +148,20 @@ dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eva
 - `RAG_RERANKER_ENABLED` 默认 `true`
 - `RAG_RERANKER_BASE_URL` 默认 `http://127.0.0.1:8081`
 - `RAG_RERANKER_MODEL` 默认 `bge-reranker-v2-m3`
+- `RAG_RERANKER_GPU_LAYERS` 默认 `auto`
 - `RAG_RERANKER_TOP_N` 默认 `12`
 - `RAG_RERANKER_TIMEOUT_SECONDS` 默认 `30`
+- `LLAMA_SERVER_BINARY`（可选，指定 llama-server 路径）
 
 **检索参数：**
 
-- `RAG_PIPELINE_MODE`（可选 `legacy`、`simple`、`refactored`；实际运行固定使用 `refactored`）
 - `RAG_TOP_K` 默认 `8`
 - `RAG_CANDIDATE_POOL_SIZE` 默认 `12`
-- `RAG_SPARSE_CANDIDATE_POOL_SIZE` 默认 `48`（`refactored` 模式下的向量候选数量下限）
+- `RAG_SPARSE_CANDIDATE_POOL_SIZE` 默认 `48`（向量候选数量下限）
 - `RAG_CONTEXT_WINDOW_RADIUS` 默认 `1`
 - `RAG_MIN_COMBINED_THRESHOLD` 默认 `0.18`
 - `RAG_VECTOR_WEIGHT` 默认 `0.38`
-- `RAG_BM25_WEIGHT` / `RAG_KEYWORD_WEIGHT` / `RAG_TITLE_WEIGHT`（仅 `legacy` 模式生效）
+- `RAG_BM25_WEIGHT` / `RAG_KEYWORD_WEIGHT` / `RAG_TITLE_WEIGHT`（调试输出）
 - `RAG_JSON_STRUCTURE_WEIGHT` / `RAG_COVERAGE_WEIGHT` / `RAG_NEIGHBOR_WEIGHT` / `RAG_JSON_BRANCH_WEIGHT`
 - `RAG_DIRECT_KEYWORD_BONUS` 默认 `0.08`
 
