@@ -91,11 +91,20 @@ public sealed partial class LocalAiService : IDisposable
     private readonly List<DocumentChunk> _chunks = [];
     private readonly List<IndexedChunk> _indexedChunks = [];
     private readonly List<string> _corpusFiles = [];
+    private readonly HashSet<string> _excludedFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _documentFrequency = new(StringComparer.Ordinal);
 
     private readonly RagOptions _options = RagOptions.LoadFromEnvironment();
+    private CloudApiSettings _cloudSettings = CloudApiSettings.Load();
     private readonly HttpClient _httpClient = new();
     private readonly SemaphoreSlim _corpusLock = new(1, 1);
+    private LlamaServerProcess? _rerankerProcess;
+
+    public CloudApiSettings CloudSettings
+    {
+        get => _cloudSettings;
+        set => _cloudSettings = value ?? throw new ArgumentNullException(nameof(value));
+    }
 
     private bool _initialized;
     private string? _workspaceRoot;
@@ -116,12 +125,12 @@ public sealed partial class LocalAiService : IDisposable
 
     public IReadOnlyList<string> CorpusFiles => _corpusFiles;
 
-    public string LlamaServerEndpoint => _options.ChatProvider == "deepseek"
-        ? _options.DeepSeekBaseUrl
+    public string LlamaServerEndpoint => _cloudSettings.ChatProvider == "cloud"
+        ? _cloudSettings.CloudBaseUrl
         : _options.LlamaServerBaseUrl;
 
-    public string LlamaServerModel => _options.ChatProvider == "deepseek"
-        ? _options.DeepSeekModel
+    public string LlamaServerModel => _cloudSettings.ChatProvider == "cloud"
+        ? _cloudSettings.CloudModel
         : _options.ChatModel;
 
     public string LastRetrievalDebug { get; private set; } = "尚未执行检索。";
@@ -153,8 +162,10 @@ public sealed partial class LocalAiService : IDisposable
             await LoadEmbeddingModelAsync(cancellationToken).ConfigureAwait(false);
             await ReloadCorpusInternalAsync(cancellationToken).ConfigureAwait(false);
 
-            var chatClient = new LlamaServerChatClient(_httpClient, _options);
+            var chatClient = new LlamaServerChatClient(_httpClient, _options, _cloudSettings);
             await chatClient.EnsureServerAvailableAsync(cancellationToken).ConfigureAwait(false);
+
+            await StartRerankerIfNeededAsync(cancellationToken).ConfigureAwait(false);
 
             _initialized = true;
         }
@@ -220,7 +231,7 @@ public sealed partial class LocalAiService : IDisposable
         }
 
         var prompt = BuildPrompt(retrievalQuestion, history, queryProfile, retrieval.RankedChunks, topChunks, retrieval.TargetFilePaths);
-        var client = new LlamaServerChatClient(_httpClient, _options);
+        var client = new LlamaServerChatClient(_httpClient, _options, _cloudSettings);
         var answer = NormalizeGeneratedAnswerCitations(
             await client.CompleteAsync(prompt, cancellationToken, RagSystemPrompt).ConfigureAwait(false),
             topChunks,
@@ -284,8 +295,9 @@ public sealed partial class LocalAiService : IDisposable
         var rootFullPath = Path.GetFullPath(DocumentRoot + Path.DirectorySeparatorChar);
         if (fullSourcePath.StartsWith(rootFullPath, StringComparison.Ordinal))
         {
-            await ReloadCorpusAsync(cancellationToken).ConfigureAwait(false);
             var relativeExistingPath = Path.GetRelativePath(DocumentRoot, fullSourcePath).Replace('\\', '/');
+            _excludedFiles.Remove(relativeExistingPath);
+            await ReloadCorpusAsync(cancellationToken).ConfigureAwait(false);
             return new AddDocumentResult(relativeExistingPath, false, "文档已在知识库目录中，已直接刷新索引。");
         }
 
@@ -295,8 +307,9 @@ public sealed partial class LocalAiService : IDisposable
 
         if (!string.IsNullOrWhiteSpace(existingDuplicate))
         {
-            await ReloadCorpusAsync(cancellationToken).ConfigureAwait(false);
             var relativeExistingPath = Path.GetRelativePath(DocumentRoot, existingDuplicate).Replace('\\', '/');
+            _excludedFiles.Remove(relativeExistingPath);
+            await ReloadCorpusAsync(cancellationToken).ConfigureAwait(false);
             return new AddDocumentResult(relativeExistingPath, false, $"知识库中已存在相同内容的文档：{relativeExistingPath}");
         }
 
@@ -332,7 +345,7 @@ public sealed partial class LocalAiService : IDisposable
             throw new FileNotFoundException($"未找到文档: {normalized}", fullPath);
         }
 
-        File.Delete(fullPath);
+        _excludedFiles.Add(normalized);
         await ReloadCorpusAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -361,8 +374,43 @@ public sealed partial class LocalAiService : IDisposable
             _corpusLock.Release();
         }
     }
+    private async Task StartRerankerIfNeededAsync(CancellationToken cancellationToken)
+    {
+        if (!_options.RerankerEnabled)
+            return;
+
+        if (_cloudSettings.ChatProvider == "cloud")
+            return;
+
+        try
+        {
+            var rerankerPort = 8081;
+            var baseUrl = _options.RerankerBaseUrl.TrimEnd('/');
+            var portIndex = baseUrl.LastIndexOf(':');
+            if (portIndex >= 0 && int.TryParse(baseUrl[(portIndex + 1)..], out var parsedPort))
+                rerankerPort = parsedPort;
+
+            var modelFileName = _options.RerankerModel.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)
+                ? _options.RerankerModel
+                : $"{_options.RerankerModel}.gguf";
+            var modelPath = Path.Combine(WorkspaceRoot, "models", modelFileName);
+
+            if (!File.Exists(modelPath))
+                return;
+
+            _rerankerProcess = new LlamaServerProcess("reranker");
+            var extraArgs = $"--embedding --pooling rank --reranking --gpu-layers {_options.RerankerGpuLayerCount}";
+            await _rerankerProcess.StartIfNeededAsync(modelPath, rerankerPort, extraArgs, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // reranker 启动失败不阻塞应用
+        }
+    }
+
     public void Dispose()
     {
+        _rerankerProcess?.Dispose();
         _embedder?.Dispose();
         _embeddingWeights?.Dispose();
         _httpClient.Dispose();
@@ -427,6 +475,8 @@ public sealed partial class LocalAiService : IDisposable
         foreach (var file in corpusFiles)
         {
             var relativePath = Path.GetRelativePath(docRoot, file).Replace('\\', '/');
+            if (_excludedFiles.Contains(relativePath))
+                continue;
             _corpusFiles.Add(relativePath);
 
             var chunks = await LoadChunksFromDocumentAsync(file, relativePath, cancellationToken).ConfigureAwait(false);
@@ -1452,7 +1502,6 @@ public sealed partial class LocalAiService : IDisposable
             builder.AppendLine($"检索问题: {retrievalQuestion}");
         }
 
-        builder.AppendLine($"检索管线: {retrieval.PipelineMode}");
         builder.AppendLine($"问题类型: {retrieval.QueryProfile.Intent}");
         if (retrieval.QueryProfile.FocusTerms.Count > 0)
         {
@@ -3321,13 +3370,34 @@ public sealed partial class LocalAiService : IDisposable
             return true;
         }
 
-        if (HasTitleOrAuthorBlock(normalized))
+        var requestedDocumentTitle = ExtractRequestedDocumentTitle(question);
+        var meaningfulTokens = BuildRetrievalQueryTokens(question, requestedDocumentTitle)
+            .Where(token => !IsAnswerRelevanceExpansionOnlyToken(token))
+            .Where(IsMeaningfulFocusTerm)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        var lowerAnswer = normalized.ToLowerInvariant();
+        var hasSemanticSignal = meaningfulTokens.Length > 0
+            && !(IsSummaryQuestion(question) && meaningfulTokens.Length <= 2)
+            && meaningfulTokens.Any(token => lowerAnswer.Contains(token, StringComparison.Ordinal));
+
+        if (!hasSemanticSignal && meaningfulTokens.Length > 0)
         {
-            Console.Error.WriteLine("[QA-Reject] A4-title-author-block");
+            Console.Error.WriteLine($"[QA-Reject] A15-zero-token-overlap tokens=[{string.Join(", ", meaningfulTokens)}] q='{TruncateForLog(question)}' a='{TruncateForLog(normalized)}'");
             return true;
         }
 
-        // 新增：判定全英文摘要片段或无关英文内容
+        if (HasTitleOrAuthorBlock(normalized))
+        {
+            if (!hasSemanticSignal)
+            {
+                Console.Error.WriteLine("[QA-Reject] A4-title-author-block");
+                return true;
+            }
+            Console.Error.WriteLine("[QA-Ignore] A4-title-author-block (semantic-signal-present)");
+        }
+
         if (IsLikelyEnglishAbstract(normalized, question))
         {
             Console.Error.WriteLine("[QA-Reject] A5-english-abstract");
@@ -3343,8 +3413,12 @@ public sealed partial class LocalAiService : IDisposable
         var hasCitation = CitationRegex.IsMatch(normalized);
         if (hasCitation && !ContainsOnlyKnownCitations(normalized, chunks))
         {
-            Console.Error.WriteLine("[QA-Reject] A7-unknown-citation");
-            return true;
+            if (!hasSemanticSignal)
+            {
+                Console.Error.WriteLine("[QA-Reject] A7-unknown-citation");
+                return true;
+            }
+            Console.Error.WriteLine("[QA-Ignore] A7-unknown-citation (semantic-signal-present)");
         }
 
         if (hasCitation
@@ -3403,30 +3477,6 @@ public sealed partial class LocalAiService : IDisposable
             return true;
         }
 
-        var requestedDocumentTitle = ExtractRequestedDocumentTitle(question);
-        var meaningfulTokens = BuildRetrievalQueryTokens(question, requestedDocumentTitle)
-            .Where(token => !IsAnswerRelevanceExpansionOnlyToken(token))
-            .Where(IsMeaningfulFocusTerm)
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-
-        if (meaningfulTokens.Length == 0)
-        {
-            return false;
-        }
-
-        var lowerAnswer = normalized.ToLowerInvariant();
-        if (IsSummaryQuestion(question) && meaningfulTokens.Length <= 2)
-        {
-            return false;
-        }
-
-        var overlap = meaningfulTokens.Count(token => lowerAnswer.Contains(token, StringComparison.Ordinal));
-        if (overlap == 0)
-        {
-            Console.Error.WriteLine($"[QA-Reject] A15-zero-token-overlap tokens=[{string.Join(", ", meaningfulTokens)}] q='{TruncateForLog(question)}' a='{TruncateForLog(normalized)}'");
-            return true;
-        }
         return false;
     }
 

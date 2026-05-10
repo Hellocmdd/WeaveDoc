@@ -10,9 +10,11 @@ namespace RagAvalonia.ViewModels;
 public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly LocalAiService _service = new();
+    private readonly CloudApiSettings _cloudSettings = CloudApiSettings.Load();
     private readonly List<ChatTurn> _history = [];
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private string _conversationText = string.Empty;
+    private int _selectedPanelTab;
     private string _sourceText = string.Empty;
     private string _retrievalDebugText = "尚未执行检索。";
     private string _inputText = string.Empty;
@@ -89,6 +91,88 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
     public string DocumentPanelToggleText => IsDocumentPanelExpanded ? "收起文档" : "展开文档";
 
+    public int SelectedPanelTab
+    {
+        get => _selectedPanelTab;
+        set
+        {
+            if (SetProperty(ref _selectedPanelTab, value))
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDocumentsTabSelected)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSettingsTabSelected)));
+            }
+        }
+    }
+
+    public bool IsDocumentsTabSelected => _selectedPanelTab == 0;
+    public bool IsSettingsTabSelected => _selectedPanelTab == 1;
+
+    public string ChatProvider
+    {
+        get => _cloudSettings.ChatProvider;
+        set
+        {
+            if (_cloudSettings.ChatProvider != value)
+            {
+                _cloudSettings.ChatProvider = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChatProvider)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCloudProviderSelected)));
+            }
+        }
+    }
+
+    public string CloudBaseUrl
+    {
+        get => _cloudSettings.CloudBaseUrl;
+        set
+        {
+            _cloudSettings.CloudBaseUrl = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudBaseUrl)));
+        }
+    }
+
+    public string CloudApiKey
+    {
+        get => _cloudSettings.CloudApiKey;
+        set
+        {
+            _cloudSettings.CloudApiKey = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudApiKey)));
+        }
+    }
+
+    public string CloudModel
+    {
+        get => _cloudSettings.CloudModel;
+        set
+        {
+            _cloudSettings.CloudModel = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudModel)));
+        }
+    }
+
+    public bool CloudEnableThinking
+    {
+        get => _cloudSettings.CloudEnableThinking;
+        set
+        {
+            _cloudSettings.CloudEnableThinking = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudEnableThinking)));
+        }
+    }
+
+    public string CloudReasoningEffort
+    {
+        get => _cloudSettings.CloudReasoningEffort;
+        set
+        {
+            _cloudSettings.CloudReasoningEffort = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudReasoningEffort)));
+        }
+    }
+
+    public bool IsCloudProviderSelected => _cloudSettings.ChatProvider == "cloud";
+
     public async Task InitializeAsync()
     {
         if (_isInitialized)
@@ -97,13 +181,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
 
         IsBusy = true;
-        StatusText = "正在加载 embedding 并连接 llama-server...";
+        StatusText = "正在加载 embedding 并连接聊天服务...";
         try
         {
+            _service.CloudSettings = _cloudSettings;
             await _service.InitializeAsync();
             RefreshCorpusState();
-            StatusText = $"已就绪：{_service.CorpusChunkCount} 个知识块，聊天模型通过 llama-server({_service.LlamaServerModel})。";
-            AppendSystemMessage("本地模型已加载完成，可以开始提问。");
+            StatusText = $"已就绪：{_service.CorpusChunkCount} 个知识块，聊天模型: {_service.LlamaServerModel} ({_service.LlamaServerEndpoint})。";
+            AppendSystemMessage("模型已就绪，可以开始提问。");
             _isInitialized = true;
         }
         catch (Exception exception)
@@ -235,6 +320,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         StatusText = "会话已清空。";
     }
 
+    public void SaveCloudSettings()
+    {
+        if (IsBusy)
+        {
+            StatusText = "请等待当前操作完成后再保存设置。";
+            return;
+        }
+
+        try
+        {
+            _cloudSettings.Save();
+            _service.CloudSettings = _cloudSettings;
+            StatusText = "云 API 设置已保存。";
+        }
+        catch (Exception exception)
+        {
+            StatusText = $"保存设置失败: {exception.Message}";
+        }
+    }
+
     public async Task DeleteSelectedDocumentAsync()
     {
         if (IsBusy)
@@ -302,8 +407,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         var builder = new StringBuilder();
         builder.AppendLine($"文档来源根目录: {_service.WorkspaceRoot}/doc");
-        builder.AppendLine($"llama-server: {_service.LlamaServerEndpoint}");
         builder.AppendLine($"chat model: {_service.LlamaServerModel}");
+        builder.AppendLine($"chat endpoint: {_service.LlamaServerEndpoint}");
         builder.AppendLine($"已索引文件数: {_service.CorpusFiles.Count}");
         builder.AppendLine();
 

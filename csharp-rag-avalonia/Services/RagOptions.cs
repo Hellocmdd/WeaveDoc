@@ -25,18 +25,18 @@ public sealed record RagOptions(
     string RerankerModel,
     int RerankerTopN,
     int RerankerTimeoutSeconds,
-    string PipelineMode,
+    string RerankerGpuLayerCount,
     string LlamaServerBaseUrl,
     string ChatModel,
     float Temperature,
     int MaxTokens,
     int HttpTimeoutSeconds,
     string ChatProvider,
-    string DeepSeekApiKey,
-    string DeepSeekModel,
-    string DeepSeekBaseUrl,
-    bool DeepSeekEnableThinking,
-    string DeepSeekReasoningEffort)
+    string CloudApiKey,
+    string CloudModel,
+    string CloudBaseUrl,
+    bool CloudEnableThinking,
+    string CloudReasoningEffort)
 {
     public static RagOptions LoadFromEnvironment()
     {
@@ -65,18 +65,18 @@ public sealed record RagOptions(
             RerankerModel: GetString("RAG_RERANKER_MODEL", "bge-reranker-v2-m3"),
             RerankerTopN: GetInt("RAG_RERANKER_TOP_N", 12, 1, 50),
             RerankerTimeoutSeconds: GetInt("RAG_RERANKER_TIMEOUT_SECONDS", 30, 1, 300),
-            PipelineMode: GetPipelineMode("RAG_PIPELINE_MODE", "legacy"),
+            RerankerGpuLayerCount: GetString("RAG_RERANKER_GPU_LAYERS", "auto"),
             LlamaServerBaseUrl: GetString("LLAMA_SERVER_BASE_URL", "http://127.0.0.1:8080"),
             ChatModel: GetString("LLAMA_SERVER_CHAT_MODEL", "local-model"),
             Temperature: GetFloat("LLAMA_SERVER_TEMPERATURE", 0.2f, 0f, 2f),
             MaxTokens: GetInt("LLAMA_SERVER_MAX_TOKENS", 1536, 128, 8192),
             HttpTimeoutSeconds: GetInt("LLAMA_SERVER_TIMEOUT_SECONDS", 300, 10, 1800),
             ChatProvider: GetChatProvider("RAG_CHAT_PROVIDER", "llama_server"),
-            DeepSeekApiKey: GetString("DEEPSEEK_API_KEY", ""),
-            DeepSeekModel: GetString("DEEPSEEK_MODEL", "deepseek-v4-pro"),
-            DeepSeekBaseUrl: GetString("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-            DeepSeekEnableThinking: GetBool("DEEPSEEK_ENABLE_THINKING", false),
-            DeepSeekReasoningEffort: GetString("DEEPSEEK_REASONING_EFFORT", "medium"));
+            CloudApiKey: GetStringFallback("CLOUD_API_KEY", "DEEPSEEK_API_KEY", ""),
+            CloudModel: GetStringFallback("CLOUD_MODEL", "DEEPSEEK_MODEL", "deepseek-v4-pro"),
+            CloudBaseUrl: GetStringFallback("CLOUD_BASE_URL", "DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+            CloudEnableThinking: GetBoolFallback("CLOUD_ENABLE_THINKING", "DEEPSEEK_ENABLE_THINKING", false),
+            CloudReasoningEffort: GetStringFallback("CLOUD_REASONING_EFFORT", "DEEPSEEK_REASONING_EFFORT", "medium"));
     }
 
     private static int GetInt(string name, int defaultValue, int min, int max)
@@ -123,12 +123,27 @@ public sealed record RagOptions(
         };
     }
 
-    private static string GetPipelineMode(string name, string defaultValue)
+    private static string GetStringFallback(string primaryName, string fallbackName, string defaultValue)
     {
-        var value = GetString(name, defaultValue).ToLowerInvariant();
-        return value switch
+        var value = GetString(primaryName, "");
+        if (!string.IsNullOrWhiteSpace(value))
+            return value;
+
+        return GetString(fallbackName, defaultValue);
+    }
+
+    private static bool GetBoolFallback(string primaryName, string fallbackName, bool defaultValue)
+    {
+        var value = Environment.GetEnvironmentVariable(primaryName);
+        if (string.IsNullOrWhiteSpace(value))
+            value = Environment.GetEnvironmentVariable(fallbackName);
+        if (string.IsNullOrWhiteSpace(value))
+            return defaultValue;
+
+        return value.Trim().ToLowerInvariant() switch
         {
-            "legacy" or "simple" or "refactored" => value,
+            "1" or "true" or "yes" or "y" or "on" => true,
+            "0" or "false" or "no" or "n" or "off" => false,
             _ => defaultValue
         };
     }
@@ -138,7 +153,7 @@ public sealed record RagOptions(
         var value = GetString(name, defaultValue).ToLowerInvariant();
         return value switch
         {
-            "llama_server" or "deepseek" => value,
+            "llama_server" or "deepseek" or "cloud" => value,
             _ => defaultValue
         };
     }
