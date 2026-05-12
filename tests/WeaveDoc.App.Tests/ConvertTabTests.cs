@@ -155,4 +155,52 @@ public class ConvertTabTests : IDisposable
         Assert.True(File.Exists(outputFile), $"DOCX output not found after {waited}ms: {outputFile}");
         Assert.True(new FileInfo(outputFile).Length > 0, "DOCX output is empty");
     }
+
+    [AvaloniaFact]
+    public async Task ConvertTab_ConvertDocx_UsesCustomOutputFileName()
+    {
+        var tab = new ConvertTab();
+        var window = new Window { Content = tab };
+        window.Show();
+
+        await _configManager.EnsureSeedTemplatesAsync();
+        var pipeline = new PandocPipeline();
+        var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), _configManager);
+        tab.SetServices(_configManager, engine);
+
+        var mdPath = Path.Combine(_tempDir, "test.md");
+        await File.WriteAllTextAsync(mdPath, "# 测试标题\n\n正文内容\n");
+
+        var outputDir = Path.Combine(_tempDir, "custom-output");
+        Directory.CreateDirectory(outputDir);
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var mdBox = tab.FindControl<TextBox>("MdPathBox");
+            var outputDirBox = tab.FindControl<TextBox>("OutputDirBox");
+            var outputFileNameBox = tab.FindControl<TextBox>("OutputFileNameBox");
+            Assert.NotNull(mdBox);
+            Assert.NotNull(outputDirBox);
+            Assert.NotNull(outputFileNameBox);
+
+            mdBox.Text = mdPath;
+            outputDirBox.Text = outputDir;
+            outputFileNameBox.Text = "自定义导出名";
+
+            var convertButton = tab.FindControl<Button>("ConvertButton");
+            Assert.NotNull(convertButton);
+            convertButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        });
+
+        var outputFile = Path.Combine(outputDir, "自定义导出名.docx");
+        var waited = 0;
+        while (!File.Exists(outputFile) && waited < 10000)
+        {
+            await Task.Delay(200);
+            waited += 200;
+        }
+
+        Assert.True(File.Exists(outputFile), $"Custom DOCX output not found after {waited}ms: {outputFile}");
+        Assert.True(new FileInfo(outputFile).Length > 0, "Custom DOCX output is empty");
+    }
 }
