@@ -78,17 +78,25 @@ Markdown ──→ [MarkdownMathNormalizer] ──→ [Pandoc + LuaFilters + ref
                                                └── ApplyHeaderFooter        (页眉页脚)
                                                         │
                                                         ↓
-                                                 修正后 DOCX ──→ 输出为 DOCX 或由 Syncfusion DocIO 生成 PDF
+                                                 修正后 DOCX ──→ 输出为 DOCX 或由 PDF 引擎链生成 PDF
+                                                                  Word → LibreOffice → Syncfusion
 ```
 
 | 组件 | 职责 |
 | --- | --- |
 | `PandocPipeline.cs` | Pandoc CLI 封装：ToDocxAsync / ToAstJsonAsync + Lua Filter 自动发现 |
 | `MarkdownMathNormalizer.cs` | Markdown 公式预处理：兼容 `$ ... $` 内侧带空格的 OCR/抽取文本，避免误伤代码块与行内代码 |
-| `SyncfusionPdfConverter.cs` | Syncfusion DocIO 封装：DOCX → PDF（保留全部 OpenXML 样式） |
+| `IPdfConverter.cs` | PDF 转换器统一接口 |
+| `CompositePdfConverter.cs` | PDF 引擎优先级选择：Word → LibreOffice → Syncfusion |
+| `PdfRendererDetector.cs` | 检测 Word COM、LibreOffice `soffice` 和 Syncfusion 兜底能力 |
+| `WordComPdfConverter.cs` | Microsoft Word COM 导出 PDF，优先保证中文字体保真 |
+| `LibreOfficePdfConverter.cs` | 调用本机 LibreOffice headless 导出 PDF |
+| `SyncfusionPdfConverter.cs` | Syncfusion DocIO 兜底导出 PDF |
 | `ReferenceDocBuilder.cs` | AFD 模板 → reference.docx，预置样式定义 |
 | `OpenXmlStyleCorrector.cs` | Docx 后处理：写入样式定义、清除冗余内联、页面设置、页眉页脚 |
 | `LuaFilters/` | Pandoc 运行时自动加载的 Lua 过滤器（blockquote/codeblock 自定义样式注入） |
+
+PDF 导出不内置 LibreOffice，也不假设用户机器安装 Word。运行时按 `Microsoft Word → LibreOffice → Syncfusion DocIO` 顺序检测和尝试；若最终回退到 Syncfusion，UI 会提示字体保真度可能较低。
 
 ### 任务 3.3 — 本地配置管理
 
@@ -167,7 +175,9 @@ WeaveDoc/
 | xUnit | 2 | 测试框架 |
 | Avalonia.Headless | 11.* | 无头 UI 测试 |
 | Pandoc | 3.9+ | 底层格式转换引擎（构建时自动下载） |
-| Syncfusion DocIO | 33.1.49 | DOCX→PDF 渲染引擎，保留 OpenXML 样式（社区许可证） |
+| Microsoft Word COM | 本机安装 | Windows 高保真 DOCX→PDF 引擎，优先用于中文字体保真 |
+| LibreOffice | 本机安装 | 可选 headless DOCX→PDF 引擎，不随安装包内置 |
+| Syncfusion DocIO | 33.1.49 | DOCX→PDF 兜底引擎（社区许可证） |
 
 ---
 
@@ -177,6 +187,8 @@ WeaveDoc/
 
 - .NET 10 SDK
 - Windows 10/11 (x64) 或 Linux (Ubuntu 24.04+)
+
+PDF 高保真导出建议 Windows 环境安装 Microsoft Word，或安装 LibreOffice 并确保 `soffice` 可被检测到；否则会使用 Syncfusion 兜底。
 
 ### 构建与运行
 
@@ -209,7 +221,7 @@ dotnet test tests/WeaveDoc.Converter.Ui.Tests -v n
 
 | 测试项目 | 覆盖范围 | 明细 |
 | --- | --- | --- |
-| `WeaveDoc.Converter.Tests` | AFD 解析、样式映射、Pandoc 管道、配置管理、BibTeX 解析、公式预处理、错误信息格式化 | [测试 README](tests/WeaveDoc.Converter.Tests/README.md) |
+| `WeaveDoc.Converter.Tests` | AFD 解析、样式映射、Pandoc 管道、配置管理、BibTeX 解析、公式预处理、PDF 引擎选择、错误信息格式化 | [测试 README](tests/WeaveDoc.Converter.Tests/README.md) |
 | `WeaveDoc.Converter.Ui.Tests` | DataGrid 绑定、转换向导、Headless 模式 | [测试 README](tests/WeaveDoc.Converter.Ui.Tests/README.md) |
 
 端到端测试覆盖完整链路：`Parse → ReferenceDoc → Pandoc → StyleCorrector → PageSettings → HeaderFooter`，验证样式定义（非内联）包含正确的字体/字号属性。
