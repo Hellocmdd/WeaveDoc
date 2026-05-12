@@ -36,13 +36,17 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             **/*.sln
+            **/*.slnx
             **/packages.lock.json
 
       - name: .NET info
         run: dotnet --info
 
       - name: Restore
-        run: dotnet restore test.sln
+        run: dotnet restore WeaveDoc.slnx
 
       - name: Build (Release)
-        run: dotnet build test.sln --configuration Release --no-restore /p:ContinuousIntegrationBuild=true
+        run: dotnet build WeaveDoc.slnx --configuration Release --no-restore /p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: dotnet test tests/WeaveDoc.Rag.Tests/WeaveDoc.Rag.Tests.csproj --configuration Release --no-build -nologo
