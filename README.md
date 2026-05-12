@@ -2,132 +2,58 @@
 
 English | [简体中文](README.zh-CN.md)
 
-WeaveDoc is a unified desktop workspace for document conversion, template management, and local RAG. The repository now centers on a single Avalonia shell, `WeaveDoc.App`, with the converter and RAG logic split into dedicated libraries under `src/`.
+WeaveDoc is a unified desktop workspace for template-driven document conversion, template management, and optional local RAG workflows. The repository now centers on one Avalonia desktop entry with focused converter and RAG modules underneath.
+
+## Modules
+
+- `src/WeaveDoc.App/`: unified Avalonia shell with `文档转换`, `模板管理`, and `RAG 问答` tabs
+- `src/WeaveDoc.Converter/`: Markdown + AFD template to DOCX/PDF conversion pipeline
+- `src/WeaveDoc.Rag/`: document indexing, retrieval, reranking, chat integration, and offline evaluation helpers
 
 ## Repository Layout
 
-- `src/WeaveDoc.App/`: the only desktop entry, with three tabs: `文档转换`, `模板管理`, and `RAG 问答`
-- `src/WeaveDoc.Converter/`: document conversion core, Pandoc pipeline, AFD templates, and PDF export
-- `src/WeaveDoc.Rag/`: RAG services, retrieval pipeline, local/cloud chat integration, and offline evaluation runner
-- `tests/WeaveDoc.App.Tests/`: headless UI smoke and interaction tests for the unified shell
-- `tests/WeaveDoc.Converter.Tests/`: converter unit and integration tests
-- `tests/WeaveDoc.Rag.Tests/`: RAG unit tests
-- `WeaveDoc.slnx`: the main solution entry
-- `scripts/`: run, eval, update, and `llama.cpp` helper scripts
-- `docs/`: architecture notes and evaluation baselines
-- `doc/`, `models/`, `.rag/`, `.eval/`: workspace-level runtime data directories kept at the repo root
-- `llama.cpp/`: upstream `ggml-org/llama.cpp` submodule
+- `tests/`: app, converter, and RAG test projects
+- `scripts/`: launch, evaluation, and `llama.cpp` helper scripts
+- `docs/`: architecture notes and evaluation baseline files
+- `doc/`, `models/`, `.rag/`, `.eval/`: workspace-level data directories
+- `llama.cpp/`: upstream submodule used by the local RAG stack
+- `WeaveDoc.slnx`: main solution entry
 
-## First Clone
+## Quick Start
 
 ```bash
 git clone --recurse-submodules https://github.com/Hellocmdd/WeaveDoc.git
 cd WeaveDoc
-```
-
-If you already cloned without submodules:
-
-```bash
-git submodule update --init --recursive
-```
-
-## Build
-
-Build the full solution with:
-
-```bash
 dotnet build WeaveDoc.slnx
-```
-
-Pandoc bootstrap remains cross-platform and keeps the existing Windows path intact:
-
-- Windows: `tools/DownloadExternalTools.targets` dispatches to `tools/setup-tools.ps1`
-- Linux/macOS: the same target dispatches to `tools/setup-tools.sh`
-- To skip auto-download, set `SkipExternalToolsDownload=true`
-
-Example:
-
-```bash
-dotnet build WeaveDoc.slnx -p:SkipExternalToolsDownload=true
-```
-
-## Models
-
-Prepare GGUF models in the workspace-level `models/` directory.
-
-Required embedding model:
-
-- `models/bge-m3.gguf`
-
-Required reranker model:
-
-- `models/bge-reranker-v2-m3.gguf`
-
-Default chat model:
-
-- `models/Qwen3.5-4B-Q4_K_M.gguf`
-
-## Run
-
-Start the local stack with:
-
-```bash
-./scripts/run_weavedoc.sh
-```
-
-The launcher script keeps managing chat `llama-server`, then starts `WeaveDoc.App`. The reranker is no longer launched by the script and is auto-managed inside `WeaveDoc.Rag`.
-
-Useful overrides:
-
-```bash
-LLAMA_SERVER_MODEL=./models/your-chat-model.gguf ./scripts/run_weavedoc.sh
-LLAMA_SERVER_PORT=8082 ./scripts/run_weavedoc.sh
-LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
-```
-
-You can also launch the desktop app directly:
-
-```bash
 dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj
 ```
 
-This direct command works on Windows as well; the Windows external-tool bootstrap path remains unchanged.
+Pandoc bootstrap is handled during build:
 
-## Offline Evaluation
+- Windows uses `tools/setup-tools.ps1`
+- Linux/macOS uses `tools/setup-tools.sh`
+- set `SkipExternalToolsDownload=true` if you want to skip auto-download
 
-Run the helper script after chat `llama-server` is reachable:
+For converter and template-management work, the commands above are enough. If you want to use the local RAG tab or run offline evaluation, continue with the module guide in `src/WeaveDoc.Rag/README.md`.
 
-```bash
-./scripts/eval_rag.sh
-```
+## README Scope
 
-Or run evaluation mode directly through the unified app entry:
+- Repository-level setup, build, test, and navigation stay in this README.
+- RAG-specific model preparation, `llama-server` startup, environment variables, and evaluation instructions now live in `src/WeaveDoc.Rag/README.md`.
+- Converter implementation details and template-format notes live in `src/WeaveDoc.Converter/README.md`.
 
-```bash
-dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj -- --eval ./docs/eval-baseline.json
-```
-
-## What The Unified App Supports
-
-- visual document conversion and template management in one Avalonia shell
-- local indexing of `.md`, `.txt`, `.json`, and `.pdf` documents from `doc/`
-- local embedding, retrieval, reranking, and grounded chat answers
-- local `llama-server` chat or any OpenAI-compatible cloud API
-- offline RAG baseline evaluation through the same `WeaveDoc.App` executable
+This keeps the root document focused on the whole repo instead of one subsystem.
 
 ## Tests
 
 ```bash
-dotnet test tests/WeaveDoc.App.Tests/WeaveDoc.App.Tests.csproj -nologo
-dotnet test tests/WeaveDoc.Converter.Tests/WeaveDoc.Converter.Tests.csproj -nologo
-dotnet test tests/WeaveDoc.Rag.Tests/WeaveDoc.Rag.Tests.csproj -nologo
+dotnet test WeaveDoc.slnx -nologo
 ```
 
 ## Documentation
 
-- Unified app notes: [src/WeaveDoc.App/README.md](src/WeaveDoc.App/README.md)
-- Converter library notes: [src/WeaveDoc.Converter/README.md](src/WeaveDoc.Converter/README.md)
-- RAG library notes: [src/WeaveDoc.Rag/README.md](src/WeaveDoc.Rag/README.md)
+- App shell notes: [src/WeaveDoc.App/README.md](src/WeaveDoc.App/README.md)
+- Converter module notes (Chinese): [src/WeaveDoc.Converter/README.md](src/WeaveDoc.Converter/README.md)
+- RAG module notes: [src/WeaveDoc.Rag/README.md](src/WeaveDoc.Rag/README.md)
 - RAG architecture summary: [docs/rag-architecture.md](docs/rag-architecture.md)
-- 中文 RAG 架构说明: [docs/rag-architecture.zh-CN.md](docs/rag-architecture.zh-CN.md)
 - Baseline evaluation cases: [docs/eval-baseline.json](docs/eval-baseline.json)

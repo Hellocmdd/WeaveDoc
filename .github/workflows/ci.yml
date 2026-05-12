@@ -2,9 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [ feature/weavedoc-simple-rag-demo ]
+    branches:
+      - main
+      - master
+      - feature/**
   pull_request:
-    branches: [main, master]
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 permissions:
@@ -16,7 +21,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build (${{ matrix.os }})
+    name: Build and Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -36,13 +41,17 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             **/*.sln
+            **/*.slnx
             **/packages.lock.json
 
       - name: .NET info
         run: dotnet --info
 
       - name: Restore
-        run: dotnet restore test.sln
+        run: dotnet restore WeaveDoc.slnx
 
       - name: Build (Release)
-        run: dotnet build test.sln --configuration Release --no-restore /p:ContinuousIntegrationBuild=true
+        run: dotnet build WeaveDoc.slnx --configuration Release --no-restore /p:ContinuousIntegrationBuild=true
+
+      - name: Test (Release)
+        run: dotnet test WeaveDoc.slnx --configuration Release --no-build -nologo
