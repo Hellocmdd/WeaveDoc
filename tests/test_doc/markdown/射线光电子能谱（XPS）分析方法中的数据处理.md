@@ -1,0 +1,681 @@
+doi: 10.20236/j.CJIAC.2025.08.018
+
+潘燕芳，李晓静，廖华平，等. X射线光电子能谱(XPS)分析方法中的数据处理[J]. 中国无机分析化学，2025，15(8):1280-1294. PAN Yanfang，LI Xiaojing，LIAO Huaping，et al. Data Processing of the X-ray Photoelectron Spectroscopy Analysis Methods[J]. Chinese Journal of Inorganic Analytical Chemistry，2025，15(8):1280-1294.
+
+<div align="center">
+
+# X射线光电子能谱（XPS）分析方法中的数据处理
+
+</div>
+
+潘燕芳 $ ^{1} $ 李晓静 $ ^{1} $ 廖华平 $ ^{1} $ 李 东 $ ^{1} $ 林晓倩 $ ^{2} $
+
+（1. 清华大学深圳国际研究生院材料与器件检测技术中心，广东深圳518055；
+
+2. 深圳市电源技术学会，广东深圳518055）
+
+摘要 主要阐述X射线光电子能谱(XPS)数据的分析步骤及方法，从分析软件选择、荷电校准、背底基线扣除方式、峰形拟合方式、元素定性定量等方面进行详细概述，并列举了XPS有关手册及相关的数据库网站，举例说明文章中常见的错误。旨在帮助XPS分析领域的初学者，包括尚未完全熟悉XPS分析技术的研究人员、研究生和X射线光电子能谱从业人员，使他们能够全面了解XPS分析的方法步骤，基本掌握X射线光电子能谱数据的处理步骤及方法，在后续的数据处理中避免或减少分析错误，提升数据分析质量，让X射线光电子能谱测试技术更好地服务于科研，助力科研的发展进步。
+
+关键词 X射线光电子能谱（XPS）；化合态分析；表面分析；荷电校正
+
+## 要点
+
+1) 对X射线光电子能谱分析常用软件、数据库、网站和手册作简要介绍。
+
+2) 从荷电校准、背底基线扣除、定性和半定量分析、分峰拟合等对X射线光电子能谱分析方法和技巧进行归纳总结。
+
+3) 对X射线光电子能谱分析中常见问题进行归纳总结。
+
+中图分类号：O652.2
+
+文献标志码：A
+
+文章编号：2095-1035(2025)08-1280-15
+
+X射线光电子能谱(X-ray Photoelectron Spectrocopy，XPS)，也称为化学分析电子能谱(Electron Spectroscopy for Chemical Analysis，ESCA），是表面分析技术领域常见的一种分析技术。XPS不仅可以表征材料的成分及组成，还可以分析元素的化学态，已经越来越广泛地应用到生活中的各个领域，如新能源、半导体、微电子、高分子、催化、金属，逐渐成为科学研究中必不可少的分析手段 $ ^{[1-6]} $ 。几十年前，XPS的数据都是专业的技术人员测试及分析，数据测试及解析可靠。近年来，不同领域对XPS的需求逐渐提高，XPS由不同领域的人操作及分析，他们的科研成果出版在各自领域，并非表面分析领域的期刊中 $ ^{[7]} $ XPS的专家注意到分析有严重错误的数据已发表于期刊中，且数量庞大 $ ^{[8]} $ 。所以尽管表面分析技术和分析方法都有了长足发展，但是从文献中数据测试
+
+和分析的质量看显然没有跟上表面分析技术发展的步伐，并且已经成为一个越来越严重的问题 $ ^{[9-12]} $ 。为了量化这些问题，一个由XPS专家组成的名为“adhoc group”的工作小组对三个有名期刊的400篇论文中的XPS谱图分析进行评估，并把评估的结果划分成绿色、黄色、橘色和红色四个等级。绿色代表良好，符合论文中传递的信息；黄色代表数据分析或呈现的小瑕疵小错误；橘色代表值得担忧和思考的错误，可能会与论文中的表述严重不符；红色代表严重的错误，与文章传达的信息明显不符。调查结果显示如果从拟合和非拟合的所有数据评估，约 $ 30\% $属于红色范畴，错误的比例与专家在另外一个调查结果一致 $ ^{[13-17]} $ 。如果从拟合的XPS数据来评估，约 $ 40\% $属于红色范畴， $ 40\% $属于橘色范畴，也就是说约 $ 80\% $的文章中XPS数据拟合是有问题的 $ ^{[18]} $ 。
+
+论文描述呈现的瑕疵主要有：不写明仪器的类型、X射线源、数据分析的工具、峰形拟合的方式、扣除背景的方式、全谱和精细谱的测试通能等[19]，更严重的值得关注的是分析上的错误，如论文的原始数据提示无某元素或某个化学态，而研究者不能判别，分析时按照自己的意愿或实验预期添加某些化合态，并据此推测实验过程，这是毫无意义或说是有悖于科研实事求是的原则。很多科研工作者对XPS的分析能力了解，但并不能正确地解析XPS数据，既不理解解析的规则，又不知道XPS相关的权威数据库，也不具备甄别文献数据可靠性与否的能力，只能参照文献或按照实验设想随意地分峰拟合或随意地标注化学态，这是目前XPS数据分析的通病。XPS的数据解析相对复杂，特别是存在某些重叠峰的情况下更增加了解的难度。为了解决以上问题，本文将从分析工具、荷电校准、谱峰背底扣除、元素定性分析、元素定量分析、峰形拟合、分析常见问题几个方面论述XPS分析方法，并针对论文中常见的问题及在工作中学生提及最多的问题做归纳总结，结合有关实例说明，方便更多的科研工作者参考。
+
+## 1 分析工具
+
+## 1.1 解析软件
+
+XPS解析常用的五大分析软件有：Avantage、Multipak、CasaXPS、XPSPEAK及PeakFit，前两个软件为专业的官方软件，Avantage为Thermo Scientific公司的官方软件，Multipak为ULVAC-PHI公司开发的数据处理软件，CasaXPS、XPSPEAK及PeakFit为第三方软件。在解析XPS数据时优先使用仪器对应的官配软件，数据可直接打开，少了数据格式转换的过程。再者，官配的软件校正方便，软件包含部分数据库，如Multipak在安装路径下有元素的标准窄谱，软件里也集成了部分化合物的化合态数据库；Avantage软件里有部分金属单质或化合物的标准窄谱。如果没有官配的软件，推荐用CasaXPS，因为CasaXPS数据兼容性好，特别是数据格式转换，岛津和ULVAC-PHI的测试数据可以用CasaXPS软件直接打开，无需其他格式转换。SPECS仪器数据可以保存为vms格式用CasaXPS直接打开。Avantage、Multipak和CasaXPS能做数据的定性半定量分析，XPSPEAK则不能做定性半定量分析；XPSPEAK分析时每种元素的窄谱需要逐个打开每一种元素的窄谱，所有元素的校正也不能同时进行，需要在origin或EXCEL里加减完成校正，中间数据转换繁琐，峰
+
+形拟合时不能自动锁定双峰面积比和能量差，需要多次调整参数才能得到好的拟合，耗时长，所以在做 XPS数据解析时不推荐使用XPSPEAK软件。
+
+## 1.2 数据库及网站
+
+在进行XPS数据解析前，要先查询待解析元素相关的手册、书籍或文献，而不是拿到数据就随意地进行分峰拟合，或者随便参考某一个文献资料。要确认的信息主要有：标准图谱的特点（是否有卫星峰、能量损失峰、多重分裂峰等）、材料对应化学态中每种元素特征谱峰的结合能位置（能量范围）、查询分裂峰的能量差和谱峰面积比、有无可参考谱峰拟合的方法等。
+
+一般来讲，可被信赖的数据库或资料是在大量工作总结而来的，是经验的积累，被多次使用验证过。然而很多初学者不了解权威的XPS数据网站有哪些习惯性地搜索与自己课题或论文相关的文献资料，把这些文献当权威。实际上如前文所述，有很大比例的文献资料的谱图分析是不准确的。即使发表在顶级期刊的数据分析不一定全部合理或正确，术业有专攻，希望读者用实事求是的态度来解析XPS数据。下面列出一些权威且常用的XPS数据库和网站信息。
+
+## 1.2.1 XPS数据手册
+
+最重要和最基本的就是XPS数据手册，通常设备会自带装订版的数据手册，也有电子版的数据手册可以从网站上下载。比如Handbook of X-ray Photoelectron Spectroscopy $ ^{[20]} $中包含了元素的标准参考谱图以及各个轨道光电子谱峰和俄歇谱峰的结合能信息。该手册含有单色化Al Ka和非单色化Mg Ka X射线源测得的标准谱。
+
+另一本手册是 High Resolution XPS of Organic Polymers：the scienta ESCA300 database $ ^{[21]} $ ，是有机物分析的参考书，这本书汇总了大量有机物的标准全谱、窄谱，拟合谱峰参考（分峰能量位置、对应化学态和谱峰面积比），标准有机材料价带谱等。
+
+另外一本书《X射线光电子能谱数据分析》[22]，这本书为2022年出版，是各大数据库的总结，无论是对XPS操作人员还是数据分析人员，都是很有参考价值的工具书。
+
+## 1.2.2 解析软件自带数据库
+
+XPS设备软件自带的数据库，比如ULVAC-PHI公司的MultiPak软件、Thermo Scientific公司的Avantage软件等，主要提供的信息有：不同元素标准样品的全谱和窄谱（可自动进行谱峰标识）、不同化学态的能量参考（集成在软件里）、自旋轨道分裂峰能量差和峰强比例。MultiPak软件自带数据库，与XPS数据手
+
+册[20]里的信息一致，可以查询到元素的标准全谱、标准窄谱图，以及不同化学态的能量位置参考，而且在进行分峰拟合时，可以自动标注出自旋轨道分裂峰的面积比和能量差，方便用户快速地进行数据分析。Avantage软件里也可以查询到一些元素或化合物的标准谱图和能量位置，以及重合谱峰的一些信息，这些信息和仪器官网上的数据库XPS Simplified是一致的。在分峰拟合的时候，也可以自动标注出分裂峰的面积比和能量差，数据库里的标准谱图有原始数据，可以直接用于分析中。
+
+## 1.2.3 网站信息
+
+NIST网站：https：//srdata.nist.gov/xps/
+
+The International XPS Database of XPS Reference Spectra网站：https://xpsdatabase.net/
+
+Thermo官网：http://xpssimplified.com/
+
+XPSfitting网站：http：//www.xpsfitting.com/
+
+LaSurface网站：http：//www.lasurface.com/database/elementxps. php
+
+Surface Science Spectra网站：https://avs.scitation.org/journal/sss
+
+从以上网站中能搜索到不同元素不同化学态的标准谱图参考，也有不同化学态标准能量表参考，这些网站上的信息有重复或互补，在分析时可以多参考几个网站，有的有参考文献的目录和链接，可以根据需求下载相关资料，信息比较全面。
+
+## 2 分析方法及技巧
+
+## 2.1 荷电校准
+
+当用XPS测量绝缘体或者半导体时，由于光电子的连续发射使得样品表面出现电子亏损，如果得不到电子补充，将会在表面积累正电荷。荷电效应将使样品表面出现稳定的电势差，对出射光电子的逃逸有束缚作用，使光电子的动能减小，引起能量的位移，如果荷电得不到及时消除，会使谱图展宽、峰形畸变，造成测试结果的偏差。仪器对绝缘体或半导体电荷补偿的方法是配备低能电子枪和低能离子枪，测试的时候开启电子枪和离子枪，也就是常说的打开“双束中和”，就可以有效地解决荷电效应的问题 $ ^{[22-24]} $ 。通常有效的双束中和是过中和，过中和表现为结合能向低能端偏移，所以在做荷电校正时通常要加一定的能量(eV)，有些品牌仪器只有电子束中和，没有离子束中和，能量位移会稍大，能量偏移量不是一个固定的数值。峰形及峰位是评估中和有效性最重要的参数。如果发现结合能向高能端位移，需要结合峰形是否有展宽、拖尾、畸变，甄别数据的可靠性。图1中黑色和红色为同一个样品的测试数据，为C1s和O1s的高分辨谱图，红色为欠中和的谱图，黑色为过中和的谱图。欠中和的谱图向高结合能方向位移（校正前），谱峰明显展宽及变形，数据不能用；过中和的谱图向低结合能位移（校正前），谱峰没有展宽，数据可靠。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_1_1777511369744.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=i4d1ViBkBsGo91aEDWZpOQ%2FqFtM%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_2_1777511369819.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=m0GACK0mXdV9rug9uBSxf9dj9fM%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div align="center">
+
+图1 欠中和（红色）和过中和（黑色）时的谱图
+
+</div>
+
+<div align="center">
+
+Figure 1 Spectra of insufficient (red) and sufficient (black) neutralization.
+
+</div>
+
+进行能量校正就是补偿样品荷电。因为样品在空气中不可避免地会接触碳，所以XPS用碳作校正是最普遍的方式。可分为以下两个情形来处理。
+
+## 2.1.1 不含碳元素样品或有机高分子材料XPS数据的校正（ $ \mathrm{s p}^{3} $杂化）
+
+对于这类样品，通常大部分样品表面吸附的污染碳，一般不会与表面发生相互作用，稳定吸附在样品表面。把C一C/C一H的峰位校正到284.6～ 285.0eV均可，大多把C一C/C一H的峰位校正到 284.8eV的位置。
+
+## 2.1.2 石墨、石墨烯等无机碳材料的校正（sp²杂化）
+
+可以把C一C峰校正到 $ 2 8 4. 0 \sim 2 8 4. 5 \mathrm {e V} $的位置，常用 $ 2 8 4. 0 \mathrm {e V} $。如何区分 $ \mathrm{sp^{2}} $和 $ \mathrm{sp^{3}} $杂化？两者的峰形不一样， $ \mathrm{sp^{2}} $的峰形是不对称的， $ \mathrm{sp^{3}} $的峰形是对称的。同时存在 $ \mathrm{sp^{2}} $和 $ \mathrm{sp^{3}} $峰位时，常用的校正是 $ \mathrm{sp^{2}} $和 $ \mathrm{sp^{3}} $间隔差1eV，如 $ \mathrm{sp^{2}} $校正到 $ 2 8 4. 0 \mathrm {e V} $， $ \mathrm{sp^{3}} $校正到 $ 2 8 5. 0 \mathrm {e V}。 $
+
+此外，如果碳含量本身很少，如不含碳的样品作了表面清洁或者深剖之后，本身已经不含碳，没有碳峰，再用C一C/C一H校正已经不合适，此时得选用其他物质校正。可以用来校正的物质有：Au、Ag、 Cu、Ti等稳定金属单质，Ce（IV）氧化物在916.7eV的特征谱峰，还可以根据样品中的某个结合能稳定的谱峰校正。
+
+## 2.2 谱峰背底扣除
+
+四种本底扣除的方法：Linear、Shirley、Smart和Tougaard。根据谱峰的实际峰形来选取本底类型，选取不同的本底类型会带来不同的误差。背底扣除不正确对谱峰拟合、定性定量都有影响，适宜的背底扣除方式为本底线不会在数据谱线上把谱图截断。在一组元素分析时，所有元素尽可能选择同一背底扣除方式。
+
+## 2.2.1 Linear
+
+定义峰的起点和终点间直线本底扣除方法，峰两端本底高度差别不大时适用。
+
+## 2.2.2 Shirley
+
+Shirley适用于峰两端较为平坦的台阶状峰形本底，能够很好地扣除非弹性散射光电子所产生的本底，但是取峰范围或决定取峰范围点的选取对模型计算有很大影响，选取不同的取峰范围点会得到不同的扣除本底结果
+
+## 2.2.3 Smart
+
+Smart是Thermofisher Scientific Corp.在Shirley
+
+模型的基础上开发的，源于Shirley本底，但会根据峰形自动选取峰范围点，反复调整本底位置使得背底线不会跑到数据曲线之上，很好地解决因选取不同的取峰范围所引发的问题，对有较宽能量范围的双峰进行分析时十分有用。
+
+## 2.2.4 Tougaard
+
+Tougaard的扣背底范围宽，通常用作全谱的背底扣除，CASAXPS软件分析常用U2 Tougaard的扣背底方式。
+
+图2为 $ \mathrm{T i O_{2} T i 2 p} $窄谱图，（a）为原始数据；（b）直线型扣背底方式，在低结合能端背底基线处于谱线上把谱图截断，不是理想的背底扣除方式；（c）Shirley扣背底方式，方法适宜。
+
+## 2.3 元素定性分析
+
+通过全谱谱峰的能量位置可以进行元素的定性分析，这些能量的数值可以通过XPS数据手册[20]或前文中介绍的有关数据库查询。此外，这些结合能信息在专业的XPS解析软件中也有集成，通过解析软件可以自动进行谱峰的识别和标定。目前商业化XPS设备中常用的自带数据库的软件有Avantage和Multipak，用它们进行谱峰的定性识别很便捷。如果某元素存在，该元素的各个轨道电子谱峰都存在，且各个轨道峰的强弱也要与标准谱图匹配。如果某元素的识别不确定时，有必要寻找同一元素的其他光电子谱峰，如果谱图中没有观察到一系列的所有谱峰（特别是最强的谱峰），那么该元素不存在。全谱上的所有谱峰都要找到归属，确定各个峰位分别来自于何种元素的何种轨道或者俄歇峰，确认有没有重叠峰。图3为两个样品中Ni2p的窄谱图3(a)及全谱图3(b)。查询数据库得知Ni的单质或化合物谱峰都比较复杂，存在卫星峰，有些化合物卫星峰不止一个。样品1的谱峰存在Ni $ 2\mathrm{p}_{3 / 2} $和Ni $ 2\mathrm{p}_{1 / 2} $，也有相应的卫星峰，符合Ni2p的窄谱特征，初步判断存在Ni，再结合全谱，存在Ni3p、Ni3s、NiLMM1、NiLMM2、NiLMM3等Ni的一系列谱峰，所以就是Ni2p的窄谱。样品2中Ni2p的谱峰，谱峰峰形简单，结合能跟Ni $ 2\mathrm{p}_{3 / 2} $或Ni $ 2\mathrm{p}_{1 / 2} $相差甚远，再结合全谱，不存在Ni3p、Ni3s、NiLMM1、NiLMM2、NiLMM3等Ni的一系列谱峰，所以样品不存在Ni，根据全谱的谱峰识别信息，图3(a)样品2的峰分别为FKLL1和FKLL2。举这个例子主要是说明一定要结合全谱信息做好谱峰的定性甄别，不是测某元素的窄谱范围，就是某元素的信息，也有可能是其他元素的谱峰信息。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_1_1777511369828.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=NvBpteKSegAO9L2QzyqZi4UX5s0%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_2_1777511369839.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=XGf5Hn%2FaLNC34DLHeJflA6DosHo%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_3_1777511369846.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=IDX1BgI1uetqpaPmvlm9elU8Jj4%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div align="center">
+
+图2 Ti2p高分辨谱图 $ ^{[25]} $：(a)原始数据；(b)Linear扣背底方式；(c)Shirley扣背底方式
+
+</div>
+
+<div align="center">
+
+Figure 2 Ti 2p narrow spectrum of titanium dioxide $ ^{[25]} $ : (a) Raw data; (b) Data fitting with a linear background; (c) Data fitting with a Shirley background.
+
+</div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_4_1777511369855.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2FN7rW9rdcjKYO4YA%2FucA3trSm4k%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_5_1777511369902.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=vxd6Zy2KhnkONBMgTUfhNrh3l%2Bo%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div align="center">
+
+图3 Ni2p的窄谱图(a)及样品全谱图(b)
+
+</div>
+
+<div align="center">
+
+Figure 3 Ni 2p narrow spectra (a) and survey spectra of sample (b).
+
+</div>
+
+## 2.4 元素定量分析
+
+XPS定量分析多采用元素灵敏度因子法。该方法利用特定元素谱线强度作参考标准，测得其他元素相对参考谱线强度的比值，得到灵敏度因子，从而求得各元素的相对含量。元素灵敏度因子法是一种
+
+半经验性的相对定量方法。目前有两套灵敏度因子数据库，一为Scofield-理论灵敏度因子数据库 $ ^{[26]} $二为Wagner-实验灵敏度因子数据库 $ ^{[27]} $。Scofield理论灵敏度因子数据库是基于C1s=1，即一定量的光子作用到样品上后所产生光电子数目的一个相对
+
+计算值，Thermo Scientific公司的Avantage软件和CasaXPS软件的定量是基于这套灵敏度因子数据库。Wagner-实验灵敏度因子数据库是基于F1s=1，即在某种能谱仪上真实测量大量的已知化合物并计算出相对灵敏度因子，ULVAC-PHI公司Multipak软件是基于这个数据库做定量分析。测试时，要明确自己用的是哪个品牌的仪器，用相应的的软件做定量分析，用错灵敏度因子数据库会得到错误的定量结果。还有一点值得关注的是不同轨道的光电子谱峰对应的灵敏度因子不同，自旋轨道双峰的灵敏度因子和其中的单峰是不一样的，所以定量的时候要注意谱峰选择和背底扣除的范围是否对应，能用双峰尽可能用双峰定量。表1列出了Au、Ag和Cu电子轨道对应的灵敏度因子。作定量分析时，要选择单峰还是双峰做定量，要根据实际情况而定，本文以Au、Ag和Cu为例说明。图4为Au4f的窄谱图，如果单独用Au $ 4\mathrm{f}_{7 / 2} $或Au $ 4\mathrm{f}_{5 / 2} $做定量分析，背底基线不能包络完整的峰面积，定量结果误差大，所以需用双峰做定量分析。图5为Ag3d的窄谱图 $ ^{[28]} $，图5(a)为低通能扫描的高分辨窄谱图，根据谱峰的特征，无论选用单峰或双峰，基线都可以包络完整的峰面积，用单峰或双峰定量都可；图5(b)为高通能扫描的窄谱图，峰宽大，分辨率欠佳，如用Ag $ 3\mathrm{d}_{5 / 2} $做定量分析，背底基线不能包络完整的峰面积，需要像图5(c)一样选择双峰做定量分析。图6为Cu2p的窄谱图， $ \mathrm{Cu}2\mathrm{p}_{3 / 2} $和 $ \mathrm{Cu}2\mathrm{p}_{1 / 2} $自旋轨道双峰能量差大，如果用Cu2p的范围做定量分析，较难选择合适的基线扣除背底，直接用单峰 $ \mathrm{Cu}2\mathrm{p}_{3 / 2} $定量即可。
+
+<div align="center">
+
+表1 Au、Ag和Cu元素电子轨道对应的灵敏度因子 $ ^{[27]} $
+
+</div>
+
+<div align="center">
+
+Table 1 Sensitivity factor for different electron orbits of Au, Ag and Cu, respectively $ ^{[27]} $
+
+</div>
+
+<table border="1"><tr><td>Elements</td><td>Electron orbit</td><td>Sensitivity factor</td></tr><tr><td rowspan="3">Au</td><td>4f</td><td>6.805</td></tr><tr><td>$4f_{7/2}$</td><td>3.849</td></tr><tr><td>$4f_{5/2}$</td><td>3.019</td></tr><tr><td rowspan="3">Ag</td><td>3d</td><td>6.277</td></tr><tr><td>$3d_{5/2}$</td><td>3.742</td></tr><tr><td>$3d_{3/2}$</td><td>2.527</td></tr><tr><td rowspan="3">Cu</td><td>2p</td><td>4.395</td></tr><tr><td>$2p_{3/2}$</td><td>2.626</td></tr><tr><td>$2p_{1/2}$</td><td>1.313</td></tr></table>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_1_1777511369909.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=MvnahUx5hvzxjsgLNRR2Qn%2BCJNw%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div align="center">
+
+图4 Au4f的窄谱图
+
+</div>
+
+<div align="center">
+
+Figure 4 Au 4f narrow spectrum.
+
+</div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_2_1777511369921.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1pKk2CNrX3i0wBri5LwXBWTXytE%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_3_1777511369934.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zCgnuRyJN46zJJe%2Bx8ahuZRJydY%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_4_1777511369941.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Jw7nVWPx3kXBrkIELXEl2etvJ%2FY%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div align="center">
+
+图5 Ag3d的窄谱图 $ ^{[28]} $：（a）和（c）为正确的背底扣除方式； （b）为不适当的背底扣除方式
+
+</div>
+
+<div align="center">
+
+Figure 5 Higher and lower resolution narrow scans of the Ag 3d peaks $ ^{[28]} $ : The backgrounds in (a) and (c) are more reasonable; While the background in (b) is questionable.
+
+</div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_1_1777511369947.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zp%2F8761h%2BWiWOefb3%2FQGs74UaXM%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div align="center">
+
+图6 Cu2p的窄谱图
+
+</div>
+
+<div align="center">
+
+Figure 6 Cu 2p narrow spectrum.
+
+</div>
+
+此外，测试时最好能把样品中所含有的元素都测窄谱，用窄谱作定量分析更准确。如果有重叠峰存在，根据实际情况决定是否需要加测一个其他轨道的峰（通常选次强峰）用于半定量分析或者化学态分析。如果是自旋轨道双峰，只有其中一个峰重叠，可以用另一个峰进行定量分析和化学态分析，此时也可以不用加测其他轨道。
+
+## 2.5 化合态自洽及含量自洽
+
+## 2.5.1 化学态自洽
+
+化学态自洽的意思是例如判断样品有 $ \mathrm{M o S_{2}} $ ，在Mo3d的窄谱中应该有 $ \mathrm{M o S_{2}} $对应的结合能峰，在S2p的窄谱上同样也有金属硫化物对应的峰位。金属硫化物的峰位在161eV左右，如果在161eV左右没有峰，也就不存在 $ \mathrm{M o S_{2}} $ 。所以在作数据处理时不是关注某种元素的化合态就只分析那种元素，所有有键合关系的元素都要分析。因此，测试的时候最好能把所有全谱中检测到的元素都测窄谱，以便后续的数据处理佐证。
+
+## 2.5.2含量自洽
+
+含量自洽包括元素的总含量自洽及化学态含量自洽。例如，当定量结果出现高比例的氧时，应当能找到与氧结合的相关子峰，如样品中含有C一O、 FeO、 $ \mathrm{S O}_{4} $ 、 $ \mathrm{P O}_{4} $ 和 $ \mathrm{C O}_{3} $ ，这些氧含量加起来需要接近于总的氧含量，这就是元素的总含量自洽。对于原子比例确定的无机物，例如样品中含有 $ \mathrm{F e C l_{2}} $ ，Fe2p的窄谱中，归属为 $ \mathrm{F e C l_{2}} $ 的Fe原子百分含量是 $ 5\% $ 那么Cl2p的窄谱中金属氯化物的原子百分含量应该是 $ 10\% $ 左右，它们之间是1：2的关系，如果金属氯化物的含量远大于 $ 10\% $ ，说明还有其他金属氯化物存在，而不仅仅只是 $ \mathrm{F e C l_{2}} $ ，此时需从样品中的其他金属元素着手分析。元素及化学态含量定量，就是
+
+防止在分析过程中漏了某些化学态，因此在分析前要计算总体的半定量结果，分析后还需检查各元素化学态的半定量结果是否自洽，整体的数据信息应该是相互佐证，而不是相互矛盾的。如果不一致，需要进一步分析原因。
+
+## 2.6 分峰拟合
+
+## 2.6.1 谱峰背底扣除
+
+谱峰背底扣除参考2.1~2.4。
+
+## 2. 6. 2峰形判断（对称或不对称峰形）
+
+在分峰拟合前，先要判断是对称峰形还是不对称峰形。绝缘体的峰形基本为对称峰形，对称的峰形拟合采用高斯-洛伦兹峰形，拟合相对简单，必要时需要调整高斯-洛伦兹比，通常元素的高斯占比应该超过 80%；金属单质或者过渡族金属氧化物的峰形通常用不对称峰形，需要调整不对称拖尾参数，不同软件对于不对称峰形拟合的方式不一样。Multipak软件中要先选用Asymmetric，然后再调整 Tail Length和Tail Scale参数（可以参考标准谱图），以得到最佳的拟合。Avantage软件中是解除锁定 L/G Mix(%)Product、Tail Mix(%)、Tail Height(%)和Tail exponent(%)这几个参数，建议依次解除锁定，不要全部参数同时解除锁定，不然峰形会偏离实际很大。
+
+## 2.6.3 半高宽(FWHM)控制
+
+谱峰的半高宽(FWHM)与元素本身化学态以及测试时采谱条件有关，如通能、步长的大小、材料荷电效应等；合理的半高宽(FWHM）一般为 $0.8\sim 2.2\mathrm{eV}$ ，单质态也就是零价态，半高宽较小，通常在1eV左右，化合态的半高宽大；一种元素不同化学态（零价态除外）的拟合应该具有相同或相近的半高宽，另外需要注意的是过渡族金属Fe、Ni、Co、 Mn、Cr等，因为存在多重分裂峰，峰形展宽，如果采用分峰拟合的方式识别化学态可以参考文献参数进行多重分裂峰的拟合 $ ^{[29]} $。
+
+## 2.6.4 单峰和自旋轨道分裂峰的拟合
+
+XPS的分峰拟合涉及到单峰拟合和自旋轨道分裂峰的拟合，对于s轨道，如C1s、O1s、F1s和Na1s等，采用单峰拟合，拟合的时候直接根据实际情况添加单峰即可，一个峰表示一种化学态。对于p、d和f轨道，存在自旋轨道分裂峰，拟合的时候需要添加双峰，并且自旋轨道双峰的半高宽、面积比和能量差都有限定，如自旋轨道双峰的半高宽应设为相同，轨道面积比 $ \mathrm{p}_{1 / 2}: \mathrm{p}_{3 / 2}=1:2 $ $ \mathrm{d}_{3 / 2}: \mathrm{d}_{5 / 2}=2:3 $ $ \mathrm{f}_{5 / 2}: \mathrm{f}_{7 / 2}=3:4 $ 。前文提到专业软件的好处就是这些信息在软件都有集
+
+成，在分析自旋轨道分裂峰时会自动锁定自旋轨道双峰面积比和能量差。在用第三方分析软件处理数据时，没有自旋轨道分裂峰的信息，可以参考XPS数据手册[20]和数据库及一些权威网站信息。特别需要注意自旋轨道分裂峰是成对出现的，一组分裂峰表示一个化学态。图7为Al2p、Si2p、P2p、S2p、Cl2p和K2p的高分辨谱图，自旋轨道双峰能量差依次为0.44、 0.63、0.84、1.18、1.60和2.80eV，随着自旋轨道双峰的能量差增大，双峰分开的趋势越来越明显，直到K
+
+完全分开。对于Al2p和Si2p元素的分峰拟合，因为双峰自旋轨道能量差接近XPS的能量分辨率（0.45eV左右），Avantage软件数据库认为单质态需要考虑 $ 2 \mathrm{p}_{3 / 2} $和 $ 2 \mathrm{p}_{1 / 2} $双峰，化合态不需要区分 $ 2 \mathrm{p}_{3 / 2} $和 $ 2 \mathrm{p}_{1 / 2} $，见图8和图 $ 9^{[30]} $。P2p、S2p和Cl2p的分峰拟合都需要考虑 $ 2 \mathrm{p}_{3 / 2} $和 $ 2 \mathrm{p}_{1 / 2} $双峰，很多科研工作者在处理这些元素的分峰拟合时没有考虑，出现很多原则性分峰拟合错误，在已发表的文章中能找到大量的错误案例，这里以S为例，图10为已发表在文献中的分峰拟合。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_1_1777511369984.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YgeOW4ruN%2F6Nx%2B8G0n0FED%2FYnVc%3D&Expires=1778116169' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_2_1777511369995.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HjIrXJM2djJtpwrDiaxAhFN%2BO%2Bg%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_3_1777511370003.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dNKQNI0LsibvpPU21hce%2FffT4K0%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_4_1777511370015.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=o29dHxAAPQJKtSPGnIaaHtulOhU%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_5_1777511370021.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dLmzjjnAv0xvABm4mgHgyVBCdg0%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_6_1777511370030.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Ce3uSZk0har7dKbHb2NnBYxSkvI%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图7 Al2p、Si2p、P2p、S2p、Cl2p和K2p窄谱 $ ^{[20]} $
+
+</div>
+
+<div align="center">
+
+Figure 7 Narrow spectra of Al 2p, Si 2p, P 2p, S 2p, Cl 2p and K 2p, respecitvely $ ^{[20]} $
+
+</div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_7_1777511370039.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YKounkfK%2BOsm6OUoGkqCl2KOOUY%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图8 Al2p的分峰拟合 $ ^{[30]} $
+
+</div>
+
+<div align="center">
+
+Figure 8 Peak fitting of Al 2p narrow spectrum $ ^{[30]} $
+
+</div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_8_1777511370045.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Gri1tkcRXJvzsJpDux4S9D%2FqpXw%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图9 Si2p的分峰拟合 $ ^{[30]} $
+
+</div>
+
+<div align="center">
+
+Figure 9 Peak fitting of Si 2p narrow spectrum $ ^{[30]} $
+
+</div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_1_1777511370054.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=d%2FwhUmqmO1J1pbaW2U7B%2FOIw0qs%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_2_1777511370061.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=MTbvCMSKAQf5n5KiyV3%2FWdBi40g%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_3_1777511370099.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=NgvtmGJMmS7JNZajAvlA3WSwptc%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图10 错误的S2p分峰拟合
+
+</div>
+
+<div align="center">
+
+Figure 10 Incorrect peak fitting of S 2p narrow spectra.
+
+</div>
+
+图10为S2p的分峰拟合，图10(a） $ \sim 1 0 $ （c）都是单峰拟合，S2p要考虑自旋轨道双峰，这是三个图中都存在的明显错误。对于图10(a)，根据峰形特征，应该是分三组化学态共六个谱峰，结合能从低到高符合金属硫化物、亚硫酸根（ $ \mathrm{S O}_{3} $ ）和硫酸根（ $ \mathrm{S O}_{4} $ ）的峰位信息。对于图10(b)，标注为 $ \mathrm{N S O}_{2} \mathrm{C F}_{3} $ 的峰位符合硫酸根（ $ \mathrm{S O}_{4} $ ）的峰位信息；XPS的能力是鉴别化学键和化学态，不像XRD（X射线衍射仪）可以区分具体的物相，给出具体的分子式，XPS无法给出 $ \mathrm{N S O}_{2} \mathrm{C F}_{3} $ 这样存在多个键的这么明确的分子式，ToF-SIMS（飞行时间二次离子质谱仪）表征手段可以解析出这个分子式，所以对于成分复杂的样品，最好不要像图10(a）和图10(b)标识出具体的分子式。对于图10(c)，不考虑
+
+自旋轨道双峰是其中一个大问题，这里还把自旋轨道双峰的 $ 2 \mathrm{p}_{3 / 2} $和 $ 2 \mathrm{p}_{1 / 2} $当作不同的化合态处理，如S一N和S=O，这个峰位应该是 $ \mathrm{S O}_{4} $的 $ 2 \mathrm{p}_{3 / 2} $和 $ 2 \mathrm{p}_{1 / 2} $自旋轨道双峰。还有一个明显错误是半高宽差别大，标注为 S一P/S一Ge的橘色的分峰半高宽明显过大，分峰拟合出现包峰，图中S一P/S一Ge把S一Si的谱峰完全包裹。另外值得一提的是，这里的化学键标识，不符合结合能大小分析逻辑，随意标识。
+
+XPS的分析错误不胜枚举，以上列举的错误案例只是冰山一角。图11为作者MAJOR $ ^{[7]} $在总结大量文献上的分析错误案例后，自己特意做的一个案例分析，以供参考，图11(a)为错误的分峰拟合，图11(b)为合理的分峰拟合，跟图10(c)类似，这里不再赘述。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_4_1777511370113.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=NYOXv8xHSYa4M1O6VdWM3QUo4xE%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_5_1777511370128.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7WTkLbcKGCXs2IMPI0s6HYhP3mg%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图11 S2p的分峰拟合 $ ^{[7]} $：(a)错误的分峰拟合；(b)合理的分峰拟合
+
+</div>
+
+<div align="center">
+
+Figure 11 Peak fitting of S 2p narrow spectra $ ^{[7]} $ : (a) Incorrect peak fitting; (b) Appropriatre peak fitting.
+
+</div>
+
+## 2.7 价带谱
+
+对于某些高分子聚合物，价带谱是指纹谱，测量样品实际价带谱跟标准价带谱比对，就能区分出具体的物质。对于有机物的分析，可以参考手册High Resolution XPS of Organic Polymers：the scienta
+
+ESCA300 database $ ^{[21]} $。
+
+Sn的氧化物SnO和 $ \mathrm{S n O_{2}} $的结合能接近，通过结合能大小难以区分两者，但是它们的价带谱不一样，可以通过价带谱加以区分。图12为SnO和 $ \mathrm{S n O_{2}} $的价带谱 $ ^{[30]} $在区分Sn的氧化物时可以加测Sn的价带谱，以便于分析。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_1_1777511370134.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=bll8IPvCOIpOWQXhjto4wZd0EWU%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图12 SnO和 $ \mathrm{S n O_{2}} $的价带谱 $ ^{[30]} $
+
+</div>
+
+<div align="center">
+
+Figure 12 Valence band spectra of SnO and $ \mathrm{S n O}_{2} $ $ ^{[30]} $
+
+</div>
+
+## 3 分析常见问题
+
+## 3.1 只呈现关注元素的分峰拟合
+
+数据处理时不是关注某种元素的化合态就只分析那种元素，所有有键合关系的元素都要分析并放入文章中，同时最好还有定量结果及全谱信息，这样的数据才是一个完整的分析数据。
+
+## 3.2 随意的分峰拟合
+
+在作XPS的分峰拟合时，要根据实际情况分峰拟合，添加的峰越多，残余标准差RSD（Residual Standard Deviations）越小，拟合度会越好，但是添加的每一个峰都需要有实际的物理或化学意义，也就是添加的峰都要能标识出化学键。此外，添加的峰还需满足前文所述的约束条件，如半高宽的约束条件，不要为了小的标准差随意地分峰。图13为墨鱼骨的C1s窄谱的分峰拟合案例 $ ^{[31]} $ 。图13(a）中，添加两个谱峰，峰太少，半高宽大，拟合度不好。图13(b）中，添加的峰太多，半高宽大小不一，有两个峰的的峰位相同，残余标准差小，但没有物理和化学意义，没法标出化学键。图13(c）中，添加4个谱峰，每个峰的半高宽保持一致，每个谱峰都有对应的化学态，有实际意义，残余标准差小，是合理的分峰。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_2_1777511370141.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=fTy8TBDzYliss8t5NoVge8qL0Ss%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_3_1777511370148.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=AgD4A4oZXGMXgk06gcYZj3wjtw4%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_4_1777511370156.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7bZmIvKsI7TNe%2B%2F1XN7G2HUY4%2Fg%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图13 墨鱼骨的C1s窄谱：(a)少峰；(b)多峰；(c)合理的峰个数 $ ^{[31]} $
+
+</div>
+
+<div align="center">
+
+Figure 13 C 1s narrow scan of a cuttlefish bone with (a) Too few peaks; (b) Too many peaks; (c) A reasonable and chemically justifiable number of peaks $ ^{[31]} $ .
+
+</div>
+
+## 3.3 过渡平滑
+
+XPS谱图的信噪比与元素含量是有关系的，如果本身含量低，数据的信噪比会很差。XPS的数据不建议作平滑处理，因为作了平滑处理后有些数据会失真，特别是某些强度不高，但是又是价态识别的重要特征的卫星峰，在做平滑处理时可能会消失。在分峰拟合的时候，软件本身也会把所有子峰拟合的总拟合曲线显示出来，用总拟合曲线跟原始的峰形比对就行。
+
+## 3.4 把噪音当光电子谱峰处理
+
+图14～16为把噪音当作光电子谱峰处理的案例[7]，在数据处理过程中一定要学会鉴别，分清噪音和光电子谱峰。把噪音当作光电子谱峰处理，是判断不出峰位的。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_1_1777511370163.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5ghOxfXPYz6m0qFpcdgwU%2BQQ1s0%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图14 O1s的分峰拟合 $ ^{[7]} $
+
+</div>
+
+<div align="center">
+
+Figure 14 Peak fitting of O 1s narrow spectrum $ ^{[7]} $
+
+</div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_2_1777511370169.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PPtH38zgmrqd6%2FDgFD4no8GqcBU%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图15 Li1s的分峰拟合 $ ^{[7]} $
+
+</div>
+
+<div align="center">
+
+Figure 15 Peak fitting of Li 1s narrow spectrum $ ^{[7]} $
+
+</div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_3_1777511370178.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6qFghuLVycVC%2Fa16jaZNEqDwXdU%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图16 Mn2p的分峰拟合 $ ^{[7]} $
+
+</div>
+
+<div align="center">
+
+Figure 16 Peak fitting of Mn 2p narrow spectrum $ ^{[7]} $
+
+</div>
+
+## 3.5 不知如何判断化学键结合能高低
+
+大部分情况下，当原子得电子时，电子间斥力变大，结合能向低能位移；当原子失去电子时，原子核对电子的吸引力变大，结合能增加，结合能向高能位移。所以大多数情况下，同一原子失去电子（发生氧化）时，结合能会往高能位移，得电子（发生还原）时，结合能往低能位移。化学位移的方向及强度取决于所探测
+
+的元素及轨道。当化学环境变化时，某些原子的化学位移有几个电子伏特，从谱峰中很容易辨认，但有些原子的化学位移并不明显，需结合其他方式判断化学态。对于有机物，电负性越强的原子越易吸电子，比如O和F。对某个原子来说，与电负性越强的原子结合，结合能会向更高的位置偏移，比如C原子，C一F的结合能大于C一O，C一O的结合能大于C一C。
+
+## 3.6 不显示背底基线
+
+背底基线是XPS数据处理的一个重要组成部分，在定量计算或分峰拟合时，首先要选择扣背底的方式，文章中应说明选择的扣背底类型，还要把背底基线显示出来，如果不显示背底基线，会让读者分辨不出拟合的范围。图17为PET样品的分峰拟合 $ ^{[28]} $用的是CasaXPS软件中的U2 Tougaard扣背底方式，图17(a)中显示扣背底基线，能清楚地看到基线的扣除范围及拟合的范围，而图17(b)中没有显示扣背底基线，不方便读者分辨拟合的范围。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_4_1777511370188.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=kwbfZJ0rwLdsS7MEe9yMgA8iWSI%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_5_1777511370194.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=yM0xx%2BPqsj6M3s0RU2z1KTPUDEM%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图17 PET的C1s谱峰拟合 $ ^{[28]} $：(a)显示背底基线；
+
+</div>
+
+<div align="center">
+
+(b)不显示背底基线
+
+</div>
+
+<div align="center">
+
+Figure 17 C 1s narrow scan of polyethyleneterephthalate (PET) peak fitting $ ^{[28]} $ : (a) The background is shown; (b) The background is not shown.
+
+</div>
+
+## 3.7 结合能的显示方式
+
+无论是全谱还是窄谱图，结合能的显示方式应为从左到右，结合能逐渐减少（动能逐渐增加），数据库的标准谱图谱也是如此显示，如果倒过来，不能说是严重的错误，可以说是不专业的，也会给数据分析造成困扰，不方便跟标准谱比对。图18为 $ \mathrm{P t S_{2}} $的全谱扫描 $ ^{[32]} $。图18(a）中为不符合常规的显示方式，图18(b)为正确的显示方式。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_1_1777511370199.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=GvcQwjxUHACJyReFEsRefkRB72E%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_2_1777511370205.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=VfpDCEaRbiWsJlE6peBR0MOZPEE%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图18 $ \mathrm{P t S_{2}} $的全谱 $ ^{[32]} $：(a)不符合常规的显示方式；
+
+</div>
+
+<div align="center">
+
+(b) 正确的显示方式
+
+</div>
+
+<div align="center">
+
+Figure 18 XPS survey spectra of platinum sulfide $ ^{[32]} $ :
+
+</div>
+
+<div align="center">
+
+(a) Plotted backwards (against convention);
+
+</div>
+
+<div align="center">
+
+(b) Plotted correctly (according to convention).
+
+</div>
+
+## 3.8 拟合超出谱峰范围
+
+图19为N1s的窄谱图 $ ^{[7]} $ ，这个图有四个问题。一为图中黄色的子峰超出了谱峰的包络线；二为粉色的子峰在黄色的谱峰里，两个峰的半高宽差别太大；三为背底范围太宽，在低结合能端已经高出谱峰包络线；四为结合能的显示方式。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_3_1777511370211.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=EsGFKh4mgzskOSy4BX6KAZnLs7U%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图19 N1s的分峰拟合 $ ^{[7]} $
+
+</div>
+
+<div align="center">
+
+Figure 19 XPS peak fitting for N 1s narrow spectrum $ ^{[7]} $
+
+</div>
+
+## 3. 9能量损失峰当作化学态处理（Al2p和Si2p）
+
+XPS谱图在强峰的高结合能端会有一个或多个小峰，通常在距离强峰 $ 1 0 \sim 5 0 \mathrm{e V} $的范围内，这些峰叫能量损失峰。在分析过程中尤其要注意，不要把这些能量损失峰当作其他元素的光电子峰处理。这里以Al和Si为例，对于单质Al2p和Si2p窄谱，在标准谱图中存在多个能量损失峰，如图20所示。
+
+<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260430090823fff2ed00b070472c%2Fcrop_4_1777511370221.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=huY7vdHq6RrYc8Xjmnd3CDVwE7U%3D&Expires=1778116170' alt='OCR图片'/></div>
+
+<div align="center">
+
+图20 Al2p和Si2p的窄谱图
+
+</div>
+
+<div align="center">
+
+Figure 20 Al 2p and Si 2p narrow spectra.
+
+</div>
+
+## 4结论
+
+本文主要从分析软件、荷电校正、背底基线扣除、峰形拟合方式、元素定性、元素定量方法等方面论述XPS分析步骤及分析方法，介绍了XPS有关手册及相关的数据库网站，列举文章中的常见错误，希望能起到抛砖引玉的作用，让更多科研工作者在分析时能避免错误，正确地指引科研道路。
+
+## 参考文献
+
+[1] 乐韵琳，冯均利，庞兴志，等. X射线光电子能谱在镁合金研究中的应用[J]. 中国无机分析化学，2023，13(10)：1065-1076. LE Yunlin，FENG Junli，PANG Xingzhi，et al. Application of X-ray photoelectron spectroscopy in magnesium alloy research[J]. Chinese Journal of Inorganic Analytical Chemistry，2023，13(10)：1065-1076.
+
+[2] WU J R, GAO Z Y, TIAN Y, et al. Unique tridentate coordination tailored solvation sheath toward highly stable lithium metal batteries[J]. Advanced Materials, 2023, 35(38):2303347. DOI:10.1002/adma.202303347.
+
+[3] LIU Z F,GUO W Q,TAN J,et al. Deciphering fundamental mechanism of different-type diluents on manipulating interfacial chemistry toward lithium metal anode[J]. Chemical Engineering,2024,490:151812- 151823.
+
+[4] LIU Q, YU J H, GUO W Q, et al. Boosting the Li LAGP interfacial compatibility with trace nonflammable all-fluorinated electrolyte: the role of solid electrolyte interphase[J]. EcoMat, 2023, 5(4): 12322-12331.
+
+[5] GUO W Q, LIU Q, WU K, et al. Tailoring heterogeneous interfacial chemistry enables long-term cycling of all-solid-state lithium-metal batteries[J]. Energy Storage Materials, 2023, 63:103006-103016.
+
+[6] WOOD K N, TEETER G. Li XPS on, Battery-related compounds: analysis of inorganic SEI phases and a methodology for charge correction[J]. ACS Applied Energy Materials, 2018, 1(9): 4493-4504.
+
+[7] MAJOR G H, PINDER J W, AUSTIN D E, et al. Perspective on improving the quality of surface and material data analysis in the scientific literature with a focus on X-ray photoelectron spectroscopy (XPS) [J]. Journal of Vacuum Science & Technology A, 2023, 41(3): 038501. https://doi.org/10.1116/6.0002437.
+
+[8] LINFORD M R,SMENTKOWSKI V S,GRANT J T,et al. Proliferation of faulty materials data analysis in the
+
+literature[J]. Microscopy and Microanalysis, 2020, 26(1): 1-2.
+
+[9] BAER DR,MCGUIRE G E,ARTYUSHKOVA K,et al. Introduction to topical collection: Reproducibility challenges and solutions with a focus on guides to XPS analysis[J]. Journal of Vacuum Science & Technology A,2021,39(2):021601. https://doi.org/10.1116/6.0000873.
+
+[10] AVVAL T G, MAJOR G H, LINFORD M R. The reproducibility crisis, a comprehensive set of guides on XPS, and better data fitting/chemometrics of XPS data[J]. Microscopy and Microanalysis, 2022, 28(Suppl.1): 772-773.
+
+[11] BAER D R, GILMORE I S. Responding to the growing issue of research reproducibility[J]. Journal of Vacuum Science & Technology A, 2018, 36(6):068502. https:// doi.org/10.1116/1.5049141.
+
+[12] SENE M, GILMORE I, JANSSEN J T. Metrology is key to reproducing results[J]. Nature, 2017, 547: 397- 399.
+
+[13] SONSTEBY H H, YANGUAS-GIL A, ELAM J W. Consistency and reproducibility in atomic layer deposition[J]. Journal of Vacuum Science & Technology A, 2020, 38(2): 020804. https://doi.org/10.1116/1.5140603.
+
+[14] MULHOPT S, DIABATÉ S, DILGER M, et al. Characterization of nanoparticle batch-to-batch variability[J]. Nanomaterials, 2018, 8(5): 311. https:// doi.org/10.3390/nano8050311.
+
+[15] PARK P J, HOWE J D, SHOLL D S. How reproducible are isotherm measurements in metal-organic frameworks[J]. Chemistry of Materials, 2017, 29(24): 10487-10495.
+
+[16] CHIRICO R D, FRENKEL M, MAGEE J W, et al. Improvement of quality in publication of experimental thermophysical property data: challenges, assessment tools, global implementation, and online support[J]. Journal of Chemical & Engineering Data, 2013, 58(10): 2699-2716.
+
+[17] PENG R D. Reproducible research in computational science[J]. Science, 2011, 334:1226-1227.
+
+[18] MAJOR G H, AVVAL T G, MOEINI B, et al. Assessment of the frequency and nature of erroneous X-ray photoelectron spectroscopy analyses in the scientific literature [J]. Journal of Vacuum Science & Technology A, 2020, 38(6): 061204. https://doi.org/10.1116/6.0000685.
+
+[19] MAJOR G H, CLARK B M, CAYABYAB K, et al. Insufficient reporting of x-ray photoelectron spectroscopy
+
+instrumental and peak fitting parameters (metadata) in the scientific literature[J]. Journal of Vacuum Science & Technology A, 2023, 41(4): 043201. https: //doi.org/ 10.1116/6.0002714.
+
+[20] MOULDER J F, STICKLE W F, SOBOL P E, et al. Handbook of X-ray photoelectron spectroscopy: a reference book of standard spectra for identification and interpretation of XPS data[R]. Perkin-Elmer Corporation, 1992.
+
+[21] BEAMSON G, BRIGGS D. High resolution XPS of organic polymers: the Scienta ESCA300 database[J]. Journal of chemical education, 1992, 70(1): A25. DOI: 10.1021/ed070pA25.5.
+
+[22] 宋廷鲁，邹美帅，鲁德凤. X射线光电子能谱数据分析[M]. 北京：北京理工大学出版社，2022. SONG Tinglu，ZOU Meishuai，LU Defeng. X-ray photoelectron spectroscopy data analysis[M]. Beijing: Beijing Institute of Technology Press, 2022.
+
+[23] 黄惠忠. 表面化学分析[M]. 上海：华东理工大学出版社，2007. HUANG Huizhong. Surface chemical analysis[M]. Shanghai: East China University of Science and Technology Press, 2007.
+
+[24] 陈建，谢芳艳，李展平，等. 表面分析技术[M]. 广州：中山大学出版社，2020. CHEN Jian, XIE Fangyan, LI Zhanping, et al. Surface analysis technology[M]. Guangzhou: Sun Yat-sen University Press, 2020.
+
+[25] BARLOW A J, JONES R T, MCDONALD A J, et al. XPS Surf A: an open collaborative XPS data repository using the CMSShub platform[J]. Surface and Interface
+
+Analysis, 2018, 50(5): 527-540.
+
+[26] SCOFIELD J H. Hartree-Slater subshell photoionization cross-sections at 1 254 and 1 487 eV[J]. Journal of Electron Spectroscopy and Related Phenomena, 1976, 8(2):129-137.
+
+[27] WAGNER C D,DAVIS L E,ZELLER M V,et al. Empirical atomic sensitivity factors for quantitative analysisby electron spectroscopy for chemical analysis[J]. Surface and Interface Analysis,1981,3(5):221-225.
+
+[28] PINDER J W, MAJOR G H, BAER D R, et al. Avoiding common errors in X-ray photoelectron spectroscopy data collection and analysis, and properly reporting instrument parameters[J]. Applied Surface Science Advances, 2024(19):100534. DOI:10.1016/j.apsadv.2023.100534.
+
+[29] BIESINGER M C,PAYNE B P,GROSVENOR A P,et al. Resolving surface chemical states in XPS analysis of first row transition metals, oxides and hydroxides: Cr, Mn, Fe,Co and Ni[J]. Applied Surface Science,2011,257(7): 2717-2730.
+
+[30] Thermo Fisher Scientific. Thermo Fisher Scientific-CN[EB/OL].[2024-08-27]. https://www. thermofisher. cn/cn/zh/home/materials-science/learning-center/ periodic-table. html.
+
+[31] AVVAL T G, CHAPMAN S C, CARVER V, et al. Cuttlefish bone (cuttlebone), by near-ambient pressure XPS[J]. Surface Science Spectra, 2021, 28(1). https:// doi.org/10.1116/60000811.
+
+[32] WAGNER C D, JOSHI A. The Auger parameter, its utility and advantages: a review[J]. Journal of Electron Spectroscopy and Related Phenomena, 1988, 47: 283-313.
+
+<div align="center">
+
+# Data Processing of the X-ray Photoelectron Spectroscopy Analysis Methods
+
+</div>
+
+PAN Yanfang $ ^{1} $ , LI Xiaojing $ ^{1} $ , LIAO Huaping $ ^{1} $ , LI Dong $ ^{1} $ , LIN Xiaoqian $ ^{2} $
+
+PAN Yanfang $ ^{1} $ , LI Xiaojing $ ^{1} $ , LIAO Huaping $ ^{1} $ , LI Dong $ ^{1} $ , LIN Xiaoqian $ ^{2} $
+
+(1. Testing Technology Center for Materials and Devices, Tsinghua Shenzhen International Graduate School, Tsinghua University, Shenzhen, Guangdong 518055, China;
+
+2. Shenzhen Power Supply Technology Society, Shenzhen, Guangdong 518055, China)
+
+Abstract This paper describes the steps and methods of XPS data processing. Analytical software, charge correction, background baseline subtraction methods, peak fitting method, and qualitative and quantitative elemental analysis are introduced in detail. XPS manuals and related database websites are also presented, and examples are given to illustrate the common errors. The aim of this paper is to assist beginners in XPS data processing, including researchers, graduate students, and X-ray photoelectron spectroscopy practitioners who are not yet fully familiar with XPS analysis techniques, enabling them to fully understand the methodological steps of XPS data processing. It is expected that readers can master the data processing steps and methods of X-ray photoelectron spectroscopy by reading this paper, avoid or reduce analysis errors in subsequent data processing, improve the data quality in the paper, and make X-ray photoelectron spectroscopy technology better serve and promote the development and progress of scientific research.
+
+Keywords X-ray photoelectron spectroscopy; chemical state analysis; surface analysis; charge correction HIGHLIGHTS
+
+1) Briefly introduce the common software, database, website, and manual of X-ray photoelectron spectroscopy.
+
+2) Summarize the methods and techniques of X-ray photoelectron spectroscopy from aspects such as charge correction methods, background baseline subtraction methods, qualitative and semi-quantitative analysis, and peak fitting method.
+
+3) Summarize the common problems in X-ray photoelectron spectroscopy analysis.

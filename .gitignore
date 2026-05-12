@@ -31,6 +31,6 @@ packages/
 ## Misc
 *.log
 .claude/
-docs/superpowers/
+.codex-tmp/
+docs/
 .superpowers/
-docs/待优化项清单.md
