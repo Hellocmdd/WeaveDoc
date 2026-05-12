@@ -11,10 +11,10 @@ namespace WeaveDoc.Converter;
 public class DocumentConversionEngine
 {
     private readonly PandocPipeline _pandoc;
-    private readonly SyncfusionPdfConverter _pdfConverter;
+    private readonly IPdfConverter _pdfConverter;
     private readonly ConfigManager _configManager;
 
-    public DocumentConversionEngine(PandocPipeline pandoc, SyncfusionPdfConverter pdfConverter, ConfigManager configManager)
+    public DocumentConversionEngine(PandocPipeline pandoc, IPdfConverter pdfConverter, ConfigManager configManager)
     {
         _pandoc = pandoc;
         _pdfConverter = pdfConverter;
@@ -83,7 +83,10 @@ public class DocumentConversionEngine
             {
                 Success = true,
                 OutputPath = outputPath,
-                Format = outputFormat.ToLowerInvariant()
+                Format = outputFormat.ToLowerInvariant(),
+                PdfConverterName = string.Equals(outputFormat, "pdf", StringComparison.OrdinalIgnoreCase)
+                    ? ResolvePdfConverterName()
+                    : ""
             };
         }
         catch (Exception ex)
@@ -100,6 +103,17 @@ public class DocumentConversionEngine
             try { Directory.Delete(tempDir, recursive: true); } catch { }
         }
     }
+
+    private string ResolvePdfConverterName()
+    {
+        if (_pdfConverter is CompositePdfConverter composite
+            && !string.IsNullOrWhiteSpace(composite.LastUsedConverterName))
+        {
+            return composite.LastUsedConverterName;
+        }
+
+        return _pdfConverter.Name;
+    }
 }
 
 public record ConversionResult
@@ -107,6 +121,7 @@ public record ConversionResult
     public bool Success { get; init; }
     public string OutputPath { get; init; } = "";
     public string Format { get; init; } = "";
+    public string PdfConverterName { get; init; } = "";
     public string ErrorMessage { get; init; } = "";
     public string TechnicalDetails { get; init; } = "";
 }

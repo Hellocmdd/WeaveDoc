@@ -7,7 +7,7 @@ namespace WeaveDoc.Converter.Pandoc;
 /// <summary>
 /// 使用 Syncfusion DocIO 将 DOCX 转为 PDF，保留所有 OpenXML 样式
 /// </summary>
-public class SyncfusionPdfConverter
+public class SyncfusionPdfConverter : IPdfConverter
 {
     private static readonly IReadOnlyDictionary<string, string> FontAliases =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -28,6 +28,8 @@ public class SyncfusionPdfConverter
             ["华文楷体"] = "STKaiti",
             ["华文仿宋"] = "STFangsong"
         };
+
+    public string Name => "Syncfusion DocIO";
 
     public void ConvertToPdf(string docxPath, string pdfPath)
     {

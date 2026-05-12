@@ -2,7 +2,7 @@
 
 WeaveDoc.Converter 的单元测试和集成测试项目，覆盖 AFD 模板解析、样式映射、Pandoc 管道、配置管理、BibTeX 解析和端到端转换。
 
-> **共 82 个测试，全部通过**
+> **共 94 个测试，全部通过**
 
 ## 技术栈
 
@@ -21,6 +21,7 @@ WeaveDoc.Converter.Tests/
 ├── PandocPipelineTests.cs     # Pandoc 管道 + OpenXML 修正 + 端到端（含公式预处理）
 ├── ConfigManagerTests.cs      # ConfigManager CRUD + 种子模板（8 个）
 ├── BibtexParserTests.cs       # BibtexParser 解析全场景（10 个）
+├── PdfConverterSelectionTests.cs # PDF 引擎检测与选择策略（7 个）
 └── WeaveDoc.Converter.Tests.csproj
 ```
 
@@ -33,6 +34,7 @@ WeaveDoc.Converter.Tests/
 | PandocPipelineTests | 23 | 集成测试 | Pandoc CLI 调用、Markdown 公式预处理、错误信息格式化、reference.docx 生成、样式定义写入、冗余内联清除、页眉页脚、DOCX→PDF、3 模板端到端 |
 | ConfigManagerTests | 8 | 单元测试 | 模板 CRUD、种子模板发现、幂等性 |
 | BibtexParserTests | 10 | 单元测试 | 基础解析、多条目、嵌套括号、缩写展开、引号值、注释跳过、畸形容错 |
+| PdfConverterSelectionTests | 7 | 单元测试 | Word/LibreOffice/Syncfusion 检测和 PDF 引擎优先级选择 |
 
 ### AfdParserTests（13 个）
 
@@ -87,6 +89,18 @@ WeaveDoc.Converter.Tests/
 | `ToDocxAsync_CodeBlock_AppliesCodeBlockStyle` | Lua Filter 注入 CodeBlock 样式 |
 | `ToDocxAsync_SpacedDollarMath_ProducesWordMath` | `$ ... $` 内侧带空格的公式可转换为 Word 原生公式，行内代码不被误处理 |
 
+### PdfConverterSelectionTests（7 个）
+
+| 测试 | 验证内容 |
+|------|---------|
+| `PdfRendererDetector_DetectLibreOffice_UsesExplicitPath` | 显式 `soffice.exe` 路径可被识别 |
+| `PdfRendererDetector_DetectLibreOffice_ReturnsReasonWhenMissing` | LibreOffice 不存在时返回不可用原因 |
+| `PdfRendererDetector_DetectWord_NonWindowsDoesNotThrow` | 非 Windows 环境检测 Word 不抛异常 |
+| `CompositePdfConverter_WordAvailable_UsesWordFirst` | Word 可用时优先使用 Word |
+| `CompositePdfConverter_LibreOfficeAvailable_UsesLibreOfficeBeforeSyncfusion` | LibreOffice 可用时优先于 Syncfusion |
+| `CompositePdfConverter_NoExternalRenderer_UsesSyncfusionFallback` | 外部引擎不可用时使用 Syncfusion 兜底 |
+| `DocumentConversionEngine_ConvertAsync_Pdf_UsesInjectedConverter` | DCE 通过 `IPdfConverter` 注入 PDF 转换器 |
+
 ### ConfigManagerTests（8 个）
 
 使用临时目录 + SQLite 隔离，每个测试独立清理：
@@ -120,7 +134,7 @@ WeaveDoc.Converter.Tests/
 ## 运行测试
 
 ```bash
-# 运行全部测试（82 个）
+# 运行全部测试（94 个）
 dotnet test tests/WeaveDoc.Converter.Tests -v n
 
 # 运行指定模块
@@ -129,6 +143,7 @@ dotnet test tests/WeaveDoc.Converter.Tests --filter "AfdStyleMapperTests" -v n
 dotnet test tests/WeaveDoc.Converter.Tests --filter "PandocPipelineTests" -v n
 dotnet test tests/WeaveDoc.Converter.Tests --filter "ConfigManagerTests" -v n
 dotnet test tests/WeaveDoc.Converter.Tests --filter "BibtexParserTests" -v n
+dotnet test tests/WeaveDoc.Converter.Tests --filter "PdfConverterSelectionTests" -v n
 
 # 不还原直接运行（开发迭代）
 dotnet test tests/WeaveDoc.Converter.Tests --no-restore -v n
@@ -138,6 +153,7 @@ dotnet test tests/WeaveDoc.Converter.Tests --no-restore -v n
 
 - **隔离性**：ConfigManagerTests 使用 `Path.GetTempPath()` + GUID 创建临时目录和 SQLite 数据库，`try/finally` 自动清理
 - **真实集成测试**：PandocPipelineTests 调用真实 Pandoc CLI，验证完整管道链路
+- **PDF 引擎策略测试**：PdfConverterSelectionTests 使用假转换器验证 Word → LibreOffice → Syncfusion 优先级，不依赖本机实际安装状态
 - **样式定义验证**：所有样式相关测试验证 `StyleDefinitionsPart` 中的 `StyleRunProperties`，而非内联 `RunProperties`
 - **容错测试**：BibtexParser 和 AfdParser 都包含畸形输入和边界条件测试
 - **幂等性测试**：种子模板发现操作验证重复调用安全性
