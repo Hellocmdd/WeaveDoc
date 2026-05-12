@@ -1011,6 +1011,32 @@ public class PandocPipelineTests
     }
 
     [Fact]
+    public async Task ToDocxAsync_SpacedDollarMath_ProducesWordMath()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown("正文 $ \\mathrm{sp^{2}} $ 和 `$ not math $`。\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"math-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+            Assert.True(File.Exists(docxPath));
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            using var reader = new StreamReader(doc.MainDocumentPart!.GetStream());
+            var documentXml = await reader.ReadToEndAsync();
+
+            Assert.Contains("<m:oMath>", documentXml);
+            Assert.Contains("$ not math $", documentXml);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
     public async Task DocumentConversionEngine_CodeBlock_ProducesDocxWithContent()
     {
         var root = FindSolutionRoot();
