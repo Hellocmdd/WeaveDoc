@@ -3,6 +3,7 @@
         xmlns:views="using:WeaveDoc.Converter.Ui.Views"
         x:Class="WeaveDoc.Converter.Ui.Views.MainWindow"
         Title="WeaveDoc 转换工具"
+        Icon="/Assets/AppIcon.ico"
         Width="900" Height="580"
         Background="#F7F8FC"
         WindowStartupLocation="CenterScreen">

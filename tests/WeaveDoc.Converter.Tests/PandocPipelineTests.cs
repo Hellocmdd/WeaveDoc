@@ -44,7 +44,7 @@ public class PandocPipelineTests
         var pipeline = CreatePipeline();
         var outputPath = Path.Combine(Path.GetTempPath(), $"test-{Guid.NewGuid():N}.docx");
 
-        await Assert.ThrowsAsync<Exception>(() =>
+        await Assert.ThrowsAnyAsync<Exception>(() =>
             pipeline.ToDocxAsync("/nonexistent/file.md", outputPath));
     }
 
@@ -517,6 +517,35 @@ public class PandocPipelineTests
             {
                 File.Delete(mdPath);
             }
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
+
+    [Fact]
+    public async Task DocumentConversionEngine_ConvertAsync_InvalidInput_ReturnsFriendlyError()
+    {
+        var root = FindSolutionRoot();
+        var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
+        var dbPath = Path.Combine(Path.GetTempPath(), $"dce-invalid-input-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var configManager = new ConfigManager(dbPath);
+            await configManager.SaveTemplateAsync("test-tpl", CreateTestTemplate());
+
+            var pipeline = new PandocPipeline(pandocPath);
+            var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), configManager);
+            var mdPath = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.md");
+
+            var result = await engine.ConvertAsync(mdPath, "test-tpl", "docx");
+
+            Assert.False(result.Success);
+            Assert.Contains("Pandoc 无法读取输入文件", result.ErrorMessage);
+            Assert.Contains("Pandoc", result.TechnicalDetails);
         }
         finally
         {

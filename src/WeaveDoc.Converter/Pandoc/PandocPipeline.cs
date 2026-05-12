@@ -145,7 +145,15 @@ public class PandocPipeline
         var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
-            throw new Exception($"Pandoc 退出码 {process.ExitCode}: {stderr}");
+        {
+            throw new PandocException(
+                $"Pandoc 转换失败，退出码 {process.ExitCode}",
+                process.ExitCode,
+                _pandocPath,
+                psi.Arguments,
+                stdout,
+                stderr);
+        }
 
         return stdout;
     }
@@ -188,4 +196,41 @@ public class PandocPipeline
 
     private static string Quote(string path) =>
         path.Contains(' ') ? $"\"{path}\"" : path;
+}
+
+public class PandocException : Exception
+{
+    public PandocException(
+        string message,
+        int exitCode,
+        string pandocPath,
+        string arguments,
+        string stdout,
+        string stderr) : base(message)
+    {
+        ExitCode = exitCode;
+        PandocPath = pandocPath;
+        Arguments = arguments;
+        Stdout = stdout;
+        Stderr = stderr;
+    }
+
+    public int ExitCode { get; }
+    public string PandocPath { get; }
+    public string Arguments { get; }
+    public string Stdout { get; }
+    public string Stderr { get; }
+
+    public override string ToString()
+    {
+        var builder = new StringBuilder(base.ToString());
+        builder.AppendLine();
+        builder.AppendLine($"Pandoc: {PandocPath}");
+        builder.AppendLine($"Arguments: {Arguments}");
+        if (!string.IsNullOrWhiteSpace(Stderr))
+            builder.AppendLine($"stderr: {Stderr.Trim()}");
+        if (!string.IsNullOrWhiteSpace(Stdout))
+            builder.AppendLine($"stdout: {Stdout.Trim()}");
+        return builder.ToString();
+    }
 }
