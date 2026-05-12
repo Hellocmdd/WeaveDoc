@@ -12,7 +12,7 @@ internal sealed class Program
     public static void Main(string[] args)
     {
         Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(
-            "Ngo9BigBOggjHTQxAR8/V1JHaF5cWWdCekx0Rnxbf1x2ZFFMY15bRXFPMyBoS35RcEVnWHledHdXR2dYVkZyVEFe");
+            "Ngo9BigBOggjHTQxAR8/V1JHaF5cWWdCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdlWXpfcnRXQ2dcVEVzX0RWYEo=");
 
         var dbPath = Path.Combine(AppContext.BaseDirectory, "data", "weavedoc.db");
         var configManager = new ConfigManager(dbPath);

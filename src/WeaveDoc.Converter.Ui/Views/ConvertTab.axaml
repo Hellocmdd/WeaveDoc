@@ -91,6 +91,11 @@
                                 Padding="16,8" Foreground="#4A5568" Background="#F0F2F5"
                                 BorderBrush="#DCE1E8" BorderThickness="1" CornerRadius="6" />
                     </Grid>
+                    <TextBox x:Name="OutputFileNameBox"
+                             Foreground="#4A5568" FontSize="13" Padding="9,8"
+                             BorderBrush="#DCE1E8" BorderThickness="1"
+                             CornerRadius="6" Background="#FAFBFC"
+                             Watermark="导出文件名（留空使用默认命名）" />
                 </StackPanel>
             </Border>
 

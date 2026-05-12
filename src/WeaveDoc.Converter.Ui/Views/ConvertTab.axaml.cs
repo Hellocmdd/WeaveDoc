@@ -130,6 +130,17 @@ public partial class ConvertTab : UserControl
         }
 
         var format = _isDocx ? "docx" : "pdf";
+        var customFileName = OutputFileNameBox.Text?.Trim();
+        string? outputFileNameOverride = null;
+        try
+        {
+            outputFileNameOverride = ResolveCustomOutputFileName(customFileName, format);
+        }
+        catch (ArgumentException ex)
+        {
+            SetStatus(ex.Message, "#F5222D");
+            return;
+        }
 
         // 转换中状态
         SetStatus("转换中...", "#1890FF");
@@ -143,7 +154,8 @@ public partial class ConvertTab : UserControl
 
             if (result.Success)
             {
-                var outputPath = Path.Combine(outputDir, Path.GetFileName(result.OutputPath));
+                var outputFileName = outputFileNameOverride ?? Path.GetFileName(result.OutputPath);
+                var outputPath = Path.Combine(outputDir, outputFileName);
                 if (result.OutputPath != outputPath && File.Exists(result.OutputPath))
                     File.Move(result.OutputPath, outputPath, overwrite: true);
 
@@ -168,6 +180,44 @@ public partial class ConvertTab : UserControl
             ConvertButton.IsEnabled = true;
             ConvertButton.Content = "开始转换";
         }
+    }
+
+    private static string? ResolveCustomOutputFileName(string? customFileName, string format)
+    {
+        if (string.IsNullOrWhiteSpace(customFileName))
+            return null;
+
+        if (customFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+            || customFileName.Contains(Path.DirectorySeparatorChar)
+            || customFileName.Contains(Path.AltDirectorySeparatorChar))
+        {
+            throw new ArgumentException("导出文件名包含非法字符，请只输入文件名，不要包含路径或系统保留字符。");
+        }
+
+        var expectedExtension = "." + format.ToLowerInvariant();
+        var currentExtension = Path.GetExtension(customFileName);
+        var nameWithoutExtension = string.IsNullOrEmpty(currentExtension)
+            ? customFileName
+            : Path.GetFileNameWithoutExtension(customFileName);
+        if (string.IsNullOrWhiteSpace(nameWithoutExtension))
+            throw new ArgumentException("导出文件名不能为空。");
+
+        var reservedNames = new[]
+        {
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+        };
+        if (reservedNames.Contains(nameWithoutExtension, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException("导出文件名是系统保留名称，请换一个名称。");
+
+        if (string.IsNullOrEmpty(currentExtension))
+            return customFileName + expectedExtension;
+
+        if (string.Equals(currentExtension, expectedExtension, StringComparison.OrdinalIgnoreCase))
+            return customFileName;
+
+        return Path.GetFileNameWithoutExtension(customFileName) + expectedExtension;
     }
 
     private static string BuildFailureLog(AfdMeta selected, string format, string mdPath, ConversionResult result)
