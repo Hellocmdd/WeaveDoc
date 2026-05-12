@@ -2,36 +2,53 @@
 
 English | [简体中文](README.zh-CN.md)
 
-WeaveDoc is a local RAG desktop application built around an Avalonia front end, local embedding + retrieval, and `llama.cpp` for chat generation.
-
-The current repository combines three layers:
-
-- `llama.cpp` as a Git submodule for local model serving
-- `csharp-rag-avalonia` as the desktop app and RAG pipeline
-- helper scripts for update, build, run, and offline evaluation
+WeaveDoc is a unified desktop workspace for document conversion, template management, and local RAG. The repository now centers on a single Avalonia shell, `WeaveDoc.App`, with the converter and RAG logic split into dedicated libraries under `src/`.
 
 ## Repository Layout
 
-- `csharp-rag-avalonia/`: Avalonia desktop app, RAG pipeline, prompt assembly, and local document management
-- `llama.cpp/`: upstream `ggml-org/llama.cpp` linked as a Git submodule
-- `scripts/`: build, run, debug, and update helper scripts
-- `docs/`: project documentation such as the RAG architecture summary
-- `doc/`: local source documents indexed by the app
-- `models/`: local GGUF model files used by the app and `llama-server`
+- `src/WeaveDoc.App/`: the only desktop entry, with three tabs: `文档转换`, `模板管理`, and `RAG 问答`
+- `src/WeaveDoc.Converter/`: document conversion core, Pandoc pipeline, AFD templates, and PDF export
+- `src/WeaveDoc.Rag/`: RAG services, retrieval pipeline, local/cloud chat integration, and offline evaluation runner
+- `tests/WeaveDoc.App.Tests/`: headless UI smoke and interaction tests for the unified shell
+- `tests/WeaveDoc.Converter.Tests/`: converter unit and integration tests
+- `tests/WeaveDoc.Rag.Tests/`: RAG unit tests
+- `WeaveDoc.slnx`: the main solution entry
+- `scripts/`: run, eval, update, and `llama.cpp` helper scripts
+- `docs/`: architecture notes and evaluation baselines
+- `doc/`, `models/`, `.rag/`, `.eval/`: workspace-level runtime data directories kept at the repo root
+- `llama.cpp/`: upstream `ggml-org/llama.cpp` submodule
 
 ## First Clone
-
-Clone the repository together with submodules:
 
 ```bash
 git clone --recurse-submodules https://github.com/Hellocmdd/WeaveDoc.git
 cd WeaveDoc
 ```
 
-If you already cloned the repository without submodules:
+If you already cloned without submodules:
 
 ```bash
 git submodule update --init --recursive
+```
+
+## Build
+
+Build the full solution with:
+
+```bash
+dotnet build WeaveDoc.slnx
+```
+
+Pandoc bootstrap remains cross-platform and keeps the existing Windows path intact:
+
+- Windows: `tools/DownloadExternalTools.targets` dispatches to `tools/setup-tools.ps1`
+- Linux/macOS: the same target dispatches to `tools/setup-tools.sh`
+- To skip auto-download, set `SkipExternalToolsDownload=true`
+
+Example:
+
+```bash
+dotnet build WeaveDoc.slnx -p:SkipExternalToolsDownload=true
 ```
 
 ## Models
@@ -50,37 +67,15 @@ Default chat model:
 
 - `models/Qwen3.5-4B-Q4_K_M.gguf`
 
-## One-Click Update
-
-The repository includes `llama.cpp` as a submodule and provides a helper script to refresh both the main repo and the submodule, then rebuild the local runtime pieces:
-
-```bash
-./scripts/update_all.sh
-```
-
-By default, the script:
-
-- pulls the current branch of this repository
-- syncs and initializes submodules
-- updates `llama.cpp` to the latest commit on the tracked branch from `.gitmodules`
-- rebuilds `llama.cpp`
-- rebuilds the Avalonia app
-
-If you only want the submodule version pinned by the current main repo commit, use:
-
-```bash
-./scripts/update_all.sh --pinned
-```
-
 ## Run
 
-After models are prepared in `models/`, start the full local stack with:
+Start the local stack with:
 
 ```bash
 ./scripts/run_weavedoc.sh
 ```
 
-This launcher will build and start the chat `llama-server` when needed, then launch the Avalonia desktop app. **The reranker service (port `8081`) is now auto-managed by the app** — no separate script launch required.
+The launcher script keeps managing chat `llama-server`, then starts `WeaveDoc.App`. The reranker is no longer launched by the script and is auto-managed inside `WeaveDoc.Rag`.
 
 Useful overrides:
 
@@ -90,69 +85,49 @@ LLAMA_SERVER_PORT=8082 ./scripts/run_weavedoc.sh
 LLAMA_RERANKER_PORT=8083 ./scripts/run_weavedoc.sh
 ```
 
-## What The App Supports
-
-- local indexing of `.md`, `.txt`, `.json`, and `.pdf` documents from `doc/`
-- JSON ingestion into structure-aware chunks with stable section-path labels for deep array items
-- duplicate import detection so the app does not keep copying identical files into the knowledge base
-- **safe document deletion**: removing a document from the index does not delete the original file on disk; re-adding restores indexing
-- unified model-driven retrieval: pure vector cosine Top-N candidate retrieval → BGE-Reranker cross-encoder as sole ranking authority → intent-specific context window assembly
-- **auto-start reranker**: the BGE-Reranker service is automatically launched during app initialization and cleaned up on exit
-- document-scope hard filter for title-scoped questions (for example `《...》这篇论文...`), restricting candidates to the requested file before reranking
-- intent-specific context window assembly (metadata slot prioritization, procedure structure preference, definition section-title matching, compare subject coverage, summary lead/support split)
-- stable citations in answers, using file path + section + chunk id instead of temporary `[1] [2]` numbering
-- multi-intent support: `compare`, `explain`, `procedure`, `usage`, `summary`, `definition`, `module_list`, `module_implementation`, `composition`, `metadata`, `general`
-- strong system prompt enforcing grounding, terminology preservation, and citation discipline
-- repair retry and intent-specific fallback answer builders for weak or off-topic generations
-- offline baseline evaluation through a CLI entry point and helper script, with keyword checks, structural answer checks, retrieval signal coverage, citation precision/recall, and scope accuracy
-- **cloud API configuration UI**: supports any OpenAI-compatible API (DeepSeek, OpenAI, Groq, etc.) via a settings panel with Base URL + API Key + Model Name; settings persist across restarts
-
-## SQLite Store Sync
-
-The legacy `rag_store.db` can be refreshed from the converted markdown and JSON corpus:
+You can also launch the desktop app directly:
 
 ```bash
-./scripts/sync_markdown_json_sqlite.sh
+dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj
 ```
+
+This direct command works on Windows as well; the Windows external-tool bootstrap path remains unchanged.
 
 ## Offline Evaluation
 
-Run the baseline evaluation after `llama-server` is reachable:
+Run the helper script after chat `llama-server` is reachable:
 
 ```bash
 ./scripts/eval_rag.sh
 ```
 
-Notes:
-
-- exit code `0`: all eval cases passed
-- exit code `2`: at least one case failed
-- the evaluator measures keyword coverage, top-chunk signal coverage, context signal coverage, citation precision/recall, scope accuracy, and evidence kind accuracy
-- the baseline schema expresses answer, retrieval, and citation expectations separately so regressions can be localized
-
-Or run the app in evaluation mode directly:
+Or run evaluation mode directly through the unified app entry:
 
 ```bash
-dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval ./docs/eval-baseline.json
+dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj -- --eval ./docs/eval-baseline.json
 ```
 
-### Latest benchmark (2026-05-07)
+## What The Unified App Supports
 
-| Metric | Value |
-|--------|-------|
-| Case pass count | 18 / 20 (90.0%) |
-| Keyword coverage | 77.3% |
-| Top chunk signal coverage | 67.2% |
-| Context signal coverage | 98.4% |
-| Avg citation precision | 72.7% |
-| Avg citation recall | 100.0% |
-| Scope accuracy | 100.0% |
-| Evidence kind accuracy | 100.0% |
+- visual document conversion and template management in one Avalonia shell
+- local indexing of `.md`, `.txt`, `.json`, and `.pdf` documents from `doc/`
+- local embedding, retrieval, reranking, and grounded chat answers
+- local `llama-server` chat or any OpenAI-compatible cloud API
+- offline RAG baseline evaluation through the same `WeaveDoc.App` executable
+
+## Tests
+
+```bash
+dotnet test tests/WeaveDoc.App.Tests/WeaveDoc.App.Tests.csproj -nologo
+dotnet test tests/WeaveDoc.Converter.Tests/WeaveDoc.Converter.Tests.csproj -nologo
+dotnet test tests/WeaveDoc.Rag.Tests/WeaveDoc.Rag.Tests.csproj -nologo
+```
 
 ## Documentation
 
+- Unified app notes: [src/WeaveDoc.App/README.md](src/WeaveDoc.App/README.md)
+- Converter library notes: [src/WeaveDoc.Converter/README.md](src/WeaveDoc.Converter/README.md)
+- RAG library notes: [src/WeaveDoc.Rag/README.md](src/WeaveDoc.Rag/README.md)
 - RAG architecture summary: [docs/rag-architecture.md](docs/rag-architecture.md)
 - 中文 RAG 架构说明: [docs/rag-architecture.zh-CN.md](docs/rag-architecture.zh-CN.md)
 - Baseline evaluation cases: [docs/eval-baseline.json](docs/eval-baseline.json)
-- App-specific usage notes: [csharp-rag-avalonia/README.md](csharp-rag-avalonia/README.md)
-- 中文应用说明: [csharp-rag-avalonia/README.zh-CN.md](csharp-rag-avalonia/README.zh-CN.md)
