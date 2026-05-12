@@ -100,9 +100,11 @@ WeaveDoc.Converter.Ui/
 ### 启动流程（Program.cs）
 
 1. 初始化 SQLite 数据库（`data/weavedoc.db`）
-2. 创建 `ConfigManager` + `PandocPipeline` + `SyncfusionPdfConverter` + `DocumentConversionEngine`
+2. 创建 `ConfigManager` + `PandocPipeline` + `CompositePdfConverter` + `DocumentConversionEngine`
 3. 执行 `EnsureSeedTemplatesAsync()`，发现内置模板
 4. 启动 Avalonia 应用
+
+PDF 导出时，`CompositePdfConverter` 会自动检测本机渲染器并按 `Microsoft Word → LibreOffice → Syncfusion DocIO` 顺序尝试。若最终使用 Syncfusion 兜底，转换成功状态会提示字体保真度可能较低。
 
 ---
 

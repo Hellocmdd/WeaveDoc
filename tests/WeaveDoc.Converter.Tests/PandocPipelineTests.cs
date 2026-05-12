@@ -403,7 +403,11 @@ public class PandocPipelineTests
             var heading1Style = stylesPart.Styles!.Elements<Style>()
                 .First(s => s.StyleId == "Heading1");
             var rPr = heading1Style.Elements<StyleRunProperties>().First();
-            Assert.Equal("黑体", rPr.Elements<RunFonts>().First().EastAsia?.Value);
+            var headingFonts = rPr.Elements<RunFonts>().First();
+            Assert.Equal("SimHei", headingFonts.EastAsia?.Value);
+            Assert.Equal("Arial", headingFonts.Ascii?.Value);
+            Assert.Equal("SimHei", headingFonts.ComplexScript?.Value);
+            Assert.Equal(FontTypeHintValues.EastAsia, headingFonts.Hint?.Value);
             Assert.Equal((heading1FontSize * 2).ToString(), rPr.Elements<FontSize>().First().Val?.Value);
 
             // 验证页面尺寸（A4: 210×297mm）

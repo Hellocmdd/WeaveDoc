@@ -159,7 +159,7 @@ public partial class ConvertTab : UserControl
                 if (result.OutputPath != outputPath && File.Exists(result.OutputPath))
                     File.Move(result.OutputPath, outputPath, overwrite: true);
 
-                SetStatus($"转换完成 — {outputPath}", "#52C41A");
+                SetStatus(BuildSuccessStatus(result, outputPath), "#52C41A");
                 LogBox.IsVisible = false;
             }
             else
@@ -230,5 +230,19 @@ public partial class ConvertTab : UserControl
         }
 
         return text;
+    }
+
+    private static string BuildSuccessStatus(ConversionResult result, string outputPath)
+    {
+        if (!string.Equals(result.Format, "pdf", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(result.PdfConverterName))
+        {
+            return $"转换完成 — {outputPath}";
+        }
+
+        if (result.PdfConverterName.Contains("Syncfusion", StringComparison.OrdinalIgnoreCase))
+            return $"转换完成（使用 Syncfusion 兜底，字体保真度可能较低）— {outputPath}";
+
+        return $"转换完成（PDF 引擎：{result.PdfConverterName}）— {outputPath}";
     }
 }

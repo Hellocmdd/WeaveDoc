@@ -19,7 +19,7 @@ internal sealed class Program
         configManager.EnsureSeedTemplatesAsync().GetAwaiter().GetResult();
 
         var pandoc = new PandocPipeline();
-        var pdfConverter = new SyncfusionPdfConverter();
+        var pdfConverter = new CompositePdfConverter(new PdfRendererDetector());
         var engine = new DocumentConversionEngine(pandoc, pdfConverter, configManager);
 
         BuildAvaloniaApp(configManager, engine)
