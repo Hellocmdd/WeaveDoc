@@ -151,8 +151,38 @@ public static class ReferenceDocBuilder
 
     private static RunFonts CreateRunFonts(string fontFamily) => new()
     {
-        Ascii = fontFamily,
-        EastAsia = fontFamily,
-        HighAnsi = fontFamily
+        Ascii = GetWesternFontFamily(fontFamily),
+        EastAsia = GetEastAsiaFontFamily(fontFamily),
+        HighAnsi = GetWesternFontFamily(fontFamily),
+        ComplexScript = GetEastAsiaFontFamily(fontFamily),
+        Hint = FontTypeHintValues.EastAsia
+    };
+
+    private static string GetEastAsiaFontFamily(string fontFamily) => fontFamily switch
+    {
+        "宋体" => "SimSun",
+        "新宋体" => "NSimSun",
+        "黑体" => "SimHei",
+        "楷体" or "楷体_GB2312" => "KaiTi",
+        "仿宋" or "仿宋_GB2312" => "FangSong",
+        "隶书" => "LiSu",
+        "幼圆" => "YouYuan",
+        "微软雅黑" => "Microsoft YaHei",
+        "等线" => "DengXian",
+        "华文宋体" => "STSong",
+        "华文细黑" => "STXihei",
+        "华文楷体" => "STKaiti",
+        "华文仿宋" => "STFangsong",
+        _ => fontFamily
+    };
+
+    private static string GetWesternFontFamily(string eastAsiaFontFamily) => eastAsiaFontFamily switch
+    {
+        "宋体" or "新宋体" or "仿宋" or "仿宋_GB2312" or "楷体" or "楷体_GB2312"
+            or "华文宋体" or "华文楷体" or "华文仿宋"
+            => "Times New Roman",
+        "黑体" or "隶书" or "幼圆" or "微软雅黑" or "等线" or "华文细黑"
+            => "Arial",
+        _ => eastAsiaFontFamily
     };
 }

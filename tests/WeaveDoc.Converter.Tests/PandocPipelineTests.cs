@@ -152,7 +152,10 @@ public class PandocPipelineTests
 
             var rPr = heading1.Elements<StyleRunProperties>().First();
             var fonts = rPr.Elements<RunFonts>().First();
-            Assert.Equal("黑体", fonts.EastAsia?.Value);
+            Assert.Equal("SimHei", fonts.EastAsia?.Value);
+            Assert.Equal("Arial", fonts.Ascii?.Value);
+            Assert.Equal("SimHei", fonts.ComplexScript?.Value);
+            Assert.Equal(FontTypeHintValues.EastAsia, fonts.Hint?.Value);
 
             var fontSize = rPr.Elements<FontSize>().First();
             Assert.Equal("32", fontSize.Val?.Value); // 16pt = 32 half-points
@@ -163,7 +166,10 @@ public class PandocPipelineTests
             Assert.NotNull(normal);
             var normalRPr = normal.Elements<StyleRunProperties>().First();
             var normalFonts = normalRPr.Elements<RunFonts>().First();
-            Assert.Equal("宋体", normalFonts.EastAsia?.Value);
+            Assert.Equal("SimSun", normalFonts.EastAsia?.Value);
+            Assert.Equal("Times New Roman", normalFonts.Ascii?.Value);
+            Assert.Equal("SimSun", normalFonts.ComplexScript?.Value);
+            Assert.Equal(FontTypeHintValues.EastAsia, normalFonts.Hint?.Value);
         }
         finally
         {
@@ -217,7 +223,10 @@ public class PandocPipelineTests
                 var rPr = heading1Style.Elements<StyleRunProperties>().First();
 
                 var fonts = rPr.Elements<RunFonts>().First();
-                Assert.Equal("黑体", fonts.EastAsia?.Value);
+                Assert.Equal("SimHei", fonts.EastAsia?.Value);
+                Assert.Equal("Arial", fonts.Ascii?.Value);
+                Assert.Equal("SimHei", fonts.ComplexScript?.Value);
+                Assert.Equal(FontTypeHintValues.EastAsia, fonts.Hint?.Value);
 
                 var fontSize = rPr.Elements<FontSize>().First();
                 Assert.Equal("32", fontSize.Val?.Value); // 16pt = 32 half-points
@@ -314,7 +323,10 @@ public class PandocPipelineTests
             var heading1Style = stylesPart.Styles!.Elements<Style>()
                 .First(s => s.StyleId == "Heading1");
             var rPr = heading1Style.Elements<StyleRunProperties>().First();
-            Assert.Equal("黑体", rPr.Elements<RunFonts>().First().EastAsia?.Value);
+            Assert.Equal("SimHei", rPr.Elements<RunFonts>().First().EastAsia?.Value);
+            Assert.Equal("Arial", rPr.Elements<RunFonts>().First().Ascii?.Value);
+            Assert.Equal("SimHei", rPr.Elements<RunFonts>().First().ComplexScript?.Value);
+            Assert.Equal(FontTypeHintValues.EastAsia, rPr.Elements<RunFonts>().First().Hint?.Value);
             Assert.Equal("32", rPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
 
             // 验证页面尺寸（A4: 210×297mm → twips）
@@ -472,7 +484,10 @@ public class PandocPipelineTests
                 var heading1Style = stylesPart.Styles!.Elements<Style>()
                     .First(s => s.StyleId == "Heading1");
                 var headingRPr = heading1Style.Elements<StyleRunProperties>().First();
-                Assert.Equal("黑体", headingRPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("SimHei", headingRPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("Arial", headingRPr.Elements<RunFonts>().First().Ascii?.Value);
+                Assert.Equal("SimHei", headingRPr.Elements<RunFonts>().First().ComplexScript?.Value);
+                Assert.Equal(FontTypeHintValues.EastAsia, headingRPr.Elements<RunFonts>().First().Hint?.Value);
                 Assert.Equal("32", headingRPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
             }
             finally
@@ -641,7 +656,10 @@ public class PandocPipelineTests
             var rPr = headerRun.RunProperties;
             Assert.NotNull(rPr);
             var fonts = rPr.Elements<RunFonts>().First();
-            Assert.Equal("宋体", fonts.EastAsia?.Value);
+            Assert.Equal("SimSun", fonts.EastAsia?.Value);
+            Assert.Equal("Times New Roman", fonts.Ascii?.Value);
+            Assert.Equal("SimSun", fonts.ComplexScript?.Value);
+            Assert.Equal(FontTypeHintValues.EastAsia, fonts.Hint?.Value);
             var fontSize = rPr.Elements<FontSize>().First();
             Assert.Equal("18", fontSize.Val?.Value); // 9pt = 18 half-points
 
@@ -742,7 +760,10 @@ public class PandocPipelineTests
                 var rPr = heading1Style.Elements<StyleRunProperties>().First();
                 // heading1 对应黑体
                 var fonts = rPr.Elements<RunFonts>().First();
-                Assert.Equal("黑体", fonts.EastAsia?.Value);
+                Assert.Equal("SimHei", fonts.EastAsia?.Value);
+                Assert.Equal("Arial", fonts.Ascii?.Value);
+                Assert.Equal("SimHei", fonts.ComplexScript?.Value);
+                Assert.Equal(FontTypeHintValues.EastAsia, fonts.Hint?.Value);
             }
         }
         finally
@@ -795,7 +816,10 @@ public class PandocPipelineTests
                 var heading1Style = styles.Elements<Style>()
                     .First(s => s.StyleId == "Heading1");
                 var h1RPr = heading1Style.Elements<StyleRunProperties>().First();
-                Assert.Equal("黑体", h1RPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("SimHei", h1RPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("Arial", h1RPr.Elements<RunFonts>().First().Ascii?.Value);
+                Assert.Equal("SimHei", h1RPr.Elements<RunFonts>().First().ComplexScript?.Value);
+                Assert.Equal(FontTypeHintValues.EastAsia, h1RPr.Elements<RunFonts>().First().Hint?.Value);
                 Assert.Equal("32", h1RPr.Elements<FontSize>().First().Val?.Value); // 16pt = 32 half-points
                 Assert.Contains(h1RPr.Elements<Bold>(), b => b != null);
 
@@ -806,7 +830,10 @@ public class PandocPipelineTests
                 var normalStyle = styles.Elements<Style>()
                     .First(s => s.StyleId == "Normal");
                 var normalRPr = normalStyle.Elements<StyleRunProperties>().First();
-                Assert.Equal("宋体", normalRPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("SimSun", normalRPr.Elements<RunFonts>().First().EastAsia?.Value);
+                Assert.Equal("Times New Roman", normalRPr.Elements<RunFonts>().First().Ascii?.Value);
+                Assert.Equal("SimSun", normalRPr.Elements<RunFonts>().First().ComplexScript?.Value);
+                Assert.Equal(FontTypeHintValues.EastAsia, normalRPr.Elements<RunFonts>().First().Hint?.Value);
                 Assert.Equal("24", normalRPr.Elements<FontSize>().First().Val?.Value); // 12pt = 24 half-points
             }
         }
@@ -929,6 +956,26 @@ public class PandocPipelineTests
             if (File.Exists(docxPath)) File.Delete(docxPath);
             if (File.Exists(pdfPath)) File.Delete(pdfPath);
         }
+    }
+
+    [Theory]
+    [InlineData("宋体", "SimSun")]
+    [InlineData("黑体", "SimHei")]
+    [InlineData("楷体", "KaiTi")]
+    [InlineData("仿宋", "FangSong")]
+    [InlineData("微软雅黑", "Microsoft YaHei")]
+    public void SyncfusionPdfConverter_NormalizeFontFamilyName_MapsChineseAliases(
+        string inputFont,
+        string expectedFont)
+    {
+        var method = typeof(SyncfusionPdfConverter).GetMethod(
+            "NormalizeFontFamilyName",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.NotNull(method);
+
+        var actual = (string?)method!.Invoke(null, [inputFont]);
+        Assert.Equal(expectedFont, actual);
     }
 
     [Fact]
