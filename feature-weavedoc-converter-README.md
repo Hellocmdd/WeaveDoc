@@ -4,7 +4,7 @@
 
 > **负责人**：任逸青（文档转换开发岗 / 语义及文本转换组）
 > **计划书任务**：3.1 AFD 样式解析器 / 3.2 Pandoc 转换管道 / 3.3 本地配置管理
-> **当前状态**：89 个测试全部通过（Converter 82 + UI 7），0 构建错误
+> **当前状态**：核心库与 UI 测试通过，详见测试 README，0 构建错误
 
 ---
 
@@ -141,8 +141,8 @@ WeaveDoc/
 │       ├── Program.cs                      #   启动入口
 │       └── Views/                          #   MainWindow(900×580) + TemplateTab + ConvertTab
 ├── tests/
-│   ├── WeaveDoc.Converter.Tests/           # 核心库测试（82 个）
-│   └── WeaveDoc.Converter.Ui.Tests/        # Headless UI 测试（7 个）
+│   ├── WeaveDoc.Converter.Tests/           # 核心库测试
+│   └── WeaveDoc.Converter.Ui.Tests/        # Headless UI 测试
 ├── tools/
 │   ├── DownloadExternalTools.targets       # MSBuild 自动下载 Pandoc
 │   ├── setup-tools.ps1                     # 下载脚本
@@ -193,13 +193,13 @@ Pandoc 通过 MSBuild Target 在首次构建时自动下载，无需手动安装
 ### 运行测试
 
 ```bash
-# 运行全部测试（89 个）
+# 运行全部测试
 dotnet test -v n
 
-# 仅运行核心库测试（82 个）
+# 仅运行核心库测试
 dotnet test tests/WeaveDoc.Converter.Tests -v n
 
-# 仅运行 UI 测试（7 个）
+# 仅运行 UI 测试
 dotnet test tests/WeaveDoc.Converter.Ui.Tests -v n
 ```
 
@@ -207,10 +207,10 @@ dotnet test tests/WeaveDoc.Converter.Ui.Tests -v n
 
 ## 测试覆盖
 
-| 测试项目 | 数量 | 覆盖范围 |
+| 测试项目 | 覆盖范围 | 明细 |
 | --- | --- | --- |
-| `WeaveDoc.Converter.Tests` | 82 | AFD 解析、样式映射、Pandoc 管道、配置管理、BibTeX 解析、公式预处理、错误信息格式化 |
-| `WeaveDoc.Converter.Ui.Tests` | 7 | DataGrid 绑定（3）、转换向导（4），Headless 模式 |
+| `WeaveDoc.Converter.Tests` | AFD 解析、样式映射、Pandoc 管道、配置管理、BibTeX 解析、公式预处理、错误信息格式化 | [测试 README](tests/WeaveDoc.Converter.Tests/README.md) |
+| `WeaveDoc.Converter.Ui.Tests` | DataGrid 绑定、转换向导、Headless 模式 | [测试 README](tests/WeaveDoc.Converter.Ui.Tests/README.md) |
 
 端到端测试覆盖完整链路：`Parse → ReferenceDoc → Pandoc → StyleCorrector → PageSettings → HeaderFooter`，验证样式定义（非内联）包含正确的字体/字号属性。
 

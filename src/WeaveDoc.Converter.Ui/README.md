@@ -3,7 +3,7 @@
 WeaveDoc 转换工具的 Avalonia UI 桌面应用——提供模板管理和文档转换的可视化操作界面。
 
 > **关联模块**：WeaveDoc.Converter（项目引用）
-> **当前状态**：7 个 Headless UI 测试全部通过
+> **当前状态**：Headless UI 测试通过，详见 [UI 测试 README](../../tests/WeaveDoc.Converter.Ui.Tests/README.md)
 
 ---
 
