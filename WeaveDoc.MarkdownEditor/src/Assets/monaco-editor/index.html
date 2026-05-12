@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monaco Editor</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1E1E1E;
+        }
+        #editor {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+    <script src="min/vs/loader.js"></script>
+</head>
+<body>
+    <div id="editor"></div>
+    <script>
+        require.config({ paths: { 'vs': './min/vs' }});
+        var editor = null;
+
+        require(['vs/editor/editor.main'], function() {
+            monaco.languages.register({ id: 'markdown' });
+
+            var editorContainer = document.getElementById('editor');
+
+            editor = monaco.editor.create(editorContainer, {
+                value: '# Hello WeaveDoc!\n\nStart typing markdown here...',
+                language: 'markdown',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                lineNumbers: 'on',
+                wordWrap: 'on',
+                wordWrapColumn: 0,
+                wrappingIndent: 'indent',
+                scrollBeyondLastLine: false,
+                scrollBeyondLastColumn: 0,
+                readOnly: false,
+                tabSize: 4,
+                padding: { top: 8, bottom: 8, left: 8, right: 8 }
+            });
+
+            var debounceTimer = null;
+            editor.onDidChangeModelContent(function(event) {
+                try {
+                    if (debounceTimer) {
+                        clearTimeout(debounceTimer);
+                    }
+                    debounceTimer = setTimeout(function() {
+                        var content = editor.getValue();
+                        if (window.chrome && window.chrome.webview) {
+                            window.chrome.webview.postMessage({ Type: 'contentChanged', Data: content });
+                        }
+                    }, 300);
+                } catch (e) {
+                    console.error('Error sending content change:', e);
+                }
+            });
+
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.addEventListener('message', function(e) {
+                    try {
+                        var msg = e.data;
+                        if (typeof msg === 'string') {
+                            try { msg = JSON.parse(msg); } catch (parseErr) {
+                                console.warn('Failed to parse message:', parseErr);
+                                return;
+                            }
+                        }
+                        if (msg && msg.Type === 'setContent') {
+                            var current = editor.getValue();
+                            if (current !== msg.Data) {
+                                editor.setValue(msg.Data || '');
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error handling message:', err);
+                    }
+                });
+            }
+
+            window.resizeEditor = function(width, height) {
+                try {
+                    if (editor && editorContainer) {
+                        editorContainer.style.width = '100%';
+                        editorContainer.style.height = '100%';
+                        editor.layout();
+                    }
+                } catch (e) {
+                    console.error('Error resizing editor:', e);
+                }
+            };
+
+            var scrollDebounceTimer = null;
+            editor.onDidScrollChange(function(event) {
+                try {
+                    if (scrollDebounceTimer) {
+                        clearTimeout(scrollDebounceTimer);
+                    }
+                    scrollDebounceTimer = setTimeout(function() {
+                        if (!editor) {
+                            return;
+                        }
+
+                        var model = editor.getModel();
+                        if (!model) {
+                            return;
+                        }
+
+                        var scrollTop = editor.getScrollTop();
+                        var scrollHeight = editor.getScrollHeight();
+                        var layoutInfo = editor.getLayoutInfo();
+                        var scrollableHeight = scrollHeight - layoutInfo.height;
+
+                        if (scrollableHeight <= 0) {
+                            scrollableHeight = 1;
+                        }
+
+                        var scrollPercentage = (scrollTop / scrollableHeight) * 100;
+                        scrollPercentage = Math.max(0, Math.min(100, scrollPercentage));
+
+                        var visibleRanges = editor.getVisibleRanges();
+                        var firstVisibleLine = 1;
+                        var lastVisibleLine = 1;
+                        
+                        if (visibleRanges && visibleRanges.length > 0) {
+                            firstVisibleLine = visibleRanges[0].startLineNumber;
+                            lastVisibleLine = visibleRanges[visibleRanges.length - 1].endLineNumber;
+                        }
+                        var totalLines = model.getLineCount();
+
+                        var scrollData = {
+                            percentage: scrollPercentage,
+                            firstLine: firstVisibleLine,
+                            lastLine: lastVisibleLine,
+                            totalLines: totalLines,
+                            scrollTop: scrollTop,
+                            scrollableHeight: scrollableHeight
+                        };
+
+                        if (window.chrome && window.chrome.webview) {
+                            window.chrome.webview.postMessage({ Type: 'scrollChanged', Data: JSON.stringify(scrollData) });
+                        } else if (window.external && window.external.notify) {
+                            window.external.notify(JSON.stringify({ Type: 'scrollChanged', Data: JSON.stringify(scrollData) }));
+                        }
+                    }, 50);
+                } catch (e) {
+                }
+            });
+
+            window.scrollToLine = function(lineNumber) {
+                try {
+                    if (editor) {
+                        editor.revealLine(lineNumber, 1);
+                    }
+                } catch (e) {
+                }
+            };
+
+            window.getScrollPercentage = function() {
+                if (!editor) return 0;
+                var scrollTop = editor.getScrollTop();
+                var scrollHeight = editor.getScrollHeight();
+                var scrollableHeight = scrollHeight - editor.getLayoutInfo().height;
+                if (scrollableHeight <= 0) return 0;
+                return (scrollTop / scrollableHeight) * 100;
+            };
+
+            window.addEventListener('resize', function() {
+                if (editor) {
+                    editor.layout();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

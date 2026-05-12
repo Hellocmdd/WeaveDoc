@@ -1,0 +1,30 @@
+*.log
+*.backup
+*.bak
+.DS_Store
+Thumbs.db
+
+# Build outputs
+bin/
+obj/
+publish/
+*.dll
+*.exe
+*.pdb
+*.xml
+
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
+.idea/
+
+# Node.js
+node_modules/
+package-lock.json
+npm-debug.log
+
+# Test results
+TestResults/
+coverage/
