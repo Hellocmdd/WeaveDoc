@@ -31,5 +31,6 @@ packages/
 ## Misc
 *.log
 .claude/
+.codex-tmp/
 docs/
 .superpowers/
