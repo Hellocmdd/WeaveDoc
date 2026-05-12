@@ -35,19 +35,8 @@ EOF
     exit 1
 fi
 
-if [[ "${RAG_RERANKER_ENABLED,,}" != "false" ]] && ! curl -fsS "$RAG_RERANKER_BASE_URL/health" >/dev/null 2>&1; then
-    cat >&2 <<EOF
-[eval_rag] reranker is enabled but not reachable at $RAG_RERANKER_BASE_URL
-[eval_rag] start the full stack with:
-  ./scripts/run_weavedoc.sh
-or disable learned reranking for this run:
-  RAG_RERANKER_ENABLED=false ./scripts/eval_rag.sh
-EOF
-    exit 1
-fi
-
 mkdir -p "$REPORT_DIR"
 echo "[eval_rag] baseline: $BASELINE_PATH"
 echo "[eval_rag] report dir: $REPORT_DIR"
 
-dotnet run --project csharp-rag-avalonia/RagAvalonia.csproj -- --eval "$BASELINE_PATH"
+dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj -- --eval "$BASELINE_PATH"

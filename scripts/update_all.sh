@@ -31,4 +31,4 @@ echo "[update_all] rebuilding llama.cpp"
 bash "$SCRIPT_DIR/cmake_llama_cpp.sh"
 
 echo "[update_all] rebuilding Avalonia app"
-dotnet build "$ROOT_DIR/csharp-rag-avalonia/RagAvalonia.csproj"
+dotnet build "$ROOT_DIR/src/WeaveDoc.App/WeaveDoc.App.csproj"

@@ -1,25 +1,43 @@
-# obj
-[oO]bj/
-# bin
+# Build output
 [bB]in/
-# log
+[oO]bj/
+[Dd]ebug/
+[Rr]elease/
+
+# Logs and temp
+*.log
 [Ll]og/
-# temp
 [Tt]emp/
-# Visual Studio Code
-.vscode/
-# Visual Studio
+
+# IDE
 .vs/
+.vscode/
+.idea/
+*.user
+*.suo
 
-# conda
+# OS
+Thumbs.db
+.DS_Store
+
+# NuGet
+*.nupkg
+packages/
+
+# Tools (portable binaries, downloaded via setup-tools.ps1)
+tools/pandoc/
+tools/tectonic/
+
+# Test artifacts
+tools/test_output.docx
+tools/docx_inspect/
+tests/test-output/
+_debug/
+.eval/
+
+# Local environments and caches
 .conda/
-
-# llama.cpp build artifacts are kept inside the submodule
-
-# models
 models/
-
-# local app cache
 .rag/
 *.db
 .codex/
@@ -27,9 +45,9 @@ models/
 .~lock.*#
 .agent.md
 
-
-# evaluation results
-.eval/
-
-#claude
+# Other local tooling
 .claude/
+.superpowers/
+
+# Legacy docs folder retained from converter branch history
+docs/

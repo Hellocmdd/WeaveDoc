@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LLAMA_DIR="$ROOT_DIR/llama.cpp"
 LLAMA_SERVER_BIN="$LLAMA_DIR/build/bin/llama-server"
-APP_PROJECT="$ROOT_DIR/csharp-rag-avalonia/RagAvalonia.csproj"
+APP_PROJECT="$ROOT_DIR/src/WeaveDoc.App/WeaveDoc.App.csproj"
 MODELS_DIR="$ROOT_DIR/models"
 DEFAULT_EMBED_MODEL="$MODELS_DIR/bge-m3.gguf"
 DEFAULT_RERANKER_MODEL="$MODELS_DIR/bge-reranker-v2-m3.gguf"
@@ -16,26 +16,12 @@ LLAMA_SERVER_BASE_URL="${LLAMA_SERVER_BASE_URL:-http://$LLAMA_SERVER_HOST:$LLAMA
 LLAMA_SERVER_MODEL="${LLAMA_SERVER_MODEL:-}"
 LLAMA_SERVER_GPU_LAYERS="${LLAMA_SERVER_GPU_LAYERS:-auto}"
 LLAMA_SERVER_LOG="${LLAMA_SERVER_LOG:-$ROOT_DIR/.rag/llama-server.log}"
-LLAMA_RERANKER_HOST="${LLAMA_RERANKER_HOST:-127.0.0.1}"
-LLAMA_RERANKER_PORT="${LLAMA_RERANKER_PORT:-8081}"
-LLAMA_RERANKER_BASE_URL="${LLAMA_RERANKER_BASE_URL:-http://$LLAMA_RERANKER_HOST:$LLAMA_RERANKER_PORT}"
-LLAMA_RERANKER_MODEL="${LLAMA_RERANKER_MODEL:-$DEFAULT_RERANKER_MODEL}"
-LLAMA_RERANKER_GPU_LAYERS="${LLAMA_RERANKER_GPU_LAYERS:-auto}"
-LLAMA_RERANKER_LOG="${LLAMA_RERANKER_LOG:-$ROOT_DIR/.rag/llama-reranker.log}"
 RAG_RERANKER_ENABLED="${RAG_RERANKER_ENABLED:-true}"
 
 LLAMA_SERVER_PID=""
-LLAMA_RERANKER_PID=""
 SERVER_STARTED_BY_SCRIPT=0
-RERANKER_STARTED_BY_SCRIPT=0
 
 cleanup() {
-    if [[ "$RERANKER_STARTED_BY_SCRIPT" == "1" && -n "$LLAMA_RERANKER_PID" ]] && kill -0 "$LLAMA_RERANKER_PID" 2>/dev/null; then
-        echo "[run_weavedoc] stopping llama-reranker (pid=$LLAMA_RERANKER_PID)"
-        kill "$LLAMA_RERANKER_PID" 2>/dev/null || true
-        wait "$LLAMA_RERANKER_PID" 2>/dev/null || true
-    fi
-
     if [[ "$SERVER_STARTED_BY_SCRIPT" == "1" && -n "$LLAMA_SERVER_PID" ]] && kill -0 "$LLAMA_SERVER_PID" 2>/dev/null; then
         echo "[run_weavedoc] stopping llama-server (pid=$LLAMA_SERVER_PID)"
         kill "$LLAMA_SERVER_PID" 2>/dev/null || true
@@ -88,14 +74,8 @@ ensure_prereqs() {
         exit 1
     fi
 
-    if [[ "${RAG_RERANKER_ENABLED,,}" != "false" && ! -f "$LLAMA_RERANKER_MODEL" ]]; then
-        echo "[run_weavedoc] missing reranker model: $LLAMA_RERANKER_MODEL" >&2
-        exit 1
-    fi
-
-    if [[ "${RAG_RERANKER_ENABLED,,}" != "false" && "$LLAMA_SERVER_BASE_URL" == "$LLAMA_RERANKER_BASE_URL" ]]; then
-        echo "[run_weavedoc] chat and reranker endpoints conflict: $LLAMA_SERVER_BASE_URL" >&2
-        echo "[run_weavedoc] set LLAMA_RERANKER_PORT or LLAMA_SERVER_PORT to a different value" >&2
+    if [[ "${RAG_RERANKER_ENABLED,,}" != "false" && ! -f "$DEFAULT_RERANKER_MODEL" ]]; then
+        echo "[run_weavedoc] missing reranker model: $DEFAULT_RERANKER_MODEL" >&2
         exit 1
     fi
 
@@ -176,40 +156,6 @@ start_server_if_needed() {
     wait_for_server "$LLAMA_SERVER_BASE_URL" "$LLAMA_SERVER_LOG" "llama-server"
 }
 
-start_reranker_if_needed() {
-    if [[ "${RAG_RERANKER_ENABLED,,}" == "false" ]]; then
-        echo "[run_weavedoc] learned reranker disabled by RAG_RERANKER_ENABLED=false"
-        return 0
-    fi
-
-    if curl -fsS "$LLAMA_RERANKER_BASE_URL/health" >/dev/null 2>&1; then
-        echo "[run_weavedoc] using existing llama-reranker at $LLAMA_RERANKER_BASE_URL"
-        return 0
-    fi
-
-    ensure_llama_server_binary
-    mkdir -p "$(dirname "$LLAMA_RERANKER_LOG")"
-
-    echo "[run_weavedoc] starting llama-reranker"
-    echo "[run_weavedoc] model: $LLAMA_RERANKER_MODEL"
-    echo "[run_weavedoc] endpoint: $LLAMA_RERANKER_BASE_URL"
-
-    "$LLAMA_SERVER_BIN" \
-        -m "$LLAMA_RERANKER_MODEL" \
-        --host "$LLAMA_RERANKER_HOST" \
-        --port "$LLAMA_RERANKER_PORT" \
-        --embedding \
-        --pooling rank \
-        --reranking \
-        --gpu-layers "$LLAMA_RERANKER_GPU_LAYERS" \
-        >"$LLAMA_RERANKER_LOG" 2>&1 &
-
-    LLAMA_RERANKER_PID="$!"
-    RERANKER_STARTED_BY_SCRIPT=1
-
-    wait_for_server "$LLAMA_RERANKER_BASE_URL" "$LLAMA_RERANKER_LOG" "llama-reranker"
-}
-
 run_app() {
     echo "[run_weavedoc] launching Avalonia app"
     (
@@ -217,13 +163,12 @@ run_app() {
         export LLAMA_SERVER_BASE_URL
         export RAG_EMBEDDING_MODEL_FILE="${RAG_EMBEDDING_MODEL_FILE:-$(basename "$DEFAULT_EMBED_MODEL")}"
         export RAG_RERANKER_ENABLED
-        export RAG_RERANKER_BASE_URL="${RAG_RERANKER_BASE_URL:-$LLAMA_RERANKER_BASE_URL}"
-        export RAG_RERANKER_MODEL="${RAG_RERANKER_MODEL:-$(basename "$LLAMA_RERANKER_MODEL" .gguf)}"
+        export RAG_RERANKER_BASE_URL="${RAG_RERANKER_BASE_URL:-http://127.0.0.1:8081}"
+        export RAG_RERANKER_MODEL="${RAG_RERANKER_MODEL:-$(basename "$DEFAULT_RERANKER_MODEL" .gguf)}"
         dotnet run --project "$APP_PROJECT"
     )
 }
 
 ensure_prereqs
 start_server_if_needed
-start_reranker_if_needed
 run_app
