@@ -154,14 +154,14 @@ public partial class ConvertTab : UserControl
             else
             {
                 SetStatus("转换失败", "#F5222D");
-                LogBox.Text = $"模板: {selected.TemplateName} ({selected.TemplateId})\n格式: {format}\n输入: {mdPath}\n\n{result.ErrorMessage}";
+                LogBox.Text = BuildFailureLog(selected, format, mdPath, result);
                 LogBox.IsVisible = true;
             }
         }
         catch (Exception ex)
         {
             SetStatus("转换出错", "#F5222D");
-            LogBox.Text = $"异常: {ex.Message}";
+            LogBox.Text = $"转换出错：{ex.Message}\n\n技术详情:\n{ex}";
             LogBox.IsVisible = true;
         }
         finally
@@ -169,5 +169,17 @@ public partial class ConvertTab : UserControl
             ConvertButton.IsEnabled = true;
             ConvertButton.Content = "开始转换";
         }
+    }
+
+    private static string BuildFailureLog(AfdMeta selected, string format, string mdPath, ConversionResult result)
+    {
+        var text = $"转换失败：{result.ErrorMessage}\n\n模板: {selected.TemplateName} ({selected.TemplateId})\n格式: {format}\n输入: {mdPath}";
+        if (!string.IsNullOrWhiteSpace(result.TechnicalDetails)
+            && !string.Equals(result.TechnicalDetails.Trim(), result.ErrorMessage.Trim(), StringComparison.Ordinal))
+        {
+            text += $"\n\n技术详情:\n{result.TechnicalDetails}";
+        }
+
+        return text;
     }
 }

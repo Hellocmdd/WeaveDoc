@@ -1,10 +1,10 @@
 # WeaveDoc — 语义转换系统与本地配置管理
 
-本分支实现 [《软件计划项目书》](docs/软件计划项目书/《软件计划项目书》.md) 中分配给 **任逸青（语义及文本转换组）** 的全部任务，涵盖语义转换系统的 AFD 模板解析、Pandoc 转换管道、本地配置管理三大模块，以及配套的 Avalonia UI 桌面界面。
+本分支实现 [《软件计划项目书》](doc/《软件计划项目书》.md) 中分配给 **任逸青（语义及文本转换组）** 的全部任务，涵盖语义转换系统的 AFD 模板解析、Pandoc 转换管道、本地配置管理三大模块，以及配套的 Avalonia UI 桌面界面。
 
 > **负责人**：任逸青（文档转换开发岗 / 语义及文本转换组）
 > **计划书任务**：3.1 AFD 样式解析器 / 3.2 Pandoc 转换管道 / 3.3 本地配置管理
-> **当前状态**：87 个测试全部通过（Converter 80 + UI 7），0 构建错误
+> **当前状态**：89 个测试全部通过（Converter 82 + UI 7），0 构建错误
 
 ---
 
@@ -67,23 +67,24 @@
 **转换流程：**
 
 ```text
-Markdown ──→ [Pandoc + LuaFilters + reference.docx] ──→ raw.docx
-                                                       │
-                            ┌──────────────────────────┘
-                            ↓
-                 [OpenXmlStyleCorrector]
-                   ├── WriteStyleDefinitions    (AFD → styles.xml 样式定义)
-                   ├── StripRedundantInline     (清除冗余内联字体/字号)
-                   ├── ApplyPageSettings        (页面尺寸/边距)
-                   └── ApplyHeaderFooter        (页眉页脚)
-                            │
-                            ↓
-                     修正后 DOCX ──→ 输出为 DOCX 或由 Syncfusion DocIO 生成 PDF
+Markdown ──→ [MarkdownMathNormalizer] ──→ [Pandoc + LuaFilters + reference.docx] ──→ raw.docx
+                                                                                   │
+                                                        ┌──────────────────────────┘
+                                                        ↓
+                                             [OpenXmlStyleCorrector]
+                                               ├── WriteStyleDefinitions    (AFD → styles.xml 样式定义)
+                                               ├── StripRedundantInline     (清除冗余内联字体/字号)
+                                               ├── ApplyPageSettings        (页面尺寸/边距)
+                                               └── ApplyHeaderFooter        (页眉页脚)
+                                                        │
+                                                        ↓
+                                                 修正后 DOCX ──→ 输出为 DOCX 或由 Syncfusion DocIO 生成 PDF
 ```
 
 | 组件 | 职责 |
 | --- | --- |
 | `PandocPipeline.cs` | Pandoc CLI 封装：ToDocxAsync / ToAstJsonAsync + Lua Filter 自动发现 |
+| `MarkdownMathNormalizer.cs` | Markdown 公式预处理：兼容 `$ ... $` 内侧带空格的 OCR/抽取文本，避免误伤代码块与行内代码 |
 | `SyncfusionPdfConverter.cs` | Syncfusion DocIO 封装：DOCX → PDF（保留全部 OpenXML 样式） |
 | `ReferenceDocBuilder.cs` | AFD 模板 → reference.docx，预置样式定义 |
 | `OpenXmlStyleCorrector.cs` | Docx 后处理：写入样式定义、清除冗余内联、页面设置、页眉页脚 |
@@ -140,16 +141,16 @@ WeaveDoc/
 │       ├── Program.cs                      #   启动入口
 │       └── Views/                          #   MainWindow(900×580) + TemplateTab + ConvertTab
 ├── tests/
-│   ├── WeaveDoc.Converter.Tests/           # 核心库测试（80 个）
+│   ├── WeaveDoc.Converter.Tests/           # 核心库测试（82 个）
 │   └── WeaveDoc.Converter.Ui.Tests/        # Headless UI 测试（7 个）
 ├── tools/
 │   ├── DownloadExternalTools.targets       # MSBuild 自动下载 Pandoc
 │   ├── setup-tools.ps1                     # 下载脚本
 │   └── pandoc/                             # Pandoc 二进制（自动下载）
-└── docs/
-    ├── 软件计划项目书/                      # 项目计划书 + 图片
-    ├── technical-reference/                 # 技术参考文档
-    └── 待优化项清单.md                      # 待优化项跟踪
+└── doc/
+    ├── 《软件计划项目书》.md                 # 项目计划书
+    ├── 《软件计划项目书》.docx               # 项目计划书 Word 版
+    └── image*.png                           # 项目计划书图片资源
 ```
 
 ---
@@ -161,7 +162,7 @@ WeaveDoc/
 | .NET / C# | 10 / 13 | 运行时与语言 |
 | Avalonia | 11.* | 跨平台桌面 UI 框架 |
 | DocumentFormat.OpenXml | 3.5.1 | Docx 结构读写与样式定义操作 |
-| Markdig | 0.39.1 | Markdown AST 解析 |
+| Markdig | 0.39.1 | Markdown AST 解析（预留扩展） |
 | Microsoft.Data.Sqlite | 10.0.5 | 模板元信息本地 SQLite 存储 |
 | xUnit | 2 | 测试框架 |
 | Avalonia.Headless | 11.* | 无头 UI 测试 |
@@ -192,10 +193,10 @@ Pandoc 通过 MSBuild Target 在首次构建时自动下载，无需手动安装
 ### 运行测试
 
 ```bash
-# 运行全部测试（87 个）
+# 运行全部测试（89 个）
 dotnet test -v n
 
-# 仅运行核心库测试（80 个）
+# 仅运行核心库测试（82 个）
 dotnet test tests/WeaveDoc.Converter.Tests -v n
 
 # 仅运行 UI 测试（7 个）
@@ -208,7 +209,7 @@ dotnet test tests/WeaveDoc.Converter.Ui.Tests -v n
 
 | 测试项目 | 数量 | 覆盖范围 |
 | --- | --- | --- |
-| `WeaveDoc.Converter.Tests` | 80 | AFD 解析（13）、样式映射（4）、Pandoc 管道（21）、配置管理（8）、BibTeX 解析（10） |
+| `WeaveDoc.Converter.Tests` | 82 | AFD 解析、样式映射、Pandoc 管道、配置管理、BibTeX 解析、公式预处理、错误信息格式化 |
 | `WeaveDoc.Converter.Ui.Tests` | 7 | DataGrid 绑定（3）、转换向导（4），Headless 模式 |
 
 端到端测试覆盖完整链路：`Parse → ReferenceDoc → Pandoc → StyleCorrector → PageSettings → HeaderFooter`，验证样式定义（非内联）包含正确的字体/字号属性。
@@ -219,10 +220,8 @@ dotnet test tests/WeaveDoc.Converter.Ui.Tests -v n
 
 | 文档 | 位置 |
 | --- | --- |
-| 软件计划项目书 | [《软件计划项目书》.md](docs/软件计划项目书/《软件计划项目书》.md) |
-| 待优化项清单 | [待优化项清单.md](docs/待优化项清单.md) |
+| 软件计划项目书 | [《软件计划项目书》.md](doc/《软件计划项目书》.md) |
 | Converter 核心库 README | [WeaveDoc.Converter/README.md](src/WeaveDoc.Converter/README.md) |
 | Converter UI README | [WeaveDoc.Converter.Ui/README.md](src/WeaveDoc.Converter.Ui/README.md) |
 | Converter 测试 README | [WeaveDoc.Converter.Tests/README.md](tests/WeaveDoc.Converter.Tests/README.md) |
 | UI 测试 README | [WeaveDoc.Converter.Ui.Tests/README.md](tests/WeaveDoc.Converter.Ui.Tests/README.md) |
-| 技术参考 | [docs/technical-reference/](docs/technical-reference/) |
