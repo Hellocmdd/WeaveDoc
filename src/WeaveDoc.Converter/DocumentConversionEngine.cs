@@ -91,7 +91,8 @@ public class DocumentConversionEngine
             return new ConversionResult
             {
                 Success = false,
-                ErrorMessage = ex.ToString()
+                ErrorMessage = ConversionErrorFormatter.ToUserMessage(ex, markdownPath, outputFormat),
+                TechnicalDetails = ex.ToString()
             };
         }
         finally
@@ -107,4 +108,5 @@ public record ConversionResult
     public string OutputPath { get; init; } = "";
     public string Format { get; init; } = "";
     public string ErrorMessage { get; init; } = "";
+    public string TechnicalDetails { get; init; } = "";
 }
