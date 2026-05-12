@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 namespace WeaveDoc.Converter.Pandoc;
 
@@ -68,9 +69,10 @@ public class PandocPipeline
         string? referenceDoc = null, string? luaFilter = null,
         CancellationToken ct = default)
     {
+        var normalizedInputPath = await PrepareMarkdownInputAsync(inputPath, ct);
         var args = new List<string>
         {
-            Quote(inputPath),
+            Quote(normalizedInputPath),
             "-f", "markdown+tex_math_dollars+pipe_tables+raw_html",
             "-t", "docx",
             "-o", Quote(outputPath),
@@ -88,15 +90,53 @@ public class PandocPipeline
             args.AddRange(new[] { "--lua-filter", Quote(filter) });
         }
 
-        return await RunAsync(args, ct);
+        try
+        {
+            return await RunAsync(args, ct);
+        }
+        finally
+        {
+            DeleteTempInput(normalizedInputPath, inputPath);
+        }
     }
 
     /// <summary>导出 AST JSON</summary>
     public async Task<string> ToAstJsonAsync(
         string inputPath, CancellationToken ct = default)
     {
-        var args = new List<string> { Quote(inputPath), "-t", "json" };
-        return await RunAsync(args, ct);
+        var normalizedInputPath = await PrepareMarkdownInputAsync(inputPath, ct);
+        var args = new List<string> { Quote(normalizedInputPath), "-t", "json" };
+        try
+        {
+            return await RunAsync(args, ct);
+        }
+        finally
+        {
+            DeleteTempInput(normalizedInputPath, inputPath);
+        }
+    }
+
+    private static async Task<string> PrepareMarkdownInputAsync(string inputPath, CancellationToken ct)
+    {
+        if (!File.Exists(inputPath))
+            return inputPath;
+
+        var markdown = await File.ReadAllTextAsync(inputPath, ct);
+        var normalized = MarkdownMathNormalizer.NormalizeDollarMath(markdown);
+        if (normalized == markdown)
+            return inputPath;
+
+        var tempPath = Path.Combine(Path.GetTempPath(), $"weavedoc-md-{Guid.NewGuid():N}.md");
+        await File.WriteAllTextAsync(tempPath, normalized, Encoding.UTF8, ct);
+        return tempPath;
+    }
+
+    private static void DeleteTempInput(string normalizedInputPath, string originalInputPath)
+    {
+        if (string.Equals(normalizedInputPath, originalInputPath, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        try { File.Delete(normalizedInputPath); } catch { }
     }
 
     private async Task<string> RunAsync(List<string> args, CancellationToken ct)

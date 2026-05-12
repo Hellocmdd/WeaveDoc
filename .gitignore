@@ -47,6 +47,7 @@ models/
 
 # Other local tooling
 .claude/
+.codex-tmp/
 .superpowers/
 
 # Legacy docs folder retained from converter branch history
