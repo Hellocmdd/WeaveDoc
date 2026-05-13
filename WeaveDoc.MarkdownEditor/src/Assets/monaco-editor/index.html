@@ -30,10 +30,15 @@
 <body>
     <div id="editor"></div>
     <script>
+        console.log('Monaco Editor HTML loaded');
+        window.monacoLoading = true;
+        
         require.config({ paths: { 'vs': './min/vs' }});
         var editor = null;
 
         require(['vs/editor/editor.main'], function() {
+            console.log('Monaco Editor loaded successfully');
+            window.monacoLoaded = true;
             monaco.languages.register({ id: 'markdown' });
 
             var editorContainer = document.getElementById('editor');
@@ -169,12 +174,17 @@
 
             window.scrollToPosition = function(lineNumber, column) {
                 try {
-                    if (editor) {
-                        editor.revealLine(lineNumber, 1);
-                        editor.setPosition(new monaco.Position(lineNumber, column));
-                        highlightLine(lineNumber);
+                    if (!editor) {
+                        return 'editor is null';
                     }
+                    editor.revealLine(lineNumber, 1);
+                    editor.setPosition(new monaco.Position(lineNumber, column));
+                    setTimeout(function() {
+                        highlightLine(lineNumber);
+                    }, 50);
+                    return 'success: line=' + lineNumber + ', column=' + column;
                 } catch (e) {
+                    return 'error: ' + e.message;
                 }
             };
 

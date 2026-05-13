@@ -239,6 +239,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             if (args.IsSuccess)
             {
+                Console.WriteLine("Monaco Editor NavigationCompleted");
                 await Task.Delay(200);
 
                 UpdateControllerBounds(true);
@@ -263,7 +264,46 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     SetContentAsync(_pendingContent);
                     _pendingContent = string.Empty;
                 }
+                
+                // 等待 Monaco 编辑器完全初始化
+                await WaitForMonacoReadyAsync();
             }
+        }
+        
+        private async Task WaitForMonacoReadyAsync()
+        {
+            int attempts = 0;
+            const int maxAttempts = 30;
+            
+            while (attempts < maxAttempts)
+            {
+                try
+                {
+                    // 只检查 editor 对象是否存在（scrollToPosition 在 require 回调内部定义，不在全局作用域）
+                    var editorResult = await _webview.ExecuteScriptAsync("typeof editor");
+                    
+                    Console.WriteLine($"Attempt {attempts + 1}: editor={editorResult}");
+                    
+                    if (editorResult == "\"object\"")
+                    {
+                        var mainWindow = VisualRoot as MainWindow;
+                        if (mainWindow != null)
+                        {
+                            mainWindow.SetMonacoReady(true);
+                        }
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error checking Monaco ready state: {ex.Message}");
+                }
+                
+                attempts++;
+                await Task.Delay(200);
+            }
+            
+            Console.WriteLine("Monaco Editor failed to initialize within timeout");
         }
 
         public void SetContentAsync(string content)
@@ -306,16 +346,56 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             try
             {
+                Console.WriteLine($"ScrollToPositionAsync called: line={lineNumber}, column={column}");
+                
                 if (_webview == null)
                 {
+                    Console.WriteLine("_webview is null");
                     return;
                 }
 
-                var script = $"window.scrollToPosition({lineNumber}, {column});";
-                await _webview.ExecuteScriptAsync(script);
+                // 先检查 Monaco 是否已经初始化
+                var editorType = await _webview.ExecuteScriptAsync("typeof editor");
+                Console.WriteLine($"editor type: {editorType}");
+                
+                if (editorType == "\"undefined\"")
+                {
+                    Console.WriteLine("Editor not yet initialized, scheduling retry");
+                    // 延迟重试
+                    await Task.Delay(200);
+                    await ScrollToPositionAsync(lineNumber, column);
+                    return;
+                }
+
+                // 直接操作 editor 对象，不依赖 window.scrollToPosition
+                var script = $@"
+                    if (editor) {{
+                        editor.revealLine({lineNumber}, 1);
+                        editor.setPosition(new monaco.Position({lineNumber}, {column}));
+                        if (highlightDecoration) {{
+                            editor.deltaDecorations(highlightDecoration, []);
+                            highlightDecoration = null;
+                        }}
+                        highlightDecoration = editor.deltaDecorations([], [{{
+                            range: new monaco.Range({lineNumber}, 1, {lineNumber}, 1),
+                            options: {{
+                                isWholeLine: true,
+                                className: 'highlight-line',
+                                linesDecorationsClassName: 'highlight-line-gutter'
+                            }}
+                        }}]);
+                        'success';
+                    }} else {{
+                        'editor is null';
+                    }}
+                ";
+                Console.WriteLine($"Executing inline script");
+                var result = await _webview.ExecuteScriptAsync(script);
+                Console.WriteLine($"Script executed, result: {result}");
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error in ScrollToPositionAsync: {ex.Message}");
             }
         }
     }

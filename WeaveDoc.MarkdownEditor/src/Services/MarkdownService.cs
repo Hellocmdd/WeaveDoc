@@ -185,6 +185,7 @@ namespace WeaveDoc.MarkdownEditor.Services
 
         public string ConvertMarkdownToHtmlWithCharPositions(string markdown)
         {
+            Console.WriteLine("ConvertMarkdownToHtmlWithCharPositions called");
             if (string.IsNullOrEmpty(markdown))
                 return string.Empty;
 
@@ -341,91 +342,12 @@ namespace WeaveDoc.MarkdownEditor.Services
                 return string.Empty;
 
             text = EscapeHtml(text);
-
-            var codeMatches = new List<Tuple<int, int, string>>();
-            var codeRegex = new Regex(@"`([^`]+)`");
-            foreach (Match match in codeRegex.Matches(text))
-            {
-                codeMatches.Add(Tuple.Create(match.Index, match.Length, match.Groups[1].Value));
-            }
-
-            var linkMatches = new List<Tuple<int, int, string, string>>();
-            foreach (Match match in LinkRegex.Matches(text))
-            {
-                linkMatches.Add(Tuple.Create(match.Index, match.Length, match.Groups[1].Value, match.Groups[2].Value));
-            }
-
-            var imageMatches = new List<Tuple<int, int, string, string>>();
-            foreach (Match match in ImageRegex.Matches(text))
-            {
-                imageMatches.Add(Tuple.Create(match.Index, match.Length, match.Groups[1].Value, match.Groups[2].Value));
-            }
-
-            var result = new StringBuilder();
-            int pos = 0;
             
-            while (pos < text.Length)
+            var result = new StringBuilder();
+            for (int i = 0; i < text.Length; i++)
             {
-                var codeMatch = codeMatches.Find(m => m.Item1 == pos);
-                if (codeMatch != null)
-                {
-                    var codeContent = codeMatch.Item3;
-                    var codeSpan = new StringBuilder();
-                    for (int j = 0; j < codeContent.Length; j++)
-                    {
-                        codeSpan.Append($"<span data-pos=\"{lineNumber}-{pos + j + 1}\">{codeContent[j]}</span>");
-                    }
-                    result.Append($"<code>{codeSpan}</code>");
-                    pos += codeMatch.Item2;
-                    continue;
-                }
-
-                var linkMatch = linkMatches.Find(m => m.Item1 == pos);
-                if (linkMatch != null)
-                {
-                    var linkText = linkMatch.Item3;
-                    var linkHref = linkMatch.Item4;
-                    var linkSpan = new StringBuilder();
-                    for (int j = 0; j < linkText.Length; j++)
-                    {
-                        linkSpan.Append($"<span data-pos=\"{lineNumber}-{pos + j + 1}\">{linkText[j]}</span>");
-                    }
-                    result.Append($"<a href=\"{linkHref}\" target=\"_blank\">{linkSpan}</a>");
-                    pos += linkMatch.Item2;
-                    continue;
-                }
-
-                var imageMatch = imageMatches.Find(m => m.Item1 == pos);
-                if (imageMatch != null)
-                {
-                    result.Append($"<img src=\"{imageMatch.Item4}\" alt=\"{imageMatch.Item3}\" />");
-                    pos += imageMatch.Item2;
-                    continue;
-                }
-
-                if (text[pos] == '*' && pos + 2 < text.Length && text[pos + 1] == '*' && text[pos + 2] == '*')
-                {
-                    result.Append("<strong><em>");
-                    pos += 3;
-                    continue;
-                }
-                if (text[pos] == '*' && pos + 1 < text.Length && text[pos + 1] == '*')
-                {
-                    result.Append("<strong>");
-                    pos += 2;
-                    continue;
-                }
-                if (text[pos] == '*')
-                {
-                    result.Append("<em>");
-                    pos++;
-                    continue;
-                }
-
-                result.Append($"<span data-pos=\"{lineNumber}-{pos + 1}\">{text[pos]}</span>");
-                pos++;
+                result.Append($"<span data-pos=\"{lineNumber}-{i + 1}\" onclick=\"handleClick({lineNumber}, {i + 1});\">{text[i]}</span>");
             }
-
             return result.ToString();
         }
 

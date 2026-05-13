@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Microsoft.Web.WebView2.Core;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using WeaveDoc.MarkdownEditor.Helpers;
 using WeaveDoc.MarkdownEditor.Views;
@@ -112,231 +113,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _webview.Settings.AreDefaultContextMenusEnabled = true;
                 _webview.Settings.IsZoomControlEnabled = true;
 
-                var html = @"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='UTF-8'>
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: auto;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            font-size: 14px;
-            line-height: 1.4;
-            color: #333;
-            background-color: #ffffff;
-            padding: 12px;
-            overflow-wrap: break-word;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            font-weight: 600;
-            margin-top: 12px;
-            margin-bottom: 8px;
-            line-height: 1.3;
-        }
-        h1 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.2em; }
-        h2 { font-size: 1.25em; border-bottom: 1px solid #eee; padding-bottom: 0.2em; }
-        h3 { font-size: 1.1em; }
-        h4 { font-size: 1em; }
-        p { margin-top: 0; margin-bottom: 8px; }
-        ul, ol { padding-left: 1.5em; margin-top: 0; margin-bottom: 8px; }
-        li { margin-top: 2px; }
-        code {
-            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
-            font-size: 85%;
-            padding: 0.15em 0.3em;
-            background-color: rgba(27, 31, 35, 0.05);
-            border-radius: 2px;
-        }
-        pre {
-            padding: 12px;
-            overflow: auto;
-            font-size: 85%;
-            line-height: 1.4;
-            background-color: #f6f8fa;
-            border-radius: 3px;
-            margin-bottom: 8px;
-        }
-        pre code {
-            padding: 0;
-            background-color: transparent;
-            border-radius: 0;
-        }
-        blockquote {
-            margin: 4px 0 8px 0;
-            padding: 4px 12px;
-            color: #6a737d;
-            border-left: 3px solid #dfe2e5;
-            background-color: #f8f9fa;
-        }
-        a { color: #0366d6; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        hr {
-            height: 1px;
-            padding: 0;
-            margin: 12px 0;
-            background-color: #e1e4e8;
-            border: 0;
-        }
-        table {
-            border-spacing: 0;
-            border-collapse: collapse;
-            margin-bottom: 8px;
-            width: 100%;
-            font-size: 13px;
-        }
-        table th, table td {
-            padding: 4px 8px;
-            border: 1px solid #dfe2e5;
-        }
-        table th { font-weight: 600; background-color: #f6f8fa; }
-        table tr:nth-child(2n) { background-color: #f6f8fa; }
-        img { max-width: 100%; box-sizing: content-box; }
-        #content { min-height: 100%; }
-        [data-line] {
-            cursor: pointer;
-        }
-        [data-line]:hover {
-            background-color: rgba(0, 102, 214, 0.1);
-        }
-        [data-pos] {
-            cursor: pointer;
-        }
-        .highlight-char {
-            background-color: rgba(255, 193, 7, 0.4) !important;
-            border-radius: 2px;
-        }
-    </style>
-</head>
-<body>
-    <div id='content'>Welcome to WeaveDoc Preview</div>
-    <script>
-        window.updateContent = function(html) {
-            var contentDiv = document.getElementById('content');
-            if (contentDiv) {
-                contentDiv.innerHTML = html;
-            }
-        };
-        
-        document.addEventListener('click', function(e) {
-            try {
-                clearHighlight();
-                
-                var target = e.target;
-                while (target && target !== document.body) {
-                    if (target.hasAttribute && target.hasAttribute('data-pos')) {
-                        var posAttr = target.getAttribute('data-pos');
-                        if (posAttr) {
-                            var parts = posAttr.split('-');
-                            var lineNumber = parseInt(parts[0], 10);
-                            var colNumber = parseInt(parts[1], 10);
-                            if (lineNumber > 0) {
-                                var clickData = { line: lineNumber, column: colNumber };
-                                if (window.chrome && window.chrome.webview) {
-                                    window.chrome.webview.postMessage({ Type: 'previewClick', Data: JSON.stringify(clickData) });
-                                }
-                            }
-                        }
-                        break;
-                    }
-                    if (target.hasAttribute && target.hasAttribute('data-line')) {
-                        var lineNumber = parseInt(target.getAttribute('data-line'), 10);
-                        if (lineNumber > 0) {
-                            var clickData = { line: lineNumber, column: 1 };
-                            if (window.chrome && window.chrome.webview) {
-                                window.chrome.webview.postMessage({ Type: 'previewClick', Data: JSON.stringify(clickData) });
-                            }
-                        }
-                        break;
-                    }
-                    target = target.parentNode;
-                }
-            } catch (err) {
-            }
-        });
-        
-        function clearHighlight() {
-            var highlighted = document.querySelectorAll('.highlight-char');
-            highlighted.forEach(function(el) {
-                el.classList.remove('highlight-char');
-            });
-        }
-        
-        window.scrollToLine = function(lineNumber) {
-            try {
-                clearHighlight();
-                
-                var targetLine = lineNumber;
-                var targetElement = null;
-                var allElements = document.querySelectorAll('[data-pos]');
-                
-                for (var i = 0; i < allElements.length; i++) {
-                    var el = allElements[i];
-                    var posAttr = el.getAttribute('data-pos');
-                    if (posAttr) {
-                        var parts = posAttr.split('-');
-                        var elLine = parseInt(parts[0], 10);
-                        
-                        if (elLine === targetLine) {
-                            el.classList.add('highlight-char');
-                        }
-                    }
-                }
-                
-                var firstChar = document.querySelector('.highlight-char');
-                if (firstChar) {
-                    firstChar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            } catch (err) {
-            }
-        };
-        
-        window.scrollToSelection = function(startLine, startCol, endLine, endCol) {
-            try {
-                clearHighlight();
-                
-                var allElements = document.querySelectorAll('[data-pos]');
-                
-                for (var i = 0; i < allElements.length; i++) {
-                    var el = allElements[i];
-                    var posAttr = el.getAttribute('data-pos');
-                    if (posAttr) {
-                        var parts = posAttr.split('-');
-                        var elLine = parseInt(parts[0], 10);
-                        var elCol = parseInt(parts[1], 10);
-                        
-                        if (startLine === endLine) {
-                            if (elLine === startLine && elCol >= startCol && elCol <= endCol) {
-                                el.classList.add('highlight-char');
-                            }
-                        } else {
-                            if ((elLine === startLine && elCol >= startCol) ||
-                                (elLine === endLine && elCol <= endCol) ||
-                                (elLine > startLine && elLine < endLine)) {
-                                el.classList.add('highlight-char');
-                            }
-                        }
-                    }
-                }
-                
-                var firstChar = document.querySelector('.highlight-char');
-                if (firstChar) {
-                    firstChar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            } catch (err) {
-            }
-        };
-    </script>
-</body>
-</html>";
+                var htmlPath = Path.Combine(AppContext.BaseDirectory, "Assets", "preview-template.html");
+                var html = File.ReadAllText(htmlPath);
                 _webview.NavigateToString(html);
             }
             catch (Exception ex)
@@ -363,9 +141,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         private void Webview_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
         {
+            Console.WriteLine("Webview_WebMessageReceived called");
             try
             {
                 var json = args.WebMessageAsJson;
+                Console.WriteLine($"Received JSON: {json}");
                 if (string.IsNullOrWhiteSpace(json)) return;
 
                 var doc = System.Text.Json.JsonDocument.Parse(json);
@@ -386,6 +166,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 if (msgType == "previewClick" && msgData != null)
                 {
+                    Console.WriteLine($"PreviewWebViewControl: Received previewClick message");
                     try
                     {
                         var clickData = System.Text.Json.JsonDocument.Parse(msgData);
@@ -402,7 +183,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             clickedColumn = colProp.GetInt32();
                         }
 
+                        Console.WriteLine($"PreviewWebViewControl: line={clickedLine}, column={clickedColumn}");
+
                         var rootWindow = this.VisualRoot as Window;
+                        Console.WriteLine($"PreviewWebViewControl: rootWindow is null: {rootWindow == null}");
+                        Console.WriteLine($"PreviewWebViewControl: rootWindow is MainWindow: {rootWindow is MainWindow}");
+                        
                         if (rootWindow is MainWindow mainWindow)
                         {
                             mainWindow.ScrollEditorToPosition(clickedLine, clickedColumn);
@@ -410,6 +196,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     }
                     catch (Exception ex)
                     {
+                        Console.WriteLine($"PreviewWebViewControl: Exception: {ex.Message}");
                         Logger.LogException(ex);
                     }
                 }
@@ -422,26 +209,32 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         private async void UpdatePreview(string content)
         {
+            Console.WriteLine($"UpdatePreview called, content length: {content.Length}");
             try
             {
                 if (_webview == null)
                 {
+                    Console.WriteLine("_webview is null, setting pending content");
                     _pendingContent = content;
                     return;
                 }
 
                 if (!_isInitialized)
                 {
+                    Console.WriteLine("_isInitialized is false, setting pending content");
                     _pendingContent = content;
                     return;
                 }
 
                 var script = $"window.updateContent({System.Text.Json.JsonSerializer.Serialize(content)});";
+                Console.WriteLine($"Executing script: {script.Substring(0, Math.Min(100, script.Length))}...");
 
                 await _webview.ExecuteScriptAsync(script);
+                Console.WriteLine("Script executed successfully");
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"UpdatePreview exception: {ex.Message}");
                 Logger.LogException(ex);
             }
         }

@@ -14,6 +14,7 @@ namespace WeaveDoc.MarkdownEditor.Views
     {
         private MonacoEditorControl? _monacoEditor;
         private PreviewWebViewControl? _previewWebView;
+        private bool _isMonacoReady = false;
 
         public MainWindow()
         {
@@ -206,11 +207,25 @@ namespace WeaveDoc.MarkdownEditor.Views
             }
         }
 
+        public void SetMonacoReady(bool ready)
+        {
+            _isMonacoReady = ready;
+            Console.WriteLine($"Monaco Editor ready: {ready}");
+        }
+
         public async void ScrollEditorToPosition(int lineNumber, int column)
         {
-            if (_monacoEditor != null)
+            Console.WriteLine($"ScrollEditorToPosition called: line={lineNumber}, column={column}");
+            Console.WriteLine($"_monacoEditor is null: {_monacoEditor == null}");
+            Console.WriteLine($"_isMonacoReady: {_isMonacoReady}");
+            
+            if (_monacoEditor != null && _isMonacoReady)
             {
                 await _monacoEditor.ScrollToPositionAsync(lineNumber, column);
+            }
+            else if (!_isMonacoReady)
+            {
+                Console.WriteLine("Monaco Editor not ready yet, ignoring scroll request");
             }
         }
     }
