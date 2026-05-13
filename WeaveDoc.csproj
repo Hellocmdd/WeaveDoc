@@ -10,6 +10,8 @@
   <ItemGroup>
     <Compile Remove="src\**\*.cs" />
     <Compile Remove="tests\**\*.cs" />
+    <AvaloniaXaml Remove="src\**\*.axaml" />
+    <AvaloniaXaml Remove="tests\**\*.axaml" />
   </ItemGroup>
 
   <ItemGroup>
