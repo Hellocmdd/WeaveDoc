@@ -130,20 +130,30 @@
                 }
             };
 
-            editor.onDidChangeCursorPosition(function(event) {
+            function sendSelectionInfo() {
                 try {
-                    var position = editor.getPosition();
-                    if (position) {
-                        var cursorData = {
-                            line: position.lineNumber,
-                            column: position.column
+                    var selection = editor.getSelection();
+                    if (selection) {
+                        var selectionData = {
+                            startLine: selection.startLineNumber,
+                            startColumn: selection.startColumn,
+                            endLine: selection.endLineNumber,
+                            endColumn: selection.endColumn
                         };
                         if (window.chrome && window.chrome.webview) {
-                            window.chrome.webview.postMessage({ Type: 'cursorChanged', Data: JSON.stringify(cursorData) });
+                            window.chrome.webview.postMessage({ Type: 'selectionChanged', Data: JSON.stringify(selectionData) });
                         }
                     }
                 } catch (e) {
                 }
+            }
+
+            editor.onDidChangeCursorPosition(function(event) {
+                sendSelectionInfo();
+            });
+
+            editor.onDidChangeSelection(function(event) {
+                sendSelectionInfo();
             });
 
             window.scrollToLine = function(lineNumber) {
@@ -151,6 +161,17 @@
                     if (editor) {
                         editor.revealLine(lineNumber, 1);
                         editor.setPosition(new monaco.Position(lineNumber, 1));
+                        highlightLine(lineNumber);
+                    }
+                } catch (e) {
+                }
+            };
+
+            window.scrollToPosition = function(lineNumber, column) {
+                try {
+                    if (editor) {
+                        editor.revealLine(lineNumber, 1);
+                        editor.setPosition(new monaco.Position(lineNumber, column));
                         highlightLine(lineNumber);
                     }
                 } catch (e) {

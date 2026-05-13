@@ -207,9 +207,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
         [data-line]:hover {
             background-color: rgba(0, 102, 214, 0.1);
         }
-        .highlight-line {
-            background-color: rgba(255, 193, 7, 0.3) !important;
-            border-left: 3px solid #ffc107 !important;
+        [data-pos] {
+            cursor: pointer;
+        }
+        .highlight-char {
+            background-color: rgba(255, 193, 7, 0.4) !important;
+            border-radius: 2px;
         }
     </style>
 </head>
@@ -225,17 +228,34 @@ namespace WeaveDoc.MarkdownEditor.Controls
         
         document.addEventListener('click', function(e) {
             try {
+                clearHighlight();
+                
                 var target = e.target;
                 while (target && target !== document.body) {
+                    if (target.hasAttribute && target.hasAttribute('data-pos')) {
+                        var posAttr = target.getAttribute('data-pos');
+                        if (posAttr) {
+                            var parts = posAttr.split('-');
+                            var lineNumber = parseInt(parts[0], 10);
+                            var colNumber = parseInt(parts[1], 10);
+                            if (lineNumber > 0) {
+                                var clickData = { line: lineNumber, column: colNumber };
+                                if (window.chrome && window.chrome.webview) {
+                                    window.chrome.webview.postMessage({ Type: 'previewClick', Data: JSON.stringify(clickData) });
+                                }
+                            }
+                        }
+                        break;
+                    }
                     if (target.hasAttribute && target.hasAttribute('data-line')) {
                         var lineNumber = parseInt(target.getAttribute('data-line'), 10);
                         if (lineNumber > 0) {
-                            var clickData = { line: lineNumber };
+                            var clickData = { line: lineNumber, column: 1 };
                             if (window.chrome && window.chrome.webview) {
                                 window.chrome.webview.postMessage({ Type: 'previewClick', Data: JSON.stringify(clickData) });
                             }
-                            break;
                         }
+                        break;
                     }
                     target = target.parentNode;
                 }
@@ -244,9 +264,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
         });
         
         function clearHighlight() {
-            var highlighted = document.querySelectorAll('.highlight-line');
+            var highlighted = document.querySelectorAll('.highlight-char');
             highlighted.forEach(function(el) {
-                el.classList.remove('highlight-line');
+                el.classList.remove('highlight-char');
             });
         }
         
@@ -256,33 +276,60 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 
                 var targetLine = lineNumber;
                 var targetElement = null;
-                var allElements = document.querySelectorAll('[data-line]');
+                var allElements = document.querySelectorAll('[data-pos]');
                 
                 for (var i = 0; i < allElements.length; i++) {
                     var el = allElements[i];
-                    var elLine = parseInt(el.getAttribute('data-line'), 10);
-                    
-                    if (elLine === targetLine) {
-                        targetElement = el;
-                        break;
-                    }
-                    if (elLine > targetLine) {
-                        if (i > 0) {
-                            targetElement = allElements[i - 1];
-                        } else {
-                            targetElement = el;
+                    var posAttr = el.getAttribute('data-pos');
+                    if (posAttr) {
+                        var parts = posAttr.split('-');
+                        var elLine = parseInt(parts[0], 10);
+                        
+                        if (elLine === targetLine) {
+                            el.classList.add('highlight-char');
                         }
-                        break;
                     }
                 }
                 
-                if (!targetElement && allElements.length > 0) {
-                    targetElement = allElements[allElements.length - 1];
+                var firstChar = document.querySelector('.highlight-char');
+                if (firstChar) {
+                    firstChar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } catch (err) {
+            }
+        };
+        
+        window.scrollToSelection = function(startLine, startCol, endLine, endCol) {
+            try {
+                clearHighlight();
+                
+                var allElements = document.querySelectorAll('[data-pos]');
+                
+                for (var i = 0; i < allElements.length; i++) {
+                    var el = allElements[i];
+                    var posAttr = el.getAttribute('data-pos');
+                    if (posAttr) {
+                        var parts = posAttr.split('-');
+                        var elLine = parseInt(parts[0], 10);
+                        var elCol = parseInt(parts[1], 10);
+                        
+                        if (startLine === endLine) {
+                            if (elLine === startLine && elCol >= startCol && elCol <= endCol) {
+                                el.classList.add('highlight-char');
+                            }
+                        } else {
+                            if ((elLine === startLine && elCol >= startCol) ||
+                                (elLine === endLine && elCol <= endCol) ||
+                                (elLine > startLine && elLine < endLine)) {
+                                el.classList.add('highlight-char');
+                            }
+                        }
+                    }
                 }
                 
-                if (targetElement) {
-                    targetElement.classList.add('highlight-line');
-                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                var firstChar = document.querySelector('.highlight-char');
+                if (firstChar) {
+                    firstChar.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             } catch (err) {
             }
@@ -345,15 +392,20 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         var root = clickData.RootElement;
 
                         int clickedLine = 1;
+                        int clickedColumn = 1;
                         if (root.TryGetProperty("line", out var lineProp))
                         {
                             clickedLine = lineProp.GetInt32();
+                        }
+                        if (root.TryGetProperty("column", out var colProp))
+                        {
+                            clickedColumn = colProp.GetInt32();
                         }
 
                         var rootWindow = this.VisualRoot as Window;
                         if (rootWindow is MainWindow mainWindow)
                         {
-                            mainWindow.ScrollEditorToLine(clickedLine);
+                            mainWindow.ScrollEditorToPosition(clickedLine, clickedColumn);
                         }
                     }
                     catch (Exception ex)
@@ -443,6 +495,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 var script = $@"
                     (function() {{
+                        if (window.clearHighlight) {{
+                            window.clearHighlight();
+                        }}
+                        
                         var targetLine = {lineNumber};
                         var targetElement = null;
                         var allElements = document.querySelectorAll('[data-line]');
@@ -470,11 +526,30 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         }}
                         
                         if (targetElement) {{
+                            targetElement.classList.add('highlight-line');
                             targetElement.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
                         }}
                     }})();
                 ";
 
+                await _webview.ExecuteScriptAsync(script);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+        }
+
+        public async void ScrollToSelection(int startLine, int startCol, int endLine, int endCol)
+        {
+            try
+            {
+                if (_webview == null || !_isInitialized)
+                {
+                    return;
+                }
+
+                var script = $"window.scrollToSelection({startLine}, {startCol}, {endLine}, {endCol});";
                 await _webview.ExecuteScriptAsync(script);
             }
             catch (Exception ex)

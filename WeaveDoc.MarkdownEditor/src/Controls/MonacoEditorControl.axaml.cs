@@ -203,23 +203,23 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         vm.EditorContent = msgData;
                     }
                 }
-                else if (msgType == "cursorChanged" && msgData != null)
+                else if (msgType == "selectionChanged" && msgData != null)
                 {
                     try
                     {
-                        var cursorData = System.Text.Json.JsonDocument.Parse(msgData);
-                        var root = cursorData.RootElement;
+                        var selectionData = System.Text.Json.JsonDocument.Parse(msgData);
+                        var root = selectionData.RootElement;
 
-                        int cursorLine = 1;
-                        if (root.TryGetProperty("line", out var lineProp))
-                        {
-                            cursorLine = lineProp.GetInt32();
-                        }
+                        int startLine = 1, startCol = 1, endLine = 1, endCol = 1;
+                        if (root.TryGetProperty("startLine", out var startLineProp)) startLine = startLineProp.GetInt32();
+                        if (root.TryGetProperty("startColumn", out var startColProp)) startCol = startColProp.GetInt32();
+                        if (root.TryGetProperty("endLine", out var endLineProp)) endLine = endLineProp.GetInt32();
+                        if (root.TryGetProperty("endColumn", out var endColProp)) endCol = endColProp.GetInt32();
 
                         var rootWindow = this.VisualRoot as Window;
                         if (rootWindow is MainWindow mainWindow)
                         {
-                            mainWindow.ScrollPreviewToLine(cursorLine);
+                            mainWindow.ScrollPreviewToSelection(startLine, startCol, endLine, endCol);
                         }
                     }
                     catch (Exception ex)
@@ -295,6 +295,23 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 }
 
                 var script = $"window.scrollToLine({lineNumber});";
+                await _webview.ExecuteScriptAsync(script);
+            }
+            catch
+            {
+            }
+        }
+
+        public async Task ScrollToPositionAsync(int lineNumber, int column)
+        {
+            try
+            {
+                if (_webview == null)
+                {
+                    return;
+                }
+
+                var script = $"window.scrollToPosition({lineNumber}, {column});";
                 await _webview.ExecuteScriptAsync(script);
             }
             catch

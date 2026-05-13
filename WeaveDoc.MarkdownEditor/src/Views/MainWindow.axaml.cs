@@ -198,19 +198,19 @@ namespace WeaveDoc.MarkdownEditor.Views
             }
         }
 
-        public void ScrollPreviewToLine(int lineNumber)
+        public void ScrollPreviewToSelection(int startLine, int startCol, int endLine, int endCol)
         {
             if (_previewWebView != null)
             {
-                _previewWebView.ScrollToLine(lineNumber);
+                _previewWebView.ScrollToSelection(startLine, startCol, endLine, endCol);
             }
         }
 
-        public async void ScrollEditorToLine(int lineNumber)
+        public async void ScrollEditorToPosition(int lineNumber, int column)
         {
             if (_monacoEditor != null)
             {
-                await _monacoEditor.ScrollToLineAsync(lineNumber);
+                await _monacoEditor.ScrollToPositionAsync(lineNumber, column);
             }
         }
     }

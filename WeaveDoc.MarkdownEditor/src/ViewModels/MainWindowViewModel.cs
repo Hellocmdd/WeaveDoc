@@ -39,8 +39,8 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
                 if (_editorContent == value) return;
                 _editorContent = value;
                 OnPropertyChanged(nameof(EditorContent));
-                // 每次编辑器内容变更时，更新预览 HTML
-                Html = _markdownService.ConvertToHtml(_editorContent ?? string.Empty);
+                // 每次编辑器内容变更时，更新预览 HTML（使用带字符位置信息的版本）
+                Html = _markdownService.ConvertMarkdownToHtmlWithCharPositions(_editorContent ?? string.Empty);
             }
         }
 
