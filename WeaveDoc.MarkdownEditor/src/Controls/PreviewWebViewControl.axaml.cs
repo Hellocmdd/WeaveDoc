@@ -207,6 +207,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
         [data-line]:hover {
             background-color: rgba(0, 102, 214, 0.1);
         }
+        .highlight-line {
+            background-color: rgba(255, 193, 7, 0.3) !important;
+            border-left: 3px solid #ffc107 !important;
+        }
     </style>
 </head>
 <body>
@@ -239,8 +243,17 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         });
         
+        function clearHighlight() {
+            var highlighted = document.querySelectorAll('.highlight-line');
+            highlighted.forEach(function(el) {
+                el.classList.remove('highlight-line');
+            });
+        }
+        
         window.scrollToLine = function(lineNumber) {
             try {
+                clearHighlight();
+                
                 var targetLine = lineNumber;
                 var targetElement = null;
                 var allElements = document.querySelectorAll('[data-line]');
@@ -268,6 +281,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 }
                 
                 if (targetElement) {
+                    targetElement.classList.add('highlight-line');
                     targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             } catch (err) {

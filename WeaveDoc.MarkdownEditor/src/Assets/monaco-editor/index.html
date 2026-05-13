@@ -17,6 +17,13 @@
             width: 100%;
             height: 100%;
         }
+        .highlight-line {
+            background-color: rgba(255, 193, 7, 0.3) !important;
+            border-left: 3px solid #ffc107 !important;
+        }
+        .highlight-line-gutter {
+            background-color: rgba(255, 193, 7, 0.2) !important;
+        }
     </style>
     <script src="min/vs/loader.js"></script>
 </head>
@@ -31,6 +38,8 @@
 
             var editorContainer = document.getElementById('editor');
 
+            var highlightDecoration = null;
+            
             editor = monaco.editor.create(editorContainer, {
                 value: '# Hello WeaveDoc!\n\nStart typing markdown here...',
                 language: 'markdown',
@@ -48,6 +57,27 @@
                 tabSize: 4,
                 padding: { top: 8, bottom: 8, left: 8, right: 8 }
             });
+            
+            function highlightLine(lineNumber) {
+                try {
+                    if (highlightDecoration) {
+                        editor.deltaDecorations(highlightDecoration, []);
+                        highlightDecoration = null;
+                    }
+                    
+                    if (lineNumber > 0 && editor) {
+                        highlightDecoration = editor.deltaDecorations([], [{
+                            range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+                            options: {
+                                isWholeLine: true,
+                                className: 'highlight-line',
+                                linesDecorationsClassName: 'highlight-line-gutter'
+                            }
+                        }]);
+                    }
+                } catch (e) {
+                }
+            }
 
             var debounceTimer = null;
             editor.onDidChangeModelContent(function(event) {
@@ -121,6 +151,7 @@
                     if (editor) {
                         editor.revealLine(lineNumber, 1);
                         editor.setPosition(new monaco.Position(lineNumber, 1));
+                        highlightLine(lineNumber);
                     }
                 } catch (e) {
                 }
