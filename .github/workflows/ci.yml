@@ -48,5 +48,9 @@ jobs:
       - name: Build (Release)
         run: dotnet build WeaveDoc.slnx --configuration Release --no-restore /p:ContinuousIntegrationBuild=true
 
-      - name: Test
+      - name: Test RAG
         run: dotnet test tests/WeaveDoc.Rag.Tests/WeaveDoc.Rag.Tests.csproj --configuration Release --no-build -nologo
+
+      - name: Test Converter
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet test tests/WeaveDoc.Converter.Tests/WeaveDoc.Converter.Tests.csproj --configuration Release -nologo
