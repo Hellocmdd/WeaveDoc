@@ -51,3 +51,6 @@ models/
 
 # Legacy docs folder retained from converter branch history
 docs/
+
+# Output directory
+out/
