@@ -100,59 +100,18 @@
                 }
             };
 
-            var scrollDebounceTimer = null;
-            editor.onDidScrollChange(function(event) {
+            editor.onDidChangeCursorPosition(function(event) {
                 try {
-                    if (scrollDebounceTimer) {
-                        clearTimeout(scrollDebounceTimer);
-                    }
-                    scrollDebounceTimer = setTimeout(function() {
-                        if (!editor) {
-                            return;
-                        }
-
-                        var model = editor.getModel();
-                        if (!model) {
-                            return;
-                        }
-
-                        var scrollTop = editor.getScrollTop();
-                        var scrollHeight = editor.getScrollHeight();
-                        var layoutInfo = editor.getLayoutInfo();
-                        var scrollableHeight = scrollHeight - layoutInfo.height;
-
-                        if (scrollableHeight <= 0) {
-                            scrollableHeight = 1;
-                        }
-
-                        var scrollPercentage = (scrollTop / scrollableHeight) * 100;
-                        scrollPercentage = Math.max(0, Math.min(100, scrollPercentage));
-
-                        var visibleRanges = editor.getVisibleRanges();
-                        var firstVisibleLine = 1;
-                        var lastVisibleLine = 1;
-                        
-                        if (visibleRanges && visibleRanges.length > 0) {
-                            firstVisibleLine = visibleRanges[0].startLineNumber;
-                            lastVisibleLine = visibleRanges[visibleRanges.length - 1].endLineNumber;
-                        }
-                        var totalLines = model.getLineCount();
-
-                        var scrollData = {
-                            percentage: scrollPercentage,
-                            firstLine: firstVisibleLine,
-                            lastLine: lastVisibleLine,
-                            totalLines: totalLines,
-                            scrollTop: scrollTop,
-                            scrollableHeight: scrollableHeight
+                    var position = editor.getPosition();
+                    if (position) {
+                        var cursorData = {
+                            line: position.lineNumber,
+                            column: position.column
                         };
-
                         if (window.chrome && window.chrome.webview) {
-                            window.chrome.webview.postMessage({ Type: 'scrollChanged', Data: JSON.stringify(scrollData) });
-                        } else if (window.external && window.external.notify) {
-                            window.external.notify(JSON.stringify({ Type: 'scrollChanged', Data: JSON.stringify(scrollData) }));
+                            window.chrome.webview.postMessage({ Type: 'cursorChanged', Data: JSON.stringify(cursorData) });
                         }
-                    }, 50);
+                    }
                 } catch (e) {
                 }
             });
@@ -161,18 +120,10 @@
                 try {
                     if (editor) {
                         editor.revealLine(lineNumber, 1);
+                        editor.setPosition(new monaco.Position(lineNumber, 1));
                     }
                 } catch (e) {
                 }
-            };
-
-            window.getScrollPercentage = function() {
-                if (!editor) return 0;
-                var scrollTop = editor.getScrollTop();
-                var scrollHeight = editor.getScrollHeight();
-                var scrollableHeight = scrollHeight - editor.getLayoutInfo().height;
-                if (scrollableHeight <= 0) return 0;
-                return (scrollTop / scrollableHeight) * 100;
             };
 
             window.addEventListener('resize', function() {

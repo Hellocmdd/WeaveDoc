@@ -16,7 +16,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private CoreWebView2Controller? _controller;
         private string _pendingContent = string.Empty;
         private bool _isInitializing = false;
-        private bool _isBoundsSet = false;
+        
         private static CoreWebView2Environment? _sharedEnvironment;
 
         public MonacoEditorControl()
@@ -124,9 +124,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 height = Math.Max(100, height);
 
                 _controller.Bounds = new System.Drawing.Rectangle(x, y, width, height);
-                _isBoundsSet = true;
             }
-            catch (Exception ex)
+            catch
             {
             }
         }
@@ -150,7 +149,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var script = $"window.resizeEditor({width}, {height});";
                 await _webview.ExecuteScriptAsync(script);
             }
-            catch (Exception ex)
+            catch
             {
             }
         }
@@ -204,34 +203,23 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         vm.EditorContent = msgData;
                     }
                 }
-                else if (msgType == "scrollChanged" && msgData != null)
+                else if (msgType == "cursorChanged" && msgData != null)
                 {
                     try
                     {
-                        var scrollData = System.Text.Json.JsonDocument.Parse(msgData);
-                        var root = scrollData.RootElement;
+                        var cursorData = System.Text.Json.JsonDocument.Parse(msgData);
+                        var root = cursorData.RootElement;
 
-                        double scrollPercentage = 0;
-                        int firstLine = 1;
-                        int totalLines = 1;
-
-                        if (root.TryGetProperty("percentage", out var pctProp))
+                        int cursorLine = 1;
+                        if (root.TryGetProperty("line", out var lineProp))
                         {
-                            scrollPercentage = pctProp.GetDouble();
-                        }
-                        if (root.TryGetProperty("firstLine", out var firstLineProp))
-                        {
-                            firstLine = firstLineProp.GetInt32();
-                        }
-                        if (root.TryGetProperty("totalLines", out var totalLinesProp))
-                        {
-                            totalLines = totalLinesProp.GetInt32();
+                            cursorLine = lineProp.GetInt32();
                         }
 
                         var rootWindow = this.VisualRoot as Window;
                         if (rootWindow is MainWindow mainWindow)
                         {
-                            mainWindow.SyncPreviewScroll(scrollPercentage, firstLine, totalLines);
+                            mainWindow.ScrollPreviewToLine(cursorLine);
                         }
                     }
                     catch (Exception ex)
@@ -239,6 +227,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         Logger.LogException(ex);
                     }
                 }
+                
             }
             catch (Exception ex)
             {
@@ -291,7 +280,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var json = System.Text.Json.JsonSerializer.Serialize(obj);
                 _webview.PostWebMessageAsJson(json);
             }
-            catch (Exception ex)
+            catch
             {
             }
         }
@@ -308,36 +297,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var script = $"window.scrollToLine({lineNumber});";
                 await _webview.ExecuteScriptAsync(script);
             }
-            catch (Exception ex)
-            {
-            }
-        }
-
-        public async Task ScrollToPercentageAsync(double percentage)
-        {
-            try
-            {
-                if (_webview == null)
-                {
-                    return;
-                }
-
-                percentage = Math.Max(0, Math.Min(100, percentage));
-
-                var script = $@"
-                    (function() {{
-                        if (!editor) return;
-                        var scrollHeight = editor.getScrollHeight();
-                        var layoutInfo = editor.getLayoutInfo();
-                        var scrollableHeight = scrollHeight - layoutInfo.height;
-                        if (scrollableHeight <= 0) return;
-                        var scrollTop = (scrollableHeight * {percentage}) / 100;
-                        editor.setScrollTop(scrollTop);
-                    }})();
-                ";
-                await _webview.ExecuteScriptAsync(script);
-            }
-            catch (Exception ex)
+            catch
             {
             }
         }

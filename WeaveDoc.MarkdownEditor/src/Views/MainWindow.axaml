@@ -56,9 +56,6 @@
         <TextBlock FontSize="14">🖼️</TextBlock>
       </Button>
       <Rectangle Width="1" Height="20" Fill="#CCCCCC" Margin="4,0" />
-      <Button Name="TestScrollButton" Click="TestScrollButton_Click" ToolTip.Tip="Test Scroll Sync" Width="80" Height="28">
-        <TextBlock FontSize="10">Test Scroll</TextBlock>
-      </Button>
     </StackPanel>
     
     <!-- 主内容区域 -->

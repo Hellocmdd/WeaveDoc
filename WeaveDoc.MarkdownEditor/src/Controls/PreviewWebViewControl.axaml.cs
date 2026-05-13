@@ -112,84 +112,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _webview.Settings.AreDefaultContextMenusEnabled = true;
                 _webview.Settings.IsZoomControlEnabled = true;
 
-                var jsScript = @"
-        var scrollDebounceTimer = null;
-        window.addEventListener('scroll', function(event) {
-            try {
-                if (scrollDebounceTimer) {
-                    clearTimeout(scrollDebounceTimer);
-                }
-                scrollDebounceTimer = setTimeout(function() {
-                    var doc = document.documentElement;
-                    var body = document.body;
-                    var scrollTop = window.scrollY || doc.scrollTop || body.scrollTop;
-                    var scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
-                    var clientHeight = Math.max(doc.clientHeight, body.clientHeight);
-                    var scrollableHeight = scrollHeight - clientHeight;
-                    
-                    if (scrollableHeight <= 0) {
-                        scrollableHeight = 1;
-                    }
-                    
-                    var scrollPercentage = (scrollTop / scrollableHeight) * 100;
-                    scrollPercentage = Math.max(0, Math.min(100, scrollPercentage));
-                    
-                    var allElements = document.querySelectorAll('[data-line]');
-                    var visibleLine = 1;
-                    
-                    var viewportMiddle = clientHeight / 2;
-                    
-                    for (var i = 0; i < allElements.length; i++) {
-                        var el = allElements[i];
-                        var rect = el.getBoundingClientRect();
-                        
-                        if (rect.top <= viewportMiddle && rect.bottom >= viewportMiddle) {
-                            visibleLine = parseInt(el.getAttribute('data-line'), 10);
-                            break;
-                        }
-                    }
-                    
-                    var scrollData = {
-                        percentage: scrollPercentage,
-                        visibleLine: visibleLine
-                    };
-                    
-                    if (window.chrome && window.chrome.webview) {
-                        window.chrome.webview.postMessage({ Type: 'previewScrollChanged', Data: JSON.stringify(scrollData) });
-                    } else if (window.external && window.external.notify) {
-                        window.external.notify(JSON.stringify({ Type: 'previewScrollChanged', Data: JSON.stringify(scrollData) }));
-                    }
-                }, 50);
-            } catch (e) {
-            }
-        });
-        
-        window.updateContent = function(html) {
-            var contentDiv = document.getElementById('content');
-            if (contentDiv) {
-                contentDiv.innerHTML = html;
-            }
-        };
-        
-        window.scrollToPercentage = function(percentage, firstLine, totalLines) {
-            try {
-                var doc = document.documentElement;
-                var body = document.body;
-                var scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
-                var clientHeight = Math.max(doc.clientHeight, body.clientHeight);
-                var scrollableHeight = scrollHeight - clientHeight;
-                
-                if (scrollableHeight <= 0) {
-                    return;
-                }
-                
-                var scrollTop = (scrollableHeight * percentage) / 100;
-                window.scrollTo(0, scrollTop);
-            } catch (e) {
-            }
-        };
-    ";
-
                 var html = @"<!DOCTYPE html>
 <html>
 <head>
@@ -279,6 +201,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
         table tr:nth-child(2n) { background-color: #f6f8fa; }
         img { max-width: 100%; box-sizing: content-box; }
         #content { min-height: 100%; }
+        [data-line] {
+            cursor: pointer;
+        }
+        [data-line]:hover {
+            background-color: rgba(0, 102, 214, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -290,8 +218,62 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 contentDiv.innerHTML = html;
             }
         };
-        " + jsScript + @"
-</script>
+        
+        document.addEventListener('click', function(e) {
+            try {
+                var target = e.target;
+                while (target && target !== document.body) {
+                    if (target.hasAttribute && target.hasAttribute('data-line')) {
+                        var lineNumber = parseInt(target.getAttribute('data-line'), 10);
+                        if (lineNumber > 0) {
+                            var clickData = { line: lineNumber };
+                            if (window.chrome && window.chrome.webview) {
+                                window.chrome.webview.postMessage({ Type: 'previewClick', Data: JSON.stringify(clickData) });
+                            }
+                            break;
+                        }
+                    }
+                    target = target.parentNode;
+                }
+            } catch (err) {
+            }
+        });
+        
+        window.scrollToLine = function(lineNumber) {
+            try {
+                var targetLine = lineNumber;
+                var targetElement = null;
+                var allElements = document.querySelectorAll('[data-line]');
+                
+                for (var i = 0; i < allElements.length; i++) {
+                    var el = allElements[i];
+                    var elLine = parseInt(el.getAttribute('data-line'), 10);
+                    
+                    if (elLine === targetLine) {
+                        targetElement = el;
+                        break;
+                    }
+                    if (elLine > targetLine) {
+                        if (i > 0) {
+                            targetElement = allElements[i - 1];
+                        } else {
+                            targetElement = el;
+                        }
+                        break;
+                    }
+                }
+                
+                if (!targetElement && allElements.length > 0) {
+                    targetElement = allElements[allElements.length - 1];
+                }
+                
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } catch (err) {
+            }
+        };
+    </script>
 </body>
 </html>";
                 _webview.NavigateToString(html);
@@ -318,7 +300,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        private async void Webview_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
+        private void Webview_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
         {
             try
             {
@@ -341,29 +323,23 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     msgData = dataProp.GetString();
                 }
 
-                if (msgType == "previewScrollChanged" && msgData != null)
+                if (msgType == "previewClick" && msgData != null)
                 {
                     try
                     {
-                        var scrollData = System.Text.Json.JsonDocument.Parse(msgData);
-                        var root = scrollData.RootElement;
+                        var clickData = System.Text.Json.JsonDocument.Parse(msgData);
+                        var root = clickData.RootElement;
 
-                        double scrollPercentage = 0;
-                        int visibleLine = 1;
-
-                        if (root.TryGetProperty("percentage", out var pctProp))
+                        int clickedLine = 1;
+                        if (root.TryGetProperty("line", out var lineProp))
                         {
-                            scrollPercentage = pctProp.GetDouble();
-                        }
-                        if (root.TryGetProperty("visibleLine", out var lineProp))
-                        {
-                            visibleLine = lineProp.GetInt32();
+                            clickedLine = lineProp.GetInt32();
                         }
 
                         var rootWindow = this.VisualRoot as Window;
                         if (rootWindow is MainWindow mainWindow)
                         {
-                            await mainWindow.SyncEditorScrollAsync(scrollPercentage, visibleLine);
+                            mainWindow.ScrollEditorToLine(clickedLine);
                         }
                     }
                     catch (Exception ex)
@@ -432,7 +408,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 _controller.Bounds = new System.Drawing.Rectangle(x, y, width, height);
             }
-            catch (Exception ex)
+            catch
             {
             }
         }
@@ -440,37 +416,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
         public void SetContent(string content)
         {
             HtmlContent = content;
-        }
-
-        public async void ScrollToPercentage(double percentage, int firstLine, int totalLines)
-        {
-            try
-            {
-                if (_webview == null || !_isInitialized)
-                {
-                    return;
-                }
-
-                percentage = Math.Max(0, Math.Min(100, percentage));
-
-                var script = $@"
-                (function() {{
-                    var doc = document.documentElement;
-                    var body = document.body;
-                    var scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
-                    var clientHeight = Math.max(doc.clientHeight, body.clientHeight);
-                    var scrollableHeight = scrollHeight - clientHeight;
-                    if (scrollableHeight <= 0) return;
-                    var scrollTop = (scrollableHeight * {percentage}) / 100;
-                    window.scrollTo(0, scrollTop);
-                }})();
-                ";
-
-                await _webview.ExecuteScriptAsync(script);
-            }
-            catch (Exception ex)
-            {
-            }
         }
 
         public async void ScrollToLine(int lineNumber)
@@ -511,7 +456,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         }}
                         
                         if (targetElement) {{
-                            targetElement.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                            targetElement.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
                         }}
                     }})();
                 ";

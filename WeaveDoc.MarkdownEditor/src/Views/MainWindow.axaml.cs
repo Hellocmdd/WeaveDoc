@@ -14,8 +14,6 @@ namespace WeaveDoc.MarkdownEditor.Views
     {
         private MonacoEditorControl? _monacoEditor;
         private PreviewWebViewControl? _previewWebView;
-        private bool _isScrollingFromEditor = false;
-        private bool _isScrollingFromPreview = false;
 
         public MainWindow()
         {
@@ -192,11 +190,6 @@ namespace WeaveDoc.MarkdownEditor.Views
             InsertMarkdownSyntax("![图片描述](", ")");
         }
 
-        private void TestScrollButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
-        {
-            SyncPreviewScroll(50, 10, 100);
-        }
-
         private void InsertMarkdownSyntax(string prefix, string suffix)
         {
             if (DataContext is MainWindowViewModel vm)
@@ -205,66 +198,19 @@ namespace WeaveDoc.MarkdownEditor.Views
             }
         }
 
-        public void SyncPreviewScroll(double scrollPercentage, int firstLine, int totalLines)
-        {
-            if (_isScrollingFromPreview)
-            {
-                return;
-            }
-
-            _isScrollingFromEditor = true;
-            try
-            {
-                if (_previewWebView != null)
-                {
-                    _previewWebView.ScrollToPercentage(scrollPercentage, firstLine, totalLines);
-                }
-            }
-            finally
-            {
-                _isScrollingFromEditor = false;
-            }
-        }
-
         public void ScrollPreviewToLine(int lineNumber)
         {
-            if (_isScrollingFromPreview)
+            if (_previewWebView != null)
             {
-                return;
-            }
-
-            _isScrollingFromEditor = true;
-            try
-            {
-                if (_previewWebView != null)
-                {
-                    _previewWebView.ScrollToLine(lineNumber);
-                }
-            }
-            finally
-            {
-                _isScrollingFromEditor = false;
+                _previewWebView.ScrollToLine(lineNumber);
             }
         }
 
-        public async Task SyncEditorScrollAsync(double scrollPercentage, int visibleLine)
+        public async void ScrollEditorToLine(int lineNumber)
         {
-            if (_isScrollingFromEditor)
+            if (_monacoEditor != null)
             {
-                return;
-            }
-
-            _isScrollingFromPreview = true;
-            try
-            {
-                if (_monacoEditor != null)
-                {
-                    await _monacoEditor.ScrollToLineAsync(visibleLine);
-                }
-            }
-            finally
-            {
-                _isScrollingFromPreview = false;
+                await _monacoEditor.ScrollToLineAsync(lineNumber);
             }
         }
     }
