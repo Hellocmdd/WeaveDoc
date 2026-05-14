@@ -532,7 +532,7 @@ public sealed partial class LocalAiService
 
         if (queryProfile.Intent == "compare")
         {
-            score += CountSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}", CompareSignals) * 0.15f;
+            score += LocalAiQuestionAnalyzer.CountComparisonSignals($"{chunk.SectionTitle} {chunk.StructurePath} {chunk.Text}") * 0.15f;
             if (queryProfile.CompareSubjects.Count >= 2 && ChunkMatchesCompareSubjects(chunk, queryProfile.CompareSubjects))
             {
                 score += 0.8f;
