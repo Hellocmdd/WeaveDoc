@@ -157,6 +157,11 @@
                 };
 
                 sendMessage({ Type: 'previewSelection', Data: JSON.stringify(data) });
+            } else {
+                // 如果没有选区，重置状态
+                hasActiveSelection = false;
+                // 发送清除高亮的消息
+                sendMessage({ Type: 'previewClearHighlight', Data: '' });
             }
         });
 

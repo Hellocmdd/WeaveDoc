@@ -380,6 +380,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             window.highlightDecoration = null;
                         }}
                         
+                        // 滚动到指定行
+                        editor.revealLine({lineNumber}, 1);
+                        
+                        // 设置光标位置
+                        editor.setPosition(new monaco.Position({lineNumber}, {column}));
+                        
                         var range = new monaco.Range({lineNumber}, {column}, {lineNumber}, {endColumn});
                         console.log('Creating decoration with range: line={lineNumber}, startCol={column}, endCol={endColumn}');
                         
@@ -404,6 +410,38 @@ namespace WeaveDoc.MarkdownEditor.Controls
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in ScrollToPositionAsync: {ex.Message}");
+            }
+        }
+
+        public async Task ClearHighlightAsync()
+        {
+            try
+            {
+                Console.WriteLine("ClearHighlightAsync called");
+                
+                if (_webview == null)
+                {
+                    Console.WriteLine("_webview is null");
+                    return;
+                }
+
+                var script = @"
+                    if (editor && window.highlightDecoration) {
+                        editor.deltaDecorations(window.highlightDecoration, []);
+                        window.highlightDecoration = null;
+                        console.log('Highlight cleared');
+                        'success';
+                    } else {
+                        'no highlight to clear';
+                    }
+                ";
+                
+                var result = await _webview.ExecuteScriptAsync(script);
+                Console.WriteLine($"ClearHighlightAsync executed, result: {result}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in ClearHighlightAsync: {ex.Message}");
             }
         }
     }

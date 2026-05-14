@@ -256,5 +256,17 @@ namespace WeaveDoc.MarkdownEditor.Views
                 _pendingScrollRequest = (lineNumber, column);
             }
         }
+
+        public async void ClearEditorHighlight()
+        {
+            Console.WriteLine("ClearEditorHighlight called");
+            Console.WriteLine($"_monacoEditor is null: {_monacoEditor == null}");
+            Console.WriteLine($"_isMonacoReady: {_isMonacoReady}");
+            
+            if (_monacoEditor != null && _isMonacoReady)
+            {
+                await _monacoEditor.ClearHighlightAsync();
+            }
+        }
     }
 }

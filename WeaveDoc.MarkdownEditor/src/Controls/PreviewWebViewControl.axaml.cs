@@ -316,6 +316,24 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         Logger.LogException(ex);
                     }
                 }
+                else if (msgType == "previewClearHighlight" && msgData != null)
+                {
+                    Console.WriteLine($"PreviewWebViewControl: Received previewClearHighlight message");
+                    try
+                    {
+                        var rootWindow = this.VisualRoot as Window;
+                        
+                        if (rootWindow is MainWindow mainWindow)
+                        {
+                            mainWindow.ClearEditorHighlight();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"PreviewWebViewControl: Exception: {ex.Message}");
+                        Logger.LogException(ex);
+                    }
+                }
             }
             catch (Exception ex)
             {
