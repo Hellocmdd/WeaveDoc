@@ -470,6 +470,11 @@
         window.addEventListener('load', function() {
             sendMessage({ Type: 'previewLoaded', Data: 'loaded' });
         });
+
+        window.addEventListener('resize', function() {
+            document.body.style.width = '100%';
+            document.body.style.height = '100%';
+        });
     </script>
 </body>
 </html>

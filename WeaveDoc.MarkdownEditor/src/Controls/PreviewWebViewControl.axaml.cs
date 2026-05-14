@@ -92,7 +92,25 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
         {
-            UpdateControllerBounds();
+            _ = HandleSizeChangeAsync();
+        }
+
+        private async Task HandleSizeChangeAsync()
+        {
+            try
+            {
+                await Task.Delay(100);
+                
+                UpdateControllerBounds();
+                
+                if (_webview != null && _isInitialized)
+                {
+                    await _webview.ExecuteScriptAsync("window.dispatchEvent(new Event('resize'));");
+                }
+            }
+            catch
+            {
+            }
         }
 
         private async Task InitializeWebViewAsync()
