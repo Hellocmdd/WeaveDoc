@@ -90,39 +90,21 @@
 
             function highlightChar(lineNumber, column) {
                 try {
-                    console.log('highlightChar called: line=' + lineNumber + ', column=' + column);
-                    
                     if (highlightDecoration) {
                         editor.deltaDecorations(highlightDecoration, []);
                         highlightDecoration = null;
                     }
 
                     if (lineNumber > 0 && editor) {
-                        var model = editor.getModel();
-                        if (model) {
-                            var lineCount = model.getLineCount();
-                            console.log('Model line count:', lineCount);
-                            var lineLength = model.getLineLength(lineNumber);
-                            console.log('Line ' + lineNumber + ' length:', lineLength);
-                            
-                            if (column > lineLength) {
-                                column = lineLength;
-                                console.log('Adjusted column to:', column);
-                            }
-                        }
-                        
                         highlightDecoration = editor.deltaDecorations([], [{
-                            range: new monaco.Range(lineNumber, column, lineNumber, column + 1),
+                            range: new monaco.Range(lineNumber, column, lineNumber, column),
                             options: {
                                 isWholeLine: false,
-                                className: 'highlight-char',
-                                hoverMessage: { value: 'Position: line ' + lineNumber + ', column ' + column }
+                                className: 'highlight-char'
                             }
                         }]);
-                        console.log('Decoration applied, highlightDecoration:', highlightDecoration);
                     }
                 } catch (e) {
-                    console.error('Error in highlightChar:', e);
                 }
             }
 

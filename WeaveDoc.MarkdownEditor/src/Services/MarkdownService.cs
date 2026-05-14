@@ -359,47 +359,12 @@ namespace WeaveDoc.MarkdownEditor.Services
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
 
-            var result = new StringBuilder();
-            int currentColumn = startColumn;
+            text = EscapeHtml(text);
             
+            var result = new StringBuilder();
             for (int i = 0; i < text.Length; i++)
             {
-                char ch = text[i];
-                string escaped;
-                int charWidth;
-                
-                // 根据字符类型确定转义后的字符和宽度
-                switch (ch)
-                {
-                    case '<':
-                        escaped = "&lt;";
-                        charWidth = 4;
-                        break;
-                    case '>':
-                        escaped = "&gt;";
-                        charWidth = 4;
-                        break;
-                    case '&':
-                        escaped = "&amp;";
-                        charWidth = 5;
-                        break;
-                    case '"':
-                        escaped = "&quot;";
-                        charWidth = 6;
-                        break;
-                    case '\'':
-                        escaped = "&#39;";
-                        charWidth = 5;
-                        break;
-                    default:
-                        escaped = ch.ToString();
-                        charWidth = 1;
-                        break;
-                }
-                
-                // 使用原始字符的位置，但输出转义后的内容
-                result.Append($"<span data-pos=\"{lineNumber}-{currentColumn}\">{escaped}</span>");
-                currentColumn++;
+                result.Append($"<span data-pos=\"{lineNumber}-{startColumn + i}\">{text[i]}</span>");
             }
             return result.ToString();
         }

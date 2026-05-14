@@ -230,55 +230,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 {
                     Console.WriteLine($"PreviewWebViewControl: DEBUG - {msgData}");
                 }
-                else if (msgType == "previewClick" && msgData != null)
-                {
-                    Console.WriteLine($"PreviewWebViewControl: Received previewClick message");
-                    try
-                    {
-                        var clickData = System.Text.Json.JsonDocument.Parse(msgData);
-                        var root = clickData.RootElement;
-
-                        int clickedLine = 1;
-                        int clickedColumn = 1;
-                        int endLine = 1;
-                        int endColumn = 1;
-                        if (root.TryGetProperty("line", out var lineProp))
-                        {
-                            clickedLine = lineProp.GetInt32();
-                        }
-                        if (root.TryGetProperty("column", out var colProp))
-                        {
-                            clickedColumn = colProp.GetInt32();
-                        }
-                        if (root.TryGetProperty("endLine", out var endLineProp))
-                        {
-                            endLine = endLineProp.GetInt32();
-                        }
-                        if (root.TryGetProperty("endColumn", out var endColProp))
-                        {
-                            endColumn = endColProp.GetInt32();
-                        }
-
-                        Console.WriteLine($"PreviewWebViewControl: line={clickedLine}, column={clickedColumn}, endLine={endLine}, endColumn={endColumn}");
-
-                        var rootWindow = this.VisualRoot as Window;
-                        Console.WriteLine($"PreviewWebViewControl: rootWindow is null: {rootWindow == null}");
-
-                        if (rootWindow is MainWindow mainWindow)
-                        {
-                            Console.WriteLine($"PreviewWebViewControl: Calling ScrollEditorToPositionWithRange");
-                            mainWindow.ScrollEditorToPositionWithRange(clickedLine, clickedColumn, endLine, endColumn);
-                        }
-                        else
-                        {
-                            Console.WriteLine($"PreviewWebViewControl: Could not cast to MainWindow");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"PreviewWebViewControl: Error processing previewClick: {ex.Message}");
-                    }
-                }
                 else if (msgType == "previewSelection" && msgData != null)
                 {
                     Console.WriteLine($"PreviewWebViewControl: Received previewSelection message");
@@ -292,6 +243,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         int endLine = 1;
                         int endColumn = 1;
                         int selectionLength = 1;
+
                         if (root.TryGetProperty("startLine", out var startLineProp))
                         {
                             startLine = startLineProp.GetInt32();
@@ -313,14 +265,49 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             selectionLength = lengthProp.GetInt32();
                         }
 
-                        Console.WriteLine($"PreviewWebViewControl: Selection range: ({startLine},{startColumn}) to ({endLine},{endColumn}), length={selectionLength}");
+                        Console.WriteLine($"PreviewWebViewControl: Selection: startLine={startLine}, startColumn={startColumn}, endLine={endLine}, endColumn={endColumn}, length={selectionLength}");
 
                         var rootWindow = this.VisualRoot as Window;
+                        
+                        if (rootWindow is MainWindow mainWindow)
+                        {
+                            mainWindow.ScrollEditorToPositionWithRange(startLine, startColumn, selectionLength);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"PreviewWebViewControl: Exception: {ex.Message}");
+                        Logger.LogException(ex);
+                    }
+                }
+                else if (msgType == "previewClick" && msgData != null)
+                {
+                    Console.WriteLine($"PreviewWebViewControl: Received previewClick message");
+                    try
+                    {
+                        var clickData = System.Text.Json.JsonDocument.Parse(msgData);
+                        var root = clickData.RootElement;
+
+                        int clickedLine = 1;
+                        int clickedColumn = 1;
+                        if (root.TryGetProperty("line", out var lineProp))
+                        {
+                            clickedLine = lineProp.GetInt32();
+                        }
+                        if (root.TryGetProperty("column", out var colProp))
+                        {
+                            clickedColumn = colProp.GetInt32();
+                        }
+
+                        Console.WriteLine($"PreviewWebViewControl: line={clickedLine}, column={clickedColumn}");
+
+                        var rootWindow = this.VisualRoot as Window;
+                        Console.WriteLine($"PreviewWebViewControl: rootWindow is null: {rootWindow == null}");
                         Console.WriteLine($"PreviewWebViewControl: rootWindow is MainWindow: {rootWindow is MainWindow}");
                         
                         if (rootWindow is MainWindow mainWindow)
                         {
-                            mainWindow.ScrollEditorToPositionWithRange(startLine, startColumn, endLine, endColumn, selectionLength);
+                            mainWindow.ScrollEditorToPosition(clickedLine, clickedColumn);
                         }
                     }
                     catch (Exception ex)

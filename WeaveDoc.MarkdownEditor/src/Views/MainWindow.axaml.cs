@@ -240,25 +240,20 @@ namespace WeaveDoc.MarkdownEditor.Views
             }
         }
 
-        public void ScrollEditorToPositionWithRange(int startLine, int startColumn, int endLine, int endColumn)
+        public async void ScrollEditorToPositionWithRange(int lineNumber, int column, int selectionLength)
         {
-            ScrollEditorToPositionWithRange(startLine, startColumn, endLine, endColumn, 1);
-        }
-
-        public async void ScrollEditorToPositionWithRange(int startLine, int startColumn, int endLine, int endColumn, int selectionLength)
-        {
-            Console.WriteLine($"ScrollEditorToPositionWithRange called: ({startLine},{startColumn}) to ({endLine},{endColumn}), length={selectionLength}");
+            Console.WriteLine($"ScrollEditorToPositionWithRange called: line={lineNumber}, column={column}, length={selectionLength}");
             Console.WriteLine($"_monacoEditor is null: {_monacoEditor == null}");
             Console.WriteLine($"_isMonacoReady: {_isMonacoReady}");
             
             if (_monacoEditor != null && _isMonacoReady)
             {
-                await _monacoEditor.ScrollToPositionAsync(startLine, startColumn, endLine, endColumn, selectionLength);
+                await _monacoEditor.ScrollToPositionAsync(lineNumber, column, selectionLength);
             }
             else if (!_isMonacoReady)
             {
                 Console.WriteLine("Monaco Editor not ready yet, caching scroll request");
-                _pendingScrollRequest = (startLine, startColumn);
+                _pendingScrollRequest = (lineNumber, column);
             }
         }
     }

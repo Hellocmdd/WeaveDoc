@@ -342,11 +342,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        public async Task ScrollToPositionAsync(int lineNumber, int column)
+        public async Task ScrollToPositionAsync(int lineNumber, int column, int selectionLength = 1)
         {
             try
             {
-                Console.WriteLine($"ScrollToPositionAsync called: line={lineNumber}, column={column}");
+                Console.WriteLine($"ScrollToPositionAsync called: line={lineNumber}, column={column}, length={selectionLength}");
                 
                 if (_webview == null)
                 {
@@ -354,183 +354,56 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
                 }
 
-                // 先检查 Monaco 是否已经初始化
                 var editorType = await _webview.ExecuteScriptAsync("typeof editor");
                 Console.WriteLine($"editor type: {editorType}");
                 
                 if (editorType == "\"undefined\"")
                 {
                     Console.WriteLine("Editor not yet initialized, scheduling retry");
-                    // 延迟重试
                     await Task.Delay(200);
-                    await ScrollToPositionAsync(lineNumber, column);
+                    await ScrollToPositionAsync(lineNumber, column, selectionLength);
                     return;
                 }
 
-                // 直接操作 Monaco Editor API，字符级高亮（高亮2个字符范围）
-                var lineCount = lineNumber;
+                int endColumn = column + selectionLength;
+                
                 var script = $@"
                     if (editor) {{
-                        console.log('ScrollToPositionAsync: line={lineNumber}, column={column}');
-
-                        var model = editor.getModel();
-                        if (model) {{
-                            var lineCount = model.getLineCount();
-                            var lineLength = model.getLineLength({lineNumber});
-                            console.log('Model lineCount=' + lineCount + ', lineLength=' + lineLength);
-
-                            // 验证列号是否有效
-                            var validColumn = {column};
-                            if (validColumn > lineLength) {{
-                                validColumn = lineLength;
-                                console.log('Column adjusted to line length: ' + validColumn);
-                            }}
-
-                            // 滚动到指定位置
-                            editor.revealLine({lineNumber}, 1);
-                            editor.setPosition(new monaco.Position({lineNumber}, validColumn));
-
-                            // 清除之前的高亮
-                            if (typeof window.highlightDecoration !== 'undefined' && window.highlightDecoration) {{
-                                editor.deltaDecorations(window.highlightDecoration, []);
-                                window.highlightDecoration = null;
-                            }}
-
-                            // 应用新的高亮 - 2个字符范围
-                            var highlightRange = new monaco.Range({lineNumber}, validColumn, {lineNumber}, validColumn + 2);
-                            console.log('Creating decoration with range: line=' + {lineNumber} + ', startCol=' + validColumn + ', endCol=' + (validColumn + 2));
-                            window.highlightDecoration = editor.deltaDecorations([], [{{
-                                range: highlightRange,
-                                options: {{
-                                    isWholeLine: false,
-                                    className: 'highlight-char'
-                                }}
-                            }}]);
-
-                            console.log('Decoration applied, ID:', window.highlightDecoration);
-                            'success';
-                        }} else {{
-                            console.log('Model is null');
-                            'model is null';
+                        console.log('Revealing line and setting position: line={lineNumber}, col={column}, endCol={endColumn}');
+                        
+                        if (typeof window.highlightDecoration === 'undefined') {{
+                            window.highlightDecoration = null;
                         }}
+                        
+                        if (window.highlightDecoration) {{
+                            editor.deltaDecorations(window.highlightDecoration, []);
+                            window.highlightDecoration = null;
+                        }}
+                        
+                        var range = new monaco.Range({lineNumber}, {column}, {lineNumber}, {endColumn});
+                        console.log('Creating decoration with range: line={lineNumber}, startCol={column}, endCol={endColumn}');
+                        
+                        window.highlightDecoration = editor.deltaDecorations([], [{{
+                            range: range,
+                            options: {{
+                                isWholeLine: false,
+                                className: 'highlight-char'
+                            }}
+                        }}]);
+                        
+                        console.log('Decoration applied, ID:', window.highlightDecoration);
+                        'success';
                     }} else {{
-                        console.log('Editor is null');
                         'editor is null';
                     }}
                 ";
-                Console.WriteLine($"Executing direct API call (highlight 2 chars) for line={lineNumber}, column={column}");
+                Console.WriteLine($"Executing highlight script for line={lineNumber}, col={column}, endCol={endColumn}");
                 var result = await _webview.ExecuteScriptAsync(script);
                 Console.WriteLine($"Script executed, result: {result}");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in ScrollToPositionAsync: {ex.Message}");
-            }
-        }
-
-        public async Task ScrollToPositionAsync(int startLine, int startColumn, int endLine, int endColumn)
-        {
-            await ScrollToPositionAsync(startLine, startColumn, endLine, endColumn, 1);
-        }
-
-        public async Task ScrollToPositionAsync(int startLine, int startColumn, int endLine, int endColumn, int selectionLength)
-        {
-            try
-            {
-                Console.WriteLine($"ScrollToPositionAsync (range) called: ({startLine},{startColumn}) to ({endLine},{endColumn}), length={selectionLength}");
-                
-                if (_webview == null)
-                {
-                    Console.WriteLine("_webview is null");
-                    return;
-                }
-
-                // 先检查 Monaco 是否已经初始化
-                var editorType = await _webview.ExecuteScriptAsync("typeof editor");
-                Console.WriteLine($"editor type: {editorType}");
-                
-                if (editorType == "\"undefined\"")
-                {
-                    Console.WriteLine("Editor not yet initialized, scheduling retry");
-                    await Task.Delay(200);
-                    await ScrollToPositionAsync(startLine, startColumn, endLine, endColumn, selectionLength);
-                    return;
-                }
-
-                // 计算正确的结束列号
-                int actualEndColumn = startColumn + selectionLength;
-                
-                // 直接操作 Monaco Editor API，高亮指定范围
-                var script = $@"
-                    if (editor) {{
-                        console.log('ScrollToPositionAsync (range): ({startLine},{startColumn}) to ({endLine},{actualEndColumn}), length={selectionLength}');
-
-                        var model = editor.getModel();
-                        if (model) {{
-                            var startLineLen = model.getLineLength({startLine});
-                            console.log('Start line length: ' + startLineLen);
-
-                            // 验证列号是否有效
-                            var validStartCol = {startColumn};
-                            var validEndCol = {actualEndColumn};
-                            
-                            // 确保起始列有效
-                            if (validStartCol < 1) {{
-                                validStartCol = 1;
-                            }}
-                            if (validStartCol > startLineLen) {{
-                                validStartCol = startLineLen;
-                            }}
-                            
-                            // 确保结束列有效（不能超过行长度）
-                            if (validEndCol > startLineLen + 1) {{
-                                validEndCol = startLineLen + 1;
-                            }}
-                            
-                            // 如果结束列小于等于起始列，只高亮一个字符
-                            if (validEndCol <= validStartCol) {{
-                                validEndCol = validStartCol + 1;
-                            }}
-
-                            // 滚动到起始位置
-                            editor.revealLine({startLine}, 1);
-                            editor.setPosition(new monaco.Position({startLine}, validStartCol));
-
-                            // 清除之前的高亮
-                            if (typeof window.highlightDecoration !== 'undefined' && window.highlightDecoration) {{
-                                editor.deltaDecorations(window.highlightDecoration, []);
-                                window.highlightDecoration = null;
-                            }}
-
-                            // 应用新的高亮 - 根据选区长度
-                            var highlightRange = new monaco.Range({startLine}, validStartCol, {startLine}, validEndCol);
-                            console.log('Creating decoration with range: (' + {startLine} + ',' + validStartCol + ') to (' + {startLine} + ',' + validEndCol + ')');
-                            window.highlightDecoration = editor.deltaDecorations([], [{{
-                                range: highlightRange,
-                                options: {{
-                                    isWholeLine: false,
-                                    className: 'highlight-char'
-                                }}
-                            }}]);
-
-                            console.log('Decoration applied, ID:', window.highlightDecoration);
-                            'success';
-                        }} else {{
-                            console.log('Model is null');
-                            'model is null';
-                        }}
-                    }} else {{
-                        console.log('Editor is null');
-                        'editor is null';
-                    }}
-                ";
-                Console.WriteLine($"Executing direct API call (range highlight) for ({startLine},{startColumn}) to ({startLine},{actualEndColumn})");
-                var result = await _webview.ExecuteScriptAsync(script);
-                Console.WriteLine($"Script executed, result: {result}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in ScrollToPositionAsync (range): {ex.Message}");
             }
         }
     }
