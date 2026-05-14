@@ -254,7 +254,11 @@ namespace WeaveDoc.MarkdownEditor.Services
                         if (!listMatch.Success)
                             break;
                             
-                        var content = ProcessInlineElementsWithPositions(listMatch.Groups[3].Value, lineNumber);
+                        // 列表项格式: "  - content"，起始列 = 缩进 + 列表符号长度 + 空格
+                        int indentLength = listMatch.Groups[1].Value.Length;
+                        int markerLength = listMatch.Groups[2].Value.Length;
+                        int startCol = indentLength + markerLength + 2;
+                        var content = ProcessInlineElementsWithPositions(listMatch.Groups[3].Value, lineNumber, startCol);
                         result.Append($"<li data-line=\"{lineNumber}\">{content}</li>\n");
                         i++;
                     }
@@ -296,7 +300,8 @@ namespace WeaveDoc.MarkdownEditor.Services
             var blockquoteMatch = BlockquoteRegex.Match(trimmed);
             if (blockquoteMatch.Success)
             {
-                var content = ProcessInlineElementsWithPositions(blockquoteMatch.Groups[1].Value, lineNumber);
+                // 块引用格式: "> content"，起始列 = 3（跳过 "> "）
+                var content = ProcessInlineElementsWithPositions(blockquoteMatch.Groups[1].Value, lineNumber, 3);
                 return $"<blockquote data-line=\"{lineNumber}\">{content}</blockquote>\n";
             }
 
@@ -304,7 +309,8 @@ namespace WeaveDoc.MarkdownEditor.Services
             if (headerMatch.Success)
             {
                 var level = headerMatch.Groups[1].Value.Length;
-                var content = ProcessInlineElementsWithPositions(headerMatch.Groups[2].Value, lineNumber);
+                // 标题格式: "## content"，起始列 = level + 2（跳过 "#" 和空格）
+                var content = ProcessInlineElementsWithPositions(headerMatch.Groups[2].Value, lineNumber, level + 2);
                 return $"<h{level} data-line=\"{lineNumber}\">{content}</h{level}>\n";
             }
 
@@ -318,35 +324,82 @@ namespace WeaveDoc.MarkdownEditor.Services
 
                 var cells = tableMatch.Groups[1].Value.Split('|');
                 var rowHtml = new StringBuilder();
+                int currentCol = 2; // 从 | 之后开始
                 foreach (var cell in cells)
                 {
                     var cellTrimmed = cell.Trim();
-                    if (string.IsNullOrEmpty(cellTrimmed)) continue;
-                    rowHtml.Append($"<td>{ProcessInlineElementsWithPositions(cellTrimmed, lineNumber)}</td>");
+                    if (string.IsNullOrEmpty(cellTrimmed)) 
+                    {
+                        currentCol += cell.Length + 1;
+                        continue;
+                    }
+                    // 找到实际内容的起始位置
+                    int cellStart = line.IndexOf(cellTrimmed, currentCol - 1);
+                    if (cellStart == -1) cellStart = currentCol;
+                    rowHtml.Append($"<td>{ProcessInlineElementsWithPositions(cellTrimmed, lineNumber, cellStart + 1)}</td>");
+                    currentCol = cellStart + cellTrimmed.Length + 1;
                 }
                 return $"<tr data-line=\"{lineNumber}\">{rowHtml}</tr>\n";
             }
 
             if (!string.IsNullOrEmpty(trimmed))
             {
-                var content = ProcessInlineElementsWithPositions(trimmed, lineNumber);
+                // 普通段落：找到第一个非空格字符的位置
+                int firstNonSpace = line.IndexOf(trimmed[0]);
+                if (firstNonSpace == -1) firstNonSpace = 0;
+                var content = ProcessInlineElementsWithPositions(trimmed, lineNumber, firstNonSpace + 1);
                 return $"<p data-line=\"{lineNumber}\">{content}</p>\n";
             }
 
             return string.Empty;
         }
 
-        private string ProcessInlineElementsWithPositions(string text, int lineNumber)
+        private string ProcessInlineElementsWithPositions(string text, int lineNumber, int startColumn = 1)
         {
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
 
-            text = EscapeHtml(text);
-            
             var result = new StringBuilder();
+            int currentColumn = startColumn;
+            
             for (int i = 0; i < text.Length; i++)
             {
-                result.Append($"<span data-pos=\"{lineNumber}-{i + 1}\" onclick=\"handleClick({lineNumber}, {i + 1});\">{text[i]}</span>");
+                char ch = text[i];
+                string escaped;
+                int charWidth;
+                
+                // 根据字符类型确定转义后的字符和宽度
+                switch (ch)
+                {
+                    case '<':
+                        escaped = "&lt;";
+                        charWidth = 4;
+                        break;
+                    case '>':
+                        escaped = "&gt;";
+                        charWidth = 4;
+                        break;
+                    case '&':
+                        escaped = "&amp;";
+                        charWidth = 5;
+                        break;
+                    case '"':
+                        escaped = "&quot;";
+                        charWidth = 6;
+                        break;
+                    case '\'':
+                        escaped = "&#39;";
+                        charWidth = 5;
+                        break;
+                    default:
+                        escaped = ch.ToString();
+                        charWidth = 1;
+                        break;
+                }
+                
+                // 使用原始字符的位置，但输出转义后的内容
+                result.Append($"<span data-pos=\"{lineNumber}-{currentColumn}\">{escaped}</span>");
+                currentColumn++;
             }
             return result.ToString();
         }

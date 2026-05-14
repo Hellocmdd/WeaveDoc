@@ -30,64 +30,248 @@
         #content { min-height: 100%; }
         [data-line] { cursor: pointer; }
         [data-line]:hover { background-color: rgba(0, 102, 214, 0.1); }
-        [data-pos] { cursor: pointer; }
-        .highlight-char { background-color: rgba(255, 193, 7, 0.4) !important; border-radius: 2px; }
+        [data-pos] { 
+            cursor: pointer; 
+            padding: 2px 1px;
+            margin: 0 -1px;
+            border-radius: 2px;
+            background-color: rgba(0, 102, 214, 0.05);
+            border-bottom: 1px solid rgba(0, 102, 214, 0.2);
+        }
+        [data-pos]:hover { 
+            background-color: rgba(255, 193, 7, 0.5); 
+            border-bottom: 1px solid #ffc107; 
+        }
+        .highlight-char { 
+            background-color: rgba(255, 193, 7, 0.7) !important; 
+            border-radius: 2px; 
+            box-shadow: 0 0 4px rgba(255, 193, 7, 0.9);
+        }
     </style>
 </head>
 <body>
+    <button onclick="testSendClick()" style="position: fixed; top: 10px; right: 10px; z-index: 100; padding: 8px 16px; background: #0366d6; color: white; border: none; border-radius: 4px; cursor: pointer;">Test Click</button>
     <div id='content'>Welcome to WeaveDoc Preview</div>
     <script>
+        function sendMessage(msg) {
+            if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
+                console.log('Using chrome.webview.postMessage:', msg);
+                window.chrome.webview.postMessage(msg);
+            } else if (window.external && typeof window.external.invoke === 'function') {
+                console.log('Using external.invoke:', JSON.stringify(msg));
+                window.external.invoke(JSON.stringify(msg));
+            } else {
+                console.log('No message API available');
+            }
+        }
+
+        function testSendClick() {
+            console.log('testSendClick called');
+            sendMessage({ Type: 'debug', Data: 'Test button clicked' });
+            sendMessage({ Type: 'previewClick', Data: JSON.stringify({ line: 5, column: 5 }) });
+        }
+
         window.updateContent = function(html) {
             var contentDiv = document.getElementById('content');
             if (contentDiv) {
+                console.log('Updating content, html length:', html.length);
+                console.log('HTML preview (first 200 chars):', html.substring(0, 200));
                 contentDiv.innerHTML = html;
+
                 var posElements = contentDiv.querySelectorAll('[data-pos]');
-                for (var i = 0; i < posElements.length; i++) {
-                    posElements[i].addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        var posAttr = this.getAttribute('data-pos');
-                        if (posAttr) {
-                            var parts = posAttr.split('-');
-                            var lineNumber = parseInt(parts[0], 10) || 1;
-                            var colNumber = parseInt(parts[1], 10) || 1;
-                            clearHighlight();
-                            sendClickMessage(lineNumber, colNumber);
-                        }
-                    });
+                console.log('Found', posElements.length, 'data-pos elements');
+                sendMessage({ Type: 'debug', Data: 'Found ' + posElements.length + ' data-pos elements' });
+                
+                // 输出前几个 data-pos 元素的属性
+                for (var i = 0; i < Math.min(5, posElements.length); i++) {
+                    var el = posElements[i];
+                    console.log('data-pos element', i, ':', el.getAttribute('data-pos'), 'text:', el.textContent);
+                    sendMessage({ Type: 'debug', Data: 'data-pos[' + i + ']=' + el.getAttribute('data-pos') + ' text=' + el.textContent });
                 }
+                
+                // 添加点击事件到每个 data-pos 元素
+                posElements.forEach(function(el) {
+                    el.addEventListener('click', function(e) {
+                        var pos = el.getAttribute('data-pos');
+                        console.log('data-pos element clicked:', pos);
+                        sendMessage({ Type: 'debug', Data: 'Direct click on data-pos: ' + pos });
+                    });
+                });
             }
         };
 
-        document.addEventListener('click', function(e) {
-            var target = e.target;
-            while (target && target !== document.body) {
-                if (target.hasAttribute && target.hasAttribute('data-pos')) {
-                    var posAttr = target.getAttribute('data-pos');
-                    if (posAttr) {
-                        var parts = posAttr.split('-');
-                        var lineNumber = parseInt(parts[0], 10) || 1;
-                        var colNumber = parseInt(parts[1], 10) || 1;
-                        sendClickMessage(lineNumber, colNumber);
+        // 获取选区的起始和结束位置
+        function getSelectionPositions() {
+            var selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) {
+                return null;
+            }
+            
+            var range = selection.getRangeAt(0);
+            
+            // 获取选区文本
+            var selectedText = range.toString();
+            if (!selectedText || selectedText.trim() === '') {
+                return null;
+            }
+            
+            var startContainer = range.startContainer;
+            var endContainer = range.endContainer;
+            
+            // 找到起始位置的 data-pos 元素
+            var startPos = null;
+            var startEl = startContainer;
+            while (startEl && startEl.nodeType === Node.TEXT_NODE) {
+                startEl = startEl.parentElement;
+            }
+            if (startEl && startEl.hasAttribute('data-pos')) {
+                startPos = startEl.getAttribute('data-pos');
+            }
+            
+            // 找到结束位置的 data-pos 元素（需要考虑选区跨越多个字符）
+            var endPos = null;
+            
+            // 如果选区只包含一个字符
+            if (selectedText.length === 1) {
+                endPos = startPos;
+            } else {
+                // 遍历选区覆盖的所有元素来找到结束位置
+                var allPosElements = document.querySelectorAll('[data-pos]');
+                var foundStart = false;
+                var charCount = 0;
+                
+                for (var i = 0; i < allPosElements.length; i++) {
+                    var el = allPosElements[i];
+                    var elText = el.textContent || '';
+                    
+                    if (foundStart) {
+                        charCount += elText.length;
+                        if (charCount >= selectedText.length) {
+                            endPos = el.getAttribute('data-pos');
+                            break;
+                        }
                     }
-                    return;
+                    
+                    if (el === startEl) {
+                        foundStart = true;
+                        charCount += elText.length;
+                    }
                 }
-                if (target.hasAttribute && target.hasAttribute('data-line')) {
-                    var lineNumber = parseInt(target.getAttribute('data-line'), 10) || 1;
-                    sendClickMessage(lineNumber, 1);
-                    return;
+                
+                // 如果没找到，使用起始位置作为结束位置
+                if (!endPos) {
+                    endPos = startPos;
                 }
-                target = target.parentNode;
             }
-        }, true);
-
-        function sendClickMessage(line, column) {
-            var clickData = JSON.stringify({ Type: 'previewClick', Data: JSON.stringify({ line: line, column: column }) });
-            if (window.external && typeof window.external.invoke === 'function') {
-                window.external.invoke(clickData);
-            } else if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
-                window.chrome.webview.postMessage({ Type: 'previewClick', Data: JSON.stringify({ line: line, column: column }) });
-            }
+            
+            return { start: startPos, end: endPos, length: selectedText.length };
         }
+        
+        // 跟踪是否有活跃的选区
+        var hasActiveSelection = false;
+        
+        // 标记是否刚刚完成选区操作（用于防止点击事件覆盖选区）
+        var justSelected = false;
+        
+        // 文本选择事件监听器
+        document.addEventListener('mouseup', function(e) {
+            var selection = getSelectionPositions();
+            if (selection && selection.start) {
+                console.log('Selection detected:', selection);
+                sendMessage({ Type: 'debug', Data: 'Selection: ' + JSON.stringify(selection) });
+                
+                // 标记有活跃的选区
+                hasActiveSelection = true;
+                // 标记刚刚完成选区操作
+                justSelected = true;
+                
+                // 延迟清除标记
+                setTimeout(function() {
+                    justSelected = false;
+                }, 200);
+                
+                var startParts = selection.start.split('-');
+                var endParts = selection.end ? selection.end.split('-') : startParts;
+                
+                var data = {
+                    startLine: parseInt(startParts[0], 10) || 1,
+                    startColumn: parseInt(startParts[1], 10) || 1,
+                    endLine: parseInt(endParts[0], 10) || 1,
+                    endColumn: parseInt(endParts[1], 10) || 1,
+                    length: selection.length || 1
+                };
+                
+                sendMessage({ Type: 'previewSelection', Data: JSON.stringify(data) });
+            }
+        });
+        
+        // 全局点击事件监听器
+        document.addEventListener('click', function(e) {
+            console.log('Document click event triggered');
+            sendMessage({ Type: 'debug', Data: 'Document click triggered' });
+            
+            // 检查是否有活跃的文本选区
+            var currentSelection = window.getSelection();
+            var hasSelection = currentSelection && currentSelection.toString().trim() !== '';
+            
+            // 如果有活跃的选区，并且不是点击在选区外部，则忽略本次点击事件
+            if (hasActiveSelection && hasSelection) {
+                console.log('Ignoring click because there is an active selection');
+                return;
+            }
+            
+            var target = e.target;
+            console.log('Click target:', target.tagName, target.className, target.id);
+            
+            // 检查是否点击了 data-pos 元素
+            var posElement = target.closest('[data-pos]');
+            if (posElement) {
+                var posAttr = posElement.getAttribute('data-pos');
+                console.log('Found data-pos element:', posAttr);
+                sendMessage({ Type: 'debug', Data: 'Found data-pos: ' + posAttr });
+                
+                if (posAttr) {
+                    var parts = posAttr.split('-');
+                    var lineNumber = parseInt(parts[0], 10) || 1;
+                    var colNumber = parseInt(parts[1], 10) || 1;
+                    
+                    // 检查是否有活跃的选区，如果有则清除它
+                    if (hasActiveSelection) {
+                        var selection = window.getSelection();
+                        if (selection) {
+                            selection.removeAllRanges();
+                        }
+                        hasActiveSelection = false;
+                    }
+                    
+                    sendMessage({ Type: 'debug', Data: 'Sending previewClick: line=' + lineNumber + ', column=' + colNumber });
+                    sendMessage({ Type: 'previewClick', Data: JSON.stringify({ line: lineNumber, column: colNumber, endLine: lineNumber, endColumn: colNumber + 1 }) });
+                    return;
+                }
+            }
+            
+            // 检查是否点击了 data-line 元素
+            var lineElement = target.closest('[data-line]');
+            if (lineElement) {
+                var lineNumber = parseInt(lineElement.getAttribute('data-line'), 10) || 1;
+                console.log('Found data-line element:', lineNumber);
+                sendMessage({ Type: 'debug', Data: 'Found data-line: ' + lineNumber });
+                
+                // 检查是否有活跃的选区，如果有则清除它
+                if (hasActiveSelection) {
+                    var selection = window.getSelection();
+                    if (selection) {
+                        selection.removeAllRanges();
+                    }
+                    hasActiveSelection = false;
+                }
+                
+                sendMessage({ Type: 'previewClick', Data: JSON.stringify({ line: lineNumber, column: 1 }) });
+                return;
+            }
+            
+            sendMessage({ Type: 'debug', Data: 'No data-pos or data-line found in click path' });
+        }, true);
 
         function clearHighlight() {
             var highlighted = document.querySelectorAll('.highlight-char');
@@ -145,10 +329,7 @@
         };
 
         window.addEventListener('load', function() {
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage({ Type: 'previewLoaded', Data: 'loaded' });
-                window.chrome.webview.postMessage({ Type: 'previewClick', Data: JSON.stringify({ line: 1, column: 1 }) });
-            }
+            sendMessage({ Type: 'previewLoaded', Data: 'loaded' });
         });
     </script>
 </body>

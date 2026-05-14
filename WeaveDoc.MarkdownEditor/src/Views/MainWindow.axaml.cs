@@ -15,6 +15,7 @@ namespace WeaveDoc.MarkdownEditor.Views
         private MonacoEditorControl? _monacoEditor;
         private PreviewWebViewControl? _previewWebView;
         private bool _isMonacoReady = false;
+        private (int line, int column)? _pendingScrollRequest = null;
 
         public MainWindow()
         {
@@ -207,10 +208,19 @@ namespace WeaveDoc.MarkdownEditor.Views
             }
         }
 
-        public void SetMonacoReady(bool ready)
+        public async void SetMonacoReady(bool ready)
         {
             _isMonacoReady = ready;
             Console.WriteLine($"Monaco Editor ready: {ready}");
+            
+            // 如果编辑器准备好了并且有待处理的滚动请求，执行它
+            if (ready && _pendingScrollRequest.HasValue && _monacoEditor != null)
+            {
+                var request = _pendingScrollRequest.Value;
+                _pendingScrollRequest = null;
+                Console.WriteLine($"Executing pending scroll request: line={request.line}, column={request.column}");
+                await _monacoEditor.ScrollToPositionAsync(request.line, request.column);
+            }
         }
 
         public async void ScrollEditorToPosition(int lineNumber, int column)
@@ -225,7 +235,30 @@ namespace WeaveDoc.MarkdownEditor.Views
             }
             else if (!_isMonacoReady)
             {
-                Console.WriteLine("Monaco Editor not ready yet, ignoring scroll request");
+                Console.WriteLine("Monaco Editor not ready yet, caching scroll request");
+                _pendingScrollRequest = (lineNumber, column);
+            }
+        }
+
+        public void ScrollEditorToPositionWithRange(int startLine, int startColumn, int endLine, int endColumn)
+        {
+            ScrollEditorToPositionWithRange(startLine, startColumn, endLine, endColumn, 1);
+        }
+
+        public async void ScrollEditorToPositionWithRange(int startLine, int startColumn, int endLine, int endColumn, int selectionLength)
+        {
+            Console.WriteLine($"ScrollEditorToPositionWithRange called: ({startLine},{startColumn}) to ({endLine},{endColumn}), length={selectionLength}");
+            Console.WriteLine($"_monacoEditor is null: {_monacoEditor == null}");
+            Console.WriteLine($"_isMonacoReady: {_isMonacoReady}");
+            
+            if (_monacoEditor != null && _isMonacoReady)
+            {
+                await _monacoEditor.ScrollToPositionAsync(startLine, startColumn, endLine, endColumn, selectionLength);
+            }
+            else if (!_isMonacoReady)
+            {
+                Console.WriteLine("Monaco Editor not ready yet, caching scroll request");
+                _pendingScrollRequest = (startLine, startColumn);
             }
         }
     }

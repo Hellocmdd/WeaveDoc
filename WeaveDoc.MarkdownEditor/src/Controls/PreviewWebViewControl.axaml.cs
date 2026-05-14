@@ -12,6 +12,27 @@ using WeaveDoc.MarkdownEditor.Views;
 
 namespace WeaveDoc.MarkdownEditor.Controls
 {
+    public class WeaveDocHost
+    {
+        private readonly PreviewWebViewControl _control;
+
+        public WeaveDocHost(PreviewWebViewControl control)
+        {
+            _control = control;
+        }
+
+        public void OnPreviewClick(int line, int column)
+        {
+            Console.WriteLine($"WeaveDocHost.OnPreviewClick: line={line}, column={column}");
+            _control.HandlePreviewClick(line, column);
+        }
+
+        public void OnDebug(string message)
+        {
+            Console.WriteLine($"WeaveDocHost Debug: {message}");
+        }
+    }
+
     public partial class PreviewWebViewControl : UserControl
     {
         private CoreWebView2? _webview;
@@ -113,6 +134,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _webview.Settings.AreDefaultContextMenusEnabled = true;
                 _webview.Settings.IsZoomControlEnabled = true;
 
+                // 注册 C# 对象供 JavaScript 调用
+                _webview.AddHostObjectToScript("weaveDocHost", new WeaveDocHost(this));
+
                 var htmlPath = Path.Combine(AppContext.BaseDirectory, "Assets", "preview-template.html");
                 var html = File.ReadAllText(htmlPath);
                 _webview.NavigateToString(html);
@@ -131,11 +155,49 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 UpdateControllerBounds();
 
+                // 执行测试脚本检查 JavaScript 环境
+                TestJavaScriptEnvironment();
+
                 if (!string.IsNullOrEmpty(_pendingContent))
                 {
                     UpdatePreview(_pendingContent);
                     _pendingContent = string.Empty;
                 }
+            }
+        }
+
+        private async void TestJavaScriptEnvironment()
+        {
+            try
+            {
+                // 检查 window.weaveDocHost 是否存在
+                var checkWeaveDocHost = await _webview.ExecuteScriptAsync("typeof window.weaveDocHost !== 'undefined'");
+                Console.WriteLine($"window.weaveDocHost exists: {checkWeaveDocHost}");
+
+                // 检查 window.external 是否存在
+                var checkExternal = await _webview.ExecuteScriptAsync("typeof window.external !== 'undefined'");
+                Console.WriteLine($"window.external exists: {checkExternal}");
+
+                // 检查 window.chrome.webview 是否存在
+                var checkChrome = await _webview.ExecuteScriptAsync("typeof window.chrome !== 'undefined' && typeof window.chrome.webview !== 'undefined'");
+                Console.WriteLine($"window.chrome.webview exists: {checkChrome}");
+
+                // 发送测试消息
+                var testResult = await _webview.ExecuteScriptAsync(@"
+                    (function() {
+                        var result = {
+                            weaveDocHost: typeof window.weaveDocHost !== 'undefined',
+                            external: typeof window.external !== 'undefined',
+                            chromeWebview: typeof window.chrome !== 'undefined' && typeof window.chrome.webview !== 'undefined'
+                        };
+                        return JSON.stringify(result);
+                    })();
+                ");
+                Console.WriteLine($"JavaScript environment test result: {testResult}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"TestJavaScriptEnvironment exception: {ex.Message}");
             }
         }
 
@@ -164,7 +226,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     msgData = dataProp.GetString();
                 }
 
-                if (msgType == "previewClick" && msgData != null)
+                if (msgType == "debug" && msgData != null)
+                {
+                    Console.WriteLine($"PreviewWebViewControl: DEBUG - {msgData}");
+                }
+                else if (msgType == "previewClick" && msgData != null)
                 {
                     Console.WriteLine($"PreviewWebViewControl: Received previewClick message");
                     try
@@ -174,6 +240,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                         int clickedLine = 1;
                         int clickedColumn = 1;
+                        int endLine = 1;
+                        int endColumn = 1;
                         if (root.TryGetProperty("line", out var lineProp))
                         {
                             clickedLine = lineProp.GetInt32();
@@ -182,16 +250,77 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         {
                             clickedColumn = colProp.GetInt32();
                         }
+                        if (root.TryGetProperty("endLine", out var endLineProp))
+                        {
+                            endLine = endLineProp.GetInt32();
+                        }
+                        if (root.TryGetProperty("endColumn", out var endColProp))
+                        {
+                            endColumn = endColProp.GetInt32();
+                        }
 
-                        Console.WriteLine($"PreviewWebViewControl: line={clickedLine}, column={clickedColumn}");
+                        Console.WriteLine($"PreviewWebViewControl: line={clickedLine}, column={clickedColumn}, endLine={endLine}, endColumn={endColumn}");
 
                         var rootWindow = this.VisualRoot as Window;
                         Console.WriteLine($"PreviewWebViewControl: rootWindow is null: {rootWindow == null}");
+
+                        if (rootWindow is MainWindow mainWindow)
+                        {
+                            Console.WriteLine($"PreviewWebViewControl: Calling ScrollEditorToPositionWithRange");
+                            mainWindow.ScrollEditorToPositionWithRange(clickedLine, clickedColumn, endLine, endColumn);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"PreviewWebViewControl: Could not cast to MainWindow");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"PreviewWebViewControl: Error processing previewClick: {ex.Message}");
+                    }
+                }
+                else if (msgType == "previewSelection" && msgData != null)
+                {
+                    Console.WriteLine($"PreviewWebViewControl: Received previewSelection message");
+                    try
+                    {
+                        var selectionData = System.Text.Json.JsonDocument.Parse(msgData);
+                        var root = selectionData.RootElement;
+
+                        int startLine = 1;
+                        int startColumn = 1;
+                        int endLine = 1;
+                        int endColumn = 1;
+                        int selectionLength = 1;
+                        if (root.TryGetProperty("startLine", out var startLineProp))
+                        {
+                            startLine = startLineProp.GetInt32();
+                        }
+                        if (root.TryGetProperty("startColumn", out var startColProp))
+                        {
+                            startColumn = startColProp.GetInt32();
+                        }
+                        if (root.TryGetProperty("endLine", out var endLineProp))
+                        {
+                            endLine = endLineProp.GetInt32();
+                        }
+                        if (root.TryGetProperty("endColumn", out var endColProp))
+                        {
+                            endColumn = endColProp.GetInt32();
+                        }
+                        if (root.TryGetProperty("length", out var lengthProp))
+                        {
+                            selectionLength = lengthProp.GetInt32();
+                        }
+
+                        Console.WriteLine($"PreviewWebViewControl: Selection range: ({startLine},{startColumn}) to ({endLine},{endColumn}), length={selectionLength}");
+
+                        var rootWindow = this.VisualRoot as Window;
                         Console.WriteLine($"PreviewWebViewControl: rootWindow is MainWindow: {rootWindow is MainWindow}");
                         
                         if (rootWindow is MainWindow mainWindow)
                         {
-                            mainWindow.ScrollEditorToPosition(clickedLine, clickedColumn);
+                            mainWindow.ScrollEditorToPositionWithRange(startLine, startColumn, endLine, endColumn, selectionLength);
                         }
                     }
                     catch (Exception ex)
@@ -229,6 +358,27 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var script = $"window.updateContent({System.Text.Json.JsonSerializer.Serialize(content)});";
                 Console.WriteLine($"Executing script: {script.Substring(0, Math.Min(100, script.Length))}...");
 
+                // 检查内容是否包含 data-pos 属性
+                if (content.Contains("data-pos"))
+                {
+                    Console.WriteLine("HTML content contains data-pos attributes");
+                    // 检查是否包含 onclick 属性
+                    if (content.Contains("onclick"))
+                    {
+                        Console.WriteLine("HTML content contains onclick attributes");
+                    }
+                    else
+                    {
+                        Console.WriteLine("WARNING: HTML content does NOT contain onclick attributes");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("WARNING: HTML content does NOT contain data-pos attributes");
+                    // 输出前200个字符来检查内容
+                    Console.WriteLine("Content preview: " + content.Substring(0, Math.Min(200, content.Length)));
+                }
+                
                 await _webview.ExecuteScriptAsync(script);
                 Console.WriteLine("Script executed successfully");
             }
@@ -236,6 +386,17 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 Console.WriteLine($"UpdatePreview exception: {ex.Message}");
                 Logger.LogException(ex);
+            }
+        }
+
+        public void HandlePreviewClick(int line, int column)
+        {
+            Console.WriteLine($"PreviewWebViewControl: HandlePreviewClick line={line}, column={column}");
+
+            var rootWindow = this.VisualRoot as Window;
+            if (rootWindow is MainWindow mainWindow)
+            {
+                mainWindow.ScrollEditorToPosition(line, column);
             }
         }
 

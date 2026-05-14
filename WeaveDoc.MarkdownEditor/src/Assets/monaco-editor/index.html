@@ -24,6 +24,10 @@
         .highlight-line-gutter {
             background-color: rgba(255, 193, 7, 0.2) !important;
         }
+        .highlight-char {
+            background-color: rgba(255, 193, 7, 0.5) !important;
+            border-radius: 2px;
+        }
     </style>
     <script src="min/vs/loader.js"></script>
 </head>
@@ -69,7 +73,7 @@
                         editor.deltaDecorations(highlightDecoration, []);
                         highlightDecoration = null;
                     }
-                    
+
                     if (lineNumber > 0 && editor) {
                         highlightDecoration = editor.deltaDecorations([], [{
                             range: new monaco.Range(lineNumber, 1, lineNumber, 1),
@@ -81,6 +85,44 @@
                         }]);
                     }
                 } catch (e) {
+                }
+            }
+
+            function highlightChar(lineNumber, column) {
+                try {
+                    console.log('highlightChar called: line=' + lineNumber + ', column=' + column);
+                    
+                    if (highlightDecoration) {
+                        editor.deltaDecorations(highlightDecoration, []);
+                        highlightDecoration = null;
+                    }
+
+                    if (lineNumber > 0 && editor) {
+                        var model = editor.getModel();
+                        if (model) {
+                            var lineCount = model.getLineCount();
+                            console.log('Model line count:', lineCount);
+                            var lineLength = model.getLineLength(lineNumber);
+                            console.log('Line ' + lineNumber + ' length:', lineLength);
+                            
+                            if (column > lineLength) {
+                                column = lineLength;
+                                console.log('Adjusted column to:', column);
+                            }
+                        }
+                        
+                        highlightDecoration = editor.deltaDecorations([], [{
+                            range: new monaco.Range(lineNumber, column, lineNumber, column + 1),
+                            options: {
+                                isWholeLine: false,
+                                className: 'highlight-char',
+                                hoverMessage: { value: 'Position: line ' + lineNumber + ', column ' + column }
+                            }
+                        }]);
+                        console.log('Decoration applied, highlightDecoration:', highlightDecoration);
+                    }
+                } catch (e) {
+                    console.error('Error in highlightChar:', e);
                 }
             }
 
@@ -174,16 +216,32 @@
 
             window.scrollToPosition = function(lineNumber, column) {
                 try {
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'scrollToPosition called: line=' + lineNumber + ', column=' + column });
+                    }
                     if (!editor) {
+                        if (window.chrome && window.chrome.webview) {
+                            window.chrome.webview.postMessage({ Type: 'debug', Data: 'editor is null' });
+                        }
                         return 'editor is null';
+                    }
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'editor found, revealing line' });
                     }
                     editor.revealLine(lineNumber, 1);
                     editor.setPosition(new monaco.Position(lineNumber, column));
-                    setTimeout(function() {
-                        highlightLine(lineNumber);
-                    }, 50);
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'calling highlightChar' });
+                    }
+                    highlightChar(lineNumber, column);
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'highlightChar called' });
+                    }
                     return 'success: line=' + lineNumber + ', column=' + column;
                 } catch (e) {
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'Error in scrollToPosition: ' + e.message });
+                    }
                     return 'error: ' + e.message;
                 }
             };
