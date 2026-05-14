@@ -279,6 +279,14 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 try
                 {
+                    if (_webview == null)
+                    {
+                        Console.WriteLine("_webview is null in WaitForMonacoReadyAsync");
+                        await Task.Delay(100);
+                        attempts++;
+                        continue;
+                    }
+                    
                     // 只检查 editor 对象是否存在（scrollToPosition 在 require 回调内部定义，不在全局作用域）
                     var editorResult = await _webview.ExecuteScriptAsync("typeof editor");
                     

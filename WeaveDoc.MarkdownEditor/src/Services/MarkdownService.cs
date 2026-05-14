@@ -9,16 +9,20 @@ namespace WeaveDoc.MarkdownEditor.Services
     {
         private static readonly Regex HeaderRegex = new Regex(@"^(#{1,6})\s+(.+)$", RegexOptions.Multiline);
         private static readonly Regex ListItemRegex = new Regex(@"^(\s*)([-*]|\d+\.)\s+(.+)$", RegexOptions.Multiline);
+        private static readonly Regex TaskListItemRegex = new Regex(@"^(\s*)([-*])\s+\[([ xX])\]\s+(.+)$", RegexOptions.Multiline);
         private static readonly Regex BlockquoteRegex = new Regex(@"^>\s*(.+)$", RegexOptions.Multiline);
         private static readonly Regex CodeBlockRegex = new Regex(@"^```(\w*)$", RegexOptions.Multiline);
         private static readonly Regex BoldItalicRegex = new Regex(@"^\*\*\*(.+?)\*\*\*$");
         private static readonly Regex BoldRegex = new Regex(@"^\*\*(.+?)\*\*$");
         private static readonly Regex ItalicRegex = new Regex(@"^\*(.+?)\*$");
+        private static readonly Regex StrikethroughRegex = new Regex(@"~~(.+?)~~");
         private static readonly Regex InlineCodeRegex = new Regex(@"`([^`]+)`");
         private static readonly Regex LinkRegex = new Regex(@"\[([^\]]+)\]\(([^\)]+)\)");
         private static readonly Regex ImageRegex = new Regex(@"!\[([^\]]*)\]\(([^\)]+)\)");
-        private static readonly Regex HrRegex = new Regex(@"^---+$", RegexOptions.Multiline);
+        private static readonly Regex HrRegex = new Regex(@"^---+$|^\*\*\*+$|^___+$", RegexOptions.Multiline);
         private static readonly Regex TableRowRegex = new Regex(@"^\|(.+)\|$");
+        private static readonly Regex FootnoteRegex = new Regex(@"\[\^(\d+)\]:\s*(.+)$", RegexOptions.Multiline);
+        private static readonly Regex FootnoteRefRegex = new Regex(@"\[\^(\d+)\]");
 
         public string ConvertMarkdownToHtml(string markdown)
         {
@@ -174,11 +178,12 @@ namespace WeaveDoc.MarkdownEditor.Services
             text = EscapeHtml(text);
 
             text = InlineCodeRegex.Replace(text, "<code>$1</code>");
-            text = LinkRegex.Replace(text, "<a href=\"$2\" target=\"_blank\">$1</a>");
+            text = StrikethroughRegex.Replace(text, "<del>$1</del>");
+            text = LinkRegex.Replace(text, "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>");
             text = ImageRegex.Replace(text, "<img src=\"$2\" alt=\"$1\" />");
-            text = text.Replace("***", "<strong><em>");
-            text = text.Replace("**", "<strong>");
-            text = text.Replace("*", "<em>");
+            text = FootnoteRefRegex.Replace(text, "<sup id=\"fnref:$1\"><a href=\"#fn:$1\" class=\"footnote-ref\">$1</a></sup>");
+            text = text.Replace("***", "<strong><em>").Replace("**", "<strong>").Replace("*", "<em>");
+            text = text.Replace("___", "<strong><em>").Replace("__", "<strong>").Replace("_", "<em>");
 
             return text;
         }
@@ -359,13 +364,80 @@ namespace WeaveDoc.MarkdownEditor.Services
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
 
-            text = EscapeHtml(text);
-            
             var result = new StringBuilder();
-            for (int i = 0; i < text.Length; i++)
+            int currentColumn = startColumn;
+            
+            int i = 0;
+            while (i < text.Length)
             {
-                result.Append($"<span data-pos=\"{lineNumber}-{startColumn + i}\">{text[i]}</span>");
+                char currentChar = text[i];
+                
+                // 处理转义字符
+                if (currentChar == '\\' && i + 1 < text.Length)
+                {
+                    char nextChar = text[i + 1];
+                    string escapedChar;
+                    
+                    switch (nextChar)
+                    {
+                        case '\\': escapedChar = "\\"; break;
+                        case '`': escapedChar = "`"; break;
+                        case '*': escapedChar = "*"; break;
+                        case '_': escapedChar = "_"; break;
+                        case '{': escapedChar = "{"; break;
+                        case '}': escapedChar = "}"; break;
+                        case '[': escapedChar = "["; break;
+                        case ']': escapedChar = "]"; break;
+                        case '(': escapedChar = "("; break;
+                        case ')': escapedChar = ")"; break;
+                        case '#': escapedChar = "#"; break;
+                        case '+': escapedChar = "+"; break;
+                        case '-': escapedChar = "-"; break;
+                        case '.': escapedChar = "."; break;
+                        case '!': escapedChar = "!"; break;
+                        case '<': escapedChar = "&lt;"; break;
+                        case '>': escapedChar = "&gt;"; break;
+                        case '&': escapedChar = "&amp;"; break;
+                        default: 
+                            escapedChar = "\\" + nextChar; 
+                            break;
+                    }
+                    
+                    result.Append($"<span data-pos=\"{lineNumber}-{currentColumn}\">{escapedChar}</span>");
+                    currentColumn++;
+                    i += 2;
+                    continue;
+                }
+                
+                // 处理特殊 HTML 字符
+                string outputChar;
+                switch (currentChar)
+                {
+                    case '<':
+                        outputChar = "&lt;";
+                        break;
+                    case '>':
+                        outputChar = "&gt;";
+                        break;
+                    case '&':
+                        outputChar = "&amp;";
+                        break;
+                    case '"':
+                        outputChar = "&quot;";
+                        break;
+                    case '\'':
+                        outputChar = "&#39;";
+                        break;
+                    default:
+                        outputChar = currentChar.ToString();
+                        break;
+                }
+                
+                result.Append($"<span data-pos=\"{lineNumber}-{currentColumn}\">{outputChar}</span>");
+                currentColumn++;
+                i++;
             }
+            
             return result.ToString();
         }
 
@@ -374,16 +446,44 @@ namespace WeaveDoc.MarkdownEditor.Services
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
 
-            return text
-                .Replace("&", "&amp;")
-                .Replace("<", "&lt;")
-                .Replace(">", "&gt;")
-                .Replace("\"", "&quot;")
-                .Replace("'", "&#39;");
+            var sb = new StringBuilder(text.Length);
+            foreach (char c in text)
+            {
+                switch (c)
+                {
+                    case '&':
+                        sb.Append("&amp;");
+                        break;
+                    case '<':
+                        sb.Append("&lt;");
+                        break;
+                    case '>':
+                        sb.Append("&gt;");
+                        break;
+                    case '"':
+                        sb.Append("&quot;");
+                        break;
+                    case '\'':
+                        sb.Append("&#39;");
+                        break;
+                    case '\\':
+                        // 保留转义字符，让后续处理逻辑处理
+                        sb.Append(c);
+                        break;
+                    default:
+                        // 保留所有其他字符，包括 emoji 和 Unicode 字符
+                        sb.Append(c);
+                        break;
+                }
+            }
+            return sb.ToString();
         }
 
         public string ConvertToHtml(string markdown)
         {
+            if (markdown == null)
+                throw new ArgumentNullException(nameof(markdown));
+            
             return ConvertMarkdownToHtml(markdown);
         }
     }

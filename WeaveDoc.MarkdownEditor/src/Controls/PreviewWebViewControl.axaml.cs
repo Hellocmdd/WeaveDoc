@@ -170,6 +170,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             try
             {
+                if (_webview == null)
+                {
+                    Console.WriteLine("_webview is null in TestJavaScriptEnvironment");
+                    return;
+                }
+                
                 // 检查 window.weaveDocHost 是否存在
                 var checkWeaveDocHost = await _webview.ExecuteScriptAsync("typeof window.weaveDocHost !== 'undefined'");
                 Console.WriteLine($"window.weaveDocHost exists: {checkWeaveDocHost}");

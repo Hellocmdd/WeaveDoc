@@ -66,6 +66,7 @@ namespace WeaveDoc.MarkdownEditor.Views
 
         public async Task OpenMarkdownFileAsync()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             var dialog = new OpenFileDialog
             {
                 Title = "打开 Markdown 文件",
@@ -85,6 +86,7 @@ namespace WeaveDoc.MarkdownEditor.Views
                     vm.OpenFile(filePath);
                 }
             }
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private async void OpenFile_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -106,6 +108,7 @@ namespace WeaveDoc.MarkdownEditor.Views
 
         public async Task SaveMarkdownFileAsAsync()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             var dialog = new SaveFileDialog
             {
                 Title = "保存 Markdown 文件",
@@ -125,6 +128,7 @@ namespace WeaveDoc.MarkdownEditor.Views
                     vm.SaveFile(result);
                 }
             }
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private async void SaveFile_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)

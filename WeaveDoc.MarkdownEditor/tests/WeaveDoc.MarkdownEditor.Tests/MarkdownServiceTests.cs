@@ -20,7 +20,7 @@ namespace WeaveDoc.MarkdownEditor.Tests
         {
             // Arrange
             var markdown = "# Heading\n\nThis is a paragraph.";
-            var expectedHtml = "<h1>Heading</h1>\n<p>This is a paragraph.</p>";
+            var expectedHtml = "<h1 data-line=\"1\">Heading</h1>\n<p data-line=\"2\">&nbsp;</p>\n<p data-line=\"3\">This is a paragraph.</p>\n";
 
             // Act
             var result = _markdownService.ConvertToHtml(markdown);
