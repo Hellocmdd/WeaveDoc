@@ -15,6 +15,7 @@
 .idea/
 *.user
 *.suo
+*.csproj.lscache
 
 # OS
 Thumbs.db
