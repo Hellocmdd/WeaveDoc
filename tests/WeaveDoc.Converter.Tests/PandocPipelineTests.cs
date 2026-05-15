@@ -1115,6 +1115,36 @@ public class PandocPipelineTests
     }
 
     [Fact]
+    public async Task ToDocxAsync_TextCircledMath_ProducesCircledNumberText()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown(
+            "特点： $ \\textcircled{1} $非接触测量；$\\textcircled{2}$长期稳定；引用 $ ^{\\textcircled{3}} $。\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"circled-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+            Assert.True(File.Exists(docxPath));
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var bodyText = doc.MainDocumentPart!.Document.Body!.InnerText;
+            using var reader = new StreamReader(doc.MainDocumentPart.GetStream());
+            var documentXml = await reader.ReadToEndAsync();
+
+            Assert.Contains("①非接触测量", bodyText);
+            Assert.Contains("②长期稳定", bodyText);
+            Assert.Contains("③", bodyText);
+            Assert.DoesNotContain("textcircled", documentXml);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
     public async Task DocumentConversionEngine_CodeBlock_ProducesDocxWithContent()
     {
         var root = FindSolutionRoot();

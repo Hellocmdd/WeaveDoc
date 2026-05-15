@@ -2,7 +2,7 @@
 
 WeaveDoc.Converter 的单元测试和集成测试项目，覆盖 AFD 模板解析、样式映射、Pandoc 管道、配置管理、BibTeX 解析和端到端转换。
 
-> **共 94 个测试，全部通过**
+> **共 95 个测试，全部通过**
 
 ## 技术栈
 
@@ -31,7 +31,7 @@ WeaveDoc.Converter.Tests/
 |--------|------|------|------|
 | AfdParserTests | 13 | 单元测试 | JSON 解析、文件解析、模板验证、异常处理、三模板解析验证 |
 | AfdStyleMapperTests | 4 | 单元测试 | AFD↔OpenXML 双向映射（`[Theory]` + `[InlineData]` 参数化，覆盖 14 个已知键 + 异常/null） |
-| PandocPipelineTests | 23 | 集成测试 | Pandoc CLI 调用、Markdown 公式预处理、错误信息格式化、reference.docx 生成、样式定义写入、冗余内联清除、页眉页脚、DOCX→PDF、3 模板端到端 |
+| PandocPipelineTests | 24 | 集成测试 | Pandoc CLI 调用、Markdown 公式预处理、错误信息格式化、reference.docx 生成、样式定义写入、冗余内联清除、页眉页脚、DOCX→PDF、3 模板端到端 |
 | ConfigManagerTests | 8 | 单元测试 | 模板 CRUD、种子模板发现、幂等性 |
 | BibtexParserTests | 10 | 单元测试 | 基础解析、多条目、嵌套括号、缩写展开、引号值、注释跳过、畸形容错 |
 | PdfConverterSelectionTests | 7 | 单元测试 | Word/LibreOffice/Syncfusion 检测和 PDF 引擎优先级选择 |
@@ -88,6 +88,7 @@ WeaveDoc.Converter.Tests/
 | `ToDocxAsync_Blockquote_AppliesBlockquoteStyle` | Lua Filter 注入 Blockquote 样式 |
 | `ToDocxAsync_CodeBlock_AppliesCodeBlockStyle` | Lua Filter 注入 CodeBlock 样式 |
 | `ToDocxAsync_SpacedDollarMath_ProducesWordMath` | `$ ... $` 内侧带空格的公式可转换为 Word 原生公式，行内代码不被误处理 |
+| `ToDocxAsync_TextCircledMath_ProducesCircledNumberText` | `\textcircled{1}` 这类圈号序号公式转换为 Unicode 圈号数字 |
 
 ### PdfConverterSelectionTests（7 个）
 
@@ -134,7 +135,7 @@ WeaveDoc.Converter.Tests/
 ## 运行测试
 
 ```bash
-# 运行全部测试（94 个）
+# 运行全部测试（95 个）
 dotnet test tests/WeaveDoc.Converter.Tests -v n
 
 # 运行指定模块
