@@ -2,6 +2,12 @@ namespace WeaveDoc.Converter.Pandoc;
 
 internal static class MarkdownMathNormalizer
 {
+    private static readonly System.Text.RegularExpressions.Regex TextCircledOnlyRegex =
+        new(@"^\\textcircled\s*\{\s*(\d{1,2})\s*\}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static readonly System.Text.RegularExpressions.Regex SuperscriptTextCircledOnlyRegex =
+        new(@"^\^\s*\{\s*\\textcircled\s*\{\s*(\d{1,2})\s*\}\s*\}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     public static string NormalizeDollarMath(string markdown)
     {
         var lines = markdown.Replace("\r\n", "\n").Split('\n');
@@ -61,6 +67,13 @@ internal static class MarkdownMathNormalizer
                     var trimmed = inner.Trim();
                     if (trimmed.Length > 0)
                     {
+                        if (TryConvertTextCircledMath(trimmed, out var circledText))
+                        {
+                            result.Append(circledText);
+                            i = end + 1;
+                            continue;
+                        }
+
                         result.Append('$');
                         result.Append(trimmed);
                         result.Append('$');
@@ -75,6 +88,32 @@ internal static class MarkdownMathNormalizer
         }
 
         return result.ToString();
+    }
+
+    private static bool TryConvertTextCircledMath(string inner, out string circledText)
+    {
+        circledText = "";
+
+        var match = TextCircledOnlyRegex.Match(inner);
+        if (!match.Success)
+            match = SuperscriptTextCircledOnlyRegex.Match(inner);
+
+        if (!match.Success || !int.TryParse(match.Groups[1].Value, out var number))
+            return false;
+
+        circledText = ToCircledNumber(number);
+        return circledText.Length > 0;
+    }
+
+    private static string ToCircledNumber(int number)
+    {
+        if (number == 0)
+            return "\u24EA";
+
+        if (number is >= 1 and <= 20)
+            return char.ConvertFromUtf32(0x245F + number);
+
+        return "";
     }
 
     private static bool StartsFence(string trimmedLine, out string marker)
