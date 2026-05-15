@@ -50,7 +50,7 @@ Pandoc 会在构建时自动准备：
 dotnet test WeaveDoc.slnx -nologo
 ```
 
-## 文档索引
+## 文档
 
 - 统一桌面说明（英文）：[src/WeaveDoc.App/README.md](src/WeaveDoc.App/README.md)
 - Converter 模块说明（中文）：[src/WeaveDoc.Converter/README.md](src/WeaveDoc.Converter/README.md)
