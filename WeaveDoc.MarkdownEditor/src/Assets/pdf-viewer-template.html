@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Viewer</title>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #f5f5f5; }
+        #viewerContainer { width: 100%; height: 100%; }
+        #pdfViewer { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        canvas { max-width: 100%; max-height: 100%; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .toolbar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.95); padding: 10px 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; gap: 10px; z-index: 100; }
+        .toolbar button { padding: 8px 16px; border: none; border-radius: 4px; background: #4CAF50; color: white; cursor: pointer; font-size: 14px; transition: background 0.3s; }
+        .toolbar button:hover { background: #45a049; }
+        .toolbar button:disabled { background: #cccccc; cursor: not-allowed; }
+        .toolbar input { width: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
+        .toolbar span { padding: 8px; font-size: 14px; color: #666; }
+        .zoom-controls { position: fixed; bottom: 20px; right: 20px; background: rgba(255,255,255,0.95); padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 5px; }
+        .zoom-controls button { padding: 8px 12px; border: none; border-radius: 4px; background: #2196F3; color: white; cursor: pointer; font-size: 14px; }
+        .zoom-controls button:hover { background: #1976D2; }
+        .zoom-controls span { text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button id="prevBtn" onclick="goToPreviousPage()">上一页</button>
+        <input type="number" id="pageInput" min="1" value="1" onchange="goToPage()" />
+        <span id="pageCount">/ 1</span>
+        <button id="nextBtn" onclick="goToNextPage()">下一页</button>
+    </div>
+    <div class="zoom-controls">
+        <button onclick="zoomIn()">+</button>
+        <span id="zoomLevel">100%</span>
+        <button onclick="zoomOut()">-</button>
+    </div>
+    <div id="viewerContainer">
+        <div id="pdfViewer">
+            <canvas id="pdfCanvas"></canvas>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js"></script>
+    <script>
+        var pdfDoc = null;
+        var currentPage = 1;
+        var zoom = 1.0;
+        var canvas = document.getElementById('pdfCanvas');
+        var ctx = canvas.getContext('2d');
+        var pageCountElement = document.getElementById('pageCount');
+        var pageInput = document.getElementById('pageInput');
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js';
+
+        window.loadPdf = async function(fileUri) {
+            try {
+                var response = await fetch(fileUri);
+                var arrayBuffer = await response.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
+                pageCountElement.textContent = '/ ' + pdfDoc.numPages;
+                pageInput.max = pdfDoc.numPages;
+                await renderPage(1);
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                document.getElementById('pdfViewer').innerHTML = '<p style="color: red; font-size: 18px;">无法加载PDF文件</p>';
+            }
+        };
+
+        async function renderPage(pageNum) {
+            if (!pdfDoc) return;
+            var page = await pdfDoc.getPage(pageNum);
+            var viewport = page.getViewport({ scale: zoom });
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            var renderContext = { canvasContext: ctx, viewport: viewport };
+            await page.render(renderContext).promise;
+            currentPage = pageNum;
+            pageInput.value = currentPage;
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= pdfDoc.numPages;
+        }
+
+        function goToPreviousPage() { if (currentPage > 1) renderPage(currentPage - 1); }
+        function goToNextPage() { if (pdfDoc && currentPage < pdfDoc.numPages) renderPage(currentPage + 1); }
+        function goToPage() { var pageNum = parseInt(pageInput.value); if (pageNum >= 1 && pageNum <= pdfDoc.numPages) renderPage(pageNum); else pageInput.value = currentPage; }
+        function zoomIn() { zoom += 0.25; updateZoom(); }
+        function zoomOut() { if (zoom > 0.25) { zoom -= 0.25; updateZoom(); } }
+        function updateZoom() { document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%'; if (pdfDoc) renderPage(currentPage); }
+        
+        window.addEventListener('resize', function() { if (pdfDoc) renderPage(currentPage); });
+    </script>
+</body>
+</html>

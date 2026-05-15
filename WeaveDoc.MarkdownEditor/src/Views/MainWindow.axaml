@@ -12,27 +12,50 @@
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_File">
         <MenuItem Header="_Open" Click="OpenFile_Click" />
+        <MenuItem Header="_Open PDF" Click="OpenPdfFile_Click" />
         <MenuItem Header="_Save" Click="SaveFile_Click" />
         <MenuItem Header="Save _As" Click="SaveAsFile_Click" />
       </MenuItem>
     </Menu>
     
-    <!-- 主内容区域 -->
-    <Grid>
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="*" />
-      </Grid.ColumnDefinitions>
-      
-      <!-- 左侧 Monaco 编辑器 -->
-      <Border Grid.Column="0" Margin="8,8,4,8" Background="#1E1E1E" BorderBrush="#3C3C3C" BorderThickness="1">
-        <controls:MonacoEditorControl x:Name="MonacoEditor" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-      </Border>
+    <!-- 主内容区域 - 使用 TabControl 切换视图 -->
+    <TabControl x:Name="MainTabControl" Margin="8">
+      <!-- Markdown 编辑器标签页 -->
+      <TabItem Header="Markdown Editor">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          
+          <!-- 左侧 Monaco 编辑器 -->
+          <Border Grid.Column="0" Margin="0,0,4,0" Background="#1E1E1E" BorderBrush="#3C3C3C" BorderThickness="1">
+            <controls:MonacoEditorControl x:Name="MonacoEditor" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+          </Border>
 
-      <!-- 右侧预览 -->
-      <Border Grid.Column="1" Margin="4,8,8,8" Background="White" BorderBrush="#CCCCCC" BorderThickness="1">
-        <controls:PreviewWebViewControl x:Name="PreviewWebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HtmlContent="{Binding PreviewHtml}" />
-      </Border>
-    </Grid>
+          <!-- 右侧预览 -->
+          <Border Grid.Column="1" Margin="4,0,0,0" Background="White" BorderBrush="#CCCCCC" BorderThickness="1">
+            <controls:PreviewWebViewControl x:Name="PreviewWebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HtmlContent="{Binding PreviewHtml}" />
+          </Border>
+        </Grid>
+      </TabItem>
+      
+      <!-- PDF 阅读器标签页 -->
+      <TabItem x:Name="PdfTabItem" Header="PDF Reader" IsVisible="False">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#E8E8E8" Margin="10">
+            <Button Content="关闭 PDF" Click="ClosePdf_Click" Margin="0,0,10,0" Padding="10,5" />
+            <TextBlock x:Name="PdfFileName" VerticalAlignment="Center" FontWeight="Bold" />
+          </StackPanel>
+          
+          <controls:PdfViewerControl Grid.Row="1" x:Name="PdfViewer" Margin="10" />
+        </Grid>
+      </TabItem>
+    </TabControl>
   </DockPanel>
 </Window>

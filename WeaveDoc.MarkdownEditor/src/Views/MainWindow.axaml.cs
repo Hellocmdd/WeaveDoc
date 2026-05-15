@@ -272,5 +272,60 @@ namespace WeaveDoc.MarkdownEditor.Views
                 await _monacoEditor.ClearHighlightAsync();
             }
         }
+
+        private async void OpenPdfFile_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            await OpenPdfFileAsync();
+        }
+
+        public async Task OpenPdfFileAsync()
+        {
+#pragma warning disable CS0618 // Type or member is obsolete
+            var dialog = new OpenFileDialog
+            {
+                Title = "打开 PDF 文件",
+                Filters = new List<FileDialogFilter>
+                {
+                    new FileDialogFilter { Name = "PDF 文件", Extensions = { "pdf" } },
+                    new FileDialogFilter { Name = "所有文件", Extensions = { "*" } }
+                }
+            };
+
+            var result = await dialog.ShowAsync(this);
+            if (result != null && result.Length > 0)
+            {
+                var filePath = result[0];
+                await ShowPdfViewer(filePath);
+            }
+#pragma warning restore CS0618 // Type or member is obsolete
+        }
+
+        private async Task ShowPdfViewer(string filePath)
+        {
+            var pdfTabItem = this.FindControl<TabItem>("PdfTabItem");
+            var pdfViewer = this.FindControl<PdfViewerControl>("PdfViewer");
+            var pdfFileName = this.FindControl<TextBlock>("PdfFileName");
+            var mainTabControl = this.FindControl<TabControl>("MainTabControl");
+
+            if (pdfTabItem != null && pdfViewer != null && pdfFileName != null && mainTabControl != null)
+            {
+                pdfFileName.Text = System.IO.Path.GetFileName(filePath);
+                await pdfViewer.LoadPdfAsync(filePath);
+                pdfTabItem.IsVisible = true;
+                mainTabControl.SelectedItem = pdfTabItem;
+            }
+        }
+
+        private void ClosePdf_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var pdfTabItem = this.FindControl<TabItem>("PdfTabItem");
+            var mainTabControl = this.FindControl<TabControl>("MainTabControl");
+
+            if (pdfTabItem != null && mainTabControl != null)
+            {
+                pdfTabItem.IsVisible = false;
+                mainTabControl.SelectedIndex = 0;
+            }
+        }
     }
 }

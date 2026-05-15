@@ -25,6 +25,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
             SizeChanged += OnSizeChanged;
+            PointerPressed += OnPointerPressed;
+            GotFocus += OnGotFocus;
         }
 
         private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
@@ -63,13 +65,15 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
                 }
 
-                await Task.Delay(300);
+                await Task.Delay(800);
 
                 var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                 {
                     return;
                 }
+
+                await WaitForValidBounds();
 
                 if (_sharedEnvironment == null)
                 {
@@ -91,6 +95,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 _webview.Settings.AreDefaultContextMenusEnabled = false;
 
+                // 延迟设置边界，确保布局完成
+                await Task.Delay(300);
+                UpdateControllerBounds(true);
+
                 var htmlPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "monaco-editor", "index.html");
 
                 _webview.Navigate(htmlPath);
@@ -98,6 +106,16 @@ namespace WeaveDoc.MarkdownEditor.Controls
             catch (Exception ex)
             {
                 Logger.LogException(ex);
+            }
+        }
+
+        private async Task WaitForValidBounds()
+        {
+            int attempts = 0;
+            while (attempts < 100 && (this.Bounds.Width < 100 || this.Bounds.Height < 100))
+            {
+                await Task.Delay(20);
+                attempts++;
             }
         }
 
@@ -451,6 +469,18 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 Console.WriteLine($"Error in ClearHighlightAsync: {ex.Message}");
             }
+        }
+
+        private void OnPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+        {
+            Console.WriteLine("MonacoEditorControl: Pointer pressed, clearing highlight");
+            _ = ClearHighlightAsync();
+        }
+
+        private void OnGotFocus(object? sender, Avalonia.Input.GotFocusEventArgs e)
+        {
+            Console.WriteLine("MonacoEditorControl: Got focus, clearing highlight");
+            _ = ClearHighlightAsync();
         }
     }
 }
