@@ -18,4 +18,10 @@ Sessionx.vim
 tags
 # Persistent undo
 [._]*.un~
+# visual studio code
+[bB]in/
+[oO]bj/
+
+#visual studio 
+.vs/
 
