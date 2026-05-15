@@ -50,8 +50,8 @@ public partial class ConvertTab : UserControl
         FormatDocxBtn.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0x6F, 0xA5));
         FormatDocxBtn.Foreground = new SolidColorBrush(Colors.White);
         FormatDocxBtn.FontWeight = FontWeight.SemiBold;
-        FormatPdfBtn.Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xFC));
-        FormatPdfBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x71, 0x80, 0x96));
+        FormatPdfBtn.Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B));
+        FormatPdfBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0xA8, 0xC7));
         FormatPdfBtn.FontWeight = FontWeight.Normal;
     }
 
@@ -61,8 +61,8 @@ public partial class ConvertTab : UserControl
         FormatPdfBtn.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0x6F, 0xA5));
         FormatPdfBtn.Foreground = new SolidColorBrush(Colors.White);
         FormatPdfBtn.FontWeight = FontWeight.SemiBold;
-        FormatDocxBtn.Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xFC));
-        FormatDocxBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x71, 0x80, 0x96));
+        FormatDocxBtn.Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B));
+        FormatDocxBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0xA8, 0xC7));
         FormatDocxBtn.FontWeight = FontWeight.Normal;
     }
 

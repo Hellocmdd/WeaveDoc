@@ -3,6 +3,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using WeaveDoc.App.ViewModels;
+using WeaveDoc.Converter;
+using WeaveDoc.Converter.Config;
 
 namespace WeaveDoc.App.Views;
 
@@ -10,13 +12,21 @@ public partial class MainWindow : Window
 {
     private readonly RagTabViewModel _viewModel;
 
-    public MainWindow()
+    public MainWindow() : this(null!, null!) { }
+
+    public MainWindow(ConfigManager? configManager, DocumentConversionEngine? engine)
     {
         InitializeComponent();
         _viewModel = new RagTabViewModel();
         DataContext = _viewModel;
         Opened += OnOpened;
         Closed += OnClosed;
+
+        if (configManager != null && engine != null)
+        {
+            ConvertTabControl.SetServices(configManager, engine);
+            TemplateTabControl.SetConfigManager(configManager);
+        }
     }
 
     private async void OnOpened(object? sender, EventArgs e)
