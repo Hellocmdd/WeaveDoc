@@ -1,4 +1,7 @@
 using Avalonia;
+using WeaveDoc.Converter;
+using WeaveDoc.Converter.Config;
+using WeaveDoc.Converter.Pandoc;
 using WeaveDoc.Rag.Services;
 
 namespace WeaveDoc.App;
@@ -15,13 +18,28 @@ internal static class Program
             return;
         }
 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(
+            "Ngo9BigBOggjHTQxAR8/V1JHaF5cWWdCekx0Rnxbf1x2ZFFMY15bRXFPMyBoS35RcEVnWHledHdXR2dYVkZyVEFe");
+
+        var dbPath = Path.Combine(AppContext.BaseDirectory, "data", "weavedoc.db");
+        var configManager = new ConfigManager(dbPath);
+        await configManager.EnsureSeedTemplatesAsync();
+
+        var pandoc = new PandocPipeline();
+        var pdfConverter = new SyncfusionPdfConverter();
+        var engine = new DocumentConversionEngine(pandoc, pdfConverter, configManager);
+
+        BuildAvaloniaApp(configManager, engine)
+            .StartWithClassicDesktopLifetime(args);
     }
 
-    public static AppBuilder BuildAvaloniaApp()
+    public static AppBuilder BuildAvaloniaApp(
+        ConfigManager configManager,
+        DocumentConversionEngine engine)
     {
-        return AppBuilder.Configure<App>()
+        return AppBuilder.Configure(() => new App(configManager, engine))
             .UsePlatformDetect()
+            .WithInterFont()
             .LogToTrace();
     }
 
