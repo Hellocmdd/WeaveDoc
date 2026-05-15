@@ -73,7 +73,7 @@ public class PandocPipeline
         var args = new List<string>
         {
             Quote(normalizedInputPath),
-            "-f", "markdown+tex_math_dollars+pipe_tables+raw_html",
+            "-f", "markdown+tex_math_dollars+pipe_tables+raw_html-subscript",
             "-t", "docx",
             "-o", Quote(outputPath),
             "--standalone"
@@ -122,7 +122,9 @@ public class PandocPipeline
             return inputPath;
 
         var markdown = await File.ReadAllTextAsync(inputPath, ct);
-        var normalized = MarkdownMathNormalizer.NormalizeDollarMath(markdown);
+        var normalized = MarkdownHtmlTableNormalizer.NormalizeHtmlTables(markdown);
+        normalized = MarkdownHtmlImageNormalizer.NormalizeHtmlImages(normalized);
+        normalized = MarkdownMathNormalizer.NormalizeDollarMath(normalized);
         if (normalized == markdown)
             return inputPath;
 
