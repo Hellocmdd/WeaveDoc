@@ -2,11 +2,9 @@
   <PropertyGroup>
     <ExternalToolsDir>$(MSBuildThisFileDirectory)</ExternalToolsDir>
     <PandocWindowsBinary>$(ExternalToolsDir)pandoc\pandoc.exe</PandocWindowsBinary>
-    <PandocUnixBinary>$(ExternalToolsDir)pandoc\pandoc</PandocUnixBinary>
-    <PandocUnixBinaryInBin>$(ExternalToolsDir)pandoc\bin\pandoc</PandocUnixBinaryInBin>
-    <PandocFallbackMarker>$(ExternalToolsDir)pandoc\.fallback</PandocFallbackMarker>
+    <PandocUnixBinary>$(ExternalToolsDir)pandoc\bin\pandoc</PandocUnixBinary>
     <HasPandoc>false</HasPandoc>
-    <HasPandoc Condition="Exists('$(PandocWindowsBinary)') Or Exists('$(PandocUnixBinary)') Or Exists('$(PandocUnixBinaryInBin)') Or Exists('$(PandocFallbackMarker)')">true</HasPandoc>
+    <HasPandoc Condition="Exists('$(PandocWindowsBinary)') Or Exists('$(PandocUnixBinary)')">true</HasPandoc>
   </PropertyGroup>
 
   <Target Name="DownloadExternalTools"
