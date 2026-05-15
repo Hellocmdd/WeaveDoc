@@ -31,11 +31,6 @@ public sealed partial class LocalAiService
             return;
         }
 
-        if (_cloudSettings.ChatProvider == "cloud")
-        {
-            return;
-        }
-
         try
         {
             var rerankerPort = 8081;
@@ -60,9 +55,9 @@ public sealed partial class LocalAiService
             var extraArgs = $"--embedding --pooling rank --reranking --gpu-layers {_options.RerankerGpuLayerCount}";
             await _rerankerProcess.StartIfNeededAsync(modelPath, rerankerPort, extraArgs, cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (Exception exception)
         {
-            // reranker 启动失败不阻塞应用
+            Console.Error.WriteLine($"[Reranker] Failed to start local reranker: {exception.Message}");
         }
     }
 
