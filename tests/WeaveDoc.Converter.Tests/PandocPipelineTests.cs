@@ -27,12 +27,16 @@ public class PandocPipelineTests
     private static PandocPipeline CreatePipeline()
     {
         var root = FindSolutionRoot();
-        var unixPath = Path.Combine(root, "tools", "pandoc", "bin", "pandoc");
-        var windowsPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
-        var resolvedPath = File.Exists(unixPath)
-            ? unixPath
-            : windowsPath;
-        return new PandocPipeline(resolvedPath);
+        var candidates = new[]
+        {
+            Path.Combine(root, "tools", "pandoc", "bin", "pandoc"),
+            Path.Combine(root, "tools", "pandoc", "pandoc.exe"),
+            Path.Combine(root, "tools", "pandoc", "pandoc")
+        };
+        foreach (var c in candidates)
+            if (File.Exists(c))
+                return new PandocPipeline(c);
+        return new PandocPipeline();
     }
 
     private static string CreateTempMarkdown(string content)
@@ -273,7 +277,7 @@ public class PandocPipelineTests
     public async Task FullPipeline_ReferenceDoc_ToDocx_StyleCorrection_ProducesValidDocx()
     {
         var root = FindSolutionRoot();
-        var templatePath = Path.Combine(root,
+                var templatePath = Path.Combine(root,
             "src", "WeaveDoc.Converter", "Config", "TemplateSchemas", "default-thesis.json");
 
         // 用真实 AfdParser 解析模板
@@ -346,7 +350,7 @@ public class PandocPipelineTests
         string expectedHeaderText, double expectedHeaderFontSize)
     {
         var root = FindSolutionRoot();
-        var templatePath = Path.Combine(root,
+                var templatePath = Path.Combine(root,
             "src", "WeaveDoc.Converter", "Config", "TemplateSchemas", templateFile);
 
         // 1. 解析模板
@@ -438,7 +442,8 @@ public class PandocPipelineTests
     [Fact]
     public async Task DocumentConversionEngine_ConvertAsync_Docx()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"dce-test-{Guid.NewGuid():N}.db");
+        var root = FindSolutionRoot();
+                var dbPath = Path.Combine(Path.GetTempPath(), $"dce-test-{Guid.NewGuid():N}.db");
 
         try
         {
@@ -493,7 +498,8 @@ public class PandocPipelineTests
     [Fact]
     public async Task DocumentConversionEngine_ConvertAsync_MissingTemplate()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"dce-missing-{Guid.NewGuid():N}.db");
+        var root = FindSolutionRoot();
+                var dbPath = Path.Combine(Path.GetTempPath(), $"dce-missing-{Guid.NewGuid():N}.db");
 
         try
         {
@@ -526,7 +532,8 @@ public class PandocPipelineTests
     [Fact]
     public async Task DocumentConversionEngine_ConvertAsync_UnsupportedFormat()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"dce-unsup-{Guid.NewGuid():N}.db");
+        var root = FindSolutionRoot();
+                var dbPath = Path.Combine(Path.GetTempPath(), $"dce-unsup-{Guid.NewGuid():N}.db");
 
         try
         {
@@ -901,7 +908,8 @@ public class PandocPipelineTests
     [Fact]
     public async Task DocumentConversionEngine_ConvertAsync_Pdf()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"dce-pdf-{Guid.NewGuid():N}.db");
+        var root = FindSolutionRoot();
+                var dbPath = Path.Combine(Path.GetTempPath(), $"dce-pdf-{Guid.NewGuid():N}.db");
 
         try
         {
@@ -1005,7 +1013,8 @@ public class PandocPipelineTests
     [Fact]
     public async Task DocumentConversionEngine_CodeBlock_ProducesDocxWithContent()
     {
-
+        var root = FindSolutionRoot();
+        
         var dbPath = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid():N}", "test.db");
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
         var configManager = new ConfigManager(dbPath);
