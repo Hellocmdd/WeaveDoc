@@ -1145,6 +1145,90 @@ public class PandocPipelineTests
     }
 
     [Fact]
+    public async Task ToDocxAsync_NumericTildeRanges_DoNotBecomeSubscript()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown("传感器输出0.5~2.5V模拟信号，对应0~100%含水量；占空比10%~80%。\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"tilde-range-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+            Assert.True(File.Exists(docxPath));
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var bodyText = doc.MainDocumentPart!.Document.Body!.InnerText;
+            using var reader = new StreamReader(doc.MainDocumentPart.GetStream());
+            var documentXml = await reader.ReadToEndAsync();
+
+            Assert.Contains("0.5~2.5V模拟信号，对应0~100%含水量", bodyText);
+            Assert.Contains("10%~80%", bodyText);
+            Assert.DoesNotContain("w:vertAlign", documentXml);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public async Task ToDocxAsync_HtmlTable_ProducesWordTable()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown(
+            "<table border=\"1\"><tr><td>湿度偏差(E)</td><td>变化率(EC)</td><td>输出动作</td></tr><tr><td>正小(PS):+5%~+15%</td><td>缓慢变干(SD):+1%~+5%/min</td><td>中速补水(60%占空比)</td></tr></table>\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"html-table-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+            Assert.True(File.Exists(docxPath));
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var body = doc.MainDocumentPart!.Document.Body!;
+            var table = body.Descendants<Table>().FirstOrDefault();
+            Assert.NotNull(table);
+
+            var tableText = table.InnerText;
+            Assert.Contains("湿度偏差(E)", tableText);
+            Assert.Contains("正小(PS):+5%~+15%", tableText);
+            Assert.Contains("缓慢变干(SD):+1%~+5%/min", tableText);
+            Assert.Equal(2, table.Descendants<TableRow>().Count());
+            Assert.Equal(6, table.Descendants<TableCell>().Count());
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public async Task ToAstJsonAsync_HtmlImage_ProducesPandocImage()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown(
+            "<div style='text-align: center;'><img src='images/demo%201.png?x=1&y=2' alt='OCR image'/></div>\n");
+
+        try
+        {
+            var json = await pipeline.ToAstJsonAsync(mdPath);
+
+            Assert.Contains("\"Image\"", json);
+            Assert.Contains("\"OCR\"", json);
+            Assert.Contains("\"image\"", json);
+            Assert.Contains("images/demo%201.png?x=1&y=2", json);
+            Assert.DoesNotContain("RawBlock", json);
+            Assert.DoesNotContain("<img", json);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+        }
+    }
+
+    [Fact]
     public async Task DocumentConversionEngine_CodeBlock_ProducesDocxWithContent()
     {
         var root = FindSolutionRoot();
