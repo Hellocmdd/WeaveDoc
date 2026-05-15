@@ -27,6 +27,7 @@ public static class OpenXmlStyleCorrector
 
         // Phase 2 & 3: 清除冗余内联属性，保留用户有意的行内格式
         StripRedundantInline(mainPart.Document.Body!, template);
+        ApplyStandardTableBorders(mainPart.Document.Body!);
 
         mainPart.Document.Save();
     }
@@ -180,6 +181,87 @@ public static class OpenXmlStyleCorrector
                     rPr.Remove();
             }
         }
+    }
+
+    private static void ApplyStandardTableBorders(Body body)
+    {
+        foreach (var table in body.Descendants<Table>())
+        {
+            var tableProperties = table.GetFirstChild<TableProperties>()
+                ?? table.PrependChild(new TableProperties());
+
+            tableProperties.RemoveAllChildren<TableStyle>();
+            tableProperties.RemoveAllChildren<TableJustification>();
+            tableProperties.RemoveAllChildren<TableCellMarginDefault>();
+            tableProperties.RemoveAllChildren<TableBorders>();
+            tableProperties.AppendChild(new TableJustification { Val = TableRowAlignmentValues.Center });
+            tableProperties.AppendChild(CreateTableCellMargins());
+            tableProperties.AppendChild(new TableBorders(
+                CreateTableBorder<TopBorder>(12),
+                CreateTableBorder<BottomBorder>(12)));
+
+            var rows = table.Elements<TableRow>().ToList();
+            for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+            {
+                foreach (var cell in rows[rowIndex].Elements<TableCell>())
+                {
+                    ApplyStandardTableCellLayout(cell, rowIndex == 0);
+                }
+            }
+        }
+    }
+
+    private static TableCellMarginDefault CreateTableCellMargins()
+    {
+        return new TableCellMarginDefault(
+            new TopMargin { Width = "60", Type = TableWidthUnitValues.Dxa },
+            new TableCellLeftMargin { Width = 108, Type = TableWidthValues.Dxa },
+            new BottomMargin { Width = "60", Type = TableWidthUnitValues.Dxa },
+            new TableCellRightMargin { Width = 108, Type = TableWidthValues.Dxa });
+    }
+
+    private static void ApplyStandardTableCellLayout(TableCell cell, bool isHeaderRow)
+    {
+        var cellProperties = cell.GetFirstChild<TableCellProperties>()
+            ?? cell.PrependChild(new TableCellProperties());
+        cellProperties.RemoveAllChildren<TableCellVerticalAlignment>();
+        cellProperties.RemoveAllChildren<TableCellBorders>();
+        cellProperties.AppendChild(new TableCellVerticalAlignment { Val = TableVerticalAlignmentValues.Center });
+        if (isHeaderRow)
+        {
+            cellProperties.AppendChild(new TableCellBorders(CreateTableBorder<BottomBorder>(6)));
+        }
+
+        foreach (var paragraph in cell.Descendants<Paragraph>())
+        {
+            var paragraphProperties = paragraph.GetFirstChild<ParagraphProperties>()
+                ?? paragraph.PrependChild(new ParagraphProperties());
+
+            paragraphProperties.RemoveAllChildren<Indentation>();
+            paragraphProperties.RemoveAllChildren<Justification>();
+            paragraphProperties.RemoveAllChildren<SpacingBetweenLines>();
+            paragraphProperties.AppendChild(new Indentation { FirstLine = "0", Left = "0", Right = "0" });
+            paragraphProperties.AppendChild(new Justification { Val = JustificationValues.Center });
+            paragraphProperties.AppendChild(new SpacingBetweenLines
+            {
+                Before = "0",
+                After = "0",
+                Line = "240",
+                LineRule = LineSpacingRuleValues.Auto
+            });
+        }
+    }
+
+    private static TBorder CreateTableBorder<TBorder>(uint size)
+        where TBorder : BorderType, new()
+    {
+        return new TBorder
+        {
+            Val = BorderValues.Single,
+            Size = size,
+            Space = 0,
+            Color = "000000"
+        };
     }
 
     /// <summary>
