@@ -1205,6 +1205,108 @@ public class PandocPipelineTests
     }
 
     [Fact]
+    public async Task OpenXmlStyleCorrector_ApplyAfdStyles_AddsThesisThreeLineTableBorders()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown(
+            "| 湿度偏差(E) | 变化率(EC) | 输出动作 |\n| --- | --- | --- |\n| 正小(PS):+5%~+15% | 缓慢变干(SD):+1%~+5%/min | 中速补水 |\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"table-borders-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+
+            OpenXmlStyleCorrector.ApplyAfdStyles(docxPath, CreateTestTemplate());
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var table = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().FirstOrDefault();
+            Assert.NotNull(table);
+
+            var borders = table.GetFirstChild<TableProperties>()?.GetFirstChild<TableBorders>();
+            Assert.NotNull(borders);
+            Assert.Equal(BorderValues.Single, borders!.TopBorder?.Val?.Value);
+            Assert.Equal(BorderValues.Single, borders.BottomBorder?.Val?.Value);
+            Assert.Empty(borders.Elements<LeftBorder>());
+            Assert.Empty(borders.Elements<RightBorder>());
+            Assert.Empty(borders.Elements<InsideHorizontalBorder>());
+            Assert.Empty(borders.Elements<InsideVerticalBorder>());
+            Assert.Equal("000000", borders.TopBorder?.Color?.Value);
+            Assert.Equal(12U, borders.TopBorder?.Size?.Value);
+
+            var rows = table.Elements<TableRow>().ToList();
+            var headerCells = rows[0].Elements<TableCell>().ToList();
+            Assert.All(headerCells, cell =>
+            {
+                var cellBorders = cell.GetFirstChild<TableCellProperties>()?.GetFirstChild<TableCellBorders>();
+                Assert.Equal(BorderValues.Single, cellBorders?.BottomBorder?.Val?.Value);
+                Assert.Equal(6U, cellBorders?.BottomBorder?.Size?.Value);
+                Assert.Empty(cellBorders?.Elements<LeftBorder>() ?? []);
+                Assert.Empty(cellBorders?.Elements<RightBorder>() ?? []);
+            });
+
+            var bodyCellBorders = rows[1].Elements<TableCell>().First()
+                .GetFirstChild<TableCellProperties>()?.GetFirstChild<TableCellBorders>();
+            Assert.True(bodyCellBorders == null || !bodyCellBorders.Elements<BottomBorder>().Any());
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public async Task OpenXmlStyleCorrector_ApplyAfdStyles_NormalizesTableLayout()
+    {
+        var pipeline = CreatePipeline();
+        var mdPath = CreateTempMarkdown(
+            "| 湿度偏差(E) | 变化率(EC) | 输出动作 |\n| --- | --- | --- |\n| 正小(PS):+5%~+15% | 缓慢变干(SD):+1%~+5%/min | 中速补水 |\n");
+        var docxPath = Path.Combine(Path.GetTempPath(), $"table-layout-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+
+            OpenXmlStyleCorrector.ApplyAfdStyles(docxPath, CreateTestTemplate());
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var table = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().First();
+            var tableProperties = table.GetFirstChild<TableProperties>();
+            Assert.NotNull(tableProperties);
+            Assert.Equal(TableRowAlignmentValues.Center, tableProperties!.TableJustification?.Val?.Value);
+
+            var marginDefault = tableProperties.GetFirstChild<TableCellMarginDefault>();
+            Assert.NotNull(marginDefault);
+            Assert.True(marginDefault!.TableCellLeftMargin?.Width?.Value == 108);
+            Assert.True(marginDefault.TableCellRightMargin?.Width?.Value == 108);
+
+            var firstCell = table.Descendants<TableCell>().First();
+            var cellProperties = firstCell.GetFirstChild<TableCellProperties>();
+            Assert.NotNull(cellProperties);
+            Assert.Equal(TableVerticalAlignmentValues.Center, cellProperties!.TableCellVerticalAlignment?.Val?.Value);
+
+            var paragraphProperties = firstCell.Descendants<Paragraph>().First().GetFirstChild<ParagraphProperties>();
+            Assert.NotNull(paragraphProperties);
+            var indentation = paragraphProperties!.GetFirstChild<Indentation>();
+            Assert.NotNull(indentation);
+            Assert.Equal("0", indentation!.FirstLine?.Value);
+            Assert.Equal("0", indentation.Left?.Value);
+            Assert.Equal("0", indentation.Right?.Value);
+            Assert.Equal(JustificationValues.Center, paragraphProperties.GetFirstChild<Justification>()?.Val?.Value);
+
+            var spacing = paragraphProperties.GetFirstChild<SpacingBetweenLines>();
+            Assert.NotNull(spacing);
+            Assert.Equal("0", spacing!.Before?.Value);
+            Assert.Equal("0", spacing.After?.Value);
+        }
+        finally
+        {
+            File.Delete(mdPath);
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
     public async Task ToAstJsonAsync_HtmlImage_ProducesPandocImage()
     {
         var pipeline = CreatePipeline();
