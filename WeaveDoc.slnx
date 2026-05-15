@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/WeaveDoc.App/WeaveDoc.App.csproj" />
+    <Project Path="src/WeaveDoc.Converter/WeaveDoc.Converter.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WeaveDoc.Rag.Tests/WeaveDoc.Rag.Tests.csproj" />
+    <Project Path="tests/WeaveDoc.Converter.Tests/WeaveDoc.Converter.Tests.csproj" />
   </Folder>
 </Solution>

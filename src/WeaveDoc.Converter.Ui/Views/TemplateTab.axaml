@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="WeaveDoc.Converter.Ui.Views.TemplateTab">
+    <DockPanel Margin="20,24">
+
+        <!-- 标题区 -->
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock Text="模板管理" FontSize="16" FontWeight="Bold"
+                           Foreground="#2C3E50" />
+                <TextBlock Text="管理和导入 AFD 样式模板"
+                           FontSize="12" Foreground="#999999" Margin="0,2,0,0" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                        VerticalAlignment="Center">
+                <Button x:Name="RefreshButton" Content="刷新"
+                        FontSize="13" Padding="14,7"
+                        Foreground="#4A5568" Background="#F0F2F5"
+                        BorderBrush="#DCE1E8" BorderThickness="1" CornerRadius="6" />
+                <Button x:Name="ImportButton" Content="导入"
+                        FontSize="13" Padding="14,7"
+                        Foreground="#4A5568" Background="#F0F2F5"
+                        BorderBrush="#DCE1E8" BorderThickness="1" CornerRadius="6" />
+                <Button x:Name="SeedButton" Content="+ 种子模板"
+                        FontSize="13" FontWeight="SemiBold" Padding="14,7"
+                        Foreground="White" Background="#4A6FA5"
+                        CornerRadius="6" />
+            </StackPanel>
+        </Grid>
+
+        <!-- DataGrid 下方操作栏 -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="12" Margin="0,12,0,0">
+            <TextBlock x:Name="StatusBar" FontSize="12" Foreground="#999999"
+                       VerticalAlignment="Center" />
+            <Button x:Name="DeleteButton" Content="删除选中模板"
+                    FontSize="12" Padding="12,5"
+                    Foreground="#F5222D" Background="Transparent"
+                    BorderBrush="#F5222D" BorderThickness="1" CornerRadius="6"
+                    IsVisible="False" />
+        </StackPanel>
+
+        <!-- DataGrid 圆角卡片包裹 -->
+        <Border CornerRadius="10" BorderBrush="#ECECF0" BorderThickness="1"
+                Background="White" ClipToBounds="True"
+                BoxShadow="0 1 3 0 #0F000000">
+            <DataGrid x:Name="TemplateGrid"
+                      IsReadOnly="True"
+                      AutoGenerateColumns="False"
+                      SelectionMode="Single"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="#F5F5F5"
+                      BorderThickness="0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID" Binding="{Binding TemplateId}" Width="*" />
+                    <DataGridTextColumn Header="名称" Binding="{Binding TemplateName}" Width="*" />
+                    <DataGridTextColumn Header="版本" Binding="{Binding Version}" Width="80" />
+                    <DataGridTextColumn Header="作者" Binding="{Binding Author}" Width="100" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+    </DockPanel>
+</UserControl>
