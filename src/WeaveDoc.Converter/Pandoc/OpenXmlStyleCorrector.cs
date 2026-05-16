@@ -117,10 +117,10 @@ public static class OpenXmlStyleCorrector
         {
             pPr.AppendChild(new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = "F2F2F2" });
             pPr.AppendChild(new ParagraphBorders(
-                new TopBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" },
-                new BottomBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" },
-                new LeftBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" },
-                new RightBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = "BFBFBF" }
+                new TopBorder { Val = BorderValues.Single, Size = 4, Space = 6, Color = "BFBFBF" },
+                new BottomBorder { Val = BorderValues.Single, Size = 4, Space = 6, Color = "BFBFBF" },
+                new LeftBorder { Val = BorderValues.Single, Size = 4, Space = 6, Color = "BFBFBF" },
+                new RightBorder { Val = BorderValues.Single, Size = 4, Space = 6, Color = "BFBFBF" }
             ));
         }
 
