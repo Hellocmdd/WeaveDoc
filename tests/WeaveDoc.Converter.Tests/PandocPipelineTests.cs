@@ -1391,6 +1391,8 @@ public class PandocPipelineTests
             Assert.NotNull(borders.TopBorder);
             Assert.Equal("BFBFBF", borders.TopBorder.Color?.Value);
             Assert.Equal(BorderValues.Single, borders.TopBorder.Val?.Value);
+            Assert.Equal(6U, borders.TopBorder.Space?.Value);
+            Assert.Equal(6U, borders.BottomBorder?.Space?.Value);
         }
         finally
         {
