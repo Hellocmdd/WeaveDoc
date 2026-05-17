@@ -357,20 +357,16 @@ namespace WeaveDoc.MarkdownEditor.Views
                 
                 if (_monacoEditor != null)
                 {
-                    await _monacoEditor.Activate();
-                    // 重新设置内容
-                    if (DataContext is MainWindowViewModel vm)
-                    {
-                        _monacoEditor.SetContentAsync(vm.EditorContent);
-                    }
+                    // 不强制重置，保留编辑内容
+                    await _monacoEditor.Activate(false);
                 }
                 
                 if (_previewWebView != null)
                 {
-                    await _previewWebView.Activate();
-                    // 等待一下让WebView完全激活
-                    await Task.Delay(200);
-                    // 重新设置预览内容
+                    // 不强制重置，保留预览内容
+                    await _previewWebView.Activate(false);
+                    
+                    // 更新预览内容以同步编辑器
                     if (DataContext is MainWindowViewModel vm)
                     {
                         _previewWebView.SetContent(vm.PreviewHtml);

@@ -43,16 +43,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         private void OnUnloaded(object? sender, EventArgs e)
         {
+            // 只隐藏，不关闭，以保留内容
             if (_controller != null)
             {
-                _controller.Close();
-                _controller = null;
-            }
-            if (_webview != null)
-            {
-                _webview.WebMessageReceived -= Webview_WebMessageReceived;
-                _webview.NavigationCompleted -= Webview_NavigationCompleted;
-                _webview = null;
+                _controller.IsVisible = false;
             }
         }
 
@@ -484,7 +478,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             _ = ClearHighlightAsync();
         }
         
-        public async Task Activate()
+        public async Task Activate(bool forceReset = false)
         {
             if (_isActive) return;
             
@@ -497,10 +491,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 await Task.Delay(100);
                 UpdateControllerBounds(true);
                 
-                // 如果有待处理内容，设置进去
-                if (!string.IsNullOrEmpty(_pendingContent))
+                // 只有在强制重置或有待处理内容时才设置内容
+                if (forceReset && !string.IsNullOrEmpty(_pendingContent))
                 {
-                    Console.WriteLine("MonacoEditorControl: Setting pending content on activate");
+                    Console.WriteLine("MonacoEditorControl: Setting pending content on activate (force reset)");
                     SetContentAsync(_pendingContent);
                 }
             }
