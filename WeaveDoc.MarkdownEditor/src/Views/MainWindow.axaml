@@ -19,7 +19,7 @@
     </Menu>
     
     <!-- 主内容区域 - 使用 TabControl 切换视图 -->
-    <TabControl x:Name="MainTabControl" Margin="8">
+    <TabControl x:Name="MainTabControl" Margin="8" SelectionChanged="MainTabControl_SelectionChanged">
       <!-- Markdown 编辑器标签页 -->
       <TabItem Header="Markdown Editor">
         <Grid>
@@ -40,8 +40,8 @@
         </Grid>
       </TabItem>
       
-      <!-- PDF 阅读器标签页 -->
-      <TabItem x:Name="PdfTabItem" Header="PDF Reader" IsVisible="False">
+      <!-- PDF 阅读器标签页 - 始终可见 -->
+      <TabItem x:Name="PdfTabItem" Header="PDF Reader">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

@@ -10,26 +10,29 @@ namespace WeaveDoc.MarkdownEditor.Controls
 {
     public partial class PdfViewerControl : UserControl
     {
-        private CoreWebView2? _webview;
         private CoreWebView2Controller? _controller;
-        private bool _isInitialized = false;
-        private string _pendingFilePath = string.Empty;
+        private string? _pendingFilePath;
+        private bool _isActive;
 
         public static readonly StyledProperty<string> PdfFilePathProperty =
             AvaloniaProperty.Register<PdfViewerControl, string>(nameof(PdfFilePath));
 
-        public string PdfFilePath
+        public string? PdfFilePath
         {
-            get => GetValue(PdfFilePathProperty);
-            set => SetValue(PdfFilePathProperty, value);
+            get => _pendingFilePath;
+            set
+            {
+                _pendingFilePath = value;
+                if (_isActive && value != null)
+                {
+                    _ = LoadPdfAsync(value);
+                }
+            }
         }
 
         public PdfViewerControl()
         {
             InitializeComponent();
-            Loaded += OnLoaded;
-            Unloaded += OnUnloaded;
-            SizeChanged += OnSizeChanged;
         }
 
         private void InitializeComponent()
@@ -37,89 +40,65 @@ namespace WeaveDoc.MarkdownEditor.Controls
             AvaloniaXamlLoader.Load(this);
         }
 
-        private void OnLoaded(object? sender, EventArgs e)
+        public async Task LoadPdfAsync(string filePath)
         {
-            _ = InitializeWebViewAsync();
-        }
-
-        private void OnUnloaded(object? sender, EventArgs e)
-        {
-            if (_controller != null)
+            if (!File.Exists(filePath))
             {
-                _controller.Close();
-                _controller = null;
+                Console.WriteLine($"File not found: {filePath}");
+                return;
             }
-            _webview = null;
-        }
 
-        private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
-        {
-            UpdateControllerBounds();
-        }
+            _pendingFilePath = filePath;
 
-        private async Task InitializeWebViewAsync()
-        {
+            // 清理旧的WebView2（如果存在）
+            CleanupWebView();
+
             try
             {
-                var root = this.VisualRoot as Window;
+                var root = VisualRoot as Window;
                 if (root == null)
                     return;
 
-                await Task.Delay(500);
+                await Task.Delay(50);
 
                 var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                     return;
 
-                var environment = await CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions
-                {
-                    AdditionalBrowserArguments = "--disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-sandbox",
-                    AllowSingleSignOnUsingOSPrimaryAccount = false
-                });
-
+                var environment = await CoreWebView2Environment.CreateAsync(null, null, null);
                 _controller = await environment.CreateCoreWebView2ControllerAsync(hwnd);
+
+                // 设置WebView2的位置和大小
+                UpdateBounds();
+                
+                // 导航到PDF
+                string fileUri = "file:///" + filePath.Replace("\\", "/");
+                Console.WriteLine($"Navigating to PDF: {fileUri}");
+                _controller.CoreWebView2.Navigate(fileUri);
+
                 _controller.IsVisible = true;
-                _controller.CoreWebView2.Settings.IsScriptEnabled = true;
-
-                _webview = _controller.CoreWebView2;
-                _webview.NavigationCompleted += OnNavigationCompleted;
-
-                _webview.Settings.AreDefaultContextMenusEnabled = true;
-                _webview.Settings.IsZoomControlEnabled = true;
-
-                UpdateControllerBounds();
-
-                var templatePath = Path.Combine(AppContext.BaseDirectory, "Assets", "pdf-viewer-template.html");
-                string htmlContent;
-
-                if (File.Exists(templatePath))
-                {
-                    htmlContent = File.ReadAllText(templatePath);
-                }
-                else
-                {
-                    htmlContent = GetDefaultPdfViewerHtml();
-                }
-
-                _webview.NavigateToString(htmlContent);
+                Console.WriteLine("WebView2 initialized and PDF loaded");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to initialize WebView: {ex.Message}");
+                Console.WriteLine($"Failed to initialize WebView2: {ex.Message}");
             }
         }
 
-        private void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs args)
+        private void CleanupWebView()
         {
-            if (args.IsSuccess && !_isInitialized)
+            if (_controller != null)
             {
-                _isInitialized = true;
-
-                if (!string.IsNullOrEmpty(_pendingFilePath))
+                try
                 {
-                    _ = LoadPdfAsync(_pendingFilePath);
-                    _pendingFilePath = string.Empty;
+                    _controller.IsVisible = false;
+                    _controller.Close();
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error while closing WebView2: {ex.Message}");
+                }
+                _controller = null;
             }
         }
 
@@ -127,86 +106,62 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             base.OnPropertyChanged(change);
 
-            if (change.Property == PdfFilePathProperty && !string.IsNullOrEmpty(PdfFilePath))
+            if (change.Property == BoundsProperty && _isActive)
             {
-                _ = LoadPdfAsync(PdfFilePath);
+                UpdateBounds();
             }
         }
 
-        public async Task LoadPdfAsync(string filePath)
+        private void UpdateBounds()
         {
-            if (_webview == null)
-            {
-                _pendingFilePath = filePath;
-                return;
-            }
-
-            if (!File.Exists(filePath))
+            if (_controller == null || !_isActive)
                 return;
 
-            PdfFilePath = filePath;
+            var scaling = VisualRoot is Window window ? window.RenderScaling : 1.0;
+            
+            var topOffset = 80;
+            var x = Bounds.X;
+            var y = Bounds.Y + topOffset;
+            var width = Math.Max(1, Bounds.Width);
+            var height = Math.Max(1, Bounds.Height - topOffset);
 
-            await Task.Delay(300);
+            _controller.Bounds = new System.Drawing.Rectangle(
+                (int)(x * scaling),
+                (int)(y * scaling),
+                (int)(width * scaling),
+                (int)(height * scaling)
+            );
+            Console.WriteLine($"WebView2 bounds updated: {_controller.Bounds}");
+        }
 
-            // 使用 file:// 协议处理本地文件路径
-            var fileUri = new Uri(filePath).AbsoluteUri;
-            // 确保 URI 正确处理 Windows 路径
-            if (!fileUri.StartsWith("file:///"))
-            {
-                fileUri = "file:///" + filePath.Replace("\\", "/");
-            }
+        public async Task Activate()
+        {
+            _isActive = true;
+            Console.WriteLine("PDF viewer activated");
 
-            try
+            if (_pendingFilePath != null)
             {
-                await _webview.ExecuteScriptAsync($"window.loadPdf('{fileUri}')");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to load PDF: {ex.Message}");
+                await LoadPdfAsync(_pendingFilePath);
             }
         }
 
-        private void UpdateControllerBounds()
+        public void Deactivate()
         {
-            if (_controller != null)
-            {
-                var scaling = 1.0;
-                var visualRoot = VisualRoot as Window;
-                if (visualRoot != null)
-                {
-                    scaling = visualRoot.RenderScaling;
-                }
-
-                _controller.Bounds = new System.Drawing.Rectangle(
-                    0,
-                    0,
-                    (int)(Bounds.Width * scaling),
-                    (int)(Bounds.Height * scaling)
-                );
-            }
+            _isActive = false;
+            Console.WriteLine("PDF viewer deactivated");
+            CleanupWebView();
         }
 
-        private string GetDefaultPdfViewerHtml()
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
-            return @"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='utf-8'/>
-    <style>
-        html,body{margin:0;padding:0;width:100%;height:100%;background:#f5f5f5;display:flex;justify-content:center;align-items:center;}
-        canvas{max-width:100%;max-height:100%;}
-    </style>
-</head>
-<body>
-    <canvas id='pdfCanvas'></canvas>
-    <script src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js'></script>
-    <script>
-        var pdfDoc=null,canvas=document.getElementById('pdfCanvas'),ctx=canvas.getContext('2d');
-        pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js';
-        window.loadPdf=async function(f){var r=await fetch(f),b=await r.arrayBuffer();pdfDoc=await pdfjsLib.getDocument(b).promise;var p=await pdfDoc.getPage(1),v=p.getViewport({scale:1.5});canvas.width=v.width;canvas.height=v.height;await p.render({canvasContext:ctx,viewport:v}).promise;};
-    </script>
-</body>
-</html>";
+            base.OnAttachedToVisualTree(e);
+            _ = Activate();
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            Deactivate();
         }
     }
 }

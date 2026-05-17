@@ -14,8 +14,10 @@ namespace WeaveDoc.MarkdownEditor.Views
     {
         private MonacoEditorControl? _monacoEditor;
         private PreviewWebViewControl? _previewWebView;
+        private PdfViewerControl? _pdfViewer;
         private bool _isMonacoReady = false;
         private (int line, int column)? _pendingScrollRequest = null;
+        private string _lastPdfFilePath = string.Empty;
 
         public MainWindow()
         {
@@ -28,6 +30,7 @@ namespace WeaveDoc.MarkdownEditor.Views
         {
             _monacoEditor = this.FindControl<MonacoEditorControl>("MonacoEditor");
             _previewWebView = this.FindControl<PreviewWebViewControl>("PreviewWebView");
+            _pdfViewer = this.FindControl<PdfViewerControl>("PdfViewer");
 
             if (DataContext is MainWindowViewModel vm)
             {
@@ -217,7 +220,6 @@ namespace WeaveDoc.MarkdownEditor.Views
             _isMonacoReady = ready;
             Console.WriteLine($"Monaco Editor ready: {ready}");
             
-            // 如果编辑器准备好了并且有待处理的滚动请求，执行它
             if (ready && _pendingScrollRequest.HasValue && _monacoEditor != null)
             {
                 var request = _pendingScrollRequest.Value;
@@ -303,28 +305,96 @@ namespace WeaveDoc.MarkdownEditor.Views
         private async Task ShowPdfViewer(string filePath)
         {
             var pdfTabItem = this.FindControl<TabItem>("PdfTabItem");
-            var pdfViewer = this.FindControl<PdfViewerControl>("PdfViewer");
-            var pdfFileName = this.FindControl<TextBlock>("PdfFileName");
             var mainTabControl = this.FindControl<TabControl>("MainTabControl");
+            var pdfFileName = this.FindControl<TextBlock>("PdfFileName");
 
-            if (pdfTabItem != null && pdfViewer != null && pdfFileName != null && mainTabControl != null)
+            if (pdfTabItem != null && mainTabControl != null && pdfFileName != null)
             {
+                _lastPdfFilePath = filePath;
                 pdfFileName.Text = System.IO.Path.GetFileName(filePath);
-                await pdfViewer.LoadPdfAsync(filePath);
-                pdfTabItem.IsVisible = true;
+                
                 mainTabControl.SelectedItem = pdfTabItem;
+                
+                if (_pdfViewer != null)
+                {
+                    await _pdfViewer.LoadPdfAsync(filePath);
+                }
             }
         }
 
         private void ClosePdf_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
-            var pdfTabItem = this.FindControl<TabItem>("PdfTabItem");
+            var pdfFileName = this.FindControl<TextBlock>("PdfFileName");
             var mainTabControl = this.FindControl<TabControl>("MainTabControl");
 
-            if (pdfTabItem != null && mainTabControl != null)
+            if (pdfFileName != null)
             {
-                pdfTabItem.IsVisible = false;
+                pdfFileName.Text = string.Empty;
+            }
+
+            if (mainTabControl != null)
+            {
                 mainTabControl.SelectedIndex = 0;
+            }
+        }
+
+        private async void MainTabControl_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            var mainTabControl = sender as TabControl;
+            if (mainTabControl == null) return;
+
+            var selectedTab = mainTabControl.SelectedItem as TabItem;
+            if (selectedTab == null) return;
+
+            if (selectedTab.Header?.ToString() == "Markdown Editor")
+            {
+                Console.WriteLine("Switching to Markdown Editor");
+                
+                if (_pdfViewer != null)
+                {
+                    _pdfViewer.Deactivate();
+                }
+                
+                if (_monacoEditor != null)
+                {
+                    await _monacoEditor.Activate();
+                    // 重新设置内容
+                    if (DataContext is MainWindowViewModel vm)
+                    {
+                        _monacoEditor.SetContentAsync(vm.EditorContent);
+                    }
+                }
+                
+                if (_previewWebView != null)
+                {
+                    await _previewWebView.Activate();
+                    // 等待一下让WebView完全激活
+                    await Task.Delay(200);
+                    // 重新设置预览内容
+                    if (DataContext is MainWindowViewModel vm)
+                    {
+                        _previewWebView.SetContent(vm.PreviewHtml);
+                    }
+                }
+            }
+            else if (selectedTab.Header?.ToString() == "PDF Reader")
+            {
+                Console.WriteLine("Switching to PDF Reader");
+                
+                if (_monacoEditor != null)
+                {
+                    _monacoEditor.Deactivate();
+                }
+                
+                if (_previewWebView != null)
+                {
+                    _previewWebView.Deactivate();
+                }
+                
+                if (!string.IsNullOrEmpty(_lastPdfFilePath) && _pdfViewer != null)
+                {
+                    await _pdfViewer.Activate();
+                }
             }
         }
     }

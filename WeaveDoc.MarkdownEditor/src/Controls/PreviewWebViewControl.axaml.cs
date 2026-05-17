@@ -38,6 +38,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private CoreWebView2? _webview;
         private CoreWebView2Controller? _controller;
         private bool _isInitialized = false;
+        private bool _isActive = true;
         private string _pendingContent = string.Empty;
         private static CoreWebView2Environment? _sharedEnvironment;
 
@@ -542,5 +543,45 @@ namespace WeaveDoc.MarkdownEditor.Controls
         }
 
         private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+        
+        public async Task Activate()
+        {
+            if (_isActive) return;
+            
+            _isActive = true;
+            Console.WriteLine("PreviewWebViewControl: Activating...");
+            
+            if (_controller != null)
+            {
+                _controller.IsVisible = true;
+                await Task.Delay(100);
+                UpdateControllerBounds();
+                
+                // 如果有待处理内容，设置进去
+                if (!string.IsNullOrEmpty(_pendingContent) && _isInitialized)
+                {
+                    Console.WriteLine("PreviewWebViewControl: Setting pending content on activate");
+                    UpdatePreview(_pendingContent);
+                }
+            }
+            else
+            {
+                _isInitialized = false;
+                await InitializeWebViewAsync();
+            }
+        }
+        
+        public void Deactivate()
+        {
+            if (!_isActive) return;
+            
+            _isActive = false;
+            Console.WriteLine("PreviewWebViewControl: Deactivating...");
+            
+            if (_controller != null)
+            {
+                _controller.IsVisible = false;
+            }
+        }
     }
 }

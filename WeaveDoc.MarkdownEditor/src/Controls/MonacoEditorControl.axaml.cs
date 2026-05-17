@@ -16,6 +16,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private CoreWebView2Controller? _controller;
         private string _pendingContent = string.Empty;
         private bool _isInitializing = false;
+        private bool _isActive = true;
         
         private static CoreWebView2Environment? _sharedEnvironment;
 
@@ -481,6 +482,59 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             Console.WriteLine("MonacoEditorControl: Got focus, clearing highlight");
             _ = ClearHighlightAsync();
+        }
+        
+        public async Task Activate()
+        {
+            if (_isActive) return;
+            
+            _isActive = true;
+            Console.WriteLine("MonacoEditorControl: Activating...");
+            
+            if (_controller != null)
+            {
+                _controller.IsVisible = true;
+                await Task.Delay(100);
+                UpdateControllerBounds(true);
+                
+                // 如果有待处理内容，设置进去
+                if (!string.IsNullOrEmpty(_pendingContent))
+                {
+                    Console.WriteLine("MonacoEditorControl: Setting pending content on activate");
+                    SetContentAsync(_pendingContent);
+                }
+            }
+            else
+            {
+                // 如果控制器不存在，重新初始化
+                _isInitializing = false;
+                await InitializeWebViewAsync();
+            }
+            
+            var mainWindow = VisualRoot as MainWindow;
+            if (mainWindow != null)
+            {
+                mainWindow.SetMonacoReady(true);
+            }
+        }
+        
+        public void Deactivate()
+        {
+            if (!_isActive) return;
+            
+            _isActive = false;
+            Console.WriteLine("MonacoEditorControl: Deactivating...");
+            
+            if (_controller != null)
+            {
+                _controller.IsVisible = false;
+            }
+            
+            var mainWindow = VisualRoot as MainWindow;
+            if (mainWindow != null)
+            {
+                mainWindow.SetMonacoReady(false);
+            }
         }
     }
 }
