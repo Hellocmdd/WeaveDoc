@@ -11,8 +11,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
     public partial class PdfViewerControl : UserControl
     {
         private CoreWebView2Controller? _controller;
+        private CoreWebView2? _webview;
         private string? _pendingFilePath;
         private bool _isActive;
+        private static CoreWebView2Environment? _sharedEnvironment;
 
         public static readonly StyledProperty<string> PdfFilePathProperty =
             AvaloniaProperty.Register<PdfViewerControl, string>(nameof(PdfFilePath));
@@ -33,11 +35,32 @@ namespace WeaveDoc.MarkdownEditor.Controls
         public PdfViewerControl()
         {
             InitializeComponent();
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
+            SizeChanged += OnSizeChanged;
         }
 
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
+        }
+
+        private void OnLoaded(object? sender, EventArgs e)
+        {
+            // 在Loaded时不自动激活，等待标签切换时再激活
+        }
+
+        private void OnUnloaded(object? sender, EventArgs e)
+        {
+            Deactivate();
+        }
+
+        private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            if (_isActive)
+            {
+                UpdateBounds();
+            }
         }
 
         public async Task LoadPdfAsync(string filePath)
@@ -50,9 +73,21 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
             _pendingFilePath = filePath;
 
-            // 清理旧的WebView2（如果存在）
-            CleanupWebView();
+            if (_controller == null)
+            {
+                await InitializeWebViewAsync();
+            }
 
+            if (_webview != null)
+            {
+                string fileUri = "file:///" + filePath.Replace("\\", "/");
+                Console.WriteLine($"Navigating to PDF: {fileUri}");
+                _webview.Navigate(fileUri);
+            }
+        }
+
+        private async Task InitializeWebViewAsync()
+        {
             try
             {
                 var root = VisualRoot as Window;
@@ -65,23 +100,26 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 if (hwnd == IntPtr.Zero)
                     return;
 
-                var environment = await CoreWebView2Environment.CreateAsync(null, null, null);
-                _controller = await environment.CreateCoreWebView2ControllerAsync(hwnd);
+                if (_sharedEnvironment == null)
+                {
+                    _sharedEnvironment = await CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions
+                    {
+                        AdditionalBrowserArguments = "--disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-sandbox",
+                        AllowSingleSignOnUsingOSPrimaryAccount = false
+                    });
+                }
 
-                // 设置WebView2的位置和大小
+                _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);
+                _webview = _controller.CoreWebView2;
+
+                _controller.IsVisible = false;
                 UpdateBounds();
-                
-                // 导航到PDF
-                string fileUri = "file:///" + filePath.Replace("\\", "/");
-                Console.WriteLine($"Navigating to PDF: {fileUri}");
-                _controller.CoreWebView2.Navigate(fileUri);
 
-                _controller.IsVisible = true;
-                Console.WriteLine("WebView2 initialized and PDF loaded");
+                Console.WriteLine("PDF WebView2 initialized");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to initialize WebView2: {ex.Message}");
+                Console.WriteLine($"Failed to initialize PDF WebView2: {ex.Message}");
             }
         }
 
@@ -96,50 +134,53 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error while closing WebView2: {ex.Message}");
+                    Console.WriteLine($"Error while closing PDF WebView2: {ex.Message}");
                 }
                 _controller = null;
-            }
-        }
-
-        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
-        {
-            base.OnPropertyChanged(change);
-
-            if (change.Property == BoundsProperty && _isActive)
-            {
-                UpdateBounds();
+                _webview = null;
             }
         }
 
         private void UpdateBounds()
         {
-            if (_controller == null || !_isActive)
+            if (_controller == null)
                 return;
 
-            var scaling = VisualRoot is Window window ? window.RenderScaling : 1.0;
-            
-            var topOffset = 80;
-            var x = Bounds.X;
-            var y = Bounds.Y + topOffset;
-            var width = Math.Max(1, Bounds.Width);
-            var height = Math.Max(1, Bounds.Height - topOffset);
+            var root = VisualRoot as Window;
+            if (root == null)
+                return;
 
-            _controller.Bounds = new System.Drawing.Rectangle(
-                (int)(x * scaling),
-                (int)(y * scaling),
-                (int)(width * scaling),
-                (int)(height * scaling)
-            );
-            Console.WriteLine($"WebView2 bounds updated: {_controller.Bounds}");
+            var scaling = root.RenderScaling;
+
+            var transform = this.TransformToVisual(root);
+            var position = transform?.Transform(new Point(0, 0)) ?? new Point(0, 0);
+
+            var width = (int)(Bounds.Width * scaling);
+            var height = (int)(Bounds.Height * scaling);
+            var x = (int)(position.X * scaling);
+            var y = (int)(position.Y * scaling);
+
+            width = Math.Max(100, width);
+            height = Math.Max(100, height);
+
+            _controller.Bounds = new System.Drawing.Rectangle(x, y, width, height);
+            Console.WriteLine($"PDF WebView2 bounds updated: {_controller.Bounds}");
         }
 
         public async Task Activate()
         {
+            if (_isActive) return;
+
             _isActive = true;
             Console.WriteLine("PDF viewer activated");
 
-            if (_pendingFilePath != null)
+            if (_controller != null)
+            {
+                UpdateBounds();
+                _controller.IsVisible = true;
+            }
+
+            if (_pendingFilePath != null && _webview == null)
             {
                 await LoadPdfAsync(_pendingFilePath);
             }
@@ -147,21 +188,15 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         public void Deactivate()
         {
+            if (!_isActive) return;
+
             _isActive = false;
             Console.WriteLine("PDF viewer deactivated");
-            CleanupWebView();
-        }
 
-        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-        {
-            base.OnAttachedToVisualTree(e);
-            _ = Activate();
-        }
-
-        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
-        {
-            base.OnDetachedFromVisualTree(e);
-            Deactivate();
+            if (_controller != null)
+            {
+                _controller.IsVisible = false;
+            }
         }
     }
 }

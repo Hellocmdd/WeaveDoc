@@ -220,6 +220,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 {
                     try
                     {
+                        Console.WriteLine($"MonacoEditorControl: Received selectionChanged message: {msgData}");
+                        
                         var selectionData = System.Text.Json.JsonDocument.Parse(msgData);
                         var root = selectionData.RootElement;
 
@@ -229,14 +231,22 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         if (root.TryGetProperty("endLine", out var endLineProp)) endLine = endLineProp.GetInt32();
                         if (root.TryGetProperty("endColumn", out var endColProp)) endCol = endColProp.GetInt32();
 
+                        Console.WriteLine($"MonacoEditorControl: Selection - startLine={startLine}, startCol={startCol}, endLine={endLine}, endCol={endCol}");
+
                         var rootWindow = this.VisualRoot as Window;
                         if (rootWindow is MainWindow mainWindow)
                         {
+                            Console.WriteLine("MonacoEditorControl: Calling mainWindow.ScrollPreviewToSelection");
                             mainWindow.ScrollPreviewToSelection(startLine, startCol, endLine, endCol);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"MonacoEditorControl: rootWindow is null or not MainWindow: {rootWindow}");
                         }
                     }
                     catch (Exception ex)
                     {
+                        Console.WriteLine($"MonacoEditorControl: selectionChanged exception: {ex.Message}");
                         Logger.LogException(ex);
                     }
                 }
@@ -477,6 +487,49 @@ namespace WeaveDoc.MarkdownEditor.Controls
             Console.WriteLine("MonacoEditorControl: Got focus, clearing highlight");
             _ = ClearHighlightAsync();
         }
+
+        public async Task RequestCurrentSelectionAsync()
+        {
+            try
+            {
+                Console.WriteLine("RequestCurrentSelectionAsync called");
+
+                if (_webview == null)
+                {
+                    Console.WriteLine($"RequestCurrentSelectionAsync: webview is null");
+                    return;
+                }
+
+                var script = @"
+                    (function() {
+                        if (editor) {
+                            var selection = editor.getSelection();
+                            if (selection) {
+                                var msg = {
+                                    type: 'selectionChanged',
+                                    data: JSON.stringify({
+                                        startLine: selection.startLineNumber,
+                                        startColumn: selection.startColumn,
+                                        endLine: selection.endLineNumber,
+                                        endColumn: selection.endColumn
+                                    })
+                                };
+                                window.chrome.webview.postMessage(JSON.stringify(msg));
+                                return 'selection sent';
+                            }
+                        }
+                        return 'no selection';
+                    })();
+                ";
+
+                var result = await _webview.ExecuteScriptAsync(script);
+                Console.WriteLine($"RequestCurrentSelectionAsync result: {result}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"RequestCurrentSelectionAsync error: {ex.Message}");
+            }
+        }
         
         public async Task Activate(bool forceReset = false)
         {
@@ -488,8 +541,24 @@ namespace WeaveDoc.MarkdownEditor.Controls
             if (_controller != null)
             {
                 _controller.IsVisible = true;
-                await Task.Delay(100);
+                await Task.Delay(200); // 等待WebView完全就绪
                 UpdateControllerBounds(true);
+                
+                // 确保Monaco编辑器接收焦点以便发送选择事件
+                try
+                {
+                    _controller.MoveFocus(CoreWebView2MoveFocusReason.Programmatic);
+                    
+                    // 通过JavaScript确保Monaco编辑器获得焦点
+                    if (_webview != null)
+                    {
+                        await _webview.ExecuteScriptAsync("if (editor) { editor.focus(); console.log('Monaco editor focus called'); }");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"MoveFocus exception: {ex.Message}");
+                }
                 
                 // 只有在强制重置或有待处理内容时才设置内容
                 if (forceReset && !string.IsNullOrEmpty(_pendingContent))

@@ -209,9 +209,16 @@ namespace WeaveDoc.MarkdownEditor.Views
 
         public void ScrollPreviewToSelection(int startLine, int startCol, int endLine, int endCol)
         {
+            Console.WriteLine($"MainWindow.ScrollPreviewToSelection called: startLine={startLine}, startCol={startCol}, endLine={endLine}, endCol={endCol}");
+            Console.WriteLine($"MainWindow.ScrollPreviewToSelection: _previewWebView is null: {_previewWebView == null}");
+            
             if (_previewWebView != null)
             {
                 _previewWebView.ScrollToSelection(startLine, startCol, endLine, endCol);
+            }
+            else
+            {
+                Console.WriteLine("MainWindow.ScrollPreviewToSelection: _previewWebView is null, cannot scroll");
             }
         }
 
@@ -347,32 +354,43 @@ namespace WeaveDoc.MarkdownEditor.Views
             if (selectedTab == null) return;
 
             if (selectedTab.Header?.ToString() == "Markdown Editor")
-            {
-                Console.WriteLine("Switching to Markdown Editor");
-                
-                if (_pdfViewer != null)
                 {
-                    _pdfViewer.Deactivate();
-                }
-                
-                if (_monacoEditor != null)
-                {
-                    // 不强制重置，保留编辑内容
-                    await _monacoEditor.Activate(false);
-                }
-                
-                if (_previewWebView != null)
-                {
-                    // 不强制重置，保留预览内容
-                    await _previewWebView.Activate(false);
+                    Console.WriteLine("Switching to Markdown Editor");
                     
-                    // 更新预览内容以同步编辑器
-                    if (DataContext is MainWindowViewModel vm)
+                    if (_pdfViewer != null)
                     {
-                        _previewWebView.SetContent(vm.PreviewHtml);
+                        _pdfViewer.Deactivate();
+                    }
+
+                    if (_monacoEditor != null)
+                    {
+                        // 不强制重置，保留编辑内容
+                        await _monacoEditor.Activate(false);
+                    }
+
+                    if (_previewWebView != null)
+                    {
+                        // 设置预览准备好后的回调，在内容更新完成后刷新高亮
+                        _previewWebView.SetOnPreviewReadyCallback(async () =>
+                        {
+                            Console.WriteLine("MainWindow: Preview ready callback triggered");
+                            if (_monacoEditor != null)
+                            {
+                                await _monacoEditor.RequestCurrentSelectionAsync();
+                            }
+                        });
+
+                        // 激活预览器，它会自动更新内容
+                        await _previewWebView.Activate(false);
+
+                        // 强制刷新预览内容，确保data-pos属性正确加载
+                        if (DataContext is MainWindowViewModel vm)
+                        {
+                            Console.WriteLine("MainTabControl_SelectionChanged: Forcing preview content refresh");
+                            _previewWebView.SetContent(vm.PreviewHtml);
+                        }
                     }
                 }
-            }
             else if (selectedTab.Header?.ToString() == "PDF Reader")
             {
                 Console.WriteLine("Switching to PDF Reader");

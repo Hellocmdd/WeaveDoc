@@ -181,9 +181,14 @@
                 sendSelectionInfo();
             });
 
-            editor.onDidChangeSelection(function(event) {
-                sendSelectionInfo();
-            });
+            // 检查onDidChangeSelection是否存在，某些版本可能没有
+            if (typeof editor.onDidChangeSelection === 'function') {
+                editor.onDidChangeSelection(function(event) {
+                    sendSelectionInfo();
+                });
+            } else {
+                console.log('onDidChangeSelection not available, using onDidChangeCursorPosition only');
+            }
 
             window.scrollToLine = function(lineNumber) {
                 try {

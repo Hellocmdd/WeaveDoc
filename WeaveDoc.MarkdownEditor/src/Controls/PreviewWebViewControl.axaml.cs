@@ -115,29 +115,37 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var root = this.VisualRoot as Window;
                 if (root == null)
                 {
+                    Console.WriteLine("InitializeWebViewAsync: No root window");
                     return;
                 }
 
-                await Task.Delay(500);
+                // 减少延迟时间
+                await Task.Delay(100);
 
                 var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                 {
+                    Console.WriteLine("InitializeWebViewAsync: No hwnd");
                     return;
                 }
 
+                // 确保共享环境只创建一次
                 if (_sharedEnvironment == null)
                 {
+                    Console.WriteLine("Creating shared WebView2 environment...");
                     _sharedEnvironment = await CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions 
                     { 
                         AdditionalBrowserArguments = "--disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-sandbox",
                         AllowSingleSignOnUsingOSPrimaryAccount = false
                     });
+                    Console.WriteLine("Shared WebView2 environment created");
                 }
 
+                Console.WriteLine("Creating WebView2 controller...");
                 _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);
+                Console.WriteLine("WebView2 controller created");
 
-                _controller.IsVisible = true;
+                _controller.IsVisible = false;
                 _controller.CoreWebView2.Settings.IsScriptEnabled = true;
 
                 _webview = _controller.CoreWebView2;
@@ -147,15 +155,20 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _webview.Settings.AreDefaultContextMenusEnabled = true;
                 _webview.Settings.IsZoomControlEnabled = true;
 
-                // 注册 C# 对象供 JavaScript 调用
                 _webview.AddHostObjectToScript("weaveDocHost", new WeaveDocHost(this));
 
                 var htmlPath = Path.Combine(AppContext.BaseDirectory, "Assets", "preview-template.html");
                 var html = File.ReadAllText(htmlPath);
+                
+                UpdateControllerBounds();
+                _controller.IsVisible = true;
+                
                 _webview.NavigateToString(html);
+                Console.WriteLine("Preview WebView2 initialized");
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"InitializeWebViewAsync exception: {ex.Message}");
                 Logger.LogException(ex);
             }
         }
@@ -173,8 +186,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 if (!string.IsNullOrEmpty(_pendingContent))
                 {
-                    UpdatePreview(_pendingContent);
+                    var contentToApply = _pendingContent;
                     _pendingContent = string.Empty;
+                    UpdatePreview(contentToApply);
                 }
             }
         }
@@ -379,38 +393,72 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
                 }
 
-                var script = $"window.updateContent({System.Text.Json.JsonSerializer.Serialize(content)});";
-                Console.WriteLine($"Executing script: {script.Substring(0, Math.Min(100, script.Length))}...");
-
-                // 检查内容是否包含 data-pos 属性
-                if (content.Contains("data-pos"))
+                // 检查内容是否真的变了（比较原始值而不是_pendingContent，因为_pendingContent可能在前面被设置）
+                if (_pendingContent == content && !string.IsNullOrEmpty(_pendingContent))
                 {
-                    Console.WriteLine("HTML content contains data-pos attributes");
-                    // 检查是否包含 onclick 属性
-                    if (content.Contains("onclick"))
+                    Console.WriteLine("Content unchanged, skipping update");
+                    return;
+                }
+
+                // 内容变了，更新_pendingContent并执行脚本
+                _pendingContent = content;
+
+                // 如果已初始化，立即执行JavaScript更新（无论是否活动）
+                if (_isInitialized)
+                {
+                    var script = $"window.updateContent({System.Text.Json.JsonSerializer.Serialize(content)});";
+                    Console.WriteLine($"Executing script: {script.Substring(0, Math.Min(100, script.Length))}...");
+
+                    // 检查内容是否包含 data-pos 属性
+                    if (content.Contains("data-pos"))
                     {
-                        Console.WriteLine("HTML content contains onclick attributes");
+                        Console.WriteLine("HTML content contains data-pos attributes");
+                        // 检查是否包含 onclick 属性
+                        if (content.Contains("onclick"))
+                        {
+                            Console.WriteLine("HTML content contains onclick attributes");
+                        }
+                        else
+                        {
+                            Console.WriteLine("WARNING: HTML content does NOT contain onclick attributes");
+                        }
                     }
                     else
                     {
-                        Console.WriteLine("WARNING: HTML content does NOT contain onclick attributes");
+                        Console.WriteLine("WARNING: HTML content does NOT contain data-pos attributes");
+                        // 输出前200个字符来检查内容
+                        Console.WriteLine("Content preview: " + content.Substring(0, Math.Min(200, content.Length)));
                     }
+
+                    await _webview.ExecuteScriptAsync(script);
+                    Console.WriteLine("Script executed successfully");
+
+                    // 内容更新完成后，通知外部刷新高亮
+                    NotifyPreviewReady();
                 }
-                else
-                {
-                    Console.WriteLine("WARNING: HTML content does NOT contain data-pos attributes");
-                    // 输出前200个字符来检查内容
-                    Console.WriteLine("Content preview: " + content.Substring(0, Math.Min(200, content.Length)));
-                }
-                
-                await _webview.ExecuteScriptAsync(script);
-                Console.WriteLine("Script executed successfully");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"UpdatePreview exception: {ex.Message}");
                 Logger.LogException(ex);
             }
+        }
+
+        private void NotifyPreviewReady()
+        {
+            if (_notifyPreviewReadyCallback != null)
+            {
+                Console.WriteLine("PreviewWebViewControl: Notifying preview ready");
+                _notifyPreviewReadyCallback();
+                _notifyPreviewReadyCallback = null;
+            }
+        }
+
+        private Action? _notifyPreviewReadyCallback;
+
+        public void SetOnPreviewReadyCallback(Action callback)
+        {
+            _notifyPreviewReadyCallback = callback;
         }
 
         public void HandlePreviewClick(int line, int column)
@@ -522,18 +570,103 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             try
             {
+                Console.WriteLine($"ScrollToSelection called: startLine={startLine}, startCol={startCol}, endLine={endLine}, endCol={endCol}");
+                
+                // 确保预览器已初始化
                 if (_webview == null || !_isInitialized)
                 {
+                    Console.WriteLine($"ScrollToSelection skipped: webview={_webview != null}, initialized={_isInitialized}");
                     return;
                 }
 
+                // 检查当前预览内容是否包含data-pos属性
+                var dataPosCount = await _webview.ExecuteScriptAsync("document.querySelectorAll('[data-pos]').length");
+                Console.WriteLine($"ScrollToSelection: Number of data-pos elements: {dataPosCount}");
+                
+                // 如果没有data-pos元素，等待内容更新
+                if (dataPosCount == "0")
+                {
+                    Console.WriteLine("ScrollToSelection: No data-pos elements found, waiting for content update...");
+                    await WaitForContentReadyAsync();
+                    dataPosCount = await _webview.ExecuteScriptAsync("document.querySelectorAll('[data-pos]').length");
+                    Console.WriteLine($"ScrollToSelection: After waiting, data-pos elements: {dataPosCount}");
+                }
+                
+                // 等待JavaScript环境完全就绪
+                await WaitForJavaScriptReadyAsync();
+                
                 var script = $"window.scrollToSelection({startLine}, {startCol}, {endLine}, {endCol});";
-                await _webview.ExecuteScriptAsync(script);
+                Console.WriteLine($"ScrollToSelection executing script: {script}");
+                var result = await _webview.ExecuteScriptAsync(script);
+                Console.WriteLine($"ScrollToSelection script result: {result}");
+                
+                // 检查高亮是否生效
+                var highlightedCount = await _webview.ExecuteScriptAsync("document.querySelectorAll('.highlight-char').length");
+                Console.WriteLine($"ScrollToSelection: Number of highlighted elements after script: {highlightedCount}");
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"ScrollToSelection exception: {ex.Message}");
                 Logger.LogException(ex);
             }
+        }
+        
+        private async Task WaitForContentReadyAsync()
+        {
+            if (_webview == null) return;
+            
+            int attempts = 0;
+            const int maxAttempts = 30;
+            
+            while (attempts < maxAttempts)
+            {
+                try
+                {
+                    var result = await _webview.ExecuteScriptAsync("document.querySelectorAll('[data-pos]').length");
+                    if (result != "0")
+                    {
+                        Console.WriteLine("WaitForContentReadyAsync: Content is ready");
+                        return;
+                    }
+                }
+                catch
+                {
+                }
+                
+                attempts++;
+                await Task.Delay(100);
+            }
+            
+            Console.WriteLine("Warning: Content not ready after timeout");
+        }
+        
+        private async Task WaitForJavaScriptReadyAsync()
+        {
+            if (_webview == null) return;
+            
+            int attempts = 0;
+            const int maxAttempts = 20;
+            
+            while (attempts < maxAttempts)
+            {
+                try
+                {
+                    var result = await _webview.ExecuteScriptAsync("typeof window.scrollToSelection");
+                    if (result == "\"function\"")
+                    {
+                        Console.WriteLine("JavaScript environment is ready");
+                        return;
+                    }
+                }
+                catch
+                {
+                }
+                
+                attempts++;
+                await Task.Delay(50);
+            }
+            
+            Console.WriteLine("Warning: JavaScript environment not fully ready after timeout");
         }
 
         private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
@@ -545,17 +678,34 @@ namespace WeaveDoc.MarkdownEditor.Controls
             _isActive = true;
             Console.WriteLine("PreviewWebViewControl: Activating...");
             
-            if (_controller != null)
+            if (_controller != null && _webview != null)
             {
-                _controller.IsVisible = true;
-                await Task.Delay(100);
                 UpdateControllerBounds();
+                _controller.IsVisible = true;
                 
-                // 只有在强制重置或有待处理内容时才设置内容
-                if (forceReset && !string.IsNullOrEmpty(_pendingContent) && _isInitialized)
+                // 只有在强制重置或未初始化时才重新加载模板
+                if (forceReset || !_isInitialized)
                 {
-                    Console.WriteLine("PreviewWebViewControl: Setting pending content on activate (force reset)");
-                    UpdatePreview(_pendingContent);
+                    Console.WriteLine("PreviewWebViewControl: Reloading preview template");
+                    
+                    _pendingContent = string.Empty;
+                    
+                    var rootWindow = VisualRoot as Window;
+                    if (rootWindow is Views.MainWindow mainWindow && mainWindow.DataContext is ViewModels.MainWindowViewModel vm)
+                    {
+                        _pendingContent = vm.PreviewHtml;
+                        Console.WriteLine($"PreviewWebViewControl: Will restore content length: {_pendingContent.Length}");
+                    }
+                    
+                    _isInitialized = false;
+                    
+                    var htmlPath = Path.Combine(AppContext.BaseDirectory, "Assets", "preview-template.html");
+                    var html = File.ReadAllText(htmlPath);
+                    _webview.NavigateToString(html);
+                }
+                else
+                {
+                    Console.WriteLine("PreviewWebViewControl: Already initialized, showing existing content");
                 }
             }
             else
@@ -574,8 +724,20 @@ namespace WeaveDoc.MarkdownEditor.Controls
             
             if (_controller != null)
             {
-                _controller.IsVisible = false;
+                try
+                {
+                    // 先关闭控制器，确保完全移除WebView2
+                    _controller.Close();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error closing preview controller: {ex.Message}");
+                }
+                _controller = null;
+                _webview = null;
             }
+            // 重置初始化标志，下次激活时重新初始化
+            _isInitialized = false;
         }
     }
 }
