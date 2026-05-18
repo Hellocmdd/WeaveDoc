@@ -345,6 +345,14 @@ namespace WeaveDoc.MarkdownEditor.Views
             }
         }
 
+        private async void FullScreenPdf_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (_pdfViewer != null)
+            {
+                await _pdfViewer.ToggleFullScreen();
+            }
+        }
+
         private async void MainTabControl_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             var mainTabControl = sender as TabControl;

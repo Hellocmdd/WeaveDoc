@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Avalonia.Input;
 using Microsoft.Web.WebView2.Core;
 using System;
 using System.IO;
@@ -14,6 +15,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private CoreWebView2? _webview;
         private string? _pendingFilePath;
         private bool _isActive;
+        private bool _isFullScreen;
+        private Window? _fullScreenWindow;
         private static CoreWebView2Environment? _sharedEnvironment;
 
         public static readonly StyledProperty<string> PdfFilePathProperty =
@@ -31,6 +34,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 }
             }
         }
+
+        public bool IsFullScreen => _isFullScreen;
+
+        public event EventHandler? FullScreenChanged;
 
         public PdfViewerControl()
         {
@@ -80,9 +87,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
             if (_webview != null)
             {
+                // 直接导航到PDF，使用URL参数禁用工具栏
                 string fileUri = "file:///" + filePath.Replace("\\", "/");
-                Console.WriteLine($"Navigating to PDF: {fileUri}");
-                _webview.Navigate(fileUri);
+                // 添加参数禁用工具栏和导航面板
+                string pdfUrlWithParams = fileUri + "#toolbar=0&navpanes=0&scrollbar=1&view=FitH";
+                Console.WriteLine($"Navigating to PDF: {pdfUrlWithParams}");
+                _webview.Navigate(pdfUrlWithParams);
             }
         }
 
@@ -111,6 +121,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);
                 _webview = _controller.CoreWebView2;
+
+                // 禁用右键菜单
+                _webview.Settings.AreDefaultContextMenusEnabled = false;
 
                 _controller.IsVisible = false;
                 UpdateBounds();
@@ -196,6 +209,85 @@ namespace WeaveDoc.MarkdownEditor.Controls
             if (_controller != null)
             {
                 _controller.IsVisible = false;
+            }
+        }
+
+        public async Task ToggleFullScreen()
+        {
+            if (_isFullScreen)
+            {
+                ExitFullScreen();
+            }
+            else
+            {
+                await EnterFullScreen();
+            }
+        }
+
+        private async Task EnterFullScreen()
+        {
+            if (_pendingFilePath == null)
+                return;
+
+            _isFullScreen = true;
+            FullScreenChanged?.Invoke(this, EventArgs.Empty);
+            Console.WriteLine("Entering PDF full screen mode");
+
+            // 创建全屏窗口
+            _fullScreenWindow = new Window
+            {
+                WindowState = WindowState.FullScreen,
+                Title = "PDF Full Screen",
+                Background = Avalonia.Media.Brushes.Black
+            };
+
+            // 添加ESC键处理
+            _fullScreenWindow.KeyDown += FullScreenWindow_KeyDown;
+
+            // 添加PDF查看器到全屏窗口
+            var fullScreenViewer = new PdfViewerControl();
+            _fullScreenWindow.Content = fullScreenViewer;
+
+            // 加载PDF
+            await fullScreenViewer.LoadPdfAsync(_pendingFilePath);
+            await Task.Yield(); // 确保异步操作完成
+            fullScreenViewer.Activate();
+
+            // 显示全屏窗口
+            _fullScreenWindow.Show();
+
+            // 隐藏当前控件
+            if (_controller != null)
+            {
+                _controller.IsVisible = false;
+            }
+        }
+
+        private void ExitFullScreen()
+        {
+            if (_fullScreenWindow != null)
+            {
+                _fullScreenWindow.KeyDown -= FullScreenWindow_KeyDown;
+                _fullScreenWindow.Close();
+                _fullScreenWindow = null;
+            }
+
+            _isFullScreen = false;
+            FullScreenChanged?.Invoke(this, EventArgs.Empty);
+            Console.WriteLine("Exiting PDF full screen mode");
+
+            // 显示当前控件
+            if (_controller != null)
+            {
+                _controller.IsVisible = true;
+            }
+        }
+
+        private void FullScreenWindow_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                ExitFullScreen();
             }
         }
     }

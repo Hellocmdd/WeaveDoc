@@ -50,6 +50,7 @@
           
           <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#E8E8E8" Margin="10">
             <Button Content="关闭 PDF" Click="ClosePdf_Click" Margin="0,0,10,0" Padding="10,5" />
+            <Button Content="全屏" Click="FullScreenPdf_Click" Margin="0,0,10,0" Padding="10,5" />
             <TextBlock x:Name="PdfFileName" VerticalAlignment="Center" FontWeight="Bold" />
           </StackPanel>
           
