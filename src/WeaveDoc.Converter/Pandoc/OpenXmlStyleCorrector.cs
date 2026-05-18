@@ -306,6 +306,53 @@ public static class OpenXmlStyleCorrector
     }
 
     /// <summary>
+    /// 为 PDF 导出应用栏版式。双列模式保持 Heading1 标题和其后的作者段单列，其余内容双列。
+    /// v1 只把 Heading1 后第一个非空段识别为作者段；多行作者、单位、摘要、关键词不做额外单列识别。
+    /// </summary>
+    public static void ApplyPdfLayout(string docxPath, PdfLayoutMode mode)
+    {
+        using var doc = WordprocessingDocument.Open(docxPath, true);
+        var body = doc.MainDocumentPart!.Document.Body!;
+        var finalSection = body.Elements<SectionProperties>().LastOrDefault()
+                           ?? body.AppendChild(new SectionProperties());
+
+        if (mode == PdfLayoutMode.SingleColumn)
+        {
+            ClearParagraphSectionProperties(body);
+            SetColumns(finalSection, 1);
+            SetContinuousSection(finalSection);
+            doc.MainDocumentPart.Document.Save();
+            return;
+        }
+
+        var paragraphs = body.Elements<Paragraph>().ToList();
+        ClearParagraphSectionProperties(body);
+        var authorIndex = FindPdfTitleAuthorBreakIndex(paragraphs);
+        if (authorIndex == null)
+        {
+            SetColumns(finalSection, 2);
+            SetContinuousSection(finalSection);
+            doc.MainDocumentPart.Document.Save();
+            return;
+        }
+
+        var breakParagraph = paragraphs[authorIndex.Value];
+        var paragraphProperties = breakParagraph.GetFirstChild<ParagraphProperties>()
+                                  ?? breakParagraph.PrependChild(new ParagraphProperties());
+
+        paragraphProperties.RemoveAllChildren<SectionProperties>();
+        var firstSection = new SectionProperties();
+        CopySectionSettingsForPdfLayout(finalSection, firstSection);
+        SetColumns(firstSection, 1);
+        SetContinuousSection(firstSection);
+        paragraphProperties.AppendChild(firstSection);
+
+        SetColumns(finalSection, 2);
+        SetContinuousSection(finalSection);
+        doc.MainDocumentPart.Document.Save();
+    }
+
+    /// <summary>
     /// 添加页眉和页脚到文档
     /// </summary>
     public static void ApplyHeaderFooter(string docxPath, AfdHeaderFooter headerFooter)
@@ -402,6 +449,85 @@ public static class OpenXmlStyleCorrector
     }
 
     #region Private helpers
+
+    private static int? FindPdfTitleAuthorBreakIndex(IReadOnlyList<Paragraph> paragraphs)
+    {
+        var headingIndex = paragraphs.ToList().FindIndex(IsHeading1Paragraph);
+        if (headingIndex < 0)
+            return null;
+
+        for (var i = headingIndex + 1; i < paragraphs.Count; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(paragraphs[i].InnerText))
+                return i;
+        }
+
+        return null;
+    }
+
+    private static void ClearParagraphSectionProperties(Body body)
+    {
+        foreach (var paragraph in body.Elements<Paragraph>())
+        {
+            paragraph.GetFirstChild<ParagraphProperties>()?
+                .RemoveAllChildren<SectionProperties>();
+        }
+    }
+
+    private static bool IsHeading1Paragraph(Paragraph paragraph)
+    {
+        var styleId = paragraph.GetFirstChild<ParagraphProperties>()?
+            .ParagraphStyleId?
+            .Val?
+            .Value;
+        return string.Equals(styleId, "Heading1", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void SetColumns(SectionProperties sectionProperties, short count)
+    {
+        var columns = sectionProperties.GetFirstChild<Columns>();
+        if (columns == null)
+        {
+            columns = new Columns();
+            sectionProperties.AppendChild(columns);
+        }
+
+        columns.ColumnCount = count;
+        columns.Space = "720";
+    }
+
+    private static void SetContinuousSection(SectionProperties sectionProperties)
+    {
+        var sectionType = sectionProperties.GetFirstChild<SectionType>();
+        if (sectionType == null)
+        {
+            sectionType = new SectionType();
+            sectionProperties.AppendChild(sectionType);
+        }
+
+        sectionType.Val = SectionMarkValues.Continuous;
+    }
+
+    private static void CopySectionSettingsForPdfLayout(SectionProperties source, SectionProperties target)
+    {
+        var pageSize = source.GetFirstChild<PageSize>();
+        if (pageSize != null)
+            target.AppendChild((PageSize)pageSize.CloneNode(true));
+
+        var pageMargin = source.GetFirstChild<PageMargin>();
+        if (pageMargin != null)
+            target.AppendChild((PageMargin)pageMargin.CloneNode(true));
+
+        foreach (var headerReference in source.Elements<HeaderReference>())
+            target.AppendChild((HeaderReference)headerReference.CloneNode(true));
+
+        foreach (var footerReference in source.Elements<FooterReference>())
+            target.AppendChild((FooterReference)footerReference.CloneNode(true));
+
+        var pageNumberType = source.GetFirstChild<PageNumberType>();
+        if (pageNumberType != null)
+            target.AppendChild((PageNumberType)pageNumberType.CloneNode(true));
+    }
 
     private static Justification CreateJustification(string alignment) => alignment switch
     {

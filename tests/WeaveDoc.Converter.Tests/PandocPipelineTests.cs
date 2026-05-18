@@ -574,6 +574,152 @@ public class PandocPipelineTests
     }
 
     [Fact]
+    public void OpenXmlStyleCorrector_ApplyPdfLayout_TwoColumn_StartsTwoColumnsAfterAuthorWithoutPageBreak()
+    {
+        var docxPath = Path.Combine(Path.GetTempPath(), $"pdf-layout-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, CreateTestTemplate());
+
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+                var existingSection = body.Elements<SectionProperties>().First();
+                body.RemoveAllChildren<Paragraph>();
+
+                var title = new Paragraph(
+                    new ParagraphProperties(new ParagraphStyleId { Val = "Heading1" }),
+                    new Run(new Text("论文标题")));
+                var author = new Paragraph(new Run(new Text("作者 A")));
+                var content = new Paragraph(new Run(new Text("正文第一段")));
+                var secondContent = new Paragraph(new Run(new Text("正文第二段")));
+
+                body.InsertBefore(title, existingSection);
+                body.InsertBefore(author, existingSection);
+                body.InsertBefore(content, existingSection);
+                body.InsertBefore(secondContent, existingSection);
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            OpenXmlStyleCorrector.ApplyPdfLayout(docxPath, PdfLayoutMode.TwoColumn);
+
+            using var result = WordprocessingDocument.Open(docxPath, false);
+            var resultBody = result.MainDocumentPart!.Document.Body!;
+            var paragraphs = resultBody.Elements<Paragraph>().ToList();
+            Assert.Equal("论文标题", paragraphs[0].InnerText);
+            Assert.Equal("作者 A", paragraphs[1].InnerText);
+            Assert.Equal("正文第一段", paragraphs[2].InnerText);
+
+            var titleSection = paragraphs[0]
+                .GetFirstChild<ParagraphProperties>()?
+                .GetFirstChild<SectionProperties>();
+            var authorSection = paragraphs[1]
+                .GetFirstChild<ParagraphProperties>()?
+                .GetFirstChild<SectionProperties>();
+            var finalSection = resultBody.Elements<SectionProperties>().Last();
+
+            Assert.Null(titleSection);
+            Assert.NotNull(authorSection);
+            Assert.Equal(SectionMarkValues.Continuous, authorSection!.GetFirstChild<SectionType>()?.Val?.Value);
+            Assert.Equal((short)1, authorSection.GetFirstChild<Columns>()?.ColumnCount?.Value);
+            Assert.Equal(SectionMarkValues.Continuous, finalSection.GetFirstChild<SectionType>()?.Val?.Value);
+            Assert.Equal((short)2, finalSection.GetFirstChild<Columns>()?.ColumnCount?.Value);
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyPdfLayout_TwoColumn_FallsBackToFullTwoColumnWhenTitleAuthorMissing()
+    {
+        var docxPath = Path.Combine(Path.GetTempPath(), $"pdf-layout-fallback-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, CreateTestTemplate());
+
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+                var existingSection = body.Elements<SectionProperties>().First();
+                body.RemoveAllChildren<Paragraph>();
+
+                body.InsertBefore(new Paragraph(new Run(new Text("没有标题样式的第一段"))), existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("正文第一段"))), existingSection);
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            OpenXmlStyleCorrector.ApplyPdfLayout(docxPath, PdfLayoutMode.TwoColumn);
+
+            using var result = WordprocessingDocument.Open(docxPath, false);
+            var resultBody = result.MainDocumentPart!.Document.Body!;
+            var paragraphs = resultBody.Elements<Paragraph>().ToList();
+            var finalSection = resultBody.Elements<SectionProperties>().Last();
+
+            Assert.All(paragraphs, p =>
+            {
+                Assert.Null(p.GetFirstChild<ParagraphProperties>()?.GetFirstChild<SectionProperties>());
+            });
+            Assert.Equal(SectionMarkValues.Continuous, finalSection.GetFirstChild<SectionType>()?.Val?.Value);
+            Assert.Equal((short)2, finalSection.GetFirstChild<Columns>()?.ColumnCount?.Value);
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyPdfLayout_SingleColumn_RemovesParagraphSectionBreaks()
+    {
+        var docxPath = Path.Combine(Path.GetTempPath(), $"pdf-layout-single-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, CreateTestTemplate());
+
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+                var existingSection = body.Elements<SectionProperties>().First();
+                body.RemoveAllChildren<Paragraph>();
+
+                var firstParagraph = new Paragraph(
+                    new ParagraphProperties(
+                        new SectionProperties(
+                            new SectionType { Val = SectionMarkValues.Continuous },
+                            new Columns { ColumnCount = 2 })),
+                    new Run(new Text("残留双列分节段落")));
+                var secondParagraph = new Paragraph(new Run(new Text("正文段落")));
+
+                body.InsertBefore(firstParagraph, existingSection);
+                body.InsertBefore(secondParagraph, existingSection);
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            OpenXmlStyleCorrector.ApplyPdfLayout(docxPath, PdfLayoutMode.SingleColumn);
+
+            using var result = WordprocessingDocument.Open(docxPath, false);
+            var resultBody = result.MainDocumentPart!.Document.Body!;
+            var paragraphs = resultBody.Elements<Paragraph>().ToList();
+            var finalSection = resultBody.Elements<SectionProperties>().Last();
+
+            Assert.All(paragraphs, p =>
+            {
+                Assert.Null(p.GetFirstChild<ParagraphProperties>()?.GetFirstChild<SectionProperties>());
+            });
+            Assert.Equal((short)1, finalSection.GetFirstChild<Columns>()?.ColumnCount?.Value);
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
     public async Task DocumentConversionEngine_ConvertAsync_UnsupportedFormat()
     {
         var root = FindSolutionRoot();

@@ -64,6 +64,24 @@
                             </StackPanel>
                         </Border>
                     </Grid>
+                    <Border x:Name="PdfLayoutPanel"
+                            IsVisible="False"
+                            BorderBrush="#DCE1E8" BorderThickness="1"
+                            CornerRadius="6" ClipToBounds="True"
+                            HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="PdfSingleColumnBtn" Content="单列"
+                                    FontSize="13" FontWeight="SemiBold"
+                                    Padding="18,7"
+                                    Foreground="White" Background="#4A6FA5"
+                                    BorderThickness="0" CornerRadius="0" />
+                            <Button x:Name="PdfTwoColumnBtn" Content="双列"
+                                    FontSize="13" FontWeight="Normal"
+                                    Padding="18,7"
+                                    Foreground="#718096" Background="#F7F8FC"
+                                    BorderThickness="0" CornerRadius="0" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
 
