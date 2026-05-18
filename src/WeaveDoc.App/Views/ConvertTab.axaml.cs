@@ -9,6 +9,7 @@ using Avalonia.Platform.Storage;
 using WeaveDoc.Converter;
 using WeaveDoc.Converter.Afd.Models;
 using WeaveDoc.Converter.Config;
+using WeaveDoc.Converter.Pandoc;
 
 namespace WeaveDoc.App.Views;
 
@@ -17,6 +18,7 @@ public partial class ConvertTab : UserControl
     private ConfigManager? _configManager;
     private DocumentConversionEngine? _engine;
     private bool _isDocx = true;
+    private PdfLayoutMode _pdfLayoutMode = PdfLayoutMode.SingleColumn;
 
     public ConvertTab()
     {
@@ -26,6 +28,8 @@ public partial class ConvertTab : UserControl
         ConvertButton.Click += OnConvert;
         FormatDocxBtn.Click += OnFormatDocx;
         FormatPdfBtn.Click += OnFormatPdf;
+        PdfSingleColumnBtn.Click += OnPdfSingleColumn;
+        PdfTwoColumnBtn.Click += OnPdfTwoColumn;
     }
 
     public void SetServices(ConfigManager configManager, DocumentConversionEngine engine)
@@ -53,6 +57,7 @@ public partial class ConvertTab : UserControl
         FormatPdfBtn.Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B));
         FormatPdfBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0xA8, 0xC7));
         FormatPdfBtn.FontWeight = FontWeight.Normal;
+        PdfLayoutPanel.IsVisible = false;
     }
 
     private void OnFormatPdf(object? sender, RoutedEventArgs e)
@@ -64,6 +69,29 @@ public partial class ConvertTab : UserControl
         FormatDocxBtn.Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B));
         FormatDocxBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0xA8, 0xC7));
         FormatDocxBtn.FontWeight = FontWeight.Normal;
+        PdfLayoutPanel.IsVisible = true;
+    }
+
+    private void OnPdfSingleColumn(object? sender, RoutedEventArgs e)
+    {
+        _pdfLayoutMode = PdfLayoutMode.SingleColumn;
+        PdfSingleColumnBtn.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0x6F, 0xA5));
+        PdfSingleColumnBtn.Foreground = new SolidColorBrush(Colors.White);
+        PdfSingleColumnBtn.FontWeight = FontWeight.SemiBold;
+        PdfTwoColumnBtn.Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xFC));
+        PdfTwoColumnBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x71, 0x80, 0x96));
+        PdfTwoColumnBtn.FontWeight = FontWeight.Normal;
+    }
+
+    private void OnPdfTwoColumn(object? sender, RoutedEventArgs e)
+    {
+        _pdfLayoutMode = PdfLayoutMode.TwoColumn;
+        PdfTwoColumnBtn.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0x6F, 0xA5));
+        PdfTwoColumnBtn.Foreground = new SolidColorBrush(Colors.White);
+        PdfTwoColumnBtn.FontWeight = FontWeight.SemiBold;
+        PdfSingleColumnBtn.Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xFC));
+        PdfSingleColumnBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x71, 0x80, 0x96));
+        PdfSingleColumnBtn.FontWeight = FontWeight.Normal;
     }
 
     private void SetStatus(string text, string color)
@@ -151,7 +179,7 @@ public partial class ConvertTab : UserControl
 
         try
         {
-            var result = await _engine.ConvertAsync(mdPath, selected.TemplateId, format);
+            var result = await _engine.ConvertAsync(mdPath, selected.TemplateId, format, _pdfLayoutMode);
 
             if (result.Success)
             {

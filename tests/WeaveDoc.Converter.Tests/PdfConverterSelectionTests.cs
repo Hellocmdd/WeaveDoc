@@ -1,3 +1,5 @@
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 using WeaveDoc.Converter;
 using WeaveDoc.Converter.Config;
 using WeaveDoc.Converter.Pandoc;
@@ -179,6 +181,45 @@ public class PdfConverterSelectionTests
         }
     }
 
+    [Fact]
+    public async Task DocumentConversionEngine_ConvertAsync_Pdf_TwoColumn_PassesPaperLayoutDocxToConverter()
+    {
+        var dbPath = Path.Combine(Path.GetTempPath(), $"layout-pdf-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var configManager = new ConfigManager(dbPath);
+            await configManager.EnsureSeedTemplatesAsync();
+
+            var pipeline = new PandocPipeline(Path.Combine(FindSolutionRoot(), "tools", "pandoc", "pandoc.exe"));
+            var converter = new InspectingPdfConverter();
+            var engine = new DocumentConversionEngine(pipeline, converter, configManager);
+            var mdPath = Path.Combine(Path.GetTempPath(), $"layout-pdf-{Guid.NewGuid():N}.md");
+            await File.WriteAllTextAsync(mdPath, "# 论文标题\n\n作者 A\n\n正文第一段。\n");
+
+            try
+            {
+                var result = await engine.ConvertAsync(mdPath, "default-thesis", "pdf", PdfLayoutMode.TwoColumn);
+
+                Assert.True(result.Success, result.ErrorMessage);
+                Assert.True(converter.SawPaperTwoColumnLayout, converter.InspectionFailure);
+            }
+            finally
+            {
+                if (File.Exists(mdPath)) File.Delete(mdPath);
+                foreach (var outputPath in Directory.GetFiles(Path.GetDirectoryName(mdPath)!, $"{Path.GetFileNameWithoutExtension(mdPath)}-*.pdf"))
+                {
+                    File.Delete(outputPath);
+                }
+            }
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
+    }
+
     private static Afd.Models.AfdTemplate CreateTestTemplate() => new()
     {
         Meta = new Afd.Models.AfdMeta { TemplateName = "测试模板" },
@@ -237,6 +278,63 @@ public class PdfConverterSelectionTests
         public void ConvertToPdf(string docxPath, string pdfPath)
         {
             File.WriteAllText(pdfPath, _content);
+        }
+    }
+
+    private sealed class InspectingPdfConverter : IPdfConverter
+    {
+        public string Name => "inspecting";
+        public bool SawPaperTwoColumnLayout { get; private set; }
+        public string InspectionFailure { get; private set; } = "";
+
+        public void ConvertToPdf(string docxPath, string pdfPath)
+        {
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            var body = doc.MainDocumentPart!.Document.Body!;
+            var paragraphs = body.Elements<Paragraph>().ToList();
+            var titleSection = paragraphs[0]
+                .GetFirstChild<ParagraphProperties>()?
+                .GetFirstChild<SectionProperties>();
+            var authorSection = paragraphs[1]
+                .GetFirstChild<ParagraphProperties>()?
+                .GetFirstChild<SectionProperties>();
+            var finalSection = body.Elements<SectionProperties>().Last();
+
+            if (titleSection != null)
+            {
+                InspectionFailure = "标题段不应带分节栏设置。";
+            }
+            else if (authorSection == null)
+            {
+                InspectionFailure = "作者段后缺少单列分节。";
+            }
+            else if (authorSection.GetFirstChild<SectionType>()?.Val?.Value != SectionMarkValues.Continuous)
+            {
+                InspectionFailure = "作者段后的分节必须是 continuous，不能另起一页。";
+            }
+            else if (authorSection.GetFirstChild<Columns>()?.ColumnCount?.Value != 1)
+            {
+                InspectionFailure = "作者段后的分节必须保持单列。";
+            }
+            else if (!authorSection.Elements<HeaderReference>().Any() && !authorSection.Elements<FooterReference>().Any())
+            {
+                InspectionFailure = "作者段后的单列分节必须复制最终节的页眉页脚引用。";
+            }
+            else if (finalSection.GetFirstChild<SectionType>()?.Val?.Value != SectionMarkValues.Continuous)
+            {
+                InspectionFailure = "正文双列分节必须是 continuous。";
+            }
+            else if (finalSection.GetFirstChild<Columns>()?.ColumnCount?.Value != 2)
+            {
+                InspectionFailure = "正文最终分节必须是双列。";
+            }
+            else
+            {
+                SawPaperTwoColumnLayout = true;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(pdfPath)!);
+            File.WriteAllText(pdfPath, "%PDF-1.7 inspecting");
         }
     }
 }
