@@ -633,6 +633,87 @@ public class PandocPipelineTests
     }
 
     [Fact]
+    public void OpenXmlStyleCorrector_ApplyPdfLayout_TwoColumn_StartsTwoColumnsAtContentSummaryWhenFrontMatterExists()
+    {
+        var docxPath = Path.Combine(Path.GetTempPath(), $"pdf-layout-front-matter-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, CreateTestTemplate());
+
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+                var existingSection = body.Elements<SectionProperties>().First();
+                body.RemoveAllChildren<Paragraph>();
+
+                body.InsertBefore(
+                    new Paragraph(
+                        new ParagraphProperties(new ParagraphStyleId { Val = "Heading1" }),
+                        new Run(new Text("论文标题"))),
+                    existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("张三 李四"))), existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("（某某大学计算机学院）"))), existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("内容提要：这是一段内容提要。"))), existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("关键词：双列；论文"))), existingSection);
+                body.InsertBefore(
+                    new Paragraph(
+                        new ParagraphProperties(new ParagraphStyleId { Val = "Heading2" }),
+                        new Run(new Text("1 引言"))),
+                    existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("正文第一段"))), existingSection);
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            OpenXmlStyleCorrector.ApplyPdfLayout(docxPath, PdfLayoutMode.TwoColumn);
+
+            using var result = WordprocessingDocument.Open(docxPath, false);
+            var resultBody = result.MainDocumentPart!.Document.Body!;
+            var paragraphs = resultBody.Elements<Paragraph>().ToList();
+            var affiliationSection = paragraphs[2]
+                .GetFirstChild<ParagraphProperties>()?
+                .GetFirstChild<SectionProperties>();
+            var contentSummarySection = paragraphs[3]
+                .GetFirstChild<ParagraphProperties>()?
+                .GetFirstChild<SectionProperties>();
+            var keywordSection = paragraphs[4]
+                .GetFirstChild<ParagraphProperties>()?
+                .GetFirstChild<SectionProperties>();
+            var heading2Section = paragraphs[5]
+                .GetFirstChild<ParagraphProperties>()?
+                .GetFirstChild<SectionProperties>();
+            var finalSection = resultBody.Elements<SectionProperties>().Last();
+
+            Assert.Equal("内容提要：这是一段内容提要。", paragraphs[3].InnerText);
+            Assert.Equal("关键词：双列；论文", paragraphs[4].InnerText);
+            Assert.Equal("1 引言", paragraphs[5].InnerText);
+            Assert.Null(paragraphs[1].GetFirstChild<ParagraphProperties>()?.GetFirstChild<SectionProperties>());
+            Assert.Null(paragraphs[3].GetFirstChild<ParagraphProperties>()?.GetFirstChild<SectionProperties>());
+            Assert.Equal(
+                JustificationValues.Center,
+                paragraphs[1].GetFirstChild<ParagraphProperties>()?.GetFirstChild<Justification>()?.Val?.Value);
+            Assert.Equal(
+                JustificationValues.Center,
+                paragraphs[2].GetFirstChild<ParagraphProperties>()?.GetFirstChild<Justification>()?.Val?.Value);
+            Assert.NotEqual(
+                JustificationValues.Center,
+                paragraphs[3].GetFirstChild<ParagraphProperties>()?.GetFirstChild<Justification>()?.Val?.Value);
+            Assert.NotNull(affiliationSection);
+            Assert.Null(contentSummarySection);
+            Assert.Null(keywordSection);
+            Assert.Null(heading2Section);
+            Assert.Equal(SectionMarkValues.Continuous, affiliationSection!.GetFirstChild<SectionType>()?.Val?.Value);
+            Assert.Equal((short)1, affiliationSection.GetFirstChild<Columns>()?.ColumnCount?.Value);
+            Assert.Equal(SectionMarkValues.Continuous, finalSection.GetFirstChild<SectionType>()?.Val?.Value);
+            Assert.Equal((short)2, finalSection.GetFirstChild<Columns>()?.ColumnCount?.Value);
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
     public void OpenXmlStyleCorrector_ApplyPdfLayout_TwoColumn_FallsBackToFullTwoColumnWhenTitleAuthorMissing()
     {
         var docxPath = Path.Combine(Path.GetTempPath(), $"pdf-layout-fallback-{Guid.NewGuid():N}.docx");

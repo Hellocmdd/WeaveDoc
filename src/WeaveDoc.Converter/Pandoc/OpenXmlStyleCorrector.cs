@@ -306,8 +306,8 @@ public static class OpenXmlStyleCorrector
     }
 
     /// <summary>
-    /// 为 PDF 导出应用栏版式。双列模式保持 Heading1 标题和其后的作者段单列，其余内容双列。
-    /// v1 只把 Heading1 后第一个非空段识别为作者段；多行作者、单位、摘要、关键词不做额外单列识别。
+    /// 为 PDF 导出应用栏版式。双列模式优先保持 Heading1 到首个 Heading2 之前的前置区单列。
+    /// 没有 Heading2 时，降级为只把 Heading1 后第一个非空段识别为作者段。
     /// </summary>
     public static void ApplyPdfLayout(string docxPath, PdfLayoutMode mode)
     {
@@ -327,8 +327,8 @@ public static class OpenXmlStyleCorrector
 
         var paragraphs = body.Elements<Paragraph>().ToList();
         ClearParagraphSectionProperties(body);
-        var authorIndex = FindPdfTitleAuthorBreakIndex(paragraphs);
-        if (authorIndex == null)
+        var singleColumnEndIndex = FindPdfFrontMatterEndIndex(paragraphs);
+        if (singleColumnEndIndex == null)
         {
             SetColumns(finalSection, 2);
             SetContinuousSection(finalSection);
@@ -336,10 +336,11 @@ public static class OpenXmlStyleCorrector
             return;
         }
 
-        var breakParagraph = paragraphs[authorIndex.Value];
+        var breakParagraph = paragraphs[singleColumnEndIndex.Value];
         var paragraphProperties = breakParagraph.GetFirstChild<ParagraphProperties>()
                                   ?? breakParagraph.PrependChild(new ParagraphProperties());
 
+        CenterPdfAuthorBlock(paragraphs, singleColumnEndIndex.Value);
         paragraphProperties.RemoveAllChildren<SectionProperties>();
         var firstSection = new SectionProperties();
         CopySectionSettingsForPdfLayout(finalSection, firstSection);
@@ -450,7 +451,7 @@ public static class OpenXmlStyleCorrector
 
     #region Private helpers
 
-    private static int? FindPdfTitleAuthorBreakIndex(IReadOnlyList<Paragraph> paragraphs)
+    private static int? FindPdfFrontMatterEndIndex(IReadOnlyList<Paragraph> paragraphs)
     {
         var headingIndex = paragraphs.ToList().FindIndex(IsHeading1Paragraph);
         if (headingIndex < 0)
@@ -458,11 +459,85 @@ public static class OpenXmlStyleCorrector
 
         for (var i = headingIndex + 1; i < paragraphs.Count; i++)
         {
+            if (IsFrontMatterMetadataParagraph(paragraphs[i].InnerText.Trim()))
+                return FindPreviousNonEmptyParagraphIndex(paragraphs, i - 1);
+
+            if (IsHeading2Paragraph(paragraphs[i]))
+                return FindPreviousNonEmptyParagraphIndex(paragraphs, i - 1);
+        }
+
+        return FindFirstNonEmptyParagraphIndex(paragraphs, headingIndex + 1);
+    }
+
+    private static void CenterPdfAuthorBlock(IReadOnlyList<Paragraph> paragraphs, int singleColumnEndIndex)
+    {
+        var headingIndex = paragraphs.ToList().FindIndex(IsHeading1Paragraph);
+        if (headingIndex < 0)
+            return;
+
+        for (var i = headingIndex + 1; i <= singleColumnEndIndex; i++)
+        {
+            var paragraphText = paragraphs[i].InnerText.Trim();
+            if (string.IsNullOrWhiteSpace(paragraphText))
+                continue;
+
+            if (IsFrontMatterMetadataParagraph(paragraphText))
+                break;
+
+            var paragraphProperties = paragraphs[i].GetFirstChild<ParagraphProperties>()
+                                      ?? paragraphs[i].PrependChild(new ParagraphProperties());
+            paragraphProperties.RemoveAllChildren<Justification>();
+            paragraphProperties.AppendChild(new Justification { Val = JustificationValues.Center });
+        }
+    }
+
+    private static bool IsFrontMatterMetadataParagraph(string text)
+    {
+        return text.StartsWith("摘要", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("【摘要】", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("Abstract", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("内容提要", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("关键词", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("【关键词】", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("Key words", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("Keywords", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("DOI", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("doi", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("中图分类号", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("文献标识码", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("文献标志码", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("文章编号", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int? FindFirstNonEmptyParagraphIndex(IReadOnlyList<Paragraph> paragraphs, int startIndex)
+    {
+        for (var i = startIndex; i < paragraphs.Count; i++)
+        {
             if (!string.IsNullOrWhiteSpace(paragraphs[i].InnerText))
                 return i;
         }
 
         return null;
+    }
+
+    private static int? FindPreviousNonEmptyParagraphIndex(IReadOnlyList<Paragraph> paragraphs, int startIndex)
+    {
+        for (var i = startIndex; i >= 0; i--)
+        {
+            if (!string.IsNullOrWhiteSpace(paragraphs[i].InnerText))
+                return i;
+        }
+
+        return null;
+    }
+
+    private static bool IsHeading2Paragraph(Paragraph paragraph)
+    {
+        var styleId = paragraph.GetFirstChild<ParagraphProperties>()?
+            .ParagraphStyleId?
+            .Val?
+            .Value;
+        return string.Equals(styleId, "Heading2", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void ClearParagraphSectionProperties(Body body)
