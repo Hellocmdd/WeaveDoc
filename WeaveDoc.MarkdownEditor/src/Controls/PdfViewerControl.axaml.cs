@@ -90,7 +90,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 // 直接导航到PDF，使用URL参数禁用工具栏
                 string fileUri = "file:///" + filePath.Replace("\\", "/");
                 // 添加参数禁用工具栏和导航面板
-                string pdfUrlWithParams = fileUri + "#toolbar=0&navpanes=0&scrollbar=1&view=FitH";
+                string pdfUrlWithParams = fileUri + "#toolbar=0&navpanes=1&scrollbar=1&view=FitH&pagemode=bookmarks";
                 Console.WriteLine($"Navigating to PDF: {pdfUrlWithParams}");
                 _webview.Navigate(pdfUrlWithParams);
             }
@@ -122,8 +122,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);
                 _webview = _controller.CoreWebView2;
 
-                // 禁用右键菜单
-                _webview.Settings.AreDefaultContextMenusEnabled = false;
+                // 启用右键菜单
+                _webview.Settings.AreDefaultContextMenusEnabled = true;
 
                 _controller.IsVisible = false;
                 UpdateBounds();
@@ -187,15 +187,26 @@ namespace WeaveDoc.MarkdownEditor.Controls
             _isActive = true;
             Console.WriteLine("PDF viewer activated");
 
+            // 确保WebView2已初始化
+            if (_controller == null && _pendingFilePath != null)
+            {
+                await InitializeWebViewAsync();
+            }
+
             if (_controller != null)
             {
                 UpdateBounds();
                 _controller.IsVisible = true;
             }
 
-            if (_pendingFilePath != null && _webview == null)
+            // 重新加载PDF内容
+            if (_pendingFilePath != null && _webview != null)
             {
-                await LoadPdfAsync(_pendingFilePath);
+                await Task.Delay(100); // 等待WebView2准备就绪
+                string fileUri = "file:///" + _pendingFilePath.Replace("\\", "/");
+                string pdfUrlWithParams = fileUri + "#toolbar=0&navpanes=1&scrollbar=1&view=FitH&pagemode=bookmarks";
+                Console.WriteLine($"Activate: Reloading PDF: {pdfUrlWithParams}");
+                _webview.Navigate(pdfUrlWithParams);
             }
         }
 
@@ -248,13 +259,16 @@ namespace WeaveDoc.MarkdownEditor.Controls
             var fullScreenViewer = new PdfViewerControl();
             _fullScreenWindow.Content = fullScreenViewer;
 
-            // 加载PDF
-            await fullScreenViewer.LoadPdfAsync(_pendingFilePath);
-            await Task.Yield(); // 确保异步操作完成
-            fullScreenViewer.Activate();
-
             // 显示全屏窗口
             _fullScreenWindow.Show();
+
+            // 等待窗口加载完成
+            await Task.Delay(100);
+
+            // 加载PDF（确保窗口已初始化）
+            await fullScreenViewer.LoadPdfAsync(_pendingFilePath);
+            await Task.Delay(100); // 确保WebView2初始化完成
+            fullScreenViewer.Activate();
 
             // 隐藏当前控件
             if (_controller != null)
