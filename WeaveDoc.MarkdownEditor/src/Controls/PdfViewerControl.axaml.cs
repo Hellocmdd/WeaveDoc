@@ -93,6 +93,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 string pdfUrlWithParams = fileUri + "#toolbar=0&navpanes=1&scrollbar=1&view=FitH&pagemode=bookmarks";
                 Console.WriteLine($"Navigating to PDF: {pdfUrlWithParams}");
                 _webview.Navigate(pdfUrlWithParams);
+                
+                // 导航后立即显示WebView2
+                if (_controller != null)
+                {
+                    _controller.IsVisible = true;
+                }
             }
         }
 
