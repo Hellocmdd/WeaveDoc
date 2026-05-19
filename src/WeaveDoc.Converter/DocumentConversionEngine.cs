@@ -69,7 +69,7 @@ public class DocumentConversionEngine
             }
             else if (string.Equals(outputFormat, "pdf", StringComparison.OrdinalIgnoreCase))
             {
-                OpenXmlStyleCorrector.ApplyPdfLayout(rawDocxPath, pdfLayoutMode);
+                OpenXmlStyleCorrector.ApplyPdfLayout(rawDocxPath, pdfLayoutMode, _pdfConverter);
                 _pdfConverter.ConvertToPdf(rawDocxPath, outputPath);
             }
             else

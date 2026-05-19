@@ -4,6 +4,7 @@ using WeaveDoc.Converter;
 using WeaveDoc.Converter.Config;
 using WeaveDoc.Converter.Pandoc;
 using WeaveDoc.Converter.Afd.Models;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.Data.Sqlite;
@@ -793,6 +794,85 @@ public class PandocPipelineTests
                 Assert.Null(p.GetFirstChild<ParagraphProperties>()?.GetFirstChild<SectionProperties>());
             });
             Assert.Equal((short)1, finalSection.GetFirstChild<Columns>()?.ColumnCount?.Value);
+        }
+        finally
+        {
+            if (File.Exists(docxPath)) File.Delete(docxPath);
+        }
+    }
+
+    [Fact]
+    public void OpenXmlStyleCorrector_ApplyPdfLayout_TwoColumn_SpansWideTablesAndPreventsRowSplitting()
+    {
+        var docxPath = Path.Combine(Path.GetTempPath(), $"pdf-layout-wide-table-{Guid.NewGuid():N}.docx");
+
+        try
+        {
+            ReferenceDocBuilder.Build(docxPath, CreateTestTemplate());
+
+            using (var doc = WordprocessingDocument.Open(docxPath, true))
+            {
+                var body = doc.MainDocumentPart!.Document.Body!;
+                var existingSection = body.Elements<SectionProperties>().First();
+                body.RemoveAllChildren<Paragraph>();
+
+                body.InsertBefore(
+                    new Paragraph(
+                        new ParagraphProperties(new ParagraphStyleId { Val = "Heading1" }),
+                        new Run(new Text("论文标题"))),
+                    existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("作者 A"))), existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("摘要：测试摘要"))), existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("正文段落"))), existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("表1 宽表标题"))), existingSection);
+                body.InsertBefore(
+                    new Table(
+                        new TableRow(
+                            new TableCell(new Paragraph(new Run(new Text("列1")))),
+                            new TableCell(new Paragraph(new Run(new Text("列2")))),
+                            new TableCell(new Paragraph(new Run(new Text("列3")))),
+                            new TableCell(new Paragraph(new Run(new Text("列4")))))),
+                    existingSection);
+                body.InsertBefore(new Paragraph(new Run(new Text("表后正文"))), existingSection);
+                doc.MainDocumentPart.Document.Save();
+            }
+
+            OpenXmlStyleCorrector.ApplyPdfLayout(docxPath, PdfLayoutMode.TwoColumn);
+
+            using var result = WordprocessingDocument.Open(docxPath, false);
+            var bodyElements = result.MainDocumentPart!.Document.Body!.ChildElements.ToList();
+            var table = bodyElements.OfType<Table>().Single();
+            var tableIndex = bodyElements.IndexOf(table);
+            var caption = (Paragraph)bodyElements[tableIndex - 1];
+            var beforeTableSection = bodyElements
+                .OfType<Paragraph>()
+                .Single(p => p.InnerText == "正文段落")
+                .GetFirstChild<ParagraphProperties>()?
+                .GetFirstChild<SectionProperties>();
+            var afterTableSection = bodyElements
+                .Skip(tableIndex + 1)
+                .OfType<Paragraph>()
+                .First(p => string.IsNullOrWhiteSpace(p.InnerText))
+                .GetFirstChild<ParagraphProperties>()?
+                .GetFirstChild<SectionProperties>();
+            var finalSection = result.MainDocumentPart.Document.Body!.Elements<SectionProperties>().Last();
+
+            Assert.Equal((short)2, beforeTableSection?.GetFirstChild<Columns>()?.ColumnCount?.Value);
+            Assert.Equal((short)1, afterTableSection?.GetFirstChild<Columns>()?.ColumnCount?.Value);
+            Assert.Equal((short)2, finalSection.GetFirstChild<Columns>()?.ColumnCount?.Value);
+            Assert.Equal(SectionMarkValues.Continuous, beforeTableSection?.GetFirstChild<SectionType>()?.Val?.Value);
+            Assert.Equal(SectionMarkValues.Continuous, afterTableSection?.GetFirstChild<SectionType>()?.Val?.Value);
+            Assert.Equal("120", afterTableSection?.Parent?.GetFirstChild<SpacingBetweenLines>()?.Before);
+            Assert.DoesNotContain(
+                bodyElements.OfType<Paragraph>(),
+                p => p.Descendants<Break>().Any(b => b.Type?.Value == BreakValues.Page));
+            Assert.Equal(
+                OnOffValue.FromBoolean(true),
+                caption.GetFirstChild<ParagraphProperties>()?.GetFirstChild<KeepNext>()?.Val);
+            Assert.All(table.Elements<TableRow>(), row =>
+            {
+                Assert.NotNull(row.GetFirstChild<TableRowProperties>()?.GetFirstChild<CantSplit>());
+            });
         }
         finally
         {
