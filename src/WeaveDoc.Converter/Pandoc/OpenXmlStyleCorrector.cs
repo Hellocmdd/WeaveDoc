@@ -309,7 +309,7 @@ public static class OpenXmlStyleCorrector
     /// 为 PDF 导出应用栏版式。双列模式优先保持 Heading1 到首个 Heading2 之前的前置区单列。
     /// 没有 Heading2 时，降级为只把 Heading1 后第一个非空段识别为作者段。
     /// </summary>
-    public static void ApplyPdfLayout(string docxPath, PdfLayoutMode mode)
+    public static void ApplyPdfLayout(string docxPath, PdfLayoutMode mode, IPdfConverter? probePdfConverter = null)
     {
         using var doc = WordprocessingDocument.Open(docxPath, true);
         var body = doc.MainDocumentPart!.Document.Body!;
@@ -332,6 +332,7 @@ public static class OpenXmlStyleCorrector
         {
             SetColumns(finalSection, 2);
             SetContinuousSection(finalSection);
+            SpanWidePdfTables(body, finalSection, 0);
             doc.MainDocumentPart.Document.Save();
             return;
         }
@@ -350,6 +351,8 @@ public static class OpenXmlStyleCorrector
 
         SetColumns(finalSection, 2);
         SetContinuousSection(finalSection);
+        var objectStartIndex = body.ChildElements.ToList().IndexOf(breakParagraph) + 1;
+        SpanWidePdfTables(body, finalSection, objectStartIndex);
         doc.MainDocumentPart.Document.Save();
     }
 
@@ -573,6 +576,11 @@ public static class OpenXmlStyleCorrector
 
     private static void SetContinuousSection(SectionProperties sectionProperties)
     {
+        SetSectionType(sectionProperties, SectionMarkValues.Continuous);
+    }
+
+    private static void SetSectionType(SectionProperties sectionProperties, SectionMarkValues sectionMark)
+    {
         var sectionType = sectionProperties.GetFirstChild<SectionType>();
         if (sectionType == null)
         {
@@ -580,7 +588,7 @@ public static class OpenXmlStyleCorrector
             sectionProperties.AppendChild(sectionType);
         }
 
-        sectionType.Val = SectionMarkValues.Continuous;
+        sectionType.Val = sectionMark;
     }
 
     private static void CopySectionSettingsForPdfLayout(SectionProperties source, SectionProperties target)
@@ -602,6 +610,177 @@ public static class OpenXmlStyleCorrector
         var pageNumberType = source.GetFirstChild<PageNumberType>();
         if (pageNumberType != null)
             target.AppendChild((PageNumberType)pageNumberType.CloneNode(true));
+    }
+
+    private static void SpanWidePdfTables(Body body, SectionProperties finalSection, int startElementIndex)
+    {
+        ApplyTablePagination(body);
+
+        var elements = body.ChildElements.ToList();
+        for (var i = Math.Max(0, startElementIndex); i < elements.Count; i++)
+        {
+            if (elements[i] is SectionProperties)
+                break;
+
+            if (elements[i] is not Table table || !IsWideTable(table))
+                continue;
+
+            BindTableCaption(elements, i);
+            var blockStart = FindTableBlockStart(elements, i, Math.Max(0, startElementIndex));
+            var blockEnd = FindTableBlockEnd(elements, i);
+            SpanPdfBlockAcrossColumns(body, elements, blockStart, blockEnd, finalSection);
+            elements = body.ChildElements.ToList();
+            i = Math.Min(elements.Count - 1, blockEnd + 1);
+        }
+    }
+
+    private static void ApplyTablePagination(Body body)
+    {
+        foreach (var table in body.Elements<Table>())
+        {
+            foreach (var row in table.Elements<TableRow>())
+            {
+                var rowProperties = row.GetFirstChild<TableRowProperties>()
+                                    ?? row.PrependChild(new TableRowProperties());
+                if (rowProperties.GetFirstChild<CantSplit>() == null)
+                    rowProperties.AppendChild(new CantSplit());
+            }
+        }
+    }
+
+    private static void BindTableCaption(IReadOnlyList<OpenXmlElement> elements, int tableIndex)
+    {
+        if (tableIndex > 0 && elements[tableIndex - 1] is Paragraph previous && IsTableCaptionParagraph(previous))
+        {
+            AddKeepNext(previous);
+            AddKeepLines(previous);
+        }
+
+        if (tableIndex + 1 < elements.Count && elements[tableIndex + 1] is Paragraph next && IsTableCaptionParagraph(next))
+            AddKeepLines(next);
+    }
+
+    private static int FindTableBlockStart(IReadOnlyList<OpenXmlElement> elements, int tableIndex, int minIndex)
+    {
+        if (tableIndex > minIndex
+            && elements[tableIndex - 1] is Paragraph previous
+            && IsTableCaptionParagraph(previous))
+        {
+            return tableIndex - 1;
+        }
+
+        return tableIndex;
+    }
+
+    private static int FindTableBlockEnd(IReadOnlyList<OpenXmlElement> elements, int tableIndex)
+    {
+        if (tableIndex + 1 < elements.Count
+            && elements[tableIndex + 1] is Paragraph next
+            && IsTableCaptionParagraph(next))
+        {
+            return tableIndex + 1;
+        }
+
+        return tableIndex;
+    }
+
+    private static void SpanPdfBlockAcrossColumns(
+        Body body,
+        IReadOnlyList<OpenXmlElement> elements,
+        int blockStart,
+        int blockEnd,
+        SectionProperties finalSection)
+    {
+        EnsureSectionBeforePdfBlock(body, elements, blockStart, finalSection);
+
+        var endElement = elements[blockEnd];
+        var endSectionParagraph = new Paragraph(
+            new ParagraphProperties(
+                new SpacingBetweenLines { Before = "120" },
+                CreatePdfSection(finalSection, 1, SectionMarkValues.Continuous)));
+        body.InsertAfter(endSectionParagraph, endElement);
+    }
+
+    private static void EnsureSectionBeforePdfBlock(
+        Body body,
+        IReadOnlyList<OpenXmlElement> elements,
+        int blockStart,
+        SectionProperties finalSection)
+    {
+        var previousParagraph = FindPreviousParagraph(elements, blockStart);
+        if (previousParagraph == null)
+        {
+            var sectionParagraph = new Paragraph(
+                new ParagraphProperties(CreatePdfSection(finalSection, 2, SectionMarkValues.Continuous)));
+            body.InsertBefore(sectionParagraph, elements[blockStart]);
+            return;
+        }
+
+        var paragraphProperties = previousParagraph.GetFirstChild<ParagraphProperties>()
+                                  ?? previousParagraph.PrependChild(new ParagraphProperties());
+        if (paragraphProperties.GetFirstChild<SectionProperties>() != null)
+            return;
+
+        paragraphProperties.AppendChild(CreatePdfSection(finalSection, 2, SectionMarkValues.Continuous));
+    }
+
+    private static Paragraph? FindPreviousParagraph(IReadOnlyList<OpenXmlElement> elements, int beforeIndex)
+    {
+        for (var i = beforeIndex - 1; i >= 0; i--)
+        {
+            if (elements[i] is Paragraph paragraph)
+                return paragraph;
+        }
+
+        return null;
+    }
+
+    private static SectionProperties CreatePdfSection(
+        SectionProperties finalSection,
+        short columnCount,
+        SectionMarkValues sectionMark)
+    {
+        var section = new SectionProperties();
+        CopySectionSettingsForPdfLayout(finalSection, section);
+        SetColumns(section, columnCount);
+        SetSectionType(section, sectionMark);
+        return section;
+    }
+
+    private static bool IsWideTable(Table table)
+    {
+        var maxCellCount = table.Elements<TableRow>()
+            .Select(row => row.Elements<TableCell>().Count())
+            .DefaultIfEmpty(0)
+            .Max();
+        if (maxCellCount >= 4)
+            return true;
+
+        var textLength = table.Descendants<Text>().Sum(text => text.Text.Length);
+        return textLength >= 120;
+    }
+
+    private static bool IsTableCaptionParagraph(Paragraph paragraph)
+    {
+        var text = paragraph.InnerText.Trim();
+        return text.StartsWith("表", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("Table", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void AddKeepNext(Paragraph paragraph)
+    {
+        var paragraphProperties = paragraph.GetFirstChild<ParagraphProperties>()
+                                  ?? paragraph.PrependChild(new ParagraphProperties());
+        if (paragraphProperties.GetFirstChild<KeepNext>() == null)
+            paragraphProperties.AppendChild(new KeepNext { Val = OnOffValue.FromBoolean(true) });
+    }
+
+    private static void AddKeepLines(Paragraph paragraph)
+    {
+        var paragraphProperties = paragraph.GetFirstChild<ParagraphProperties>()
+                                  ?? paragraph.PrependChild(new ParagraphProperties());
+        if (paragraphProperties.GetFirstChild<KeepLines>() == null)
+            paragraphProperties.AppendChild(new KeepLines { Val = OnOffValue.FromBoolean(true) });
     }
 
     private static Justification CreateJustification(string alignment) => alignment switch
