@@ -57,3 +57,4 @@ dotnet test WeaveDoc.slnx -nologo
 - RAG module notes: [src/WeaveDoc.Rag/README.md](src/WeaveDoc.Rag/README.md)
 - RAG architecture summary: [docs/rag-architecture.md](docs/rag-architecture.md)
 - Baseline evaluation cases: [docs/eval-baseline.json](docs/eval-baseline.json)
+
