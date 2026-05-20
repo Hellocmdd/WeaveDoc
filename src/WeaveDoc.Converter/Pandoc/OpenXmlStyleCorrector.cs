@@ -1,0 +1,857 @@
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+using WeaveDoc.Converter.Afd;
+using WeaveDoc.Converter.Afd.Models;
+
+namespace WeaveDoc.Converter.Pandoc;
+
+/// <summary>
+/// OpenXML 样式修正：将 AFD 样式规则精确应用到 .docx 文件
+/// </summary>
+public static class OpenXmlStyleCorrector
+{
+    private const double MmToTwips = 1440.0 / 25.4; // ≈ 56.693
+
+    /// <summary>
+    /// 遍历模板样式，将 AFD 属性写入文档的样式定义（styles.xml），
+    /// 并清除匹配段落中与样式定义重复的内联属性。
+    /// </summary>
+    public static void ApplyAfdStyles(string docxPath, AfdTemplate template)
+    {
+        using var doc = WordprocessingDocument.Open(docxPath, true);
+        var mainPart = doc.MainDocumentPart!;
+
+        // Phase 1: 将 AFD 属性写入样式定义
+        WriteStyleDefinitions(mainPart, template);
+
+        // Phase 2 & 3: 清除冗余内联属性，保留用户有意的行内格式
+        StripRedundantInline(mainPart.Document.Body!, template);
+        ApplyStandardTableBorders(mainPart.Document.Body!);
+
+        mainPart.Document.Save();
+    }
+
+    /// <summary>
+    /// 将 AFD 模板中的样式属性写入 StyleDefinitionsPart 中的 Style 元素
+    /// </summary>
+    private static void WriteStyleDefinitions(MainDocumentPart mainPart, AfdTemplate template)
+    {
+        var stylesPart = mainPart.StyleDefinitionsPart
+            ?? mainPart.AddNewPart<StyleDefinitionsPart>();
+
+        if (stylesPart.Styles == null)
+            stylesPart.Styles = new Styles();
+
+        var styles = stylesPart.Styles;
+
+        foreach (var (afdKey, styleDef) in template.Styles)
+        {
+            var styleId = AfdStyleMapper.MapToOpenXmlStyleId(afdKey);
+
+            // 查找或创建 Style 元素
+            var style = styles.Elements<Style>()
+                .FirstOrDefault(s => s.StyleId == styleId);
+
+            if (style == null)
+            {
+                style = new Style
+                {
+                    Type = StyleValues.Paragraph,
+                    StyleId = styleId
+                };
+                style.AppendChild(new StyleName { Val = styleDef.DisplayName ?? afdKey });
+                styles.AppendChild(style);
+            }
+
+            // 清除旧的 StyleRunProperties 和 StyleParagraphProperties
+            style.RemoveAllChildren<StyleRunProperties>();
+            style.RemoveAllChildren<StyleParagraphProperties>();
+
+            // 写入字符属性
+            ApplyStyleRunProperties(style, styleDef);
+
+            // 写入段落属性
+            ApplyStyleParagraphProperties(style, styleDef, styleId);
+        }
+    }
+
+    private static void ApplyStyleRunProperties(Style style, AfdStyleDefinition styleDef)
+    {
+        var rPr = new StyleRunProperties();
+
+        if (styleDef.FontFamily != null)
+            rPr.AppendChild(CreateRunFonts(styleDef.FontFamily));
+
+        if (styleDef.FontSize != null)
+        {
+            var hp = ((int)(styleDef.FontSize.Value * 2)).ToString();
+            rPr.AppendChild(new FontSize { Val = hp });
+            rPr.AppendChild(new FontSizeComplexScript { Val = hp });
+        }
+
+        if (styleDef.Bold == true)
+            rPr.AppendChild(new Bold());
+
+        if (styleDef.Italic == true)
+            rPr.AppendChild(new Italic());
+
+        if (rPr.HasChildren)
+            style.AppendChild(rPr);
+    }
+
+    private static void ApplyStyleParagraphProperties(Style style, AfdStyleDefinition styleDef, string styleId)
+    {
+        var pPr = new StyleParagraphProperties();
+
+        if (styleDef.Alignment != null)
+            pPr.AppendChild(CreateJustification(styleDef.Alignment));
+
+        if (styleDef.SpaceBefore != null || styleDef.SpaceAfter != null || styleDef.LineSpacing != null)
+            pPr.AppendChild(CreateSpacing(styleDef));
+
+        if (styleDef.FirstLineIndent != null || styleDef.HangingIndent != null)
+            pPr.AppendChild(CreateIndentation(styleDef));
+
+        if (styleId == "CodeBlock")
+        {
+            pPr.AppendChild(new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = "F2F2F2" });
+            pPr.AppendChild(new ParagraphBorders(
+                new TopBorder { Val = BorderValues.Single, Size = 4, Space = 6, Color = "BFBFBF" },
+                new BottomBorder { Val = BorderValues.Single, Size = 4, Space = 6, Color = "BFBFBF" },
+                new LeftBorder { Val = BorderValues.Single, Size = 4, Space = 6, Color = "BFBFBF" },
+                new RightBorder { Val = BorderValues.Single, Size = 4, Space = 6, Color = "BFBFBF" }
+            ));
+        }
+
+        if (pPr.HasChildren)
+            style.AppendChild(pPr);
+    }
+
+    /// <summary>
+    /// 清除与样式定义重复的内联属性：
+    /// - 字体、字号：始终从内联中移除（已写入样式定义）
+    /// - Bold：仅当样式定义中 Bold==true 时移除
+    /// - Italic：仅当样式定义中 Italic==true 时移除
+    /// 保留用户有意的行内格式（如正文中的加粗/斜体）
+    /// </summary>
+    private static void StripRedundantInline(Body body, AfdTemplate template)
+    {
+        foreach (var paragraph in body.Descendants<Paragraph>())
+        {
+            var pPr = paragraph.GetFirstChild<ParagraphProperties>();
+            var styleId = pPr?.ParagraphStyleId?.Val?.Value;
+            if (styleId == null) continue;
+
+            var afdKey = AfdStyleMapper.MapToAfdStyleKey(styleId);
+            if (afdKey == null || !template.Styles.TryGetValue(afdKey, out var styleDef)) continue;
+
+            // 清除段落级冗余内联属性
+            if (pPr != null)
+            {
+                if (styleDef.Alignment != null)
+                    pPr.RemoveAllChildren<Justification>();
+                if (styleDef.SpaceBefore != null || styleDef.SpaceAfter != null || styleDef.LineSpacing != null)
+                    pPr.RemoveAllChildren<SpacingBetweenLines>();
+                if (styleDef.FirstLineIndent != null || styleDef.HangingIndent != null)
+                    pPr.RemoveAllChildren<Indentation>();
+            }
+
+            // 清除 Run 级冗余内联属性
+            foreach (var run in paragraph.Elements<Run>())
+            {
+                var rPr = run.RunProperties;
+                if (rPr == null) continue;
+
+                // 字体和字号：始终移除（已写入样式定义）
+                rPr.RemoveAllChildren<RunFonts>();
+                rPr.RemoveAllChildren<FontSize>();
+                rPr.RemoveAllChildren<FontSizeComplexScript>();
+
+                // Bold：仅当样式定义要求加粗时移除
+                if (styleDef.Bold == true)
+                    rPr.RemoveAllChildren<Bold>();
+
+                // Italic：仅当样式定义要求斜体时移除
+                if (styleDef.Italic == true)
+                    rPr.RemoveAllChildren<Italic>();
+
+                // 如果 RunProperties 变空了，移除整个元素
+                if (!rPr.HasChildren)
+                    rPr.Remove();
+            }
+        }
+    }
+
+    private static void ApplyStandardTableBorders(Body body)
+    {
+        foreach (var table in body.Descendants<Table>())
+        {
+            var tableProperties = table.GetFirstChild<TableProperties>()
+                ?? table.PrependChild(new TableProperties());
+
+            tableProperties.RemoveAllChildren<TableStyle>();
+            tableProperties.RemoveAllChildren<TableJustification>();
+            tableProperties.RemoveAllChildren<TableCellMarginDefault>();
+            tableProperties.RemoveAllChildren<TableBorders>();
+            tableProperties.AppendChild(new TableJustification { Val = TableRowAlignmentValues.Center });
+            tableProperties.AppendChild(CreateTableCellMargins());
+            tableProperties.AppendChild(new TableBorders(
+                CreateTableBorder<TopBorder>(12),
+                CreateTableBorder<BottomBorder>(12)));
+
+            var rows = table.Elements<TableRow>().ToList();
+            for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+            {
+                foreach (var cell in rows[rowIndex].Elements<TableCell>())
+                {
+                    ApplyStandardTableCellLayout(cell, rowIndex == 0);
+                }
+            }
+        }
+    }
+
+    private static TableCellMarginDefault CreateTableCellMargins()
+    {
+        return new TableCellMarginDefault(
+            new TopMargin { Width = "60", Type = TableWidthUnitValues.Dxa },
+            new TableCellLeftMargin { Width = 108, Type = TableWidthValues.Dxa },
+            new BottomMargin { Width = "60", Type = TableWidthUnitValues.Dxa },
+            new TableCellRightMargin { Width = 108, Type = TableWidthValues.Dxa });
+    }
+
+    private static void ApplyStandardTableCellLayout(TableCell cell, bool isHeaderRow)
+    {
+        var cellProperties = cell.GetFirstChild<TableCellProperties>()
+            ?? cell.PrependChild(new TableCellProperties());
+        cellProperties.RemoveAllChildren<TableCellVerticalAlignment>();
+        cellProperties.RemoveAllChildren<TableCellBorders>();
+        cellProperties.AppendChild(new TableCellVerticalAlignment { Val = TableVerticalAlignmentValues.Center });
+        if (isHeaderRow)
+        {
+            cellProperties.AppendChild(new TableCellBorders(CreateTableBorder<BottomBorder>(6)));
+        }
+
+        foreach (var paragraph in cell.Descendants<Paragraph>())
+        {
+            var paragraphProperties = paragraph.GetFirstChild<ParagraphProperties>()
+                ?? paragraph.PrependChild(new ParagraphProperties());
+
+            paragraphProperties.RemoveAllChildren<Indentation>();
+            paragraphProperties.RemoveAllChildren<Justification>();
+            paragraphProperties.RemoveAllChildren<SpacingBetweenLines>();
+            paragraphProperties.AppendChild(new Indentation { FirstLine = "0", Left = "0", Right = "0" });
+            paragraphProperties.AppendChild(new Justification { Val = JustificationValues.Center });
+            paragraphProperties.AppendChild(new SpacingBetweenLines
+            {
+                Before = "0",
+                After = "0",
+                Line = "240",
+                LineRule = LineSpacingRuleValues.Auto
+            });
+        }
+    }
+
+    private static TBorder CreateTableBorder<TBorder>(uint size)
+        where TBorder : BorderType, new()
+    {
+        return new TBorder
+        {
+            Val = BorderValues.Single,
+            Size = size,
+            Space = 0,
+            Color = "000000"
+        };
+    }
+
+    /// <summary>
+    /// 更新文档的页面尺寸和页边距
+    /// </summary>
+    public static void ApplyPageSettings(string docxPath, AfdDefaults defaults)
+    {
+        using var doc = WordprocessingDocument.Open(docxPath, true);
+        var body = doc.MainDocumentPart!.Document.Body!;
+        var sectPr = body.Elements<SectionProperties>().LastOrDefault()
+                      ?? body.AppendChild(new SectionProperties());
+
+        if (defaults.PageSize != null)
+        {
+            var pgSz = sectPr.Elements<PageSize>().FirstOrDefault();
+            if (pgSz == null)
+            {
+                pgSz = new PageSize();
+                sectPr.AppendChild(pgSz);
+            }
+            pgSz.Width = (uint)(defaults.PageSize.Width * MmToTwips);
+            pgSz.Height = (uint)(defaults.PageSize.Height * MmToTwips);
+        }
+
+        if (defaults.Margins != null)
+        {
+            var pgMar = sectPr.Elements<PageMargin>().FirstOrDefault();
+            if (pgMar == null)
+            {
+                pgMar = new PageMargin();
+                sectPr.AppendChild(pgMar);
+            }
+            pgMar.Top = (int)(defaults.Margins.Top * MmToTwips);
+            pgMar.Bottom = (int)(defaults.Margins.Bottom * MmToTwips);
+            pgMar.Left = (uint)(defaults.Margins.Left * MmToTwips);
+            pgMar.Right = (uint)(defaults.Margins.Right * MmToTwips);
+            pgMar.Header = (uint)(12.7 * MmToTwips); // 页眉距边缘 12.7mm
+            pgMar.Footer = (uint)(12.7 * MmToTwips); // 页脚距边缘 12.7mm
+        }
+
+        doc.MainDocumentPart.Document.Save();
+    }
+
+    /// <summary>
+    /// 为 PDF 导出应用栏版式。双列模式优先保持 Heading1 到首个 Heading2 之前的前置区单列。
+    /// 没有 Heading2 时，降级为只把 Heading1 后第一个非空段识别为作者段。
+    /// </summary>
+    public static void ApplyPdfLayout(string docxPath, PdfLayoutMode mode, IPdfConverter? probePdfConverter = null)
+    {
+        using var doc = WordprocessingDocument.Open(docxPath, true);
+        var body = doc.MainDocumentPart!.Document.Body!;
+        var finalSection = body.Elements<SectionProperties>().LastOrDefault()
+                           ?? body.AppendChild(new SectionProperties());
+
+        if (mode == PdfLayoutMode.SingleColumn)
+        {
+            ClearParagraphSectionProperties(body);
+            SetColumns(finalSection, 1);
+            SetContinuousSection(finalSection);
+            doc.MainDocumentPart.Document.Save();
+            return;
+        }
+
+        var paragraphs = body.Elements<Paragraph>().ToList();
+        ClearParagraphSectionProperties(body);
+        var singleColumnEndIndex = FindPdfFrontMatterEndIndex(paragraphs);
+        if (singleColumnEndIndex == null)
+        {
+            SetColumns(finalSection, 2);
+            SetContinuousSection(finalSection);
+            SpanWidePdfTables(body, finalSection, 0);
+            doc.MainDocumentPart.Document.Save();
+            return;
+        }
+
+        var breakParagraph = paragraphs[singleColumnEndIndex.Value];
+        var paragraphProperties = breakParagraph.GetFirstChild<ParagraphProperties>()
+                                  ?? breakParagraph.PrependChild(new ParagraphProperties());
+
+        CenterPdfAuthorBlock(paragraphs, singleColumnEndIndex.Value);
+        paragraphProperties.RemoveAllChildren<SectionProperties>();
+        var firstSection = new SectionProperties();
+        CopySectionSettingsForPdfLayout(finalSection, firstSection);
+        SetColumns(firstSection, 1);
+        SetContinuousSection(firstSection);
+        paragraphProperties.AppendChild(firstSection);
+
+        SetColumns(finalSection, 2);
+        SetContinuousSection(finalSection);
+        var objectStartIndex = body.ChildElements.ToList().IndexOf(breakParagraph) + 1;
+        SpanWidePdfTables(body, finalSection, objectStartIndex);
+        doc.MainDocumentPart.Document.Save();
+    }
+
+    /// <summary>
+    /// 添加页眉和页脚到文档
+    /// </summary>
+    public static void ApplyHeaderFooter(string docxPath, AfdHeaderFooter headerFooter)
+    {
+        using var doc = WordprocessingDocument.Open(docxPath, true);
+        var mainPart = doc.MainDocumentPart!;
+        var body = mainPart.Document.Body!;
+        var sectPr = body.Elements<SectionProperties>().LastOrDefault()
+                      ?? body.AppendChild(new SectionProperties());
+
+        // 确保 HeaderReference / FooterReference 存在
+        if (headerFooter.Header != null)
+        {
+            var headerPart = mainPart.AddNewPart<HeaderPart>();
+            var headerRef = new HeaderReference { Type = HeaderFooterValues.Default, Id = mainPart.GetIdOfPart(headerPart) };
+            sectPr.AppendChild(headerRef);
+
+            var header = new Header(new Paragraph());
+            var headerPara = header.GetFirstChild<Paragraph>()!;
+            var run = headerPara.AppendChild(new Run());
+            var rPr = run.AppendChild(new RunProperties());
+
+            if (headerFooter.Header.FontFamily != null)
+                rPr.AppendChild(CreateRunFonts(headerFooter.Header.FontFamily));
+            if (headerFooter.Header.FontSize != null)
+            {
+                var hp = ((int)(headerFooter.Header.FontSize.Value * 2)).ToString();
+                rPr.AppendChild(new FontSize { Val = hp });
+                rPr.AppendChild(new FontSizeComplexScript { Val = hp });
+            }
+
+            run.AppendChild(new Text(headerFooter.Header.Text));
+
+            if (headerFooter.Header.Alignment != null)
+            {
+                var pPr = headerPara.GetFirstChild<ParagraphProperties>()
+                          ?? headerPara.AppendChild(new ParagraphProperties());
+                pPr.AppendChild(CreateJustification(headerFooter.Header.Alignment));
+            }
+
+            headerPart.Header = header;
+        }
+
+        if (headerFooter.Footer != null)
+        {
+            var footerPart = mainPart.AddNewPart<FooterPart>();
+            var footerRef = new FooterReference { Type = HeaderFooterValues.Default, Id = mainPart.GetIdOfPart(footerPart) };
+            sectPr.AppendChild(footerRef);
+
+            var footer = new Footer(new Paragraph());
+            var footerPara = footer.GetFirstChild<Paragraph>()!;
+
+            if (headerFooter.Footer.PageNumbering)
+            {
+                // 插入页码字段
+                var run1 = footerPara.AppendChild(new Run());
+                run1.AppendChild(new Text("第 "));
+                var run2 = footerPara.AppendChild(new Run());
+                var fldCharBegin = new FieldChar { FieldCharType = FieldCharValues.Begin };
+                run2.AppendChild(fldCharBegin);
+                var run3 = footerPara.AppendChild(new Run());
+                run3.AppendChild(new FieldCode { Text = " PAGE " });
+                var run4 = footerPara.AppendChild(new Run());
+                run4.AppendChild(new FieldChar { FieldCharType = FieldCharValues.Separate });
+                var run5 = footerPara.AppendChild(new Run());
+                run5.AppendChild(new Text("1")); // 占位符，Word 渲染时会替换为实际页码
+                var run6 = footerPara.AppendChild(new Run());
+                run6.AppendChild(new FieldChar { FieldCharType = FieldCharValues.End });
+                var run7 = footerPara.AppendChild(new Run());
+                run7.AppendChild(new Text(" 页"));
+            }
+            else if (!string.IsNullOrEmpty(headerFooter.Footer.Format))
+            {
+                var run = footerPara.AppendChild(new Run());
+                run.AppendChild(new Text(headerFooter.Footer.Format));
+            }
+
+            if (headerFooter.Footer.Alignment != null)
+            {
+                var pPr = footerPara.GetFirstChild<ParagraphProperties>()
+                          ?? footerPara.AppendChild(new ParagraphProperties());
+                pPr.AppendChild(CreateJustification(headerFooter.Footer.Alignment));
+            }
+
+            footerPart.Footer = footer;
+
+            if (headerFooter.Footer.StartPage != 1)
+            {
+                sectPr.AppendChild(new PageNumberType { Start = headerFooter.Footer.StartPage });
+            }
+        }
+
+        doc.MainDocumentPart.Document.Save();
+    }
+
+    #region Private helpers
+
+    private static int? FindPdfFrontMatterEndIndex(IReadOnlyList<Paragraph> paragraphs)
+    {
+        var headingIndex = paragraphs.ToList().FindIndex(IsHeading1Paragraph);
+        if (headingIndex < 0)
+            return null;
+
+        for (var i = headingIndex + 1; i < paragraphs.Count; i++)
+        {
+            if (IsFrontMatterMetadataParagraph(paragraphs[i].InnerText.Trim()))
+                return FindPreviousNonEmptyParagraphIndex(paragraphs, i - 1);
+
+            if (IsHeading2Paragraph(paragraphs[i]))
+                return FindPreviousNonEmptyParagraphIndex(paragraphs, i - 1);
+        }
+
+        return FindFirstNonEmptyParagraphIndex(paragraphs, headingIndex + 1);
+    }
+
+    private static void CenterPdfAuthorBlock(IReadOnlyList<Paragraph> paragraphs, int singleColumnEndIndex)
+    {
+        var headingIndex = paragraphs.ToList().FindIndex(IsHeading1Paragraph);
+        if (headingIndex < 0)
+            return;
+
+        for (var i = headingIndex + 1; i <= singleColumnEndIndex; i++)
+        {
+            var paragraphText = paragraphs[i].InnerText.Trim();
+            if (string.IsNullOrWhiteSpace(paragraphText))
+                continue;
+
+            if (IsFrontMatterMetadataParagraph(paragraphText))
+                break;
+
+            var paragraphProperties = paragraphs[i].GetFirstChild<ParagraphProperties>()
+                                      ?? paragraphs[i].PrependChild(new ParagraphProperties());
+            paragraphProperties.RemoveAllChildren<Justification>();
+            paragraphProperties.AppendChild(new Justification { Val = JustificationValues.Center });
+        }
+    }
+
+    private static bool IsFrontMatterMetadataParagraph(string text)
+    {
+        return text.StartsWith("摘要", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("【摘要】", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("Abstract", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("内容提要", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("关键词", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("【关键词】", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("Key words", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("Keywords", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("DOI", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("doi", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("中图分类号", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("文献标识码", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("文献标志码", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("文章编号", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int? FindFirstNonEmptyParagraphIndex(IReadOnlyList<Paragraph> paragraphs, int startIndex)
+    {
+        for (var i = startIndex; i < paragraphs.Count; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(paragraphs[i].InnerText))
+                return i;
+        }
+
+        return null;
+    }
+
+    private static int? FindPreviousNonEmptyParagraphIndex(IReadOnlyList<Paragraph> paragraphs, int startIndex)
+    {
+        for (var i = startIndex; i >= 0; i--)
+        {
+            if (!string.IsNullOrWhiteSpace(paragraphs[i].InnerText))
+                return i;
+        }
+
+        return null;
+    }
+
+    private static bool IsHeading2Paragraph(Paragraph paragraph)
+    {
+        var styleId = paragraph.GetFirstChild<ParagraphProperties>()?
+            .ParagraphStyleId?
+            .Val?
+            .Value;
+        return string.Equals(styleId, "Heading2", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void ClearParagraphSectionProperties(Body body)
+    {
+        foreach (var paragraph in body.Elements<Paragraph>())
+        {
+            paragraph.GetFirstChild<ParagraphProperties>()?
+                .RemoveAllChildren<SectionProperties>();
+        }
+    }
+
+    private static bool IsHeading1Paragraph(Paragraph paragraph)
+    {
+        var styleId = paragraph.GetFirstChild<ParagraphProperties>()?
+            .ParagraphStyleId?
+            .Val?
+            .Value;
+        return string.Equals(styleId, "Heading1", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void SetColumns(SectionProperties sectionProperties, short count)
+    {
+        var columns = sectionProperties.GetFirstChild<Columns>();
+        if (columns == null)
+        {
+            columns = new Columns();
+            sectionProperties.AppendChild(columns);
+        }
+
+        columns.ColumnCount = count;
+        columns.Space = "720";
+    }
+
+    private static void SetContinuousSection(SectionProperties sectionProperties)
+    {
+        SetSectionType(sectionProperties, SectionMarkValues.Continuous);
+    }
+
+    private static void SetSectionType(SectionProperties sectionProperties, SectionMarkValues sectionMark)
+    {
+        var sectionType = sectionProperties.GetFirstChild<SectionType>();
+        if (sectionType == null)
+        {
+            sectionType = new SectionType();
+            sectionProperties.AppendChild(sectionType);
+        }
+
+        sectionType.Val = sectionMark;
+    }
+
+    private static void CopySectionSettingsForPdfLayout(SectionProperties source, SectionProperties target)
+    {
+        var pageSize = source.GetFirstChild<PageSize>();
+        if (pageSize != null)
+            target.AppendChild((PageSize)pageSize.CloneNode(true));
+
+        var pageMargin = source.GetFirstChild<PageMargin>();
+        if (pageMargin != null)
+            target.AppendChild((PageMargin)pageMargin.CloneNode(true));
+
+        foreach (var headerReference in source.Elements<HeaderReference>())
+            target.AppendChild((HeaderReference)headerReference.CloneNode(true));
+
+        foreach (var footerReference in source.Elements<FooterReference>())
+            target.AppendChild((FooterReference)footerReference.CloneNode(true));
+
+        var pageNumberType = source.GetFirstChild<PageNumberType>();
+        if (pageNumberType != null)
+            target.AppendChild((PageNumberType)pageNumberType.CloneNode(true));
+    }
+
+    private static void SpanWidePdfTables(Body body, SectionProperties finalSection, int startElementIndex)
+    {
+        ApplyTablePagination(body);
+
+        var elements = body.ChildElements.ToList();
+        for (var i = Math.Max(0, startElementIndex); i < elements.Count; i++)
+        {
+            if (elements[i] is SectionProperties)
+                break;
+
+            if (elements[i] is not Table table || !IsWideTable(table))
+                continue;
+
+            BindTableCaption(elements, i);
+            var blockStart = FindTableBlockStart(elements, i, Math.Max(0, startElementIndex));
+            var blockEnd = FindTableBlockEnd(elements, i);
+            SpanPdfBlockAcrossColumns(body, elements, blockStart, blockEnd, finalSection);
+            elements = body.ChildElements.ToList();
+            i = Math.Min(elements.Count - 1, blockEnd + 1);
+        }
+    }
+
+    private static void ApplyTablePagination(Body body)
+    {
+        foreach (var table in body.Elements<Table>())
+        {
+            foreach (var row in table.Elements<TableRow>())
+            {
+                var rowProperties = row.GetFirstChild<TableRowProperties>()
+                                    ?? row.PrependChild(new TableRowProperties());
+                if (rowProperties.GetFirstChild<CantSplit>() == null)
+                    rowProperties.AppendChild(new CantSplit());
+            }
+        }
+    }
+
+    private static void BindTableCaption(IReadOnlyList<OpenXmlElement> elements, int tableIndex)
+    {
+        if (tableIndex > 0 && elements[tableIndex - 1] is Paragraph previous && IsTableCaptionParagraph(previous))
+        {
+            AddKeepNext(previous);
+            AddKeepLines(previous);
+        }
+
+        if (tableIndex + 1 < elements.Count && elements[tableIndex + 1] is Paragraph next && IsTableCaptionParagraph(next))
+            AddKeepLines(next);
+    }
+
+    private static int FindTableBlockStart(IReadOnlyList<OpenXmlElement> elements, int tableIndex, int minIndex)
+    {
+        if (tableIndex > minIndex
+            && elements[tableIndex - 1] is Paragraph previous
+            && IsTableCaptionParagraph(previous))
+        {
+            return tableIndex - 1;
+        }
+
+        return tableIndex;
+    }
+
+    private static int FindTableBlockEnd(IReadOnlyList<OpenXmlElement> elements, int tableIndex)
+    {
+        if (tableIndex + 1 < elements.Count
+            && elements[tableIndex + 1] is Paragraph next
+            && IsTableCaptionParagraph(next))
+        {
+            return tableIndex + 1;
+        }
+
+        return tableIndex;
+    }
+
+    private static void SpanPdfBlockAcrossColumns(
+        Body body,
+        IReadOnlyList<OpenXmlElement> elements,
+        int blockStart,
+        int blockEnd,
+        SectionProperties finalSection)
+    {
+        EnsureSectionBeforePdfBlock(body, elements, blockStart, finalSection);
+
+        var endElement = elements[blockEnd];
+        var endSectionParagraph = new Paragraph(
+            new ParagraphProperties(
+                new SpacingBetweenLines { Before = "120" },
+                CreatePdfSection(finalSection, 1, SectionMarkValues.Continuous)));
+        body.InsertAfter(endSectionParagraph, endElement);
+    }
+
+    private static void EnsureSectionBeforePdfBlock(
+        Body body,
+        IReadOnlyList<OpenXmlElement> elements,
+        int blockStart,
+        SectionProperties finalSection)
+    {
+        var previousParagraph = FindPreviousParagraph(elements, blockStart);
+        if (previousParagraph == null)
+        {
+            var sectionParagraph = new Paragraph(
+                new ParagraphProperties(CreatePdfSection(finalSection, 2, SectionMarkValues.Continuous)));
+            body.InsertBefore(sectionParagraph, elements[blockStart]);
+            return;
+        }
+
+        var paragraphProperties = previousParagraph.GetFirstChild<ParagraphProperties>()
+                                  ?? previousParagraph.PrependChild(new ParagraphProperties());
+        if (paragraphProperties.GetFirstChild<SectionProperties>() != null)
+            return;
+
+        paragraphProperties.AppendChild(CreatePdfSection(finalSection, 2, SectionMarkValues.Continuous));
+    }
+
+    private static Paragraph? FindPreviousParagraph(IReadOnlyList<OpenXmlElement> elements, int beforeIndex)
+    {
+        for (var i = beforeIndex - 1; i >= 0; i--)
+        {
+            if (elements[i] is Paragraph paragraph)
+                return paragraph;
+        }
+
+        return null;
+    }
+
+    private static SectionProperties CreatePdfSection(
+        SectionProperties finalSection,
+        short columnCount,
+        SectionMarkValues sectionMark)
+    {
+        var section = new SectionProperties();
+        CopySectionSettingsForPdfLayout(finalSection, section);
+        SetColumns(section, columnCount);
+        SetSectionType(section, sectionMark);
+        return section;
+    }
+
+    private static bool IsWideTable(Table table)
+    {
+        var maxCellCount = table.Elements<TableRow>()
+            .Select(row => row.Elements<TableCell>().Count())
+            .DefaultIfEmpty(0)
+            .Max();
+        if (maxCellCount >= 4)
+            return true;
+
+        var textLength = table.Descendants<Text>().Sum(text => text.Text.Length);
+        return textLength >= 120;
+    }
+
+    private static bool IsTableCaptionParagraph(Paragraph paragraph)
+    {
+        var text = paragraph.InnerText.Trim();
+        return text.StartsWith("表", StringComparison.OrdinalIgnoreCase)
+               || text.StartsWith("Table", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void AddKeepNext(Paragraph paragraph)
+    {
+        var paragraphProperties = paragraph.GetFirstChild<ParagraphProperties>()
+                                  ?? paragraph.PrependChild(new ParagraphProperties());
+        if (paragraphProperties.GetFirstChild<KeepNext>() == null)
+            paragraphProperties.AppendChild(new KeepNext { Val = OnOffValue.FromBoolean(true) });
+    }
+
+    private static void AddKeepLines(Paragraph paragraph)
+    {
+        var paragraphProperties = paragraph.GetFirstChild<ParagraphProperties>()
+                                  ?? paragraph.PrependChild(new ParagraphProperties());
+        if (paragraphProperties.GetFirstChild<KeepLines>() == null)
+            paragraphProperties.AppendChild(new KeepLines { Val = OnOffValue.FromBoolean(true) });
+    }
+
+    private static Justification CreateJustification(string alignment) => alignment switch
+    {
+        "center" => new Justification { Val = JustificationValues.Center },
+        "right" => new Justification { Val = JustificationValues.Right },
+        "both" => new Justification { Val = JustificationValues.Both },
+        _ => new Justification { Val = JustificationValues.Left }
+    };
+
+    private static SpacingBetweenLines CreateSpacing(AfdStyleDefinition def)
+    {
+        var spacing = new SpacingBetweenLines();
+        if (def.SpaceBefore != null)
+            spacing.Before = ((int)(def.SpaceBefore.Value * 20)).ToString();
+        if (def.SpaceAfter != null)
+            spacing.After = ((int)(def.SpaceAfter.Value * 20)).ToString();
+        if (def.LineSpacing != null)
+        {
+            spacing.Line = ((int)(def.LineSpacing.Value * 240)).ToString();
+            spacing.LineRule = LineSpacingRuleValues.Auto;
+        }
+        return spacing;
+    }
+
+    private static Indentation CreateIndentation(AfdStyleDefinition def)
+    {
+        var indent = new Indentation();
+        if (def.FirstLineIndent != null)
+            indent.FirstLine = ((int)(def.FirstLineIndent.Value * 20)).ToString();
+        if (def.HangingIndent != null)
+            indent.Hanging = ((int)(def.HangingIndent.Value * 20)).ToString();
+        return indent;
+    }
+
+    private static RunFonts CreateRunFonts(string fontFamily) => new()
+    {
+        Ascii = GetWesternFontFamily(fontFamily),
+        EastAsia = GetEastAsiaFontFamily(fontFamily),
+        HighAnsi = GetWesternFontFamily(fontFamily),
+        ComplexScript = GetEastAsiaFontFamily(fontFamily),
+        Hint = FontTypeHintValues.EastAsia
+    };
+
+    private static string GetEastAsiaFontFamily(string fontFamily) => fontFamily switch
+    {
+        "宋体" => "SimSun",
+        "新宋体" => "NSimSun",
+        "黑体" => "SimHei",
+        "楷体" or "楷体_GB2312" => "KaiTi",
+        "仿宋" or "仿宋_GB2312" => "FangSong",
+        "隶书" => "LiSu",
+        "幼圆" => "YouYuan",
+        "微软雅黑" => "Microsoft YaHei",
+        "等线" => "DengXian",
+        "华文宋体" => "STSong",
+        "华文细黑" => "STXihei",
+        "华文楷体" => "STKaiti",
+        "华文仿宋" => "STFangsong",
+        _ => fontFamily
+    };
+
+    private static string GetWesternFontFamily(string eastAsiaFontFamily) => eastAsiaFontFamily switch
+    {
+        "宋体" or "新宋体" or "仿宋" or "仿宋_GB2312" or "楷体" or "楷体_GB2312"
+            or "华文宋体" or "华文楷体" or "华文仿宋"
+            => "Times New Roman",
+        "黑体" or "隶书" or "幼圆" or "微软雅黑" or "等线" or "华文细黑"
+            => "Arial",
+        _ => eastAsiaFontFamily
+    };
+
+    #endregion
+}

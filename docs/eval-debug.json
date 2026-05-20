@@ -1,0 +1,95 @@
+{
+  "name": "weavedoc-rag-debug",
+  "allowedSourceExtensions": [
+    ".md",
+    ".json"
+  ],
+  "forbiddenSourceExtensions": [
+    ".pdf"
+  ],
+  "cases": [
+    {
+      "id": "stm32-control",
+      "category": "engineering-paper",
+      "question": "这个智能浇花系统如何实现精准灌溉",
+      "expectedKeywords": [
+        "模糊pid",
+        "土壤湿度",
+        "土壤温湿度",
+        "电磁阀",
+        "动态调节",
+        "动态调整",
+        "动态修正"
+      ],
+      "minMatchedKeywords": 4,
+      "retrievalSignals": [
+        "3 模糊PID复合控制器的简要设计",
+        "3.2 PID调节阶段设计",
+        "3.3 环境补偿机制"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2,
+      "expectedCitations": [
+        "模糊PID"
+      ],
+      "minMatchedCitations": 1
+    },
+    {
+      "id": "stm32-control-prefixed",
+      "category": "engineering-paper",
+      "question": "对于STM32这篇论文，这个智能浇花系统如何实现精准灌溉",
+      "expectedKeywords": [
+        "土壤湿度",
+        "环境温湿度",
+        "模糊pid",
+        "电磁阀",
+        "pwm"
+      ],
+      "minMatchedKeywords": 4,
+      "retrievalSignals": [
+        "3 模糊PID复合控制器的简要设计",
+        "3.2 PID调节阶段设计",
+        "3.3 环境补偿机制"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2,
+      "expectedCitations": [
+        "模糊PID"
+      ],
+      "minMatchedCitations": 1
+    },
+    {
+      "id": "follow-up-detail",
+      "category": "engineering-paper",
+      "question": "详细一点",
+      "expectedKeywords": [
+        "模糊pid",
+        "电磁阀",
+        "土壤湿度",
+        "土壤温湿度"
+      ],
+      "minMatchedKeywords": 3,
+      "retrievalSignals": [
+        "3 模糊PID复合控制器的简要设计",
+        "3.2 PID调节阶段设计",
+        "3.3 环境补偿机制"
+      ],
+      "minTopChunkSignals": 1,
+      "minContextSignals": 2,
+      "expectedCitations": [
+        "模糊PID"
+      ],
+      "minMatchedCitations": 1,
+      "history": [
+        {
+          "role": "用户",
+          "content": "这个智能浇花系统如何实现精准灌溉"
+        },
+        {
+          "role": "助手",
+          "content": "该智能浇花系统通过模糊PID复合控制算法实现精准灌溉。系统利用土壤温湿度传感器采集数据，经模糊PID控制器计算最优灌溉量后，通过PWM信号驱动电磁阀精确输出水量，并结合环境温湿度进行动态补偿。"
+        }
+      ]
+    }
+  ]
+}
