@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        #toolbar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #ddd;
+            gap: 10px;
+        }
+        #toolbar button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #toolbar button:hover {
+            background-color: #45a049;
+        }
+        #toolbar button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #pageNumber {
+            padding: 8px 12px;
+            width: 60px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #zoomControls {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        #zoomControls button {
+            width: 40px;
+            height: 40px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        #zoomControls button:hover {
+            background-color: #1976D2;
+        }
+        #zoomLevel {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        #canvasContainer {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+            padding: 20px;
+            background-color: #e0e0e0;
+        }
+        #pdfCanvas {
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #666;
+        }
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #f44336;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="toolbar">
+            <button id="prevBtn" onclick="goToPrevPage()" disabled>上一页</button>
+            <input type="text" id="pageNumber" value="1" onchange="goToPage()">
+            <span id="pageCount"> / 1</span>
+            <button id="nextBtn" onclick="goToNextPage()" disabled>下一页</button>
+        </div>
+        <div id="canvasContainer">
+            <div id="loading">加载中...</div>
+            <canvas id="pdfCanvas"></canvas>
+        </div>
+    </div>
+    <div id="zoomControls">
+        <button onclick="zoomIn()">+</button>
+        <div id="zoomLevel">100%</div>
+        <button onclick="zoomOut()">-</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js';
+        
+        var pdfDoc = null;
+        var currentPage = 1;
+        var zoom = 1.5;
+        var canvas = document.getElementById('pdfCanvas');
+        var ctx = canvas.getContext('2d');
+        var loadingDiv = document.getElementById('loading');
+        var errorDiv = document.getElementById('error');
+
+        // 通过 Base64 加载 PDF
+        window.loadPdfBase64 = async function(base64Data) {
+            console.log('Loading PDF from Base64...');
+            
+            try {
+                loadingDiv.style.display = 'block';
+                errorDiv.style.display = 'none';
+                canvas.style.display = 'none';
+                
+                // 将 Base64 转换为 Uint8Array
+                var byteCharacters = atob(base64Data);
+                var byteNumbers = new Array(byteCharacters.length);
+                for (var i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                var byteArray = new Uint8Array(byteNumbers);
+                
+                // 加载 PDF
+                pdfDoc = await pdfjsLib.getDocument({data: byteArray}).promise;
+                
+                currentPage = 1;
+                updatePageInfo();
+                await renderPage(currentPage);
+                
+                loadingDiv.style.display = 'none';
+                canvas.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = '无法加载PDF文件: ' + error.message;
+            }
+        };
+
+        // 旧的加载方法（通过文件路径）
+        window.loadPdf = async function(filePath) {
+            console.log('Loading PDF:', filePath);
+            
+            try {
+                loadingDiv.style.display = 'block';
+                errorDiv.style.display = 'none';
+                canvas.style.display = 'none';
+                
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', filePath, true);
+                xhr.responseType = 'arraybuffer';
+                
+                xhr.onload = async function() {
+                    try {
+                        if (xhr.status === 200 || xhr.status === 0) {
+                            var arrayBuffer = xhr.response;
+                            pdfDoc = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+                            
+                            currentPage = 1;
+                            updatePageInfo();
+                            await renderPage(currentPage);
+                            
+                            loadingDiv.style.display = 'none';
+                            canvas.style.display = 'block';
+                        } else {
+                            throw new Error('HTTP error: ' + xhr.status);
+                        }
+                    } catch (error) {
+                        console.error('Error processing PDF:', error);
+                        loadingDiv.style.display = 'none';
+                        errorDiv.style.display = 'block';
+                        errorDiv.textContent = '处理PDF失败: ' + error.message;
+                    }
+                };
+                
+                xhr.onerror = function() {
+                    console.error('Network error loading PDF');
+                    loadingDiv.style.display = 'none';
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = '网络错误，无法加载PDF';
+                };
+                
+                xhr.timeout = 30000;
+                xhr.send();
+                
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = '无法加载PDF文件: ' + error.message;
+            }
+        };
+
+        async function renderPage(pageNum) {
+            if (!pdfDoc) return;
+            
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({scale: zoom});
+            
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+            updatePageInfo();
+        }
+
+        function goToPrevPage() {
+            if (pdfDoc && currentPage > 1) {
+                currentPage--;
+                renderPage(currentPage);
+            }
+        }
+
+        function goToNextPage() {
+            if (pdfDoc && currentPage < pdfDoc.numPages) {
+                currentPage++;
+                renderPage(currentPage);
+            }
+        }
+
+        function goToPage() {
+            const pageNum = parseInt(document.getElementById('pageNumber').value);
+            if (pdfDoc && pageNum >= 1 && pageNum <= pdfDoc.numPages) {
+                currentPage = pageNum;
+                renderPage(currentPage);
+            }
+        }
+
+        function zoomIn() {
+            zoom += 0.25;
+            updateZoomInfo();
+            renderPage(currentPage);
+        }
+
+        function zoomOut() {
+            if (zoom > 0.5) {
+                zoom -= 0.25;
+                updateZoomInfo();
+                renderPage(currentPage);
+            }
+        }
+
+        function updatePageInfo() {
+            if (pdfDoc) {
+                document.getElementById('pageNumber').value = currentPage;
+                document.getElementById('pageCount').textContent = ' / ' + pdfDoc.numPages;
+                document.getElementById('prevBtn').disabled = currentPage <= 1;
+                document.getElementById('nextBtn').disabled = currentPage >= pdfDoc.numPages;
+            }
+        }
+
+        function updateZoomInfo() {
+            document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%';
+        }
+
+        window.clearPdf = function() {
+            pdfDoc = null;
+            currentPage = 1;
+            zoom = 1.5;
+            canvas.width = 0;
+            canvas.height = 0;
+            loadingDiv.style.display = 'block';
+            canvas.style.display = 'none';
+            updatePageInfo();
+            updateZoomInfo();
+        };
+    </script>
+</body>
+</html>
