@@ -120,6 +120,21 @@ public partial class MainWindow : Window
         _viewModel.SaveCloudSettings();
     }
 
+    private async void OnMainTabsSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender != MainTabs)
+            return;
+
+        if (MainTabs.SelectedItem is TabItem { Header: "Markdown 编辑" })
+        {
+            await MarkdownEditorTabControl.ActivateAsync();
+        }
+        else
+        {
+            await MarkdownEditorTabControl.DeactivateAsync();
+        }
+    }
+
     private void OnClosed(object? sender, EventArgs e)
     {
         _viewModel.Dispose();

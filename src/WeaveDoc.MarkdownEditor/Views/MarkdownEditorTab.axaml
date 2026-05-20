@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WeaveDoc.MarkdownEditor.Controls"
+             xmlns:viewModels="clr-namespace:WeaveDoc.MarkdownEditor.ViewModels"
+             x:Class="WeaveDoc.MarkdownEditor.Views.MarkdownEditorTab"
+             x:DataType="viewModels:MainWindowViewModel">
+  <DockPanel Background="#0B1220">
+    <Menu DockPanel.Dock="Top" Background="#111827" Foreground="#E5E7EB">
+      <MenuItem Header="_File">
+        <MenuItem Header="_Open" Click="OpenFile_Click" />
+        <MenuItem Header="_Open PDF" Click="OpenPdfFile_Click" />
+        <MenuItem Header="_Save" Click="SaveFile_Click" />
+        <MenuItem Header="Save _As" Click="SaveAsFile_Click" />
+      </MenuItem>
+    </Menu>
+
+    <TabControl x:Name="MarkdownEditorInnerTabs" Margin="16" SelectionChanged="MainTabControl_SelectionChanged">
+      <TabItem Header="Markdown Editor">
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+          <Border Grid.Column="0" Background="#1E1E1E" BorderBrush="#334155" BorderThickness="1">
+            <controls:MonacoEditorControl x:Name="MonacoEditor"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Stretch" />
+          </Border>
+
+          <Border Grid.Column="1" Background="White" BorderBrush="#CBD5E1" BorderThickness="1">
+            <controls:PreviewWebViewControl x:Name="PreviewWebView"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch"
+                                            HtmlContent="{Binding PreviewHtml}" />
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <TabItem x:Name="PdfTabItem" Header="PDF Reader">
+        <Grid RowDefinitions="Auto,*">
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#E8E8E8" Margin="10">
+            <Button Content="全屏" Click="FullScreenPdf_Click" Margin="0,0,10,0" Padding="10,5" />
+            <TextBlock x:Name="PdfFileName" VerticalAlignment="Center" FontWeight="Bold" />
+          </StackPanel>
+
+          <controls:PdfViewerControl Grid.Row="1" x:Name="PdfViewer" Margin="10" />
+        </Grid>
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</UserControl>

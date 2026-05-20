@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>WeaveDoc.MarkdownEditor.Tests</RootNamespace>
     <AssemblyName>WeaveDoc.MarkdownEditor.Tests</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\WeaveDoc.MarkdownEditor.csproj" />
+    <ProjectReference Include="..\..\src\WeaveDoc.MarkdownEditor\WeaveDoc.MarkdownEditor.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
     <PackageReference Include="NUnit" Version="4.1.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />

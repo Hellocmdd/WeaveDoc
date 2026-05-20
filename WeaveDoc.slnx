@@ -2,11 +2,12 @@
   <Folder Name="/src/">
     <Project Path="src/WeaveDoc.App/WeaveDoc.App.csproj" />
     <Project Path="src/WeaveDoc.Converter/WeaveDoc.Converter.csproj" />
-    <Project Path="WeaveDoc.MarkdownEditor/src/WeaveDoc.MarkdownEditor.csproj" />
+    <Project Path="src/WeaveDoc.MarkdownEditor/WeaveDoc.MarkdownEditor.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WeaveDoc.Rag.Tests/WeaveDoc.Rag.Tests.csproj" />
+    <Project Path="tests/WeaveDoc.App.Tests/WeaveDoc.App.Tests.csproj" />
     <Project Path="tests/WeaveDoc.Converter.Tests/WeaveDoc.Converter.Tests.csproj" />
-    <Project Path="WeaveDoc.MarkdownEditor/tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj" />
+    <Project Path="tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj" />
   </Folder>
 </Solution>

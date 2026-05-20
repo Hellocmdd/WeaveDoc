@@ -6,13 +6,14 @@ WeaveDoc is a unified desktop workspace for template-driven document conversion,
 
 ## Modules
 
-- `src/WeaveDoc.App/`: unified Avalonia shell with `文档转换`, `模板管理`, and `RAG 问答` tabs
+- `src/WeaveDoc.App/`: unified Avalonia shell with `文档转换`, `Markdown 编辑`, `模板管理`, and `RAG 问答` tabs
 - `src/WeaveDoc.Converter/`: Markdown + AFD template to DOCX/PDF conversion pipeline
+- `src/WeaveDoc.MarkdownEditor/`: embedded Monaco Markdown editor, HTML preview, and PDF reader tab
 - `src/WeaveDoc.Rag/`: document indexing, retrieval, reranking, chat integration, and offline evaluation helpers
 
 ## Repository Layout
 
-- `tests/`: app, converter, and RAG test projects
+- `tests/`: app, converter, Markdown editor, and RAG test projects
 - `scripts/`: launch, evaluation, and `llama.cpp` helper scripts
 - `docs/`: architecture notes and evaluation baseline files
 - `doc/`, `models/`, `.rag/`, `.eval/`: workspace-level data directories

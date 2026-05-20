@@ -1,8 +1,10 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Avalonia.VisualTree;
 using Microsoft.Web.WebView2.Core;
 using WeaveDoc.MarkdownEditor.ViewModels;
 using WeaveDoc.MarkdownEditor.Helpers;
@@ -15,8 +17,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private CoreWebView2? _webview;
         private CoreWebView2Controller? _controller;
         private string _pendingContent = string.Empty;
-        private bool _isInitializing = false;
-        private bool _isActive = true;
+        private bool _isInitializing;
+        private bool _isActive;
         
         private static CoreWebView2Environment? _sharedEnvironment;
 
@@ -30,15 +32,15 @@ namespace WeaveDoc.MarkdownEditor.Controls
             GotFocus += OnGotFocus;
         }
 
+        private IMarkdownEditorHost? Host =>
+            this.GetVisualAncestors().OfType<IMarkdownEditorHost>().FirstOrDefault()
+            ?? VisualRoot as IMarkdownEditorHost;
+
         private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 
         private async void OnLoaded(object? sender, EventArgs e)
         {
-            if (!_isInitializing)
-            {
-                _isInitializing = true;
-                await InitializeWebViewAsync();
-            }
+            await Activate(false);
         }
 
         private void OnUnloaded(object? sender, EventArgs e)
@@ -52,6 +54,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         private async Task InitializeWebViewAsync()
         {
+            if (_isInitializing)
+                return;
+
+            _isInitializing = true;
+
             try
             {
                 var root = this.VisualRoot as Window;
@@ -74,7 +81,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 {
                     _sharedEnvironment = await CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions 
                     { 
-                        AdditionalBrowserArguments = "--disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-sandbox",
                         AllowSingleSignOnUsingOSPrimaryAccount = false
                     });
                 }
@@ -101,6 +107,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
             catch (Exception ex)
             {
                 Logger.LogException(ex);
+            }
+            finally
+            {
+                _isInitializing = false;
             }
         }
 
@@ -233,15 +243,15 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                         Console.WriteLine($"MonacoEditorControl: Selection - startLine={startLine}, startCol={startCol}, endLine={endLine}, endCol={endCol}");
 
-                        var rootWindow = this.VisualRoot as Window;
-                        if (rootWindow is MainWindow mainWindow)
+                        var host = Host;
+                        if (host != null)
                         {
-                            Console.WriteLine("MonacoEditorControl: Calling mainWindow.ScrollPreviewToSelection");
-                            mainWindow.ScrollPreviewToSelection(startLine, startCol, endLine, endCol);
+                            Console.WriteLine("MonacoEditorControl: Calling host.ScrollPreviewToSelection");
+                            host.ScrollPreviewToSelection(startLine, startCol, endLine, endCol);
                         }
                         else
                         {
-                            Console.WriteLine($"MonacoEditorControl: rootWindow is null or not MainWindow: {rootWindow}");
+                            Console.WriteLine("MonacoEditorControl: host is null");
                         }
                     }
                     catch (Exception ex)
@@ -317,10 +327,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     
                     if (editorResult == "\"object\"")
                     {
-                        var mainWindow = VisualRoot as MainWindow;
-                        if (mainWindow != null)
+                        var host = Host;
+                        if (host != null)
                         {
-                            mainWindow.SetMonacoReady(true);
+                            host.SetMonacoReady(true);
                         }
                         return;
                     }
@@ -479,13 +489,23 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private void OnPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
         {
             Console.WriteLine("MonacoEditorControl: Pointer pressed, clearing highlight");
-            _ = ClearHighlightAsync();
+            _ = EnsureActiveThenClearHighlightAsync();
         }
 
         private void OnGotFocus(object? sender, Avalonia.Input.GotFocusEventArgs e)
         {
             Console.WriteLine("MonacoEditorControl: Got focus, clearing highlight");
-            _ = ClearHighlightAsync();
+            _ = EnsureActiveThenClearHighlightAsync();
+        }
+
+        private async Task EnsureActiveThenClearHighlightAsync()
+        {
+            if (_webview == null)
+            {
+                await Activate(false);
+            }
+
+            await ClearHighlightAsync();
         }
 
         public async Task RequestCurrentSelectionAsync()
@@ -533,7 +553,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
         
         public async Task Activate(bool forceReset = false)
         {
-            if (_isActive) return;
+            if (_isActive && _controller != null && _webview != null)
+                return;
             
             _isActive = true;
             Console.WriteLine("MonacoEditorControl: Activating...");
@@ -574,10 +595,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 await InitializeWebViewAsync();
             }
             
-            var mainWindow = VisualRoot as MainWindow;
-            if (mainWindow != null)
+            var host = Host;
+            if (host != null)
             {
-                mainWindow.SetMonacoReady(true);
+                host.SetMonacoReady(true);
             }
         }
         
@@ -593,10 +614,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _controller.IsVisible = false;
             }
             
-            var mainWindow = VisualRoot as MainWindow;
-            if (mainWindow != null)
+            var host = Host;
+            if (host != null)
             {
-                mainWindow.SetMonacoReady(false);
+                host.SetMonacoReady(false);
             }
         }
     }

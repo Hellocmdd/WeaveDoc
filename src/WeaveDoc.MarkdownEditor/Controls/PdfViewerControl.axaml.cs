@@ -23,6 +23,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private static CoreWebView2Environment? _sharedEnvironment;
         private static HttpListener? _httpListener;
         private static int _serverPort = 0;
+        private static string? _currentPdfPath;
 
         public static readonly StyledProperty<string> PdfFilePathProperty =
             AvaloniaProperty.Register<PdfViewerControl, string>(nameof(PdfFilePath));
@@ -84,6 +85,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
 
             _pendingFilePath = filePath;
+            _currentPdfPath = filePath;
 
             if (_controller == null)
             {
@@ -98,8 +100,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
             if (_webview != null && _serverPort > 0)
             {
-                // 使用HTTP服务器加载PDF.js和PDF文件
-                string viewerUrl = $"http://localhost:{_serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=http://localhost:{_serverPort}/pdf/{Uri.EscapeDataString(filePath)}";
+                // 使用HTTP服务器加载PDF.js外壳，待页面初始化完成后再主动打开当前PDF。
+                string viewerUrl = BuildViewerUrl(_serverPort);
                 Console.WriteLine($"Loading PDF via HTTP server: {viewerUrl}");
                 _webview.Navigate(viewerUrl);
                 
@@ -123,6 +125,176 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
+        public static string BuildViewerUrl(int serverPort)
+        {
+            return $"http://localhost:{serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=#disableworker=true";
+        }
+
+        public static string BuildPdfJsCompatibilityScript()
+        {
+            return """
+                (() => {
+                    const post = (type, data) => {
+                        try {
+                            globalThis.chrome?.webview?.postMessage({ type, data });
+                        } catch {
+                        }
+                    };
+
+                    if (!globalThis.__weaveDocConsoleBridgeAttached) {
+                        globalThis.__weaveDocConsoleBridgeAttached = true;
+                        const originalError = console.error.bind(console);
+                        const originalWarn = console.warn.bind(console);
+
+                        console.error = (...args) => {
+                            post("pdfjs-console", `error: ${args.map(String).join(" ")}`);
+                            originalError(...args);
+                        };
+
+                        console.warn = (...args) => {
+                            post("pdfjs-console", `warn: ${args.map(String).join(" ")}`);
+                            originalWarn(...args);
+                        };
+
+                        globalThis.addEventListener("error", event => {
+                            post("pdfjs-console", `window error: ${event.message}`);
+                        });
+
+                        globalThis.addEventListener("unhandledrejection", event => {
+                            post("pdfjs-console", `unhandled rejection: ${event.reason?.message ?? event.reason}`);
+                        });
+                    }
+
+                    if (typeof URL !== "undefined" && typeof URL.parse !== "function") {
+                        URL.parse = (url, base) => {
+                            try {
+                                return new URL(url, base);
+                            } catch {
+                                return null;
+                            }
+                        };
+                    }
+
+                    if (typeof Promise !== "undefined" && typeof Promise.try !== "function") {
+                        Promise.try = (callback, ...args) => new Promise(resolve => resolve()).then(() => callback(...args));
+                    }
+
+                    if (typeof Uint8Array !== "undefined" && typeof Uint8Array.prototype.toHex !== "function") {
+                        Uint8Array.prototype.toHex = function () {
+                            return Array.from(this, byte => byte.toString(16).padStart(2, "0")).join("");
+                        };
+                    }
+
+                    if (typeof Map !== "undefined" && typeof Map.prototype.getOrInsertComputed !== "function") {
+                        Map.prototype.getOrInsertComputed = function (key, callback) {
+                            if (this.has(key)) {
+                                return this.get(key);
+                            }
+
+                            const value = callback(key);
+                            this.set(key, value);
+                            return value;
+                        };
+                    }
+                })();
+                """;
+        }
+
+        public static string BuildPdfWorkerCompatibilityPrefix()
+        {
+            return """
+                if (typeof Promise !== "undefined" && typeof Promise.try !== "function") {
+                    Promise.try = (callback, ...args) => new Promise(resolve => resolve()).then(() => callback(...args));
+                }
+
+                if (typeof Uint8Array !== "undefined" && typeof Uint8Array.prototype.toHex !== "function") {
+                    Uint8Array.prototype.toHex = function () {
+                        return Array.from(this, byte => byte.toString(16).padStart(2, "0")).join("");
+                    };
+                }
+
+                if (typeof Map !== "undefined" && typeof Map.prototype.getOrInsertComputed !== "function") {
+                    Map.prototype.getOrInsertComputed = function (key, callback) {
+                        if (this.has(key)) {
+                            return this.get(key);
+                        }
+
+                        const value = callback(key);
+                        this.set(key, value);
+                        return value;
+                    };
+                }
+
+                """;
+        }
+
+        public static string BuildPdfOpenScript()
+        {
+            return """
+                (() => {
+                    const post = (data) => {
+                        try {
+                            globalThis.chrome?.webview?.postMessage({ type: "pdfjs-open", data });
+                        } catch {
+                        }
+                    };
+
+                    let attempts = 0;
+                    const openWhenReady = () => {
+                        attempts += 1;
+                        const app = globalThis.PDFViewerApplication;
+
+                        if (!app || typeof app.open !== "function") {
+                            post(`waiting for PDFViewerApplication (${attempts})`);
+                            if (attempts < 100) {
+                                setTimeout(openWhenReady, 50);
+                            }
+                            return;
+                        }
+
+                        if (!app.initialized) {
+                            post(`waiting for PDFViewerApplication initialization (${attempts})`);
+                            if (attempts < 100) {
+                                setTimeout(openWhenReady, 50);
+                            }
+                            return;
+                        }
+
+                        if (!globalThis.__weaveDocPdfEventsAttached) {
+                            globalThis.__weaveDocPdfEventsAttached = true;
+                            const events = ["documentloaded", "pagesinit", "pagesloaded", "pagerendered", "pagechanging"];
+                            for (const eventName of events) {
+                                app.eventBus?._on(eventName, event => post(`${eventName}: ${JSON.stringify(event ?? {})}`));
+                            }
+                        }
+
+                        const url = new URL("/pdf/current", globalThis.location.href).href;
+                        post(`fetching ${url}`);
+                        fetch(url, { cache: "no-store" })
+                            .then(response => {
+                                post(`fetch status ${response.status}`);
+                                if (!response.ok) {
+                                    throw new Error(`HTTP ${response.status}`);
+                                }
+                                return response.arrayBuffer();
+                            })
+                            .then(buffer => {
+                                post(`opening PDF bytes ${buffer.byteLength}`);
+                                return app.open({
+                                    data: new Uint8Array(buffer),
+                                    filename: "current.pdf"
+                                });
+                            })
+                            .then(() => post("open completed"))
+                            .catch(error => post(`open failed: ${error?.message ?? error}`));
+                    };
+
+                    openWhenReady();
+                    return "PDF open polling started";
+                })();
+                """;
+        }
+
         private async Task InitializeWebViewAsync()
         {
             try
@@ -144,13 +316,15 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 {
                     _sharedEnvironment = await CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions
                     {
-                        AdditionalBrowserArguments = "--disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-sandbox",
                         AllowSingleSignOnUsingOSPrimaryAccount = false
                     });
                 }
 
                 _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);
                 _webview = _controller.CoreWebView2;
+                await _webview.AddScriptToExecuteOnDocumentCreatedAsync(BuildPdfJsCompatibilityScript());
+                _webview.NavigationCompleted += PdfWebView_NavigationCompleted;
+                _webview.WebMessageReceived += PdfWebView_WebMessageReceived;
 
                 // 启用右键菜单
                 _webview.Settings.AreDefaultContextMenusEnabled = true;
@@ -166,6 +340,29 @@ namespace WeaveDoc.MarkdownEditor.Controls
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to initialize PDF WebView2: {ex.Message}");
+            }
+        }
+
+        private void PdfWebView_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+        {
+            Console.WriteLine($"PDF WebView2 message: {e.WebMessageAsJson}");
+        }
+
+        private async void PdfWebView_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+        {
+            Console.WriteLine($"PDF WebView2 NavigationCompleted: success={e.IsSuccess}, status={e.HttpStatusCode}, error={e.WebErrorStatus}");
+
+            if (!e.IsSuccess || _webview == null || string.IsNullOrEmpty(_currentPdfPath))
+                return;
+
+            try
+            {
+                var result = await _webview.ExecuteScriptAsync(BuildPdfOpenScript());
+                Console.WriteLine($"PDF.js open result: {result}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to execute PDF.js open script: {ex.Message}");
             }
         }
 
@@ -229,7 +426,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 string filePath;
 
-                if (requestPath.StartsWith("/pdf/"))
+                if (requestPath == "/pdf/current")
+                {
+                    filePath = _currentPdfPath ?? string.Empty;
+                    Console.WriteLine($"PDF request: {requestPath} -> {filePath}");
+                }
+                else if (requestPath.StartsWith("/pdf/"))
                 {
                     // PDF文件请求 - 获取URL解码后的路径
                     string pdfPath = requestPath.Substring(5);
@@ -271,6 +473,16 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 context.Response.AddHeader("Access-Control-Allow-Origin", "*");
 
                 byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
+                if (requestPath.EndsWith("/build/pdf.worker.mjs", StringComparison.OrdinalIgnoreCase))
+                {
+                    var prefixBytes = System.Text.Encoding.UTF8.GetBytes(BuildPdfWorkerCompatibilityPrefix());
+                    var patchedBytes = new byte[prefixBytes.Length + fileBytes.Length];
+                    Buffer.BlockCopy(prefixBytes, 0, patchedBytes, 0, prefixBytes.Length);
+                    Buffer.BlockCopy(fileBytes, 0, patchedBytes, prefixBytes.Length, fileBytes.Length);
+                    fileBytes = patchedBytes;
+                    Console.WriteLine("Applied PDF worker compatibility prefix");
+                }
+
                 Console.WriteLine($"Serving file: {filePath}, size: {fileBytes.Length} bytes");
                 await context.Response.OutputStream.WriteAsync(fileBytes);
                 context.Response.Close();

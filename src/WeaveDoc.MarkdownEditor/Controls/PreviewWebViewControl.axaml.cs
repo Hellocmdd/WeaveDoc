@@ -3,9 +3,11 @@ using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.VisualTree;
 using Microsoft.Web.WebView2.Core;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using WeaveDoc.MarkdownEditor.Helpers;
 using WeaveDoc.MarkdownEditor.Views;
@@ -49,6 +51,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
             Unloaded += OnUnloaded;
             SizeChanged += OnSizeChanged;
         }
+
+        private IMarkdownEditorHost? Host =>
+            this.GetVisualAncestors().OfType<IMarkdownEditorHost>().FirstOrDefault()
+            ?? VisualRoot as IMarkdownEditorHost;
 
         public static readonly StyledProperty<string> HtmlContentProperty =
             AvaloniaProperty.Register<PreviewWebViewControl, string>(
@@ -135,7 +141,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     Console.WriteLine("Creating shared WebView2 environment...");
                     _sharedEnvironment = await CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions 
                     { 
-                        AdditionalBrowserArguments = "--disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --no-sandbox",
                         AllowSingleSignOnUsingOSPrimaryAccount = false
                     });
                     Console.WriteLine("Shared WebView2 environment created");
@@ -300,11 +305,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                         Console.WriteLine($"PreviewWebViewControl: Selection: startLine={startLine}, startColumn={startColumn}, endLine={endLine}, endColumn={endColumn}, length={selectionLength}");
 
-                        var rootWindow = this.VisualRoot as Window;
-                        
-                        if (rootWindow is MainWindow mainWindow)
+                        var host = Host;
+                        if (host != null)
                         {
-                            mainWindow.ScrollEditorToPositionWithRange(startLine, startColumn, selectionLength);
+                            host.ScrollEditorToPositionWithRange(startLine, startColumn, selectionLength);
                         }
                     }
                     catch (Exception ex)
@@ -334,13 +338,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                         Console.WriteLine($"PreviewWebViewControl: line={clickedLine}, column={clickedColumn}");
 
-                        var rootWindow = this.VisualRoot as Window;
-                        Console.WriteLine($"PreviewWebViewControl: rootWindow is null: {rootWindow == null}");
-                        Console.WriteLine($"PreviewWebViewControl: rootWindow is MainWindow: {rootWindow is MainWindow}");
-                        
-                        if (rootWindow is MainWindow mainWindow)
+                        var host = Host;
+                        Console.WriteLine($"PreviewWebViewControl: host is null: {host == null}");
+
+                        if (host != null)
                         {
-                            mainWindow.ScrollEditorToPosition(clickedLine, clickedColumn);
+                            host.ScrollEditorToPosition(clickedLine, clickedColumn);
                         }
                     }
                     catch (Exception ex)
@@ -354,11 +357,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     Console.WriteLine($"PreviewWebViewControl: Received previewClearHighlight message");
                     try
                     {
-                        var rootWindow = this.VisualRoot as Window;
-                        
-                        if (rootWindow is MainWindow mainWindow)
+                        var host = Host;
+                        if (host != null)
                         {
-                            mainWindow.ClearEditorHighlight();
+                            host.ClearEditorHighlight();
                         }
                     }
                     catch (Exception ex)
@@ -465,10 +467,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             Console.WriteLine($"PreviewWebViewControl: HandlePreviewClick line={line}, column={column}");
 
-            var rootWindow = this.VisualRoot as Window;
-            if (rootWindow is MainWindow mainWindow)
+            var host = Host;
+            if (host != null)
             {
-                mainWindow.ScrollEditorToPosition(line, column);
+                host.ScrollEditorToPosition(line, column);
             }
         }
 
@@ -690,10 +692,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     
                     _pendingContent = string.Empty;
                     
-                    var rootWindow = VisualRoot as Window;
-                    if (rootWindow is Views.MainWindow mainWindow && mainWindow.DataContext is ViewModels.MainWindowViewModel vm)
+                    var host = Host;
+                    if (host != null)
                     {
-                        _pendingContent = vm.PreviewHtml;
+                        _pendingContent = host.PreviewHtml;
                         Console.WriteLine($"PreviewWebViewControl: Will restore content length: {_pendingContent.Length}");
                     }
                     

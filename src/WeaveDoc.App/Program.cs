@@ -9,11 +9,11 @@ namespace WeaveDoc.App;
 internal static class Program
 {
     [STAThread]
-    public static async Task Main(string[] args)
+    public static void Main(string[] args)
     {
         if (TryGetEvalFilePath(args, out var evalFilePath))
         {
-            var exitCode = await EvalRunner.RunAsync(evalFilePath);
+            var exitCode = EvalRunner.RunAsync(evalFilePath).GetAwaiter().GetResult();
             Environment.ExitCode = exitCode;
             return;
         }
@@ -23,7 +23,7 @@ internal static class Program
 
         var dbPath = Path.Combine(AppContext.BaseDirectory, "data", "weavedoc.db");
         var configManager = new ConfigManager(dbPath);
-        await configManager.EnsureSeedTemplatesAsync();
+        configManager.EnsureSeedTemplatesAsync().GetAwaiter().GetResult();
 
         var pandoc = new PandocPipeline();
         var pdfConverter = new SyncfusionPdfConverter();
