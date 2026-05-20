@@ -1,5 +1,21 @@
 
 # Build output
+[bB]in/
+[oO]bj/
+[Dd]ebug/
+[Rr]elease/
+publish/
+
+# Logs and temp
+*.log
+*.backup
+*.bak
+[Ll]og/
+[Tt]emp/
+
+
+
+# Build output
 [Dd]ebug/
 [Rr]elease/
 # ---> Vim
@@ -34,6 +50,7 @@ tags
 [Ll]og/
 [Tt]emp/
 
+
 # IDE
 .vs/
 .vscode/
@@ -50,6 +67,20 @@ Thumbs.db
 *.nupkg
 packages/
 
+
+# Build artifacts
+*.dll
+*.exe
+*.pdb
+*.xml
+
+# Node.js
+node_modules/
+package-lock.json
+npm-debug.log
+
+
+
 # Tools (portable binaries, downloaded via setup-tools.ps1)
 tools/pandoc/
 tools/tectonic/
@@ -58,6 +89,9 @@ tools/tectonic/
 tools/test_output.docx
 tools/docx_inspect/
 tests/test-output/
+TestResults/
+coverage/
+
 _debug/
 .eval/
 

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <style>
+        :root {
+            --text-color: #333;
+            --bg-color: #ffffff;
+            --link-color: #4285f4;
+            --code-bg-color: #f6f8fa;
+            --code-color: #e63946;
+            --blockquote-color: #6a737d;
+            --blockquote-border-color: #dfe2e5;
+            --table-border-color: #dfe2e5;
+            --table-header-bg: #f6f8fa;
+            --highlight-color: rgba(255, 193, 7, 0.4);
+            --hover-color: rgba(66, 133, 244, 0.1);
+            --font-size: 16px;
+            --line-height: 1.8;
+        }
+        
+        * { box-sizing: border-box; }
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            overflow: auto; 
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'; 
+            font-size: var(--font-size); 
+            line-height: var(--line-height); 
+            color: var(--text-color); 
+            background-color: var(--bg-color); 
+            padding: 24px 32px; 
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+        }
+        
+        h1, h2, h3, h4, h5, h6 { 
+            font-weight: 600; 
+            margin-top: 1.5em; 
+            margin-bottom: 0.75em; 
+            line-height: 1.4; 
+            color: #24292e;
+        }
+        h1 { 
+            font-size: 2em; 
+            border-bottom: 1px solid #eaecef; 
+            padding-bottom: 0.3em; 
+            margin-top: 0;
+        }
+        h2 { 
+            font-size: 1.5em; 
+            border-bottom: 1px solid #eaecef; 
+            padding-bottom: 0.3em; 
+        }
+        h3 { font-size: 1.25em; }
+        h4 { font-size: 1em; }
+        h5 { font-size: 0.875em; }
+        h6 { font-size: 0.85em; color: #6a737d; }
+        
+        p { 
+            margin-top: 0; 
+            margin-bottom: 1em; 
+            text-align: justify;
+        }
+        
+        ul, ol { 
+            padding-left: 2em; 
+            margin-top: 0; 
+            margin-bottom: 1em; 
+        }
+        li { 
+            margin-top: 0.25em; 
+        }
+        li > ul, li > ol {
+            margin-top: 0.25em;
+        }
+        
+        code { 
+            font-family: 'Fira Code', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace; 
+            font-size: 0.85em; 
+            padding: 0.2em 0.4em; 
+            background-color: rgba(27, 31, 35, 0.05); 
+            border-radius: 3px; 
+            color: #e63946;
+            word-break: break-all;
+        }
+        
+        pre { 
+            padding: 16px; 
+            overflow: auto; 
+            font-size: 0.85em; 
+            line-height: 1.6; 
+            background-color: #f6f8fa; 
+            border-radius: 6px; 
+            margin-bottom: 1em; 
+            border: 1px solid #eaecef;
+        }
+        pre code { 
+            padding: 0; 
+            background-color: transparent; 
+            border-radius: 0; 
+            color: inherit;
+            word-break: normal;
+        }
+        
+        blockquote { 
+            margin: 0 0 1em 0; 
+            padding: 0 1em; 
+            color: #6a737d; 
+            border-left: 0.25em solid #dfe2e5; 
+            background-color: transparent;
+        }
+        blockquote > :first-child {
+            margin-top: 0;
+        }
+        blockquote > :last-child {
+            margin-bottom: 0;
+        }
+        
+        a { 
+            color: #4285f4; 
+            text-decoration: none; 
+            background-color: transparent;
+        }
+        a:hover { 
+            text-decoration: underline; 
+        }
+        a:active {
+            color: #1a73e8;
+        }
+        
+        hr { 
+            height: 0; 
+            padding: 0; 
+            margin: 24px 0; 
+            background-color: transparent; 
+            border: 0;
+            border-top: 1px solid #eaecef;
+        }
+        
+        table { 
+            border-spacing: 0; 
+            border-collapse: collapse; 
+            margin-bottom: 1em; 
+            width: 100%; 
+            font-size: 0.9em;
+        }
+        table th, table td { 
+            padding: 6px 13px; 
+            border: 1px solid #dfe2e5; 
+        }
+        table th { 
+            font-weight: 600; 
+            background-color: #f6f8fa; 
+            text-align: left;
+        }
+        table tr:nth-child(2n) { 
+            background-color: #fafbfc; 
+        }
+        table tr:hover {
+            background-color: #f6f8fa;
+        }
+        
+        img { 
+            max-width: 100%; 
+            box-sizing: content-box;
+            border-style: none;
+        }
+        
+        #content { 
+            min-height: 100%; 
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        [data-line] { 
+            cursor: pointer; 
+        }
+        [data-line]:hover { 
+            background-color: rgba(66, 133, 244, 0.08); 
+        }
+        
+        [data-pos] { 
+            cursor: pointer; 
+            border-bottom: 1px dashed transparent; 
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        [data-pos]:hover { 
+            background-color: rgba(255, 193, 7, 0.3); 
+            border-bottom: 1px dashed #ffc107; 
+        }
+        
+        .highlight-char { 
+            background-color: rgba(255, 193, 7, 0.5) !important; 
+            border-radius: 2px; 
+            transition: background-color 0.15s ease;
+        }
+        
+        kbd {
+            display: inline-block;
+            padding: 3px 5px;
+            font-size: 0.75em;
+            line-height: 1;
+            color: #444d58;
+            background-color: #fafbfc;
+            border: 1px solid #d1d5da;
+            border-radius: 3px;
+            box-shadow: inset 0 -1px 0 #d1d5da;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+        }
+        
+        mark {
+            background-color: #fff3cd;
+            color: inherit;
+            padding: 0.2em;
+        }
+        
+        del {
+            text-decoration: line-through;
+            color: #6a737d;
+        }
+        
+        strong {
+            font-weight: 600;
+        }
+        
+        em {
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div id='content'>Welcome to WeaveDoc Preview</div>
+    <script>
+        function sendMessage(msg) {
+            if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
+                console.log('Using chrome.webview.postMessage:', msg);
+                window.chrome.webview.postMessage(msg);
+            } else if (window.external && typeof window.external.invoke === 'function') {
+                console.log('Using external.invoke:', JSON.stringify(msg));
+                window.external.invoke(JSON.stringify(msg));
+            } else {
+                console.log('No message API available');
+            }
+        }
+
+        function testSendClick() {
+            console.log('testSendClick called');
+            sendMessage({ Type: 'debug', Data: 'Test button clicked' });
+            sendMessage({ Type: 'previewClick', Data: JSON.stringify({ line: 5, column: 5 }) });
+        }
+
+        window.updateContent = function(html) {
+            var contentDiv = document.getElementById('content');
+            if (contentDiv) {
+                contentDiv.innerHTML = html;
+
+                var posElements = contentDiv.querySelectorAll('[data-pos]');
+                sendMessage({ Type: 'debug', Data: 'Found ' + posElements.length + ' data-pos elements' });
+                
+                // 添加点击事件到每个 data-pos 元素
+                posElements.forEach(function(el) {
+                    el.addEventListener('click', function(e) {
+                        var pos = el.getAttribute('data-pos');
+                        console.log('data-pos element clicked:', pos);
+                        sendMessage({ Type: 'debug', Data: 'Direct click on data-pos: ' + pos });
+                    });
+                });
+            }
+        };
+
+        // 跟踪是否有活跃的选区
+        var hasActiveSelection = false;
+
+        // 获取选区的位置信息
+        function getSelectionPositions() {
+            var selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) {
+                return null;
+            }
+
+            var range = selection.getRangeAt(0);
+            var selectedText = selection.toString();
+
+            if (!selectedText || selectedText.trim() === '') {
+                return null;
+            }
+
+            var startContainer = range.startContainer;
+            var endContainer = range.endContainer;
+
+            // 如果开始和结束容器不同，可能跨了多个元素
+            if (startContainer !== endContainer) {
+                console.log('Selection spans multiple elements, using start position only');
+            }
+
+            // 尝试找到包含起始位置的 data-pos 元素
+            var startPosElement = startContainer.nodeType === Node.ELEMENT_NODE
+                ? startContainer
+                : startContainer.parentElement;
+
+            var endPosElement = endContainer.nodeType === Node.ELEMENT_NODE
+                ? endContainer
+                : endContainer.parentElement;
+
+            // 向上查找最近的 data-pos 元素
+            while (startPosElement && !startPosElement.hasAttribute('data-pos')) {
+                startPosElement = startPosElement.parentElement;
+            }
+
+            while (endPosElement && !endPosElement.hasAttribute('data-pos')) {
+                endPosElement = endPosElement.parentElement;
+            }
+
+            if (!startPosElement || !endPosElement) {
+                console.log('Could not find data-pos elements for selection');
+                return null;
+            }
+
+            var startPos = startPosElement.getAttribute('data-pos');
+            var endPos = endPosElement.getAttribute('data-pos');
+
+            console.log('Selection start:', startPos, 'end:', endPos, 'text length:', selectedText.length);
+
+            return {
+                start: startPos,
+                end: endPos,
+                length: selectedText.length
+            };
+        }
+
+        // 文本选择事件监听器
+        document.addEventListener('mouseup', function(e) {
+            var selection = getSelectionPositions();
+            if (selection && selection.start) {
+                console.log('Selection detected:', selection);
+                sendMessage({ Type: 'debug', Data: 'Selection: ' + JSON.stringify(selection) });
+
+                // 标记有活跃的选区
+                hasActiveSelection = true;
+
+                var startParts = selection.start.split('-');
+                var endParts = selection.end ? selection.end.split('-') : startParts;
+
+                var data = {
+                    startLine: parseInt(startParts[0], 10) || 1,
+                    startColumn: parseInt(startParts[1], 10) || 1,
+                    endLine: parseInt(endParts[0], 10) || 1,
+                    endColumn: parseInt(endParts[1], 10) || 1,
+                    length: selection.length || 1
+                };
+
+                sendMessage({ Type: 'previewSelection', Data: JSON.stringify(data) });
+            } else {
+                // 如果没有选区，重置状态
+                hasActiveSelection = false;
+                // 发送清除高亮的消息
+                sendMessage({ Type: 'previewClearHighlight', Data: '' });
+            }
+        });
+
+        // 全局点击事件监听器
+        document.addEventListener('click', function(e) {
+            console.log('Document click event triggered');
+            sendMessage({ Type: 'debug', Data: 'Document click triggered' });
+
+            // 如果有活跃的选区，检查是否点击在选区外部
+            var currentSelection = window.getSelection();
+            var hasSelection = currentSelection && currentSelection.toString().trim() !== '';
+
+            if (hasActiveSelection && hasSelection) {
+                console.log('Ignoring click because there is an active selection');
+                return;
+            }
+
+            var target = e.target;
+            console.log('Click target:', target.tagName, target.className, target.id);
+            
+            // 检查是否点击了 data-pos 元素
+            var posElement = target.closest('[data-pos]');
+            if (posElement) {
+                var posAttr = posElement.getAttribute('data-pos');
+                console.log('Found data-pos element:', posAttr);
+                sendMessage({ Type: 'debug', Data: 'Found data-pos: ' + posAttr });
+                
+                if (posAttr) {
+                    var parts = posAttr.split('-');
+                    var lineNumber = parseInt(parts[0], 10) || 1;
+                    var colNumber = parseInt(parts[1], 10) || 1;
+                    sendMessage({ Type: 'debug', Data: 'Sending previewClick: line=' + lineNumber + ', column=' + colNumber });
+                    sendMessage({ Type: 'previewClick', Data: JSON.stringify({ line: lineNumber, column: colNumber }) });
+                    return;
+                }
+            }
+            
+            // 检查是否点击了 data-line 元素
+            var lineElement = target.closest('[data-line]');
+            if (lineElement) {
+                var lineNumber = parseInt(lineElement.getAttribute('data-line'), 10) || 1;
+                console.log('Found data-line element:', lineNumber);
+                sendMessage({ Type: 'debug', Data: 'Found data-line: ' + lineNumber });
+                sendMessage({ Type: 'previewClick', Data: JSON.stringify({ line: lineNumber, column: 1 }) });
+                return;
+            }
+            
+            sendMessage({ Type: 'debug', Data: 'No data-pos or data-line found in click path' });
+        }, true);
+
+        function clearHighlight() {
+            var highlighted = document.querySelectorAll('.highlight-char');
+            highlighted.forEach(function(el) {
+                el.classList.remove('highlight-char');
+            });
+        }
+
+        window.scrollToLine = function(lineNumber) {
+            try {
+                clearHighlight();
+                var targetLine = lineNumber;
+                var allElements = document.querySelectorAll('[data-pos]');
+                for (var i = 0; i < allElements.length; i++) {
+                    var el = allElements[i];
+                    var posAttr = el.getAttribute('data-pos');
+                    if (posAttr) {
+                        var parts = posAttr.split('-');
+                        var elLine = parseInt(parts[0], 10);
+                        if (elLine === targetLine) {
+                            el.classList.add('highlight-char');
+                        }
+                    }
+                }
+                var firstChar = document.querySelector('.highlight-char');
+                if (firstChar) { firstChar.scrollIntoView(); }
+            } catch (err) { }
+        };
+
+        window.scrollToSelection = function(startLine, startCol, endLine, endCol) {
+            try {
+                clearHighlight();
+                var allElements = document.querySelectorAll('[data-pos]');
+                for (var i = 0; i < allElements.length; i++) {
+                    var el = allElements[i];
+                    var posAttr = el.getAttribute('data-pos');
+                    if (posAttr) {
+                        var parts = posAttr.split('-');
+                        var elLine = parseInt(parts[0], 10);
+                        var elCol = parseInt(parts[1], 10);
+                        if (startLine === endLine) {
+                            if (elLine === startLine && elCol >= startCol && elCol <= endCol) {
+                                el.classList.add('highlight-char');
+                            }
+                        } else {
+                            if ((elLine === startLine && elCol >= startCol) || (elLine === endLine && elCol <= endCol) || (elLine > startLine && elLine < endLine)) {
+                                el.classList.add('highlight-char');
+                            }
+                        }
+                    }
+                }
+                var firstChar = document.querySelector('.highlight-char');
+                if (firstChar) { firstChar.scrollIntoView(); }
+            } catch (err) { }
+        };
+
+        window.addEventListener('load', function() {
+            sendMessage({ Type: 'previewLoaded', Data: 'loaded' });
+        });
+
+        window.addEventListener('resize', function() {
+            document.body.style.width = '100%';
+            document.body.style.height = '100%';
+        });
+    </script>
+</body>
+</html>

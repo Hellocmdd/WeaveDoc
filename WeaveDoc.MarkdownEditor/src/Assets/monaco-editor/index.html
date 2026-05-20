@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monaco Editor</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1E1E1E;
+        }
+        #editor {
+            width: 100%;
+            height: 100%;
+        }
+        .highlight-line {
+            background-color: rgba(255, 193, 7, 0.3) !important;
+            border-left: 3px solid #ffc107 !important;
+        }
+        .highlight-line-gutter {
+            background-color: rgba(255, 193, 7, 0.2) !important;
+        }
+        .highlight-char {
+            background-color: rgba(255, 193, 7, 0.5) !important;
+            border-radius: 2px;
+        }
+    </style>
+    <script src="min/vs/loader.js"></script>
+</head>
+<body>
+    <div id="editor"></div>
+    <script>
+        console.log('Monaco Editor HTML loaded');
+        window.monacoLoading = true;
+        
+        require.config({ paths: { 'vs': './min/vs' }});
+        var editor = null;
+
+        require(['vs/editor/editor.main'], function() {
+            console.log('Monaco Editor loaded successfully');
+            window.monacoLoaded = true;
+            monaco.languages.register({ id: 'markdown' });
+
+            var editorContainer = document.getElementById('editor');
+
+            var highlightDecoration = null;
+            
+            editor = monaco.editor.create(editorContainer, {
+                value: '# Hello WeaveDoc!\n\nStart typing markdown here...',
+                language: 'markdown',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                lineNumbers: 'on',
+                wordWrap: 'on',
+                wordWrapColumn: 0,
+                wrappingIndent: 'indent',
+                scrollBeyondLastLine: false,
+                scrollBeyondLastColumn: 0,
+                readOnly: false,
+                tabSize: 4,
+                padding: { top: 8, bottom: 8, left: 8, right: 8 }
+            });
+            
+            function highlightLine(lineNumber) {
+                try {
+                    if (highlightDecoration) {
+                        editor.deltaDecorations(highlightDecoration, []);
+                        highlightDecoration = null;
+                    }
+
+                    if (lineNumber > 0 && editor) {
+                        highlightDecoration = editor.deltaDecorations([], [{
+                            range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+                            options: {
+                                isWholeLine: true,
+                                className: 'highlight-line',
+                                linesDecorationsClassName: 'highlight-line-gutter'
+                            }
+                        }]);
+                    }
+                } catch (e) {
+                }
+            }
+
+            function highlightChar(lineNumber, column) {
+                try {
+                    if (highlightDecoration) {
+                        editor.deltaDecorations(highlightDecoration, []);
+                        highlightDecoration = null;
+                    }
+
+                    if (lineNumber > 0 && editor) {
+                        highlightDecoration = editor.deltaDecorations([], [{
+                            range: new monaco.Range(lineNumber, column, lineNumber, column),
+                            options: {
+                                isWholeLine: false,
+                                className: 'highlight-char'
+                            }
+                        }]);
+                    }
+                } catch (e) {
+                }
+            }
+
+            var debounceTimer = null;
+            editor.onDidChangeModelContent(function(event) {
+                try {
+                    if (debounceTimer) {
+                        clearTimeout(debounceTimer);
+                    }
+                    debounceTimer = setTimeout(function() {
+                        var content = editor.getValue();
+                        if (window.chrome && window.chrome.webview) {
+                            window.chrome.webview.postMessage({ Type: 'contentChanged', Data: content });
+                        }
+                    }, 300);
+                } catch (e) {
+                    console.error('Error sending content change:', e);
+                }
+            });
+
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.addEventListener('message', function(e) {
+                    try {
+                        var msg = e.data;
+                        if (typeof msg === 'string') {
+                            try { msg = JSON.parse(msg); } catch (parseErr) {
+                                console.warn('Failed to parse message:', parseErr);
+                                return;
+                            }
+                        }
+                        if (msg && msg.Type === 'setContent') {
+                            var current = editor.getValue();
+                            if (current !== msg.Data) {
+                                editor.setValue(msg.Data || '');
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error handling message:', err);
+                    }
+                });
+            }
+
+            window.resizeEditor = function(width, height) {
+                try {
+                    if (editor && editorContainer) {
+                        editorContainer.style.width = '100%';
+                        editorContainer.style.height = '100%';
+                        editor.layout();
+                    }
+                } catch (e) {
+                    console.error('Error resizing editor:', e);
+                }
+            };
+
+            function sendSelectionInfo() {
+                try {
+                    var selection = editor.getSelection();
+                    if (selection) {
+                        var selectionData = {
+                            startLine: selection.startLineNumber,
+                            startColumn: selection.startColumn,
+                            endLine: selection.endLineNumber,
+                            endColumn: selection.endColumn
+                        };
+                        if (window.chrome && window.chrome.webview) {
+                            window.chrome.webview.postMessage({ Type: 'selectionChanged', Data: JSON.stringify(selectionData) });
+                        }
+                    }
+                } catch (e) {
+                }
+            }
+
+            editor.onDidChangeCursorPosition(function(event) {
+                sendSelectionInfo();
+            });
+
+            // 检查onDidChangeSelection是否存在，某些版本可能没有
+            if (typeof editor.onDidChangeSelection === 'function') {
+                editor.onDidChangeSelection(function(event) {
+                    sendSelectionInfo();
+                });
+            } else {
+                console.log('onDidChangeSelection not available, using onDidChangeCursorPosition only');
+            }
+
+            window.scrollToLine = function(lineNumber) {
+                try {
+                    if (editor) {
+                        editor.revealLine(lineNumber, 1);
+                        editor.setPosition(new monaco.Position(lineNumber, 1));
+                        highlightLine(lineNumber);
+                    }
+                } catch (e) {
+                }
+            };
+
+            window.scrollToPosition = function(lineNumber, column) {
+                try {
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'scrollToPosition called: line=' + lineNumber + ', column=' + column });
+                    }
+                    if (!editor) {
+                        if (window.chrome && window.chrome.webview) {
+                            window.chrome.webview.postMessage({ Type: 'debug', Data: 'editor is null' });
+                        }
+                        return 'editor is null';
+                    }
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'editor found, revealing line' });
+                    }
+                    editor.revealLine(lineNumber, 1);
+                    editor.setPosition(new monaco.Position(lineNumber, column));
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'calling highlightChar' });
+                    }
+                    highlightChar(lineNumber, column);
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'highlightChar called' });
+                    }
+                    return 'success: line=' + lineNumber + ', column=' + column;
+                } catch (e) {
+                    if (window.chrome && window.chrome.webview) {
+                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'Error in scrollToPosition: ' + e.message });
+                    }
+                    return 'error: ' + e.message;
+                }
+            };
+
+            window.addEventListener('resize', function() {
+                if (editor) {
+                    editor.layout();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
