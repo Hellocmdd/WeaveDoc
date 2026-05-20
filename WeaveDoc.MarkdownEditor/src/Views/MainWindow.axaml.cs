@@ -24,6 +24,20 @@ namespace WeaveDoc.MarkdownEditor.Views
             InitializeComponent();
             DataContext = new MainWindowViewModel();
             Loaded += OnLoaded;
+            KeyDown += OnKeyDown;
+        }
+
+        private async void OnKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+        {
+            if (e.Key == Avalonia.Input.Key.Escape)
+            {
+                // ESC 键退出全屏
+                if (_pdfViewer != null && _pdfViewer.IsFullScreen)
+                {
+                    await _pdfViewer.ToggleFullScreen();
+                    e.Handled = true;
+                }
+            }
         }
 
         private void OnLoaded(object? sender, EventArgs e)
