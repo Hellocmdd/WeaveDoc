@@ -160,13 +160,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 
                 // 设置一个初始的小尺寸和远离可见区域的位置，防止第一次初始化时意外显示
                 _controller.Bounds = new System.Drawing.Rectangle(-1000, -1000, 100, 100);
-
-                Console.WriteLine("PDF WebView2 initialized");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to initialize PDF WebView2: {ex.Message}");
-            }
+            catch { }
         }
 
         private void StartHttpServer()
@@ -181,7 +176,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 string prefix = $"http://localhost:{_serverPort}/";
                 _httpListener.Prefixes.Add(prefix);
                 _httpListener.Start();
-                Console.WriteLine($"HTTP server started on port {_serverPort}");
 
                 // 在后台处理请求
                 _ = Task.Run(async () =>
@@ -193,17 +187,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             var context = await _httpListener.GetContextAsync();
                             await ProcessHttpRequest(context);
                         }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"HTTP server error: {ex.Message}");
-                        }
+                        catch { }
                     }
                 });
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to start HTTP server: {ex.Message}");
-            }
+            catch { }
         }
 
         private int GetAvailablePort()
@@ -231,27 +219,22 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 if (requestPath.StartsWith("/pdf/"))
                 {
-                    // PDF文件请求 - 获取URL解码后的路径
                     string pdfPath = requestPath.Substring(5);
                     filePath = Uri.UnescapeDataString(pdfPath);
-                    Console.WriteLine($"PDF request: {requestPath} -> {filePath}");
                 }
                 else
                 {
-                    // 静态文件请求
                     filePath = Path.Combine(assetsDir, requestPath.TrimStart('/'));
                 }
 
                 if (!File.Exists(filePath))
                 {
-                    Console.WriteLine($"File not found: {filePath}");
                     context.Response.StatusCode = 404;
                     await context.Response.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("Not found"));
                     context.Response.Close();
                     return;
                 }
 
-                // 设置正确的MIME类型
                 string extension = Path.GetExtension(filePath).ToLowerInvariant();
                 string contentType = extension switch
                 {
@@ -271,13 +254,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 context.Response.AddHeader("Access-Control-Allow-Origin", "*");
 
                 byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
-                Console.WriteLine($"Serving file: {filePath}, size: {fileBytes.Length} bytes");
                 await context.Response.OutputStream.WriteAsync(fileBytes);
                 context.Response.Close();
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error processing request: {ex.Message}");
                 context.Response.StatusCode = 500;
                 await context.Response.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("Internal error"));
                 context.Response.Close();
@@ -293,10 +274,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     _controller.IsVisible = false;
                     _controller.Close();
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error while closing PDF WebView2: {ex.Message}");
-                }
+                catch { }
                 _controller = null;
                 _webview = null;
             }
