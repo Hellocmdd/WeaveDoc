@@ -21,7 +21,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private bool _isFullScreen;
         private Window? _fullScreenWindow;
         private static CoreWebView2Environment? _sharedEnvironment;
-        private bool _isHtmlLoaded; // 标记HTML页面是否已加载
         private static HttpListener? _httpListener;
         private static int _serverPort = 0;
 
@@ -103,7 +102,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 string viewerUrl = $"http://localhost:{_serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=http://localhost:{_serverPort}/pdf/{Uri.EscapeDataString(filePath)}";
                 Console.WriteLine($"Loading PDF via HTTP server: {viewerUrl}");
                 _webview.Navigate(viewerUrl);
-                _isHtmlLoaded = true;
                 
                 // 显示WebView2（调用此方法时应该已经激活）
                 if (_controller != null)
@@ -140,7 +138,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
 
                 // 启动本地HTTP服务器
-                await StartHttpServer();
+                StartHttpServer();
 
                 if (_sharedEnvironment == null)
                 {
@@ -171,7 +169,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        private async Task StartHttpServer()
+        private void StartHttpServer()
         {
             if (_httpListener != null)
                 return;
@@ -213,7 +211,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
             using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
             {
                 socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-                return ((IPEndPoint)socket.LocalEndPoint).Port;
+                var endPoint = socket.LocalEndPoint as IPEndPoint;
+                return endPoint?.Port ?? 8080;
             }
         }
 
@@ -301,7 +300,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _controller = null;
                 _webview = null;
             }
-            _isHtmlLoaded = false; // 重置HTML加载标志
         }
 
         private void UpdateBounds()
@@ -450,7 +448,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             // 加载PDF（确保窗口已初始化）
             await fullScreenViewer.LoadPdfAsync(_pendingFilePath);
             await Task.Delay(100); // 确保WebView2初始化完成
-            fullScreenViewer.Activate();
+            await fullScreenViewer.Activate();
 
             // 隐藏当前控件
             if (_controller != null)
