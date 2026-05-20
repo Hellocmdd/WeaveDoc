@@ -5,7 +5,10 @@ using Avalonia.Input;
 using Microsoft.Web.WebView2.Core;
 using System;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
+using System.Net;
+using System.Net.Sockets;
 
 namespace WeaveDoc.MarkdownEditor.Controls
 {
@@ -18,6 +21,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private bool _isFullScreen;
         private Window? _fullScreenWindow;
         private static CoreWebView2Environment? _sharedEnvironment;
+        private bool _isHtmlLoaded; // 标记HTML页面是否已加载
+        private static HttpListener? _httpListener;
+        private static int _serverPort = 0;
 
         public static readonly StyledProperty<string> PdfFilePathProperty =
             AvaloniaProperty.Register<PdfViewerControl, string>(nameof(PdfFilePath));
@@ -85,16 +91,26 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 await InitializeWebViewAsync();
             }
 
-            if (_webview != null)
+            if (_webview != null && _serverPort > 0)
             {
-                // 直接导航到PDF，使用URL参数禁用工具栏
-                string fileUri = "file:///" + filePath.Replace("\\", "/");
-                // 添加参数禁用工具栏和导航面板
-                string pdfUrlWithParams = fileUri + "#toolbar=0&navpanes=1&scrollbar=1&view=FitH&pagemode=bookmarks";
-                Console.WriteLine($"Navigating to PDF: {pdfUrlWithParams}");
-                _webview.Navigate(pdfUrlWithParams);
+                // 使用HTTP服务器加载PDF.js和PDF文件
+                string viewerUrl = $"http://localhost:{_serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=http://localhost:{_serverPort}/pdf/{Uri.EscapeDataString(filePath)}";
+                Console.WriteLine($"Loading PDF via HTTP server: {viewerUrl}");
+                _webview.Navigate(viewerUrl);
+                _isHtmlLoaded = true;
                 
                 // 导航后立即显示WebView2
+                if (_controller != null)
+                {
+                    _controller.IsVisible = true;
+                }
+            }
+            else if (_webview != null)
+            {
+                // 降级到直接导航
+                string fileUri = "file:///" + filePath.Replace("\\", "/");
+                _webview.Navigate(fileUri);
+                
                 if (_controller != null)
                 {
                     _controller.IsVisible = true;
@@ -115,6 +131,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                     return;
+
+                // 启动本地HTTP服务器
+                await StartHttpServer();
 
                 if (_sharedEnvironment == null)
                 {
@@ -142,6 +161,120 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
+        private async Task StartHttpServer()
+        {
+            if (_httpListener != null)
+                return;
+
+            try
+            {
+                _httpListener = new HttpListener();
+                _serverPort = GetAvailablePort();
+                string prefix = $"http://localhost:{_serverPort}/";
+                _httpListener.Prefixes.Add(prefix);
+                _httpListener.Start();
+                Console.WriteLine($"HTTP server started on port {_serverPort}");
+
+                // 在后台处理请求
+                _ = Task.Run(async () =>
+                {
+                    while (_httpListener.IsListening)
+                    {
+                        try
+                        {
+                            var context = await _httpListener.GetContextAsync();
+                            await ProcessHttpRequest(context);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"HTTP server error: {ex.Message}");
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to start HTTP server: {ex.Message}");
+            }
+        }
+
+        private int GetAvailablePort()
+        {
+            using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+            {
+                socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+                return ((IPEndPoint)socket.LocalEndPoint).Port;
+            }
+        }
+
+        private async Task ProcessHttpRequest(HttpListenerContext context)
+        {
+            try
+            {
+                string requestPath = context.Request.Url?.AbsolutePath ?? "/";
+                string assetsDir = Path.Combine(AppContext.BaseDirectory, "Assets");
+                if (!Directory.Exists(assetsDir))
+                {
+                    assetsDir = Path.Combine(AppContext.BaseDirectory, "src", "Assets");
+                }
+
+                string filePath;
+
+                if (requestPath.StartsWith("/pdf/"))
+                {
+                    // PDF文件请求 - 获取URL解码后的路径
+                    string pdfPath = requestPath.Substring(5);
+                    filePath = Uri.UnescapeDataString(pdfPath);
+                    Console.WriteLine($"PDF request: {requestPath} -> {filePath}");
+                }
+                else
+                {
+                    // 静态文件请求
+                    filePath = Path.Combine(assetsDir, requestPath.TrimStart('/'));
+                }
+
+                if (!File.Exists(filePath))
+                {
+                    Console.WriteLine($"File not found: {filePath}");
+                    context.Response.StatusCode = 404;
+                    await context.Response.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("Not found"));
+                    context.Response.Close();
+                    return;
+                }
+
+                // 设置正确的MIME类型
+                string extension = Path.GetExtension(filePath).ToLowerInvariant();
+                string contentType = extension switch
+                {
+                    ".html" => "text/html",
+                    ".js" => "application/javascript",
+                    ".mjs" => "application/javascript",
+                    ".css" => "text/css",
+                    ".pdf" => "application/pdf",
+                    ".png" => "image/png",
+                    ".svg" => "image/svg+xml",
+                    ".gif" => "image/gif",
+                    ".bcmap" => "application/octet-stream",
+                    _ => "application/octet-stream"
+                };
+
+                context.Response.ContentType = contentType;
+                context.Response.AddHeader("Access-Control-Allow-Origin", "*");
+
+                byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
+                Console.WriteLine($"Serving file: {filePath}, size: {fileBytes.Length} bytes");
+                await context.Response.OutputStream.WriteAsync(fileBytes);
+                context.Response.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error processing request: {ex.Message}");
+                context.Response.StatusCode = 500;
+                await context.Response.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("Internal error"));
+                context.Response.Close();
+            }
+        }
+
         private void CleanupWebView()
         {
             if (_controller != null)
@@ -158,6 +291,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _controller = null;
                 _webview = null;
             }
+            _isHtmlLoaded = false; // 重置HTML加载标志
         }
 
         private void UpdateBounds()
@@ -205,14 +339,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _controller.IsVisible = true;
             }
 
-            // 重新加载PDF内容
+            // 重新加载PDF内容使用PDF.js
             if (_pendingFilePath != null && _webview != null)
             {
                 await Task.Delay(100); // 等待WebView2准备就绪
-                string fileUri = "file:///" + _pendingFilePath.Replace("\\", "/");
-                string pdfUrlWithParams = fileUri + "#toolbar=0&navpanes=1&scrollbar=1&view=FitH&pagemode=bookmarks";
-                Console.WriteLine($"Activate: Reloading PDF: {pdfUrlWithParams}");
-                _webview.Navigate(pdfUrlWithParams);
+                Console.WriteLine("Activate: Reloading PDF with PDF.js");
+                await LoadPdfAsync(_pendingFilePath);
             }
         }
 
@@ -223,10 +355,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
             _isActive = false;
             Console.WriteLine("PDF viewer deactivated");
 
-            if (_controller != null)
-            {
-                _controller.IsVisible = false;
-            }
+            // 完全关闭WebView2控制器，确保不会与其他控件重叠
+            CleanupWebView();
         }
 
         public async Task ToggleFullScreen()

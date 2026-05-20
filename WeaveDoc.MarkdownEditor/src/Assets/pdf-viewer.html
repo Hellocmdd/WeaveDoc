@@ -10,13 +10,9 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: white;
         }
-        #pdfContainer {
-            width: 100%;
-            height: 100%;
-        }
-        iframe {
+        
+        #pdfFrame {
             width: 100%;
             height: 100%;
             border: none;
@@ -24,21 +20,21 @@
     </style>
 </head>
 <body>
-    <div id="pdfContainer">
-        <iframe id="pdfFrame" src="" frameborder="0"></iframe>
-    </div>
+    <iframe id="pdfFrame"></iframe>
+    
     <script>
-        function loadPdf(url) {
-            const frame = document.getElementById('pdfFrame');
-            // 添加参数禁用工具栏
-            const toolbarDisabledUrl = url + '#toolbar=0&navpanes=0&scrollbar=1';
-            frame.src = toolbarDisabledUrl;
-            console.log('Loading PDF:', toolbarDisabledUrl);
+        // 从URL参数获取PDF路径
+        const params = new URLSearchParams(window.location.search);
+        const pdfUrl = params.get('pdf');
+        
+        if (pdfUrl) {
+            document.getElementById('pdfFrame').src = './pdfjs-5.7.284-dist/web/viewer.html?file=' + encodeURIComponent(decodeURIComponent(pdfUrl));
         }
         
-        window.chrome.webview.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'loadPdf') {
-                loadPdf(event.data.url);
+        // 接收来自C#的消息
+        window.chrome?.webview?.addEventListener('message', (event) => {
+            if (event.data?.type === 'loadPdf' && event.data.url) {
+                document.getElementById('pdfFrame').src = './pdfjs-5.7.284-dist/web/viewer.html?file=' + encodeURIComponent(event.data.url);
             }
         });
     </script>

@@ -365,10 +365,14 @@ namespace WeaveDoc.MarkdownEditor.Views
                 {
                     Console.WriteLine("Switching to Markdown Editor");
                     
+                    // 先确保PDF完全隐藏
                     if (_pdfViewer != null)
                     {
                         _pdfViewer.Deactivate();
                     }
+                    
+                    // 等待一小段时间确保PDF WebView2完全隐藏
+                    await Task.Delay(50);
 
                     if (_monacoEditor != null)
                     {
