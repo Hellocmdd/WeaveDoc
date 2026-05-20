@@ -63,9 +63,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
             // 在Loaded时不自动激活，等待标签切换时再激活
         }
 
-        private void OnUnloaded(object? sender, EventArgs e)
+        private async void OnUnloaded(object? sender, EventArgs e)
         {
-            Deactivate();
+            await DeactivateAsync();
         }
 
         private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
@@ -99,8 +99,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _webview.Navigate(viewerUrl);
                 _isHtmlLoaded = true;
                 
-                // 导航后立即显示WebView2
-                if (_controller != null)
+                // 只有在控件激活时才显示WebView2，防止第一次切换时重叠
+                if (_controller != null && _isActive)
                 {
                     _controller.IsVisible = true;
                 }
@@ -111,7 +111,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 string fileUri = "file:///" + filePath.Replace("\\", "/");
                 _webview.Navigate(fileUri);
                 
-                if (_controller != null)
+                // 只有在控件激活时才显示WebView2
+                if (_controller != null && _isActive)
                 {
                     _controller.IsVisible = true;
                 }
@@ -150,8 +151,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 // 启用右键菜单
                 _webview.Settings.AreDefaultContextMenusEnabled = true;
 
+                // 初始化时始终设置为不可见，由Activate方法控制显示时机
                 _controller.IsVisible = false;
-                UpdateBounds();
+                
+                // 设置一个初始的小尺寸和远离可见区域的位置，防止第一次初始化时意外显示
+                _controller.Bounds = new System.Drawing.Rectangle(-1000, -1000, 100, 100);
 
                 Console.WriteLine("PDF WebView2 initialized");
             }
@@ -348,14 +352,30 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        public void Deactivate()
+        public async Task DeactivateAsync()
         {
             if (!_isActive) return;
 
             _isActive = false;
             Console.WriteLine("PDF viewer deactivated");
 
-            // 完全关闭WebView2控制器，确保不会与其他控件重叠
+            // 立即隐藏控制器，防止与其他控件重叠
+            if (_controller != null)
+            {
+                try
+                {
+                    _controller.IsVisible = false;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error setting PDF WebView2 visibility: {ex.Message}");
+                }
+            }
+
+            // 等待一小段时间确保WebView2完全隐藏
+            await Task.Delay(50);
+
+            // 完全关闭WebView2控制器，释放资源
             CleanupWebView();
         }
 

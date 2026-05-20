@@ -334,10 +334,16 @@ namespace WeaveDoc.MarkdownEditor.Views
                 _lastPdfFilePath = filePath;
                 pdfFileName.Text = System.IO.Path.GetFileName(filePath);
                 
+                // 先切换到PDF标签页
                 mainTabControl.SelectedItem = pdfTabItem;
                 
+                // 等待标签切换完成
+                await Task.Delay(50);
+                
+                // 然后激活PDF控件并加载PDF
                 if (_pdfViewer != null)
                 {
+                    await _pdfViewer.Activate();
                     await _pdfViewer.LoadPdfAsync(filePath);
                 }
             }
@@ -379,15 +385,17 @@ namespace WeaveDoc.MarkdownEditor.Views
                 {
                     Console.WriteLine("Switching to Markdown Editor");
                     
-                    // 先确保PDF完全隐藏
+                    // 先确保PDF完全隐藏（使用异步版本）
                     if (_pdfViewer != null)
                     {
-                        _pdfViewer.Deactivate();
+                        await _pdfViewer.DeactivateAsync();
                     }
                     
-                    // 等待一小段时间确保PDF WebView2完全隐藏
-                    await Task.Delay(50);
+                    // 等待足够时间确保PDF WebView2完全关闭和隐藏
+                    // WebView2关闭可能需要较长时间，增加等待时间
+                    await Task.Delay(150);
 
+                    // 确保所有PDF相关资源已清理后再激活Markdown控件
                     if (_monacoEditor != null)
                     {
                         // 不强制重置，保留编辑内容
@@ -430,6 +438,9 @@ namespace WeaveDoc.MarkdownEditor.Views
                 {
                     _previewWebView.Deactivate();
                 }
+                
+                // 等待足够时间确保Markdown控件完全隐藏
+                await Task.Delay(100);
                 
                 if (!string.IsNullOrEmpty(_lastPdfFilePath) && _pdfViewer != null)
                 {
