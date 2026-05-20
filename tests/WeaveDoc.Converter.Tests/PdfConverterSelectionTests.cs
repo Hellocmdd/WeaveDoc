@@ -152,7 +152,7 @@ public class PdfConverterSelectionTests
             var configManager = new ConfigManager(dbPath);
             await configManager.SaveTemplateAsync("test-tpl", CreateTestTemplate());
 
-            var pipeline = new PandocPipeline(Path.Combine(FindSolutionRoot(), "tools", "pandoc", "pandoc.exe"));
+            var pipeline = new PandocPipeline(FindPandoc());
             var converter = new RecordingPdfConverter("fake", "%PDF-1.7 fake");
             var engine = new DocumentConversionEngine(pipeline, converter, configManager);
             var mdPath = Path.Combine(Path.GetTempPath(), $"fake-pdf-{Guid.NewGuid():N}.md");
@@ -191,7 +191,7 @@ public class PdfConverterSelectionTests
             var configManager = new ConfigManager(dbPath);
             await configManager.EnsureSeedTemplatesAsync();
 
-            var pipeline = new PandocPipeline(Path.Combine(FindSolutionRoot(), "tools", "pandoc", "pandoc.exe"));
+            var pipeline = new PandocPipeline(FindPandoc());
             var converter = new InspectingPdfConverter();
             var engine = new DocumentConversionEngine(pipeline, converter, configManager);
             var mdPath = Path.Combine(Path.GetTempPath(), $"layout-pdf-{Guid.NewGuid():N}.md");
@@ -250,7 +250,24 @@ public class PdfConverterSelectionTests
         }
     };
 
-    private static string FindSolutionRoot()
+    private static string FindPandoc()
+    {
+        // 1. 本地 tools/pandoc
+        var root = FindSolutionRoot();
+        if (root != null)
+        {
+            var local = OperatingSystem.IsWindows()
+                ? Path.Combine(root, "tools", "pandoc", "pandoc.exe")
+                : Path.Combine(root, "tools", "pandoc", "bin", "pandoc");
+            if (File.Exists(local))
+                return local;
+        }
+
+        // 2. 系统 PATH (CI 环境通过 pandoc/actions 安装)
+        return "pandoc";
+    }
+
+    private static string? FindSolutionRoot()
     {
         var dir = AppContext.BaseDirectory;
         while (dir != null)
@@ -259,7 +276,7 @@ public class PdfConverterSelectionTests
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
-        throw new InvalidOperationException("无法找到解决方案根目录");
+        return null;
     }
 
     private sealed class RecordingPdfConverter : IPdfConverter
