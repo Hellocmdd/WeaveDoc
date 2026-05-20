@@ -1,3 +1,7 @@
+
+# Build output
+[Dd]ebug/
+[Rr]elease/
 # ---> Vim
 # Swap
 [._]*.s[a-v][a-z]
@@ -25,3 +29,53 @@ tags
 #visual studio 
 .vs/
 
+# Logs and temp
+*.log
+[Ll]og/
+[Tt]emp/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.csproj.lscache
+
+# OS
+Thumbs.db
+.DS_Store
+
+# NuGet
+*.nupkg
+packages/
+
+# Tools (portable binaries, downloaded via setup-tools.ps1)
+tools/pandoc/
+tools/tectonic/
+
+# Test artifacts
+tools/test_output.docx
+tools/docx_inspect/
+tests/test-output/
+_debug/
+.eval/
+
+# Local environments and caches
+.conda/
+models/
+.rag/
+*.db
+.codex/
+.codex
+.~lock.*#
+.agent.md
+
+# Other local tooling
+.claude/
+.codex-tmp/
+.superpowers/
+
+# Legacy docs folder retained from converter branch history
+docs/
+out/

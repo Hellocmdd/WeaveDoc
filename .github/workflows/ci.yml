@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - feature/**
+  pull_request:
+    branches:
+      - main
+      - master
+      - feature/weavedoc-app-merge
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        dotnet: [10.0.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5.2.0
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/*.sln
+            **/*.slnx
+            **/packages.lock.json
+
+      - name: .NET info
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore WeaveDoc.slnx
+
+      - name: Install Pandoc
+        uses: pandoc/actions/setup@v1
+
+      - name: Build (Release)
+        run: dotnet build WeaveDoc.slnx --configuration Release --no-restore /p:ContinuousIntegrationBuild=true
+
+      - name: Test (Release)
+        run: dotnet test WeaveDoc.slnx --configuration Release --no-build -nologo
