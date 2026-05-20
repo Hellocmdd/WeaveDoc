@@ -10,7 +10,7 @@ using WeaveDoc.MarkdownEditor.Controls;
 
 namespace WeaveDoc.MarkdownEditor.Views
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, IMarkdownEditorHost
     {
         private MonacoEditorControl? _monacoEditor;
         private PreviewWebViewControl? _previewWebView;
@@ -26,6 +26,9 @@ namespace WeaveDoc.MarkdownEditor.Views
             Loaded += OnLoaded;
             KeyDown += OnKeyDown;
         }
+
+        public string PreviewHtml =>
+            DataContext is MainWindowViewModel vm ? vm.PreviewHtml : string.Empty;
 
         private async void OnKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
         {

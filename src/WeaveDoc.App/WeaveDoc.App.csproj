@@ -18,5 +18,6 @@
   <ItemGroup>
     <ProjectReference Include="..\WeaveDoc.Converter\WeaveDoc.Converter.csproj" />
     <ProjectReference Include="..\WeaveDoc.Rag\WeaveDoc.Rag.csproj" />
+    <ProjectReference Include="..\WeaveDoc.MarkdownEditor\WeaveDoc.MarkdownEditor.csproj" />
   </ItemGroup>
 </Project>

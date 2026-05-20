@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:markdown="using:WeaveDoc.MarkdownEditor.Views"
         xmlns:vm="using:WeaveDoc.App.ViewModels"
         xmlns:views="using:WeaveDoc.App.Views"
         x:Class="WeaveDoc.App.Views.MainWindow"
@@ -70,7 +71,7 @@
     </Style>
   </Window.Styles>
 
-  <TabControl>
+  <TabControl x:Name="MainTabs" SelectionChanged="OnMainTabsSelectionChanged">
     <TabItem Header="RAG 问答">
       <Grid x:DataType="vm:RagTabViewModel"
             RowDefinitions="Auto,*,Auto"
@@ -415,6 +416,10 @@
 
     <TabItem Header="文档转换">
       <views:ConvertTab x:Name="ConvertTabControl" />
+    </TabItem>
+
+    <TabItem Header="Markdown 编辑">
+      <markdown:MarkdownEditorTab x:Name="MarkdownEditorTabControl" />
     </TabItem>
 
     <TabItem Header="模板管理">
