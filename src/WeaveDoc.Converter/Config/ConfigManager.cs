@@ -82,7 +82,7 @@ public class ConfigManager
             var templateId = resourceName[prefix.Length..^suffix.Length];
 
             var existingPath = await _repository.GetJsonPathAsync(templateId);
-            if (existingPath != null)
+            if (existingPath != null && File.Exists(existingPath))
                 continue;
 
             using var stream = assembly.GetManifestResourceStream(resourceName);
