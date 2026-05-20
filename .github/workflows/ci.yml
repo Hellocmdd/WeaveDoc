@@ -51,6 +51,9 @@ jobs:
       - name: Restore
         run: dotnet restore WeaveDoc.slnx
 
+      - name: Install Pandoc
+        uses: pandoc/actions/setup@v1
+
       - name: Build (Release)
         run: dotnet build WeaveDoc.slnx --configuration Release --no-restore /p:ContinuousIntegrationBuild=true
 

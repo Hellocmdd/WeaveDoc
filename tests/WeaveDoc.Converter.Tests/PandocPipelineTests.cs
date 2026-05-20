@@ -552,8 +552,7 @@ public class PandocPipelineTests
     [Fact]
     public async Task DocumentConversionEngine_ConvertAsync_InvalidInput_ReturnsFriendlyError()
     {
-        var root = FindSolutionRoot();
-        var pandocPath = Path.Combine(root, "tools", "pandoc", "pandoc.exe");
+        var pipeline = CreatePipeline();
         var dbPath = Path.Combine(Path.GetTempPath(), $"dce-invalid-input-{Guid.NewGuid():N}.db");
 
         try
@@ -561,7 +560,6 @@ public class PandocPipelineTests
             var configManager = new ConfigManager(dbPath);
             await configManager.SaveTemplateAsync("test-tpl", CreateTestTemplate());
 
-            var pipeline = new PandocPipeline(pandocPath);
             var engine = new DocumentConversionEngine(pipeline, new SyncfusionPdfConverter(), configManager);
             var mdPath = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.md");
 
