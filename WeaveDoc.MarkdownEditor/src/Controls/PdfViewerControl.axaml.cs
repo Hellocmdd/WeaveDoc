@@ -91,6 +91,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 await InitializeWebViewAsync();
             }
 
+            // 如果控制器存在但位置不正确，先更新位置
+            if (_controller != null)
+            {
+                UpdateBounds();
+            }
+
             if (_webview != null && _serverPort > 0)
             {
                 // 使用HTTP服务器加载PDF.js和PDF文件
@@ -99,8 +105,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _webview.Navigate(viewerUrl);
                 _isHtmlLoaded = true;
                 
-                // 只有在控件激活时才显示WebView2，防止第一次切换时重叠
-                if (_controller != null && _isActive)
+                // 显示WebView2（调用此方法时应该已经激活）
+                if (_controller != null)
                 {
                     _controller.IsVisible = true;
                 }
@@ -111,8 +117,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 string fileUri = "file:///" + filePath.Replace("\\", "/");
                 _webview.Navigate(fileUri);
                 
-                // 只有在控件激活时才显示WebView2
-                if (_controller != null && _isActive)
+                // 显示WebView2
+                if (_controller != null)
                 {
                     _controller.IsVisible = true;
                 }
@@ -331,6 +337,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
             _isActive = true;
             Console.WriteLine("PDF viewer activated");
 
+            // 确保控件布局完成后再初始化WebView2
+            await WaitForValidBoundsAsync();
+
             // 确保WebView2已初始化
             if (_controller == null && _pendingFilePath != null)
             {
@@ -339,7 +348,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
             if (_controller != null)
             {
+                // 更新边界到正确位置
                 UpdateBounds();
+                
+                // 设置可见性
                 _controller.IsVisible = true;
             }
 
@@ -350,6 +362,20 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 Console.WriteLine("Activate: Reloading PDF with PDF.js");
                 await LoadPdfAsync(_pendingFilePath);
             }
+        }
+        
+        private async Task WaitForValidBoundsAsync()
+        {
+            int attempts = 0;
+            const int maxAttempts = 50;
+            
+            while (attempts < maxAttempts && (this.Bounds.Width < 100 || this.Bounds.Height < 100))
+            {
+                await Task.Delay(20);
+                attempts++;
+            }
+            
+            Console.WriteLine($"WaitForValidBoundsAsync completed after {attempts} attempts, bounds: {this.Bounds}");
         }
 
         public async Task DeactivateAsync()
