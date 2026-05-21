@@ -53,9 +53,23 @@ namespace WeaveDoc.MarkdownEditor.Tests
             Assert.That(script, Does.Contain("postMessage"));
             Assert.That(script, Does.Contain("documentloaded"));
             Assert.That(script, Does.Contain("pagerendered"));
+            Assert.That(script, Does.Contain("textlayerrendered"));
             Assert.That(script, Does.Contain("fetch(url"));
             Assert.That(script, Does.Contain("new Uint8Array"));
             Assert.That(script, Does.Contain("/pdf/current"));
+        }
+
+        [Test]
+        public void BuildPdfOpenScript_ForcesPdfJsTextLayerSelectable()
+        {
+            var script = PdfViewerControl.BuildPdfOpenScript();
+
+            Assert.That(script, Does.Contain("enableTextSelection"));
+            Assert.That(script, Does.Contain("weavedoc-pdf-text-selection-style"));
+            Assert.That(script, Does.Contain("user-select: text !important"));
+            Assert.That(script, Does.Contain("pointer-events: auto !important"));
+            Assert.That(script, Does.Contain("cursorSelectTool"));
+            Assert.That(script, Does.Contain(".textLayer span"));
         }
     }
 }
