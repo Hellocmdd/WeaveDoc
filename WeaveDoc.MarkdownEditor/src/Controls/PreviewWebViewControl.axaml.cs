@@ -160,6 +160,24 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var htmlPath = Path.Combine(AppContext.BaseDirectory, "Assets", "preview-template.html");
                 var html = File.ReadAllText(htmlPath);
                 
+                // 读取 KaTeX 文件并内联到 HTML 中
+                var katexCssPath = Path.Combine(AppContext.BaseDirectory, "Assets", "katex", "katex.min.css");
+                var katexCss = File.ReadAllText(katexCssPath);
+                
+                var katexJsPath = Path.Combine(AppContext.BaseDirectory, "Assets", "katex", "katex.min.js");
+                var katexJs = File.ReadAllText(katexJsPath);
+                
+                var katexRenderJsPath = Path.Combine(AppContext.BaseDirectory, "Assets", "katex", "auto-render.min.js");
+                var katexRenderJs = File.ReadAllText(katexRenderJsPath);
+                
+                // 内联 KaTeX CSS 和 JS
+                html = html.Replace("<link rel=\"stylesheet\" href=\"katex/katex.min.css\">", 
+                    $"<style>{katexCss}</style>");
+                html = html.Replace("<script src=\"katex/katex.min.js\"></script>", 
+                    $"<script>{katexJs}</script>");
+                html = html.Replace("<script src=\"katex/auto-render.min.js\"></script>", 
+                    $"<script>{katexRenderJs}</script>");
+                
                 UpdateControllerBounds();
                 _controller.IsVisible = true;
                 
@@ -433,6 +451,31 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     await _webview.ExecuteScriptAsync(script);
                     Console.WriteLine("Script executed successfully");
 
+                    // 调试：检查 HTML 内容中是否有 $ 符号
+                    var checkContentScript = @"
+                        (function() {
+                            var bodyText = document.body.textContent || '';
+                            var hasDollar = bodyText.includes('$');
+                            console.log('Body text length:', bodyText.length);
+                            console.log('Has $ symbol:', hasDollar);
+                            
+                            // 检查 content div 的内容
+                            var contentDiv = document.getElementById('content');
+                            if (contentDiv) {
+                                var contentHtml = contentDiv.innerHTML;
+                                console.log('Content HTML length:', contentHtml.length);
+                                console.log('Content HTML includes $:', contentHtml.includes('$'));
+                            }
+                            
+                            return { hasDollar: hasDollar, length: bodyText.length };
+                        })();
+                    ";
+                    var checkResult = await _webview.ExecuteScriptAsync(checkContentScript);
+                    Console.WriteLine($"Content check result: {checkResult}");
+
+                    // 内容更新完成后，调用 KaTeX 渲染
+                    await RenderLatexAsync();
+
                     // 内容更新完成后，通知外部刷新高亮
                     NotifyPreviewReady();
                 }
@@ -440,6 +483,125 @@ namespace WeaveDoc.MarkdownEditor.Controls
             catch (Exception ex)
             {
                 Console.WriteLine($"UpdatePreview exception: {ex.Message}");
+                Logger.LogException(ex);
+            }
+        }
+
+        private async Task RenderLatexAsync()
+        {
+            try
+            {
+                if (_webview == null)
+                {
+                    Console.WriteLine("RenderLatexAsync: _webview is null");
+                    return;
+                }
+
+                Console.WriteLine("RenderLatexAsync: Calling KaTeX render");
+                
+                var renderScript = @"
+                    (function() {
+                        var debugLog = [];
+                        debugLog.push('RenderLatexAsync script called');
+                        debugLog.push('katex defined: ' + (typeof katex !== 'undefined'));
+                        debugLog.push('renderMathInElement defined: ' + (typeof renderMathInElement !== 'undefined'));
+                        
+                        if (typeof katex !== 'undefined' && typeof renderMathInElement !== 'undefined') {
+                            try {
+                                // 检查 content div 的 HTML 内容
+                                var contentDiv = document.getElementById('content');
+                                if (contentDiv) {
+                                    var htmlContent = contentDiv.innerHTML;
+                                    // 检查是否有 $ 符号
+                                    var dollarCount = (htmlContent.match(/\$/g) || []).length;
+                                    debugLog.push('$ symbol count in HTML: ' + dollarCount);
+                                    
+                                    // 检查是否有 $$ 符号
+                                    var doubleDollarCount = (htmlContent.match(/\$\$/g) || []).length;
+                                    debugLog.push('$$ symbol count in HTML: ' + doubleDollarCount);
+                                    
+                                    // 检查是否有 \$ 转义符号
+                                    var escapedDollarCount = (htmlContent.match(/\\\\\\$/g) || []).length;
+                                    debugLog.push('\\$ escaped count: ' + escapedDollarCount);
+                                    
+                                    // 获取一小段 HTML 内容来检查
+                                    var sampleHtml = htmlContent.substring(0, Math.min(500, htmlContent.length));
+                                    debugLog.push('HTML sample: ' + sampleHtml);
+                                }
+                                
+                                // 先检查文档中是否有 LaTeX 表达式
+                                var contentText = document.body.textContent || '';
+                                var hasLatex = contentText.includes('$');
+                                debugLog.push('Has LaTeX delimiters: ' + hasLatex);
+                                
+                                // 尝试手动渲染一个简单的公式
+                                var testResult = 'test not run';
+                                try {
+                                    var testDiv = document.createElement('div');
+                                    testDiv.innerHTML = '$E=mc^2$';
+                                    testDiv.style.display = 'none';
+                                    document.body.appendChild(testDiv);
+                                    renderMathInElement(testDiv, {
+                                        delimiters: [
+                                            { left: '$$', right: '$$', display: true },
+                                            { left: '$', right: '$', display: false }
+                                        ],
+                                        throwOnError: false
+                                    });
+                                    var testKatexElements = testDiv.querySelectorAll('.katex');
+                                    testResult = 'test div KaTeX elements: ' + testKatexElements.length;
+                                    debugLog.push(testResult);
+                                    
+                                    // 尝试使用 katex.render 手动渲染
+                                    try {
+                                        var manualDiv = document.createElement('div');
+                                        manualDiv.style.display = 'none';
+                                        document.body.appendChild(manualDiv);
+                                        katex.render('E=mc^2', manualDiv, {
+                                            throwOnError: false
+                                        });
+                                        debugLog.push('Manual render succeeded');
+                                        document.body.removeChild(manualDiv);
+                                    } catch (manualErr) {
+                                        debugLog.push('Manual render error: ' + manualErr.message);
+                                    }
+                                    
+                                    document.body.removeChild(testDiv);
+                                } catch (testErr) {
+                                    debugLog.push('Error in test render: ' + testErr.message);
+                                }
+                                
+                                renderMathInElement(document.body, {
+                                    delimiters: [
+                                        { left: '$$', right: '$$', display: true },
+                                        { left: '$', right: '$', display: false }
+                                    ],
+                                    throwOnError: false
+                                });
+                                
+                                // 检查渲染后是否有 KaTeX 元素
+                                var katexElements = document.querySelectorAll('.katex');
+                                debugLog.push('KaTeX elements found after render: ' + katexElements.length);
+                                
+                                debugLog.push('KaTeX rendering completed successfully');
+                                return JSON.stringify({ status: 'success', elementCount: katexElements.length, logs: debugLog });
+                            } catch (err) {
+                                debugLog.push('Error rendering KaTeX: ' + err.message);
+                                return JSON.stringify({ status: 'error', message: err.message, logs: debugLog });
+                            }
+                        } else {
+                            debugLog.push('KaTeX not loaded yet');
+                            return JSON.stringify({ status: 'not loaded', logs: debugLog });
+                        }
+                    })();
+                ";
+
+                var result = await _webview.ExecuteScriptAsync(renderScript);
+                Console.WriteLine($"RenderLatexAsync result: {result}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"RenderLatexAsync exception: {ex.Message}");
                 Logger.LogException(ex);
             }
         }

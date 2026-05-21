@@ -190,7 +190,6 @@ namespace WeaveDoc.MarkdownEditor.Services
 
         public string ConvertMarkdownToHtmlWithCharPositions(string markdown)
         {
-            Console.WriteLine("ConvertMarkdownToHtmlWithCharPositions called");
             if (string.IsNullOrEmpty(markdown))
                 return string.Empty;
 
@@ -206,6 +205,31 @@ namespace WeaveDoc.MarkdownEditor.Services
                 var line = lines[i];
                 var lineNumber = i + 1;
                 var trimmed = line.Trim();
+
+                // 处理多行 LaTeX 公式 ($$...$$)
+                if (trimmed.StartsWith("$$"))
+                {
+                    var latexContent = new StringBuilder();
+                    latexContent.AppendLine(line);
+                    i++;
+                    
+                    while (i < lines.Length)
+                    {
+                        var innerLine = lines[i];
+                        latexContent.AppendLine(innerLine);
+                        
+                        if (innerLine.Trim().EndsWith("$$"))
+                        {
+                            break;
+                        }
+                        i++;
+                    }
+                    
+                    // 将多行 LaTeX 公式作为整体输出，保留原始格式
+                    result.Append($"<div data-line=\"{lineNumber}\"><span data-pos=\"{lineNumber}-1\">{EscapeHtml(latexContent.ToString())}</span></div>\n");
+                    i++;
+                    continue;
+                }
 
                 if (CodeBlockRegex.IsMatch(trimmed))
                 {
@@ -371,6 +395,40 @@ namespace WeaveDoc.MarkdownEditor.Services
             while (i < text.Length)
             {
                 char currentChar = text[i];
+                
+                // 处理 LaTeX 表达式（$$...$$ 或 $...$）
+                if (currentChar == '$')
+                {
+                    // 检查是否是 $$ 开头
+                    if (i + 1 < text.Length && text[i + 1] == '$')
+                    {
+                        // 多行 LaTeX
+                        int endIndex = text.IndexOf("$$", i + 2);
+                        if (endIndex != -1)
+                        {
+                            string latexContent = text.Substring(i, endIndex - i + 2);
+                            // 保留原始的 $$...$$ 格式，不进行任何处理
+                            result.Append($"<span data-pos=\"{lineNumber}-{currentColumn}\">{latexContent}</span>");
+                            currentColumn += latexContent.Length;
+                            i += latexContent.Length;
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        // 单行 LaTeX
+                        int endIndex = text.IndexOf('$', i + 1);
+                        if (endIndex != -1)
+                        {
+                            string latexContent = text.Substring(i, endIndex - i + 1);
+                            // 保留原始的 $...$ 格式，不进行任何处理
+                            result.Append($"<span data-pos=\"{lineNumber}-{currentColumn}\">{latexContent}</span>");
+                            currentColumn += latexContent.Length;
+                            i += latexContent.Length;
+                            continue;
+                        }
+                    }
+                }
                 
                 // 处理转义字符
                 if (currentChar == '\\' && i + 1 < text.Length)

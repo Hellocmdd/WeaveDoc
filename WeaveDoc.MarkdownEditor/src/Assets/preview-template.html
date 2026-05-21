@@ -3,6 +3,7 @@
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <link rel="stylesheet" href="katex/katex.min.css">
     <style>
         :root {
             --text-color: #333;
@@ -272,6 +273,13 @@
                         sendMessage({ Type: 'debug', Data: 'Direct click on data-pos: ' + pos });
                     });
                 });
+
+                // 渲染 LaTeX 数学公式
+                setTimeout(function() {
+                    if (window.renderLatex) {
+                        window.renderLatex();
+                    }
+                }, 100);
             }
         };
 
@@ -475,6 +483,55 @@
             document.body.style.width = '100%';
             document.body.style.height = '100%';
         });
+        // 页面加载完成后开始渲染
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOMContentLoaded 触发');
+            if (window.renderLatex) {
+                window.renderLatex();
+            } else {
+                console.log('renderLatex 函数未定义');
+            }
+        });
+
+        // 也在 window.load 事件中尝试
+        window.addEventListener('load', function() {
+            console.log('window.load 触发');
+            if (window.renderLatex) {
+                window.renderLatex();
+            }
+        });
     </script>
+    <script src="katex/katex.min.js"></script>
+    <script src="katex/auto-render.min.js"></script>
+    <script>
+        console.log('KaTeX 脚本加载完成');
+        
+        // KaTeX 渲染函数
+        window.renderLatex = function() {
+            console.log('renderLatex 被调用');
+            console.log('katex 类型:', typeof katex);
+            console.log('renderMathInElement 类型:', typeof renderMathInElement);
+            
+            if (typeof katex !== 'undefined' && typeof renderMathInElement !== 'undefined') {
+                try {
+                    renderMathInElement(document.body, {
+                        delimiters: [
+                            { left: '$$', right: '$$', display: true },
+                            { left: '$', right: '$', display: false }
+                        ],
+                        throwOnError: false
+                    });
+                    console.log('KaTeX 渲染完成');
+                } catch (err) {
+                    console.error('渲染 LaTeX 时出错:', err);
+                }
+            } else {
+                console.log('KaTeX 尚未加载，重试...');
+                setTimeout(window.renderLatex, 300);
+            }
+        }
+
+        // 立即尝试渲染
+        window.renderLatex();
 </body>
 </html>

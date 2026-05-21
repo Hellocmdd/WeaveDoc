@@ -12,7 +12,7 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
         public MainWindowViewModel()
         {
             // 设置 EditorContent 属性，这样右侧预览就会显示由 MarkdownService 生成的 HTML 内容
-            EditorContent = "# Hello WeaveDoc!\n\nStart typing markdown here...";
+            EditorContent = "# Hello WeaveDoc!\n\n这是一个 LaTeX 公式: $E=mc^2$\n\n这是多行公式:\n$$\n\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}\n$$\n\nStart typing markdown here...";
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
