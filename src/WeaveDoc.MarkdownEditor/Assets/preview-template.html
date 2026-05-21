@@ -277,6 +277,25 @@
             sendMessage({ Type: 'debug', Data: 'ERROR: KaTeX not loaded!' });
         }
 
+        // KaTeX 配置选项 - 兼容更多 LaTeX 语法
+        var katexOptions = {
+            throwOnError: false,
+            displayMode: false,
+            strict: false,
+            trust: true,
+            macros: {
+                // 常见的宏定义
+                "\\RR": "\\mathbb{R}",
+                "\\NN": "\\mathbb{N}",
+                "\\ZZ": "\\mathbb{Z}",
+                "\\QQ": "\\mathbb{Q}",
+                "\\CC": "\\mathbb{C}",
+                "\\ii": "\\imaginaryI",
+                "\\jj": "\\imaginaryJ",
+                "\\deg": "^\\circ"
+            }
+        };
+
         function renderMath() {
             console.log('renderMath called');
             sendMessage({ Type: 'debug', Data: 'renderMath called' });
@@ -289,14 +308,16 @@
                     try {
                         var mathContent = el.textContent;
                         console.log('Rendering inline math:', mathContent);
-                        var html = katex.renderToString(mathContent, {
-                            throwOnError: false,
-                            displayMode: false
-                        });
+                        var options = Object.assign({}, katexOptions, { displayMode: false });
+                        var html = katex.renderToString(mathContent, options);
                         el.innerHTML = html;
+                        console.log('Inline math rendered successfully');
                     } catch (e) {
                         console.error('KaTeX inline error:', e);
-                        sendMessage({ Type: 'debug', Data: 'KaTeX inline error: ' + e.message });
+                        sendMessage({ Type: 'debug', Data: 'KaTeX inline error: ' + e.message + ' | Content: ' + el.textContent });
+                        // 如果渲染失败，保留原始内容但不显示错误
+                        el.classList.add('katex-error');
+                        el.textContent = el.textContent;
                     }
                 });
 
@@ -309,14 +330,16 @@
                         var mathContent = el.textContent;
                         console.log('Rendering display math:', mathContent);
                         sendMessage({ Type: 'debug', Data: 'Rendering display math: ' + mathContent });
-                        var html = katex.renderToString(mathContent, {
-                            throwOnError: false,
-                            displayMode: true
-                        });
+                        var options = Object.assign({}, katexOptions, { displayMode: true });
+                        var html = katex.renderToString(mathContent, options);
                         el.innerHTML = html;
+                        console.log('Display math rendered successfully');
                     } catch (e) {
                         console.error('KaTeX display error:', e);
-                        sendMessage({ Type: 'debug', Data: 'KaTeX display error: ' + e.message });
+                        sendMessage({ Type: 'debug', Data: 'KaTeX display error: ' + e.message + ' | Content: ' + el.textContent });
+                        // 如果渲染失败，保留原始内容但不显示错误
+                        el.classList.add('katex-error');
+                        el.textContent = el.textContent;
                     }
                 });
             } catch (e) {

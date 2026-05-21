@@ -67,6 +67,7 @@ namespace WeaveDoc.MarkdownEditor.Services
                     {
                         // 单行块级公式 $$...$$
                         var mathContent = trimmed.Substring(2, trimmed.Length - 4);
+                        // 块级公式内容保持原始格式，不转义HTML特殊字符
                         result.Append($"<div class=\"math-display\" data-line=\"{lineNumber}\">{mathContent}</div>\n");
                         i++;
                         continue;
@@ -79,6 +80,7 @@ namespace WeaveDoc.MarkdownEditor.Services
                     {
                         // 结束块级公式
                         displayMathContent.AppendLine(trimmed.Substring(0, trimmed.Length - 2));
+                        // 块级公式内容保持原始格式，不转义HTML特殊字符
                         result.Append($"<div class=\"math-display\" data-line=\"{displayMathStartLine}-{lineNumber}\">{displayMathContent.ToString().TrimEnd()}</div>\n");
                         inDisplayMath = false;
                         displayMathContent.Clear();
@@ -230,25 +232,44 @@ namespace WeaveDoc.MarkdownEditor.Services
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
 
-            text = EscapeHtml(text);
+            // 第一步：提取所有行内 LaTeX 公式，用占位符替换（避免HTML转义破坏LaTeX语法）
+            var mathPlaceholders = new List<string>();
+            var processedText = InlineMathRegex.Replace(text, match =>
+            {
+                var mathContent = match.Value;
+                int placeholderIndex = mathPlaceholders.Count;
+                mathPlaceholders.Add(match.Value);
+                return $"{{MATH_PH_{placeholderIndex}}}";
+            });
 
-            text = InlineCodeRegex.Replace(text, "<code>$1</code>");
-            text = StrikethroughRegex.Replace(text, "<del>$1</del>");
-            text = LinkRegex.Replace(text, "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>");
-            text = ImageRegex.Replace(text, "<img src=\"$2\" alt=\"$1\" />");
-            text = FootnoteRefRegex.Replace(text, "<sup id=\"fnref:$1\"><a href=\"#fn:$1\" class=\"footnote-ref\">$1</a></sup>");
+            // 第二步：转义剩余的HTML特殊字符
+            processedText = EscapeHtml(processedText);
 
-            // 处理行内 LaTeX 公式（在处理粗体/斜体之前）
-            text = ProcessInlineMath(text);
+            // 第三步：处理其他Markdown语法
+            processedText = InlineCodeRegex.Replace(processedText, "<code>$1</code>");
+            processedText = StrikethroughRegex.Replace(processedText, "<del>$1</del>");
+            processedText = LinkRegex.Replace(processedText, "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>");
+            processedText = ImageRegex.Replace(processedText, "<img src=\"$2\" alt=\"$1\" />");
+            processedText = FootnoteRefRegex.Replace(processedText, "<sup id=\"fnref:$1\"><a href=\"#fn:$1\" class=\"footnote-ref\">$1</a></sup>");
 
-            text = text.Replace("***", "<strong><em>").Replace("**", "<strong>").Replace("*", "<em>");
-            text = text.Replace("___", "<strong><em>").Replace("__", "<strong>").Replace("_", "<em>");
+            processedText = processedText.Replace("***", "<strong><em>").Replace("**", "<strong>").Replace("*", "<em>");
+            processedText = processedText.Replace("___", "<strong><em>").Replace("__", "<strong>").Replace("_", "<em>");
 
-            return text;
+            // 第四步：还原LaTeX占位符为实际的span标签
+            for (int i = 0; i < mathPlaceholders.Count; i++)
+            {
+                var mathContent = mathPlaceholders[i];
+                // 提取 $...$ 中的内容
+                var innerContent = mathContent.TrimStart('$').TrimEnd('$');
+                processedText = processedText.Replace($"{{MATH_PH_{i}}}", $"<span class=\"math-inline\">{innerContent}</span>");
+            }
+
+            return processedText;
         }
 
         /// <summary>
         /// 处理行内 LaTeX 公式，将其转换为可被 KaTeX 渲染的格式
+        /// 注意：LaTeX内容保持原始格式，不转义HTML特殊字符
         /// </summary>
         private string ProcessInlineMath(string text)
         {
@@ -297,6 +318,7 @@ namespace WeaveDoc.MarkdownEditor.Services
                     {
                         // 单行块级公式 $$...$$
                         var mathContent = trimmed.Substring(2, trimmed.Length - 4);
+                        // 块级公式内容保持原始格式，不转义HTML特殊字符
                         result.Append($"<div class=\"math-display\" data-line=\"{lineNumber}\">{mathContent}</div>\n");
                         i++;
                         continue;
@@ -309,6 +331,7 @@ namespace WeaveDoc.MarkdownEditor.Services
                     {
                         // 结束块级公式
                         displayMathContent.AppendLine(trimmed.Substring(0, trimmed.Length - 2));
+                        // 块级公式内容保持原始格式，不转义HTML特殊字符
                         result.Append($"<div class=\"math-display\" data-line=\"{displayMathStartLine}-{lineNumber}\">{displayMathContent.ToString().TrimEnd()}</div>\n");
                         inDisplayMath = false;
                         displayMathContent.Clear();
