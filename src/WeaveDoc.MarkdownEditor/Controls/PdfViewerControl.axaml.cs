@@ -239,6 +239,68 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         }
                     };
 
+                    const summarizeEvent = event => {
+                        if (!event) {
+                            return {};
+                        }
+
+                        return {
+                            pageNumber: event.pageNumber ?? event.page?.pageNumber ?? null,
+                            pagesCount: event.pagesCount ?? null,
+                        };
+                    };
+
+                    const enableTextSelection = reason => {
+                        if (!document.getElementById("weavedoc-pdf-text-selection-style")) {
+                            const style = document.createElement("style");
+                            style.id = "weavedoc-pdf-text-selection-style";
+                            style.textContent = `
+                                #viewerContainer,
+                                #viewer,
+                                .pdfViewer,
+                                .pdfViewer .page,
+                                .pdfViewer .textLayer,
+                                .pdfViewer .textLayer span,
+                                .pdfViewer .textLayer br {
+                                    -webkit-user-select: text !important;
+                                    user-select: text !important;
+                                }
+
+                                .pdfViewer .textLayer {
+                                    pointer-events: auto !important;
+                                    z-index: 2 !important;
+                                }
+
+                                .pdfViewer .textLayer span,
+                                .pdfViewer .textLayer br {
+                                    pointer-events: auto !important;
+                                    cursor: text !important;
+                                }
+                            `;
+                            document.head.appendChild(style);
+                        }
+
+                        document.documentElement.classList.remove("grab-to-pan-grab", "grab-to-pan-grabbing");
+                        document.body.classList.remove("grab-to-pan-grab", "grab-to-pan-grabbing");
+                        document.getElementById("cursorSelectTool")?.click();
+
+                        const layers = document.querySelectorAll(".textLayer");
+                        const spans = document.querySelectorAll(".textLayer span");
+                        for (const layer of layers) {
+                            layer.style.pointerEvents = "auto";
+                            layer.style.userSelect = "text";
+                            layer.style.webkitUserSelect = "text";
+                        }
+                        for (const span of spans) {
+                            span.style.pointerEvents = "auto";
+                            span.style.userSelect = "text";
+                            span.style.webkitUserSelect = "text";
+                            span.style.cursor = "text";
+                        }
+
+                        post(`text selection ${reason}: layers=${layers.length}, spans=${spans.length}`);
+                    };
+
                     let attempts = 0;
                     const openWhenReady = () => {
                         attempts += 1;
@@ -262,12 +324,18 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                         if (!globalThis.__weaveDocPdfEventsAttached) {
                             globalThis.__weaveDocPdfEventsAttached = true;
-                            const events = ["documentloaded", "pagesinit", "pagesloaded", "pagerendered", "pagechanging"];
+                            const events = ["documentloaded", "pagesinit", "pagesloaded", "pagerendered", "textlayerrendered", "pagechanging"];
                             for (const eventName of events) {
-                                app.eventBus?._on(eventName, event => post(`${eventName}: ${JSON.stringify(event ?? {})}`));
+                                app.eventBus?._on(eventName, event => {
+                                    post(`${eventName}: ${JSON.stringify(summarizeEvent(event))}`);
+                                    if (eventName === "pagesloaded" || eventName === "pagerendered" || eventName === "textlayerrendered") {
+                                        setTimeout(() => enableTextSelection(eventName), 0);
+                                    }
+                                });
                             }
                         }
 
+                        enableTextSelection("before open");
                         const url = new URL("/pdf/current", globalThis.location.href).href;
                         post(`fetching ${url}`);
                         fetch(url, { cache: "no-store" })
@@ -285,7 +353,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                                     filename: "current.pdf"
                                 });
                             })
-                            .then(() => post("open completed"))
+                            .then(() => {
+                                post("open completed");
+                                setTimeout(() => enableTextSelection("open completed"), 0);
+                                setTimeout(() => enableTextSelection("open completed delayed"), 500);
+                            })
                             .catch(error => post(`open failed: ${error?.message ?? error}`));
                     };
 
