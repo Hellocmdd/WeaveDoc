@@ -394,87 +394,40 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         private async void UpdatePreview(string content)
         {
-            Console.WriteLine($"UpdatePreview called, content length: {content.Length}");
             try
             {
                 if (_webview == null)
                 {
-                    Console.WriteLine("_webview is null, setting pending content");
                     _pendingContent = content;
                     return;
                 }
 
                 if (!_isInitialized)
                 {
-                    Console.WriteLine("_isInitialized is false, setting pending content");
                     _pendingContent = content;
                     return;
                 }
 
-                // 检查内容是否真的变了（比较原始值而不是_pendingContent，因为_pendingContent可能在前面被设置）
-                if (_pendingContent == content && !string.IsNullOrEmpty(_pendingContent))
+                // 检查内容是否真的变了
+                if (_pendingContent == content)
                 {
-                    Console.WriteLine("Content unchanged, skipping update");
                     return;
                 }
 
                 // 内容变了，更新_pendingContent并执行脚本
                 _pendingContent = content;
 
-                // 如果已初始化，立即执行JavaScript更新（无论是否活动）
+                // 如果已初始化，立即执行JavaScript更新
                 if (_isInitialized)
                 {
                     var script = $"window.updateContent({System.Text.Json.JsonSerializer.Serialize(content)});";
-                    Console.WriteLine($"Executing script: {script.Substring(0, Math.Min(100, script.Length))}...");
-
-                    // 检查内容是否包含 data-pos 属性
-                    if (content.Contains("data-pos"))
-                    {
-                        Console.WriteLine("HTML content contains data-pos attributes");
-                        // 检查是否包含 onclick 属性
-                        if (content.Contains("onclick"))
-                        {
-                            Console.WriteLine("HTML content contains onclick attributes");
-                        }
-                        else
-                        {
-                            Console.WriteLine("WARNING: HTML content does NOT contain onclick attributes");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("WARNING: HTML content does NOT contain data-pos attributes");
-                        // 输出前200个字符来检查内容
-                        Console.WriteLine("Content preview: " + content.Substring(0, Math.Min(200, content.Length)));
-                    }
-
                     await _webview.ExecuteScriptAsync(script);
-                    Console.WriteLine("Script executed successfully");
 
-                    // 调试：检查 HTML 内容中是否有 $ 符号
-                    var checkContentScript = @"
-                        (function() {
-                            var bodyText = document.body.textContent || '';
-                            var hasDollar = bodyText.includes('$');
-                            console.log('Body text length:', bodyText.length);
-                            console.log('Has $ symbol:', hasDollar);
-                            
-                            // 检查 content div 的内容
-                            var contentDiv = document.getElementById('content');
-                            if (contentDiv) {
-                                var contentHtml = contentDiv.innerHTML;
-                                console.log('Content HTML length:', contentHtml.length);
-                                console.log('Content HTML includes $:', contentHtml.includes('$'));
-                            }
-                            
-                            return { hasDollar: hasDollar, length: bodyText.length };
-                        })();
-                    ";
-                    var checkResult = await _webview.ExecuteScriptAsync(checkContentScript);
-                    Console.WriteLine($"Content check result: {checkResult}");
-
-                    // 内容更新完成后，调用 KaTeX 渲染
-                    await RenderLatexAsync();
+                    // 只有当内容不为空且包含 $ 符号时才进行 KaTeX 渲染
+                    if (!string.IsNullOrEmpty(content) && content.Contains('$'))
+                    {
+                        await RenderLatexAsync();
+                    }
 
                     // 内容更新完成后，通知外部刷新高亮
                     NotifyPreviewReady();
@@ -482,7 +435,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"UpdatePreview exception: {ex.Message}");
                 Logger.LogException(ex);
             }
         }
@@ -492,116 +444,24 @@ namespace WeaveDoc.MarkdownEditor.Controls
             try
             {
                 if (_webview == null)
-                {
-                    Console.WriteLine("RenderLatexAsync: _webview is null");
                     return;
-                }
 
-                Console.WriteLine("RenderLatexAsync: Calling KaTeX render");
-                
                 var renderScript = @"
-                    (function() {
-                        var debugLog = [];
-                        debugLog.push('RenderLatexAsync script called');
-                        debugLog.push('katex defined: ' + (typeof katex !== 'undefined'));
-                        debugLog.push('renderMathInElement defined: ' + (typeof renderMathInElement !== 'undefined'));
-                        
-                        if (typeof katex !== 'undefined' && typeof renderMathInElement !== 'undefined') {
-                            try {
-                                // 检查 content div 的 HTML 内容
-                                var contentDiv = document.getElementById('content');
-                                if (contentDiv) {
-                                    var htmlContent = contentDiv.innerHTML;
-                                    // 检查是否有 $ 符号
-                                    var dollarCount = (htmlContent.match(/\$/g) || []).length;
-                                    debugLog.push('$ symbol count in HTML: ' + dollarCount);
-                                    
-                                    // 检查是否有 $$ 符号
-                                    var doubleDollarCount = (htmlContent.match(/\$\$/g) || []).length;
-                                    debugLog.push('$$ symbol count in HTML: ' + doubleDollarCount);
-                                    
-                                    // 检查是否有 \$ 转义符号
-                                    var escapedDollarCount = (htmlContent.match(/\\\\\\$/g) || []).length;
-                                    debugLog.push('\\$ escaped count: ' + escapedDollarCount);
-                                    
-                                    // 获取一小段 HTML 内容来检查
-                                    var sampleHtml = htmlContent.substring(0, Math.min(500, htmlContent.length));
-                                    debugLog.push('HTML sample: ' + sampleHtml);
-                                }
-                                
-                                // 先检查文档中是否有 LaTeX 表达式
-                                var contentText = document.body.textContent || '';
-                                var hasLatex = contentText.includes('$');
-                                debugLog.push('Has LaTeX delimiters: ' + hasLatex);
-                                
-                                // 尝试手动渲染一个简单的公式
-                                var testResult = 'test not run';
-                                try {
-                                    var testDiv = document.createElement('div');
-                                    testDiv.innerHTML = '$E=mc^2$';
-                                    testDiv.style.display = 'none';
-                                    document.body.appendChild(testDiv);
-                                    renderMathInElement(testDiv, {
-                                        delimiters: [
-                                            { left: '$$', right: '$$', display: true },
-                                            { left: '$', right: '$', display: false }
-                                        ],
-                                        throwOnError: false
-                                    });
-                                    var testKatexElements = testDiv.querySelectorAll('.katex');
-                                    testResult = 'test div KaTeX elements: ' + testKatexElements.length;
-                                    debugLog.push(testResult);
-                                    
-                                    // 尝试使用 katex.render 手动渲染
-                                    try {
-                                        var manualDiv = document.createElement('div');
-                                        manualDiv.style.display = 'none';
-                                        document.body.appendChild(manualDiv);
-                                        katex.render('E=mc^2', manualDiv, {
-                                            throwOnError: false
-                                        });
-                                        debugLog.push('Manual render succeeded');
-                                        document.body.removeChild(manualDiv);
-                                    } catch (manualErr) {
-                                        debugLog.push('Manual render error: ' + manualErr.message);
-                                    }
-                                    
-                                    document.body.removeChild(testDiv);
-                                } catch (testErr) {
-                                    debugLog.push('Error in test render: ' + testErr.message);
-                                }
-                                
-                                renderMathInElement(document.body, {
-                                    delimiters: [
-                                        { left: '$$', right: '$$', display: true },
-                                        { left: '$', right: '$', display: false }
-                                    ],
-                                    throwOnError: false
-                                });
-                                
-                                // 检查渲染后是否有 KaTeX 元素
-                                var katexElements = document.querySelectorAll('.katex');
-                                debugLog.push('KaTeX elements found after render: ' + katexElements.length);
-                                
-                                debugLog.push('KaTeX rendering completed successfully');
-                                return JSON.stringify({ status: 'success', elementCount: katexElements.length, logs: debugLog });
-                            } catch (err) {
-                                debugLog.push('Error rendering KaTeX: ' + err.message);
-                                return JSON.stringify({ status: 'error', message: err.message, logs: debugLog });
-                            }
-                        } else {
-                            debugLog.push('KaTeX not loaded yet');
-                            return JSON.stringify({ status: 'not loaded', logs: debugLog });
-                        }
-                    })();
+                    if (typeof katex !== 'undefined' && typeof renderMathInElement !== 'undefined') {
+                        renderMathInElement(document.body, {
+                            delimiters: [
+                                { left: '$$', right: '$$', display: true },
+                                { left: '$', right: '$', display: false }
+                            ],
+                            throwOnError: false
+                        });
+                    }
                 ";
 
-                var result = await _webview.ExecuteScriptAsync(renderScript);
-                Console.WriteLine($"RenderLatexAsync result: {result}");
+                await _webview.ExecuteScriptAsync(renderScript);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"RenderLatexAsync exception: {ex.Message}");
                 Logger.LogException(ex);
             }
         }
