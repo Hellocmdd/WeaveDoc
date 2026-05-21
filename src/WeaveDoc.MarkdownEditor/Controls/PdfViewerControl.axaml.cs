@@ -127,7 +127,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         public static string BuildViewerUrl(int serverPort)
         {
-            return $"http://localhost:{serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=#disableworker=true";
+            // 使用HTTP服务器的 /pdf/current 端点获取当前PDF文件
+            return $"http://localhost:{serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=/pdf/current";
         }
 
         public static string BuildPdfJsCompatibilityScript()
@@ -386,10 +387,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 if (_sharedEnvironment == null)
                 {
-                    _sharedEnvironment = await CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions
-                    {
-                        AllowSingleSignOnUsingOSPrimaryAccount = false
-                    });
+                    _sharedEnvironment = await WebView2EnvironmentManager.GetOrCreateEnvironmentAsync2();
+                    Console.WriteLine("Shared PDF WebView2 environment created");
                 }
 
                 _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);

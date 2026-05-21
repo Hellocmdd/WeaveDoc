@@ -79,10 +79,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 if (_sharedEnvironment == null)
                 {
-                    _sharedEnvironment = await CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions 
-                    { 
-                        AllowSingleSignOnUsingOSPrimaryAccount = false
-                    });
+                    _sharedEnvironment = await WebView2EnvironmentManager.GetOrCreateEnvironmentAsync2();
                 }
 
                 _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);

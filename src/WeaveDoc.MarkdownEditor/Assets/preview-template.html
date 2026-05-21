@@ -3,6 +3,8 @@
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <link rel="stylesheet" href="katex/katex.min.css">
+    <script src="katex/katex.min.js"></script>
     <style>
         :root {
             --text-color: #333;
@@ -233,11 +235,96 @@
         em {
             font-style: italic;
         }
+
+        /* KaTeX 样式 */
+        .math-inline {
+            /* 行内公式样式 */
+        }
+
+        .math-display {
+            /* 块级公式样式 */
+            margin: 1em 0;
+            text-align: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .math-display .katex {
+            /* 块级公式字体大小 */
+            font-size: 1.1em;
+        }
+
+        .katex-error {
+            /* KaTeX 错误提示 */
+            color: #e63946;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+            font-size: 0.85em;
+        }
     </style>
 </head>
 <body>
     <div id='content'>Welcome to WeaveDoc Preview</div>
     <script>
+        // 检查 KaTeX 是否加载成功
+        var katexLoaded = typeof katex !== 'undefined';
+        console.log('KaTeX loaded:', katexLoaded);
+        sendMessage({ Type: 'debug', Data: 'KaTeX loaded: ' + katexLoaded });
+        if (katexLoaded) {
+            console.log('KaTeX version:', katex.version);
+            sendMessage({ Type: 'debug', Data: 'KaTeX version: ' + katex.version });
+        } else {
+            console.error('KaTeX not loaded!');
+            sendMessage({ Type: 'debug', Data: 'ERROR: KaTeX not loaded!' });
+        }
+
+        function renderMath() {
+            console.log('renderMath called');
+            sendMessage({ Type: 'debug', Data: 'renderMath called' });
+            try {
+                // 渲染行内公式
+                var inlineMathElements = document.querySelectorAll('.math-inline');
+                console.log('Found inline math elements:', inlineMathElements.length);
+                sendMessage({ Type: 'debug', Data: 'Found inline math elements: ' + inlineMathElements.length });
+                inlineMathElements.forEach(function(el) {
+                    try {
+                        var mathContent = el.textContent;
+                        console.log('Rendering inline math:', mathContent);
+                        var html = katex.renderToString(mathContent, {
+                            throwOnError: false,
+                            displayMode: false
+                        });
+                        el.innerHTML = html;
+                    } catch (e) {
+                        console.error('KaTeX inline error:', e);
+                        sendMessage({ Type: 'debug', Data: 'KaTeX inline error: ' + e.message });
+                    }
+                });
+
+                // 渲染块级公式
+                var displayMathElements = document.querySelectorAll('.math-display');
+                console.log('Found display math elements:', displayMathElements.length);
+                sendMessage({ Type: 'debug', Data: 'Found display math elements: ' + displayMathElements.length });
+                displayMathElements.forEach(function(el) {
+                    try {
+                        var mathContent = el.textContent;
+                        console.log('Rendering display math:', mathContent);
+                        sendMessage({ Type: 'debug', Data: 'Rendering display math: ' + mathContent });
+                        var html = katex.renderToString(mathContent, {
+                            throwOnError: false,
+                            displayMode: true
+                        });
+                        el.innerHTML = html;
+                    } catch (e) {
+                        console.error('KaTeX display error:', e);
+                        sendMessage({ Type: 'debug', Data: 'KaTeX display error: ' + e.message });
+                    }
+                });
+            } catch (e) {
+                console.error('KaTeX render error:', e);
+                sendMessage({ Type: 'debug', Data: 'KaTeX render error: ' + e.message });
+            }
+        }
+
         function sendMessage(msg) {
             if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
                 console.log('Using chrome.webview.postMessage:', msg);
@@ -263,7 +350,7 @@
 
                 var posElements = contentDiv.querySelectorAll('[data-pos]');
                 sendMessage({ Type: 'debug', Data: 'Found ' + posElements.length + ' data-pos elements' });
-                
+
                 // 添加点击事件到每个 data-pos 元素
                 posElements.forEach(function(el) {
                     el.addEventListener('click', function(e) {
@@ -272,6 +359,9 @@
                         sendMessage({ Type: 'debug', Data: 'Direct click on data-pos: ' + pos });
                     });
                 });
+
+                // 渲染 LaTeX 数学公式
+                renderMath();
             }
         };
 
