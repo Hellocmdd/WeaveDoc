@@ -29,6 +29,8 @@ namespace WeaveDoc.MarkdownEditor.Services
         private static readonly Regex InlineMathRegex = new Regex(@"(?<!\$)\$(?!\$)([^\$]+)\$(?!\$)");
         // 块级公式：$$...$$
         private static readonly Regex DisplayMathRegex = new Regex(@"\$\$([\s\S]*?)\$\$");
+        // LaTeX 环境正则表达式：\begin{env}...\end{env}
+        private static readonly Regex LatexEnvRegex = new Regex(@"\\begin\{(\w+)\}([\s\S]*?)\\end\{\1\}");
 
         public string ConvertMarkdownToHtml(string markdown)
         {
@@ -91,6 +93,74 @@ namespace WeaveDoc.MarkdownEditor.Services
                     }
                     i++;
                     continue;
+                }
+
+                // 处理 LaTeX 环境 \begin{env}...\end{env}
+                var envMatch = LatexEnvRegex.Match(line);
+                if (envMatch.Success && !inPre)
+                {
+                    // 单行 LaTeX 环境
+                    var mathContent = envMatch.Value;
+                    result.Append($"<div class=\"math-display\" data-line=\"{lineNumber}\">{mathContent}</div>\n");
+                    i++;
+                    continue;
+                }
+                
+                // 处理跨行 LaTeX 环境 \begin{env}...\end{env}（支持 \begin{ 不在行首的情况）
+                if (!inPre && line.Contains(@"\begin{"))
+                {
+                    var envStartMatch = Regex.Match(line, @"\\begin\{(\w+)\}");
+                    if (envStartMatch.Success)
+                    {
+                        string envName = envStartMatch.Groups[1].Value;
+                        var envContent = new StringBuilder();
+                        int startLine = lineNumber;
+                        bool foundEnd = false;
+                        int startIndex = envStartMatch.Index;
+                        
+                        // 如果 \begin{ 不在行首，先输出前面的普通文本
+                        if (startIndex > 0)
+                        {
+                            string textBefore = line.Substring(0, startIndex);
+                            result.AppendLine(ProcessInlineElements(textBefore));
+                        }
+                        
+                        // 收集 LaTeX 环境内容（从 \begin{ 开始）
+                        while (i < lines.Length)
+                        {
+                            line = lines[i];
+                            trimmed = line.Trim();
+                            
+                            // 第一行只取从 \begin{ 开始的部分
+                            if (i == startLine - 1)
+                            {
+                                envContent.AppendLine(line.Substring(startIndex));
+                            }
+                            else
+                            {
+                                envContent.AppendLine(line);
+                            }
+                            
+                            if (trimmed.EndsWith($@"\end{{{envName}}}"))
+                            {
+                                foundEnd = true;
+                                break;
+                            }
+                            i++;
+                        }
+                        
+                        if (foundEnd)
+                        {
+                            result.Append($"<div class=\"math-display\" data-line=\"{startLine}-{i + 1}\">{envContent.ToString().TrimEnd()}</div>\n");
+                        }
+                        else
+                        {
+                            // 如果没有找到结束标签，按普通文本处理
+                            result.AppendLine(EscapeHtml(line));
+                        }
+                        i++;
+                        continue;
+                    }
                 }
 
                 if (CodeBlockRegex.IsMatch(trimmed))
@@ -342,6 +412,74 @@ namespace WeaveDoc.MarkdownEditor.Services
                     }
                     i++;
                     continue;
+                }
+
+                // 处理 LaTeX 环境 \begin{env}...\end{env}
+                var envMatch = LatexEnvRegex.Match(line);
+                if (envMatch.Success && !inPre)
+                {
+                    // 单行 LaTeX 环境
+                    var mathContent = envMatch.Value;
+                    result.Append($"<div class=\"math-display\" data-line=\"{lineNumber}\">{mathContent}</div>\n");
+                    i++;
+                    continue;
+                }
+                
+                // 处理跨行 LaTeX 环境 \begin{env}...\end{env}（支持 \begin{ 不在行首的情况）
+                if (!inPre && line.Contains(@"\begin{"))
+                {
+                    var envStartMatch = Regex.Match(line, @"\\begin\{(\w+)\}");
+                    if (envStartMatch.Success)
+                    {
+                        string envName = envStartMatch.Groups[1].Value;
+                        var envContent = new StringBuilder();
+                        int startLine = lineNumber;
+                        bool foundEnd = false;
+                        int startIndex = envStartMatch.Index;
+                        
+                        // 如果 \begin{ 不在行首，先输出前面的普通文本
+                        if (startIndex > 0)
+                        {
+                            string textBefore = line.Substring(0, startIndex);
+                            result.AppendLine(ProcessInlineElements(textBefore));
+                        }
+                        
+                        // 收集 LaTeX 环境内容（从 \begin{ 开始）
+                        while (i < lines.Length)
+                        {
+                            line = lines[i];
+                            trimmed = line.Trim();
+                            
+                            // 第一行只取从 \begin{ 开始的部分
+                            if (i == startLine - 1)
+                            {
+                                envContent.AppendLine(line.Substring(startIndex));
+                            }
+                            else
+                            {
+                                envContent.AppendLine(line);
+                            }
+                            
+                            if (trimmed.EndsWith($@"\end{{{envName}}}"))
+                            {
+                                foundEnd = true;
+                                break;
+                            }
+                            i++;
+                        }
+                        
+                        if (foundEnd)
+                        {
+                            result.Append($"<div class=\"math-display\" data-line=\"{startLine}-{i + 1}\">{envContent.ToString().TrimEnd()}</div>\n");
+                        }
+                        else
+                        {
+                            // 如果没有找到结束标签，按普通文本处理
+                            result.AppendLine(EscapeHtml(line));
+                        }
+                        i++;
+                        continue;
+                    }
                 }
 
                 if (CodeBlockRegex.IsMatch(trimmed))
