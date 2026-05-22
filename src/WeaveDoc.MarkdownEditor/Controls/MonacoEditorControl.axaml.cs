@@ -67,8 +67,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
                 }
 
-                await Task.Delay(800);
-
                 var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                 {
@@ -93,8 +91,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 _webview.Settings.AreDefaultContextMenusEnabled = false;
 
-                // 延迟设置边界，确保布局完成
-                await Task.Delay(300);
                 UpdateControllerBounds(true);
 
                 var htmlPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "monaco-editor", "index.html");
@@ -114,9 +110,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private async Task WaitForValidBounds()
         {
             int attempts = 0;
-            while (attempts < 100 && (this.Bounds.Width < 100 || this.Bounds.Height < 100))
+            const int maxAttempts = 30;
+            while (attempts < maxAttempts && (this.Bounds.Width < 100 || this.Bounds.Height < 100))
             {
-                await Task.Delay(20);
+                await Task.Delay(10);
                 attempts++;
             }
         }

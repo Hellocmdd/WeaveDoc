@@ -388,17 +388,16 @@ namespace WeaveDoc.MarkdownEditor.Views
                 {
                     Console.WriteLine("Switching to Markdown Editor");
                     
-                    // 先确保PDF完全隐藏（使用异步版本）
+                    // 先确保 PDF 完全隐藏（使用异步版本）
                     if (_pdfViewer != null)
                     {
                         await _pdfViewer.DeactivateAsync();
                     }
                     
-                    // 等待足够时间确保PDF WebView2完全关闭和隐藏
-                    // WebView2关闭可能需要较长时间，增加等待时间
-                    await Task.Delay(150);
+                    // 减少等待时间
+                    await Task.Delay(50);
 
-                    // 确保所有PDF相关资源已清理后再激活Markdown控件
+                    // 确保所有 PDF 相关资源已清理后再激活 Markdown 控件
                     if (_monacoEditor != null)
                     {
                         // 不强制重置，保留编辑内容
@@ -420,7 +419,7 @@ namespace WeaveDoc.MarkdownEditor.Views
                         // 激活预览器，它会自动更新内容
                         await _previewWebView.Activate(false);
 
-                        // 强制刷新预览内容，确保data-pos属性正确加载
+                        // 强制刷新预览内容，确保 data-pos 属性正确加载
                         if (DataContext is MainWindowViewModel vm)
                         {
                             Console.WriteLine("MainTabControl_SelectionChanged: Forcing preview content refresh");
@@ -442,8 +441,8 @@ namespace WeaveDoc.MarkdownEditor.Views
                     _previewWebView.Deactivate();
                 }
                 
-                // 等待足够时间确保Markdown控件完全隐藏
-                await Task.Delay(100);
+                // 减少等待时间
+                await Task.Delay(50);
                 
                 if (!string.IsNullOrEmpty(_lastPdfFilePath) && _pdfViewer != null)
                 {

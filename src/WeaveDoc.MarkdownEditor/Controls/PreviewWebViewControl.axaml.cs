@@ -125,9 +125,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
                 }
 
-                // 减少延迟时间
-                await Task.Delay(100);
-
                 var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                 {
