@@ -63,6 +63,20 @@ namespace WeaveDoc.MarkdownEditor.Controls
             // 在Loaded时不自动激活，等待标签切换时再激活
         }
 
+        public async Task InitializeAsync()
+        {
+            if (_isActive)
+                return;
+
+            _isActive = true;
+            await InitializeWebViewAsync();
+            
+            if (_pendingFilePath != null)
+            {
+                await LoadPdfAsync(_pendingFilePath);
+            }
+        }
+
         private async void OnUnloaded(object? sender, EventArgs e)
         {
             await DeactivateAsync();
