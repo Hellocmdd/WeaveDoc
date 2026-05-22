@@ -351,7 +351,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                                 post(`opening PDF bytes ${buffer.byteLength}`);
                                 return app.open({
                                     data: new Uint8Array(buffer),
-                                    filename: "current.pdf"
+                                    filename: "current.pdf",
+                                    cMapUrl: "./cmaps/",
+                                    cMapPacked: true,
+                                    enableXfa: false,
+                                    verbosity: 0
                                 });
                             })
                             .then(() => {
