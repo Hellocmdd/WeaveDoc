@@ -40,7 +40,23 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
                 _editorContent = value;
                 OnPropertyChanged(nameof(EditorContent));
                 // 每次编辑器内容变更时，更新预览 HTML（使用带字符位置信息的版本）
-                Html = _markdownService.ConvertMarkdownToHtmlWithCharPositions(_editorContent ?? string.Empty);
+                var html = _markdownService.ConvertMarkdownToHtmlWithCharPositions(_editorContent ?? string.Empty);
+                Console.WriteLine($"=== Markdown转HTML结果 ===");
+                Console.WriteLine($"行数: {html.Split('\n').Length}");
+                Console.WriteLine($"包含 math-inline: {html.Contains("math-inline")}");
+                Console.WriteLine($"包含 math-display: {html.Contains("math-display")}");
+                // 如果包含LaTeX，输出前500字符
+                if (html.Contains("math"))
+                {
+                    var mathIndex = html.IndexOf("math");
+                    var start = Math.Max(0, mathIndex - 50);
+                    var length = Math.Min(500, html.Length - start);
+                    Console.WriteLine($"LaTeX相关HTML片段: ...{html.Substring(start, length)}...");
+                }
+                Console.WriteLine($"=== HTML内容开始 ===");
+                Console.WriteLine(html.Substring(0, Math.Min(2000, html.Length)));
+                Console.WriteLine($"=== HTML内容结束 ===");
+                Html = html;
             }
         }
 

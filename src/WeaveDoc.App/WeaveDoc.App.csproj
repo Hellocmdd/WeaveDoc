@@ -20,4 +20,10 @@
     <ProjectReference Include="..\WeaveDoc.Rag\WeaveDoc.Rag.csproj" />
     <ProjectReference Include="..\WeaveDoc.MarkdownEditor\WeaveDoc.MarkdownEditor.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\WeaveDoc.MarkdownEditor\Assets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Assets\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
 </Project>

@@ -63,6 +63,20 @@ namespace WeaveDoc.MarkdownEditor.Controls
             // 在Loaded时不自动激活，等待标签切换时再激活
         }
 
+        public async Task InitializeAsync()
+        {
+            if (_isActive)
+                return;
+
+            _isActive = true;
+            await InitializeWebViewAsync();
+            
+            if (_pendingFilePath != null)
+            {
+                await LoadPdfAsync(_pendingFilePath);
+            }
+        }
+
         private async void OnUnloaded(object? sender, EventArgs e)
         {
             await DeactivateAsync();
@@ -127,7 +141,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         public static string BuildViewerUrl(int serverPort)
         {
-            return $"http://localhost:{serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=#disableworker=true";
+            // 使用HTTP服务器的 /pdf/current 端点获取当前PDF文件
+            return $"http://localhost:{serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=/pdf/current";
         }
 
         public static string BuildPdfJsCompatibilityScript()
@@ -350,7 +365,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                                 post(`opening PDF bytes ${buffer.byteLength}`);
                                 return app.open({
                                     data: new Uint8Array(buffer),
-                                    filename: "current.pdf"
+                                    filename: "current.pdf",
+                                    cMapUrl: "./cmaps/",
+                                    cMapPacked: true,
+                                    enableXfa: false,
+                                    verbosity: 0
                                 });
                             })
                             .then(() => {
@@ -375,21 +394,17 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 if (root == null)
                     return;
 
-                await Task.Delay(50);
-
                 var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                     return;
 
-                // 启动本地HTTP服务器
+                // 启动本地 HTTP 服务器
                 StartHttpServer();
 
                 if (_sharedEnvironment == null)
                 {
-                    _sharedEnvironment = await CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions
-                    {
-                        AllowSingleSignOnUsingOSPrimaryAccount = false
-                    });
+                    _sharedEnvironment = await WebView2EnvironmentManager.GetOrCreateEnvironmentAsync2();
+                    Console.WriteLine("Shared PDF WebView2 environment created");
                 }
 
                 _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);
@@ -401,7 +416,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 // 启用右键菜单
                 _webview.Settings.AreDefaultContextMenusEnabled = true;
 
-                // 初始化时始终设置为不可见，由Activate方法控制显示时机
+                // 初始化时始终设置为不可见，由 Activate 方法控制显示时机
                 _controller.IsVisible = false;
                 
                 // 设置一个初始的小尺寸和远离可见区域的位置，防止第一次初始化时意外显示
@@ -637,10 +652,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _controller.IsVisible = true;
             }
 
-            // 重新加载PDF内容使用PDF.js
+            // 重新加载 PDF 内容使用 PDF.js
             if (_pendingFilePath != null && _webview != null)
             {
-                await Task.Delay(100); // 等待WebView2准备就绪
+                await Task.Delay(30); // 减少等待时间
                 Console.WriteLine("Activate: Reloading PDF with PDF.js");
                 await LoadPdfAsync(_pendingFilePath);
             }
@@ -649,11 +664,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private async Task WaitForValidBoundsAsync()
         {
             int attempts = 0;
-            const int maxAttempts = 50;
+            const int maxAttempts = 20;
             
             while (attempts < maxAttempts && (this.Bounds.Width < 100 || this.Bounds.Height < 100))
             {
-                await Task.Delay(20);
+                await Task.Delay(10);
                 attempts++;
             }
             
