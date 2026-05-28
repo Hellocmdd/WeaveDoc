@@ -47,6 +47,10 @@ public class PandocPipelineTests
         return path;
     }
 
+    private static byte[] CreateTinyPng() =>
+        Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=");
+
     [Fact]
     public async Task ToDocxAsync_InvalidInput_ThrowsException()
     {
@@ -1634,6 +1638,36 @@ public class PandocPipelineTests
         finally
         {
             File.Delete(mdPath);
+        }
+    }
+
+    [Fact]
+    public async Task ToDocxAsync_NormalizedMarkdown_EmbedsRelativeLocalImage()
+    {
+        var pipeline = CreatePipeline();
+        var workingDir = Path.Combine(Path.GetTempPath(), $"pandoc-image-{Guid.NewGuid():N}");
+        var imageDir = Path.Combine(workingDir, "images");
+        Directory.CreateDirectory(imageDir);
+
+        var imagePath = Path.Combine(imageDir, "demo.png");
+        var mdPath = Path.Combine(workingDir, "input.md");
+        var docxPath = Path.Combine(workingDir, "output.docx");
+
+        File.WriteAllBytes(imagePath, CreateTinyPng());
+        File.WriteAllText(
+            mdPath,
+            "<div style='text-align: center;'><img src='images/demo.png' alt='Local image'/></div>\n");
+
+        try
+        {
+            await pipeline.ToDocxAsync(mdPath, docxPath);
+
+            using var doc = WordprocessingDocument.Open(docxPath, false);
+            Assert.NotEmpty(doc.MainDocumentPart!.ImageParts);
+        }
+        finally
+        {
+            try { Directory.Delete(workingDir, true); } catch { }
         }
     }
 

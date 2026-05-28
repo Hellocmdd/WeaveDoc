@@ -70,13 +70,15 @@ public class PandocPipeline
         CancellationToken ct = default)
     {
         var normalizedInputPath = await PrepareMarkdownInputAsync(inputPath, ct);
+        var workingDirectory = ResolveInputDirectory(inputPath);
         var args = new List<string>
         {
             Quote(normalizedInputPath),
             "-f", "markdown+tex_math_dollars+pipe_tables+raw_html-subscript",
             "-t", "docx",
             "-o", Quote(outputPath),
-            "--standalone"
+            "--standalone",
+            "--resource-path", Quote(BuildResourcePath(inputPath, normalizedInputPath))
         };
 
         if (referenceDoc != null)
@@ -92,7 +94,7 @@ public class PandocPipeline
 
         try
         {
-            return await RunAsync(args, ct);
+            return await RunAsync(args, ct, workingDirectory);
         }
         finally
         {
@@ -108,7 +110,7 @@ public class PandocPipeline
         var args = new List<string> { Quote(normalizedInputPath), "-t", "json" };
         try
         {
-            return await RunAsync(args, ct);
+            return await RunAsync(args, ct, ResolveInputDirectory(inputPath));
         }
         finally
         {
@@ -141,7 +143,29 @@ public class PandocPipeline
         try { File.Delete(normalizedInputPath); } catch { }
     }
 
-    private async Task<string> RunAsync(List<string> args, CancellationToken ct)
+    private static string BuildResourcePath(string originalInputPath, string normalizedInputPath)
+    {
+        var paths = new List<string>();
+        AddExistingDirectory(paths, ResolveInputDirectory(originalInputPath));
+        AddExistingDirectory(paths, ResolveInputDirectory(normalizedInputPath));
+        paths.Add(".");
+
+        return string.Join(Path.PathSeparator, paths.Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static string ResolveInputDirectory(string inputPath)
+    {
+        var directory = Path.GetDirectoryName(Path.GetFullPath(inputPath));
+        return string.IsNullOrWhiteSpace(directory) ? Directory.GetCurrentDirectory() : directory;
+    }
+
+    private static void AddExistingDirectory(List<string> paths, string directory)
+    {
+        if (Directory.Exists(directory))
+            paths.Add(directory);
+    }
+
+    private async Task<string> RunAsync(List<string> args, CancellationToken ct, string? workingDirectory = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -150,7 +174,8 @@ public class PandocPipeline
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            WorkingDirectory = Directory.Exists(workingDirectory) ? workingDirectory : Directory.GetCurrentDirectory()
         };
 
         using var process = Process.Start(psi)
