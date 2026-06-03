@@ -486,7 +486,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             _ = EnsureActiveThenClearHighlightAsync();
         }
 
-        private void OnGotFocus(object? sender, Avalonia.Input.GotFocusEventArgs e)
+        private void OnGotFocus(object? sender, Avalonia.Input.FocusChangedEventArgs e)
         {
             Console.WriteLine("MonacoEditorControl: Got focus, clearing highlight");
             _ = EnsureActiveThenClearHighlightAsync();

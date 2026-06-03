@@ -1,6 +1,6 @@
 # WeaveDoc 外部工具安装脚本
 # 自动下载 Pandoc 到 tools/ 目录
-# 用法: powershell -ExecutionPolicy Bypass -File tools/setup-tools.ps1
+# 用法: powershell -ExecutionPolicy Bypass -File scripts/setup-tools.ps1
 
 $ErrorActionPreference = "Stop"
 
@@ -8,13 +8,15 @@ $ErrorActionPreference = "Stop"
 $PandocVersion = "3.9.0.2"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ToolsDir = $ScriptDir  # tools/ 目录就是脚本所在目录
+$RepoRoot = Split-Path -Parent $ScriptDir
+$ToolsDir = Join-Path $RepoRoot "tools"
 
 # ============================================================
 # 下载 Pandoc
 # ============================================================
 $PandocDir = Join-Path $ToolsDir "pandoc"
 $PandocExe = Join-Path $PandocDir "pandoc.exe"
+if (-not (Test-Path $ToolsDir)) { New-Item -ItemType Directory -Path $ToolsDir | Out-Null }
 
 if (Test-Path $PandocExe) {
     $ver = & $PandocExe --version 2>&1 | Select-Object -First 1

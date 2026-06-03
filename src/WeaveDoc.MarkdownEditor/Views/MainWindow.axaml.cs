@@ -1,10 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using WeaveDoc.MarkdownEditor.ViewModels;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
+using System.Linq;
 using WeaveDoc.MarkdownEditor.Helpers;
 using WeaveDoc.MarkdownEditor.Controls;
 
@@ -108,27 +109,24 @@ namespace WeaveDoc.MarkdownEditor.Views
 
         public async Task OpenMarkdownFileAsync()
         {
-#pragma warning disable CS0618 // Type or member is obsolete
-            var dialog = new OpenFileDialog
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null)
+                return;
+
+            var selected = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "打开 Markdown 文件",
-                Filters = new List<FileDialogFilter>
-                {
-                    new FileDialogFilter { Name = "Markdown 文件", Extensions = { "md", "markdown", "txt" } },
-                    new FileDialogFilter { Name = "所有文件", Extensions = { "*" } }
-                }
-            };
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("Markdown 文件") { Patterns = ["*.md", "*.markdown", "*.txt"] },
+                    FilePickerFileTypes.All
+                ]
+            });
 
-            var result = await dialog.ShowAsync(this);
-            if (result != null && result.Length > 0)
-            {
-                var filePath = result[0];
-                if (DataContext is MainWindowViewModel vm)
-                {
-                    vm.OpenFile(filePath);
-                }
-            }
-#pragma warning restore CS0618 // Type or member is obsolete
+            var filePath = selected.FirstOrDefault()?.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(filePath) && DataContext is MainWindowViewModel vm)
+                vm.OpenFile(filePath);
         }
 
         private async void OpenFile_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -150,27 +148,25 @@ namespace WeaveDoc.MarkdownEditor.Views
 
         public async Task SaveMarkdownFileAsAsync()
         {
-#pragma warning disable CS0618 // Type or member is obsolete
-            var dialog = new SaveFileDialog
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null)
+                return;
+
+            var selected = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "保存 Markdown 文件",
-                Filters = new List<FileDialogFilter>
-                {
-                    new FileDialogFilter { Name = "Markdown 文件", Extensions = { "md", "markdown" } },
-                    new FileDialogFilter { Name = "文本文件", Extensions = { "txt" } },
-                    new FileDialogFilter { Name = "所有文件", Extensions = { "*" } }
-                }
-            };
+                DefaultExtension = "md",
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("Markdown 文件") { Patterns = ["*.md", "*.markdown"] },
+                    new FilePickerFileType("文本文件") { Patterns = ["*.txt"] },
+                    FilePickerFileTypes.All
+                ]
+            });
 
-            var result = await dialog.ShowAsync(this);
-            if (!string.IsNullOrEmpty(result))
-            {
-                if (DataContext is MainWindowViewModel vm)
-                {
-                    vm.SaveFile(result);
-                }
-            }
-#pragma warning restore CS0618 // Type or member is obsolete
+            var filePath = selected?.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(filePath) && DataContext is MainWindowViewModel vm)
+                vm.SaveFile(filePath);
         }
 
         private async void SaveFile_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -328,24 +324,24 @@ namespace WeaveDoc.MarkdownEditor.Views
 
         public async Task OpenPdfFileAsync()
         {
-#pragma warning disable CS0618 // Type or member is obsolete
-            var dialog = new OpenFileDialog
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null)
+                return;
+
+            var selected = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "打开 PDF 文件",
-                Filters = new List<FileDialogFilter>
-                {
-                    new FileDialogFilter { Name = "PDF 文件", Extensions = { "pdf" } },
-                    new FileDialogFilter { Name = "所有文件", Extensions = { "*" } }
-                }
-            };
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("PDF 文件") { Patterns = ["*.pdf"] },
+                    FilePickerFileTypes.All
+                ]
+            });
 
-            var result = await dialog.ShowAsync(this);
-            if (result != null && result.Length > 0)
-            {
-                var filePath = result[0];
+            var filePath = selected.FirstOrDefault()?.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(filePath))
                 await ShowPdfViewer(filePath);
-            }
-#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private async Task ShowPdfViewer(string filePath)

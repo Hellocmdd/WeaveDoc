@@ -2,33 +2,47 @@
 
 English | [简体中文](README.zh-CN.md)
 
-`WeaveDoc.Rag` is the RAG service module behind the `RAG 问答` tab in `WeaveDoc.App`. The root README now stays repository-focused; the local AI setup, model requirements, and evaluation workflow live here.
+`WeaveDoc.Rag` is the retrieval and chat service module behind the `RAG 问答` tab in `WeaveDoc.App`. It does not ship as a separate desktop application; the unified app owns the UI and calls this library.
 
-If you only use document conversion and template management, you can ignore this module and its model setup.
+If you only use Markdown editing, template management, or document conversion, you can skip this module and its model setup.
 
 ## Responsibilities
 
-- workspace path discovery rooted at `models/`
-- local embedding, retrieval, reranking, and answer composition
+- workspace path discovery for `doc/`, `models/`, `.rag/`, and `.eval/`
+- local document indexing and corpus refresh
+- hybrid retrieval across vector, BM25, keyword, title, and JSON-structure signals
+- optional reranking through an OpenAI-compatible reranker endpoint
 - local `llama-server` chat integration
-- OpenAI-compatible cloud API settings and chat integration
-- corpus refresh, document import/delete support, and evaluation helpers
-- offline baseline execution through `EvalRunner`
+- OpenAI-compatible cloud chat settings
+- fallback answer composition and citation normalization
+- offline evaluation through `EvalRunner`
 
-## Workspace Requirements
+## Workspace Directories
 
-Workspace data stays at the repository root:
+All paths are rooted at the repository workspace:
 
-- `doc/`: source documents for indexing
-- `models/`: GGUF models used by embeddings, reranking, and chat
-- `.rag/`: local indexes, logs, and runtime cache
-- `.eval/`: evaluation outputs
+| Path | Purpose |
+| --- | --- |
+| `doc/` | Source documents for indexing |
+| `models/` | GGUF embedding, reranker, and chat models |
+| `.rag/` | Index files, logs, and runtime cache |
+| `.eval/` | Evaluation reports |
 
-## Required Models
+## Model Files
 
-- `models/bge-m3.gguf`: embedding model
-- `models/bge-reranker-v2-m3.gguf`: reranker model when `RAG_RERANKER_ENABLED=true`
-- one chat GGUF model; `scripts/run_weavedoc.sh` looks for `models/Qwen3.5-4B-Q4_K_M.gguf` first, then falls back to the first non-embedding `.gguf` file it finds
+The local stack expects these files by default:
+
+| File | Used for |
+| --- | --- |
+| `models/bge-m3.gguf` | Embedding |
+| `models/bge-reranker-v2-m3.gguf` | Reranker when `RAG_RERANKER_ENABLED=true` |
+| `models/Qwen3.5-4B-Q4_K_M.gguf` or another non-embedding `.gguf` | Chat model for `llama-server` |
+
+You can override the chat model:
+
+```bash
+LLAMA_SERVER_MODEL=./models/your-chat-model.gguf ./scripts/run_weavedoc.sh
+```
 
 ## Run The Local Stack
 
@@ -36,70 +50,82 @@ Workspace data stays at the repository root:
 ./scripts/run_weavedoc.sh
 ```
 
-The helper script:
-
-- verifies `models/` and the `llama.cpp` submodule
-- builds `llama-server` when the binary is missing
-- starts `llama-server` if no healthy endpoint is already running
-- exports the RAG-related environment variables used by the desktop app
-- launches `WeaveDoc.App`
+The script checks `models/`, builds or reuses `llama.cpp/build/bin/llama-server`, starts `llama-server` when no healthy endpoint is already running, exports the RAG environment variables, and launches `WeaveDoc.App`.
 
 Useful overrides:
 
 ```bash
-LLAMA_SERVER_MODEL=./models/your-chat-model.gguf ./scripts/run_weavedoc.sh
 LLAMA_SERVER_PORT=8082 ./scripts/run_weavedoc.sh
 RAG_RERANKER_ENABLED=false ./scripts/run_weavedoc.sh
 RAG_RERANKER_BASE_URL=http://127.0.0.1:8083 ./scripts/run_weavedoc.sh
 ```
 
-## Launch The App Directly
+## Run The App Directly
 
 ```bash
 dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj
 ```
 
-Use the direct app entry when your chat endpoint is already running or when you want to provide settings yourself. Common environment variables include:
+Use the direct app entry when your chat endpoint is already running, when you use a cloud provider, or when you want to provide settings manually.
 
-- `LLAMA_SERVER_BASE_URL`
-- `RAG_EMBEDDING_MODEL_FILE`
-- `RAG_RERANKER_ENABLED`
-- `RAG_RERANKER_BASE_URL`
-- `RAG_RERANKER_MODEL`
-- `RAG_CHAT_PROVIDER` with `llama_server`, `cloud`, or `deepseek`
-- `CLOUD_API_KEY`, `CLOUD_MODEL`, `CLOUD_BASE_URL`
-- `CLOUD_ENABLE_THINKING`, `CLOUD_REASONING_EFFORT`
+Common environment variables:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `LLAMA_SERVER_BASE_URL` | `http://127.0.0.1:8080` | Local chat endpoint |
+| `LLAMA_SERVER_CHAT_MODEL` | `local-model` | Chat model name sent to the endpoint |
+| `LLAMA_SERVER_TEMPERATURE` | `0.2` | Chat generation temperature |
+| `LLAMA_SERVER_MAX_TOKENS` | `1536` | Chat max token budget |
+| `RAG_EMBEDDING_MODEL_FILE` | `bge-m3.gguf` | Embedding model filename |
+| `RAG_RERANKER_ENABLED` | `true` | Enables reranking |
+| `RAG_RERANKER_BASE_URL` | `http://127.0.0.1:8081` | Reranker endpoint |
+| `RAG_RERANKER_MODEL` | `bge-reranker-v2-m3` | Reranker model name |
+| `RAG_CHAT_PROVIDER` | `llama_server` | `llama_server`, `cloud`, or `deepseek` |
+| `CLOUD_API_KEY` | empty | Cloud provider API key |
+| `CLOUD_MODEL` | `deepseek-v4-pro` | Cloud model name |
+| `CLOUD_BASE_URL` | `https://api.deepseek.com` | Cloud base URL |
+| `CLOUD_ENABLE_THINKING` | `false` | Enables provider reasoning/thinking mode when supported |
+| `CLOUD_REASONING_EFFORT` | `medium` | Reasoning effort when supported |
+
+`DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_ENABLE_THINKING`, and `DEEPSEEK_REASONING_EFFORT` are also accepted as fallbacks for the matching cloud variables.
 
 ## Offline Evaluation
 
-Run the helper script after a chat `llama-server` is reachable:
+Start or reuse a healthy chat endpoint first, then run:
 
 ```bash
-./scripts/eval_rag.sh
+./scripts/eval_rag.sh /path/to/eval-baseline.json
 ```
 
-Or reuse the unified app entry directly:
+Or call the app entry directly:
 
 ```bash
-dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj -- --eval ./docs/eval-baseline.json
+dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj -- --eval /path/to/eval-baseline.json
 ```
 
-`eval_rag.sh` expects a healthy chat endpoint. The `--eval` mode routes through `EvalRunner` and skips Avalonia startup.
+The script writes reports to `.eval/` by default. Override with `RAG_EVAL_REPORT_DIR` or pass a second script argument:
 
-## Main Surface Area
+```bash
+./scripts/eval_rag.sh /path/to/eval-baseline.json /path/to/report-dir
+```
 
-Public types intended for app or test usage include:
+## Public Surface
+
+The main public types used by the app and tests are:
 
 - `LocalAiService`
 - `CloudApiSettings`
 - `EvalRunner`
 - `ChatTurn`
+- `DocumentChunk`
 - `RagOptions`
 
-Most retrieval internals remain implementation details under `Services/Rag/`.
+Retrieval internals live under `Services/Rag/` and are treated as implementation details.
 
-## Notes
+## Tests
 
-- this module no longer ships as its own desktop application
-- chat `llama-server` can be managed by `scripts/run_weavedoc.sh`
-- reranker lifecycle is managed inside `WeaveDoc.Rag`, not by a separate launcher script
+```bash
+dotnet test tests/WeaveDoc.Rag.Tests/WeaveDoc.Rag.Tests.csproj -nologo
+```
+
+Current tests focus on query understanding, follow-up detection, fallback answer composition, citation normalization, and retrieval heuristic behavior.

@@ -166,7 +166,7 @@
                   IsVisible="{Binding IsDocumentsTabSelected}">
               <TextBox Grid.Row="0"
                        Text="{Binding NewDocumentPath, Mode=TwoWay}"
-                       Watermark="手动输入路径，或点击「选择导入」"
+                       PlaceholderText="手动输入路径，或点击「选择导入」"
                        BorderThickness="1"
                        BorderBrush="#32405F"
                        Background="#0D1424"
@@ -263,7 +263,7 @@
                   <StackPanel Spacing="4">
                     <TextBlock Text="Base URL" Foreground="{StaticResource TextMutedBrush}" FontSize="11" />
                     <TextBox Text="{Binding CloudBaseUrl, Mode=TwoWay}"
-                             Watermark="https://api.openai.com"
+                             PlaceholderText="https://api.openai.com"
                              BorderThickness="1" BorderBrush="#32405F"
                              Background="#0D1424" Foreground="#E2E8F0"
                              FontSize="12" Padding="10,8" />
@@ -273,7 +273,7 @@
                     <TextBlock Text="API Key" Foreground="{StaticResource TextMutedBrush}" FontSize="11" />
                     <TextBox Text="{Binding CloudApiKey, Mode=TwoWay}"
                              PasswordChar="*"
-                             Watermark="sk-..."
+                             PlaceholderText="sk-..."
                              BorderThickness="1" BorderBrush="#32405F"
                              Background="#0D1424" Foreground="#E2E8F0"
                              FontSize="12" Padding="10,8" />
@@ -282,7 +282,7 @@
                   <StackPanel Spacing="4">
                     <TextBlock Text="模型名称" Foreground="{StaticResource TextMutedBrush}" FontSize="11" />
                     <TextBox Text="{Binding CloudModel, Mode=TwoWay}"
-                             Watermark="gpt-4o / deepseek-v4-pro"
+                             PlaceholderText="gpt-4o / deepseek-v4-pro"
                              BorderThickness="1" BorderBrush="#32405F"
                              Background="#0D1424" Foreground="#E2E8F0"
                              FontSize="12" Padding="10,8" />
@@ -296,7 +296,7 @@
                   <StackPanel Spacing="4" IsVisible="{Binding CloudEnableThinking}">
                     <TextBlock Text="推理深度" Foreground="{StaticResource TextMutedBrush}" FontSize="11" />
                     <TextBox Text="{Binding CloudReasoningEffort, Mode=TwoWay}"
-                             Watermark="low / medium / high"
+                             PlaceholderText="low / medium / high"
                              BorderThickness="1" BorderBrush="#32405F"
                              Background="#0D1424" Foreground="#E2E8F0"
                              FontSize="12" Padding="10,8" />
@@ -385,7 +385,7 @@
             <TextBox Grid.Column="0"
                      Name="InputBox"
                      Text="{Binding InputText, Mode=TwoWay}"
-                     Watermark="输入问题，按 Enter 或点击发送"
+                     PlaceholderText="输入问题，按 Enter 或点击发送"
                      AcceptsReturn="False"
                      TextWrapping="Wrap"
                      BorderThickness="1"

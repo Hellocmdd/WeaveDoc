@@ -1,6 +1,7 @@
 <Project>
   <PropertyGroup>
     <ExternalToolsDir>$(MSBuildThisFileDirectory)</ExternalToolsDir>
+    <ScriptsDir>$(MSBuildThisFileDirectory)../scripts/</ScriptsDir>
     <PandocWindowsBinary>$(ExternalToolsDir)pandoc\pandoc.exe</PandocWindowsBinary>
     <PandocUnixBinary>$(ExternalToolsDir)pandoc\bin\pandoc</PandocUnixBinary>
     <HasPandoc>false</HasPandoc>
@@ -11,12 +12,12 @@
           BeforeTargets="BeforeBuild"
           Condition="'$(SkipExternalToolsDownload)' != 'true' And '$(HasPandoc)' != 'true'">
     <Message Importance="High" Text="Downloading external tools (Pandoc)..." />
-    <Exec Command="powershell -ExecutionPolicy Bypass -NoProfile -File &quot;$(ExternalToolsDir)setup-tools.ps1&quot;"
+    <Exec Command="powershell -ExecutionPolicy Bypass -NoProfile -File &quot;$(ScriptsDir)setup-tools.ps1&quot;"
           Condition="$([MSBuild]::IsOSPlatform('Windows'))"
           ConsoleToMSBuild="true"
           ContinueOnError="WarnAndContinue"
           WorkingDirectory="$(ExternalToolsDir)" />
-    <Exec Command="bash &quot;$(ExternalToolsDir)setup-tools.sh&quot;"
+    <Exec Command="bash &quot;$(ScriptsDir)setup-tools.sh&quot;"
           Condition="!$([MSBuild]::IsOSPlatform('Windows'))"
           ConsoleToMSBuild="true"
           ContinueOnError="WarnAndContinue"

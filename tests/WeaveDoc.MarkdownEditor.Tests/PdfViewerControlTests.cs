@@ -7,13 +7,12 @@ namespace WeaveDoc.MarkdownEditor.Tests
     public class PdfViewerControlTests
     {
         [Test]
-        public void BuildViewerUrl_LoadsViewerShellWithEmptyFileParameter()
+        public void BuildViewerUrl_LoadsCurrentPdfEndpointWithoutLocalFilePath()
         {
             var url = PdfViewerControl.BuildViewerUrl(64311);
 
-            Assert.That(url, Is.EqualTo("http://localhost:64311/pdfjs-5.7.284-dist/web/viewer.html?file=#disableworker=true"));
-            Assert.That(url, Does.Not.Contain("/pdf/current"));
-            Assert.That(url, Does.Contain("disableworker=true"));
+            Assert.That(url, Is.EqualTo("http://localhost:64311/pdfjs-5.7.284-dist/web/viewer.html?file=/pdf/current"));
+            Assert.That(url, Does.Contain("/pdf/current"));
             Assert.That(url, Does.Not.Contain("D%3A"));
             Assert.That(url, Does.Not.Contain("\\"));
         }

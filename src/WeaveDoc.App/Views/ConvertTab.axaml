@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:CompileBindings="False"
              x:Class="WeaveDoc.App.Views.ConvertTab">
     <ScrollViewer Background="#0B1220">
         <StackPanel Spacing="14" Margin="24,20">
@@ -22,7 +23,7 @@
                                  Foreground="#E2E8F0" FontSize="13" Padding="9,8"
                                  BorderBrush="#32405F" BorderThickness="1"
                                  CornerRadius="6" Background="#0D1424"
-                                 Watermark="点击浏览选择 .md 文件..." />
+                                 PlaceholderText="点击浏览选择 .md 文件..." />
                         <Button x:Name="BrowseMdButton" Grid.Column="1" Content="浏览..."
                                 Margin="10,0,0,0" FontSize="13" FontWeight="Medium"
                                 Padding="16,8" Foreground="#E2E8F0" Background="#1E293B"
@@ -103,7 +104,7 @@
                                  Foreground="#E2E8F0" FontSize="13" Padding="9,8"
                                  BorderBrush="#32405F" BorderThickness="1"
                                  CornerRadius="6" Background="#0D1424"
-                                 Watermark="选择输出目录..." />
+                                 PlaceholderText="选择输出目录..." />
                         <Button x:Name="BrowseOutputButton" Grid.Column="1" Content="浏览..."
                                 Margin="10,0,0,0" FontSize="13" FontWeight="Medium"
                                 Padding="16,8" Foreground="#E2E8F0" Background="#1E293B"
@@ -113,7 +114,7 @@
                              Foreground="#4A5568" FontSize="13" Padding="9,8"
                              BorderBrush="#DCE1E8" BorderThickness="1"
                              CornerRadius="6" Background="#FAFBFC"
-                             Watermark="导出文件名（留空使用默认命名）" />
+                             PlaceholderText="导出文件名（留空使用默认命名）" />
                 </StackPanel>
             </Border>
 

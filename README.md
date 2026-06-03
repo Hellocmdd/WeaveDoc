@@ -2,48 +2,63 @@
 
 English | [简体中文](README.zh-CN.md)
 
-WeaveDoc is a unified desktop workspace for template-driven document conversion, template management, and optional local RAG workflows. The repository now centers on one Avalonia desktop entry with focused converter and RAG modules underneath.
+WeaveDoc is an Avalonia desktop workspace for academic document work. It combines Markdown editing, AFD template management, Markdown-to-DOCX/PDF conversion, and optional local or cloud RAG question answering in one app.
 
 ## Modules
 
-- `src/WeaveDoc.App/`: unified Avalonia shell with `文档转换`, `Markdown 编辑`, `模板管理`, and `RAG 问答` tabs
-- `src/WeaveDoc.Converter/`: Markdown + AFD template to DOCX/PDF conversion pipeline
-- `src/WeaveDoc.MarkdownEditor/`: embedded Monaco Markdown editor, HTML preview, and PDF reader tab
-- `src/WeaveDoc.Rag/`: document indexing, retrieval, reranking, chat integration, and offline evaluation helpers
+| Area | Project | Purpose |
+| --- | --- | --- |
+| Desktop shell | `src/WeaveDoc.App/` | Unified Avalonia entry with `RAG 问答`, `文档转换`, `Markdown 编辑`, and `模板管理` tabs |
+| Converter | `src/WeaveDoc.Converter/` | AFD template parsing, Pandoc pipeline, DOCX styling, and PDF renderer selection |
+| Markdown editor | `src/WeaveDoc.MarkdownEditor/` | Monaco editor, HTML preview, KaTeX rendering, and PDF.js reader controls |
+| RAG services | `src/WeaveDoc.Rag/` | Document indexing, retrieval, reranking, answer composition, chat providers, and evaluation helpers |
 
 ## Repository Layout
 
-- `tests/`: app, converter, Markdown editor, and RAG test projects
-- `scripts/`: launch, evaluation, and `llama.cpp` helper scripts
-- `docs/`: architecture notes and evaluation baseline files
-- `doc/`, `models/`, `.rag/`, `.eval/`: workspace-level data directories
-- `llama.cpp/`: upstream submodule used by the local RAG stack
-- `WeaveDoc.slnx`: main solution entry
+| Path | Description |
+| --- | --- |
+| `WeaveDoc.slnx` | Main solution for app, modules, and tests |
+| `src/` | Product projects |
+| `tests/` | App, converter, Markdown editor, and RAG test projects |
+| `scripts/` | Setup, launch, evaluation, debug, and `llama.cpp` helper scripts |
+| `tools/` | Downloaded external tools such as Pandoc |
+| `doc/` | Project documents and local workspace documents |
+| `models/` | Local GGUF model files for the RAG workflow |
+| `.rag/`, `.eval/` | Local RAG indexes, logs, cache, and evaluation output |
+| `llama.cpp/` | Upstream local AI dependency used by helper scripts |
+
+README files under `llama.cpp/` are upstream documentation and are intentionally not part of the WeaveDoc documentation set.
+
+## Requirements
+
+- .NET 10 SDK
+- Pandoc for conversion; the build target can download it into `tools/pandoc/`
+- WebView2 Runtime on Windows for the Markdown editor and PDF viewer surfaces
+- Optional RAG dependencies: `llama.cpp`, GGUF embedding/reranker/chat models, and a reachable local or OpenAI-compatible chat endpoint
 
 ## Quick Start
 
 ```bash
-git clone --recurse-submodules https://github.com/Hellocmdd/WeaveDoc.git
-cd WeaveDoc
 dotnet build WeaveDoc.slnx
 dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj
 ```
 
-Pandoc bootstrap is handled during build:
+The build imports `tools/DownloadExternalTools.targets` and runs the platform setup script when Pandoc is missing:
 
-- Windows uses `tools/setup-tools.ps1`
-- Linux/macOS uses `tools/setup-tools.sh`
-- set `SkipExternalToolsDownload=true` if you want to skip auto-download
+- Windows: `scripts/setup-tools.ps1`
+- Linux/macOS: `scripts/setup-tools.sh`
 
-For converter and template-management work, the commands above are enough. If you want to use the local RAG tab or run offline evaluation, continue with the module guide in `src/WeaveDoc.Rag/README.md`.
+Set `SkipExternalToolsDownload=true` if you want to skip the automatic download.
 
-## README Scope
+## Local RAG
 
-- Repository-level setup, build, test, and navigation stay in this README.
-- RAG-specific model preparation, `llama-server` startup, environment variables, and evaluation instructions now live in `src/WeaveDoc.Rag/README.md`.
-- Converter implementation details and template-format notes live in `src/WeaveDoc.Converter/README.md`.
+For the local RAG stack, prepare the GGUF models under `models/` and launch through:
 
-This keeps the root document focused on the whole repo instead of one subsystem.
+```bash
+./scripts/run_weavedoc.sh
+```
+
+That script checks the model directory, builds or reuses `llama-server`, exports RAG environment variables, and starts the desktop app. Detailed model, environment, and evaluation notes live in [src/WeaveDoc.Rag/README.md](src/WeaveDoc.Rag/README.md).
 
 ## Tests
 
@@ -51,11 +66,20 @@ This keeps the root document focused on the whole repo instead of one subsystem.
 dotnet test WeaveDoc.slnx -nologo
 ```
 
-## Documentation
+Run an individual project when iterating:
 
-- App shell notes: [src/WeaveDoc.App/README.md](src/WeaveDoc.App/README.md)
-- Converter module notes (Chinese): [src/WeaveDoc.Converter/README.md](src/WeaveDoc.Converter/README.md)
-- RAG module notes: [src/WeaveDoc.Rag/README.md](src/WeaveDoc.Rag/README.md)
-- RAG architecture summary: [docs/rag-architecture.md](docs/rag-architecture.md)
-- Baseline evaluation cases: [docs/eval-baseline.json](docs/eval-baseline.json)
+```bash
+dotnet test tests/WeaveDoc.App.Tests/WeaveDoc.App.Tests.csproj -nologo
+dotnet test tests/WeaveDoc.Converter.Tests/WeaveDoc.Converter.Tests.csproj -nologo
+dotnet test tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj -nologo
+dotnet test tests/WeaveDoc.Rag.Tests/WeaveDoc.Rag.Tests.csproj -nologo
+```
 
+## Documentation Map
+
+- [src/WeaveDoc.App/README.md](src/WeaveDoc.App/README.md): desktop shell, startup flow, and UI integration
+- [src/WeaveDoc.Converter/README.md](src/WeaveDoc.Converter/README.md): AFD templates, conversion pipeline, PDF engines, and converter tests
+- [src/WeaveDoc.MarkdownEditor/README.md](src/WeaveDoc.MarkdownEditor/README.md): editor, preview, PDF reader, assets, and tests
+- [src/WeaveDoc.Rag/README.md](src/WeaveDoc.Rag/README.md): model setup, RAG runtime, chat providers, and evaluation
+- [tests/WeaveDoc.App.Tests/README.md](tests/WeaveDoc.App.Tests/README.md): headless Avalonia app test scope
+- [tests/WeaveDoc.Converter.Tests/README.md](tests/WeaveDoc.Converter.Tests/README.md): converter unit and integration test scope

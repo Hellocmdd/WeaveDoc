@@ -3,13 +3,16 @@ set -euo pipefail
 
 PANDOC_VERSION="3.9.0.2"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOOLS_DIR="$SCRIPT_DIR"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+TOOLS_DIR="$ROOT_DIR/tools"
 PANDOC_DIR="$TOOLS_DIR/pandoc"
 PANDOC_BIN="$PANDOC_DIR/pandoc"
 PANDOC_BIN_ALT="$PANDOC_DIR/bin/pandoc"
 PANDOC_FALLBACK_MARKER="$PANDOC_DIR/.fallback"
 TMP_ARCHIVE="$TOOLS_DIR/pandoc.tar.gz"
 TMP_EXTRACT="$TOOLS_DIR/pandoc-temp"
+
+mkdir -p "$TOOLS_DIR"
 
 if [[ -x "$PANDOC_BIN" ]]; then
     echo "[Pandoc] Already installed: $("$PANDOC_BIN" --version | head -n 1)"
