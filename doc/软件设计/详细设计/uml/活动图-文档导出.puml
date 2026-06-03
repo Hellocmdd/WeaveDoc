@@ -1,0 +1,110 @@
+@startuml 活动图-文档导出
+' ============================================
+' 用例1：学术文档高保真导出 - 活动图
+' 基于实际代码：DocumentConversionEngine 转换管线
+' ============================================
+
+title 用例1：学术文档高保真导出 - 活动图
+
+|用户|
+start
+:选择MD文件;
+:选择AFD模板;
+:选择导出格式(DOCX/PDF);
+:点击"转换"按钮;
+
+|ConvertTab|
+:校验输入参数\n(文件存在性、路径合法性);
+
+if (参数是否合法?) then (否)
+    :显示错误提示\n(中文友好信息);
+    stop
+endif
+
+|DocumentConversionEngine|
+:从 ConfigManager 加载模板;
+
+if (模板存在?) then (否)
+    :提示"模板不存在\n请先导入模板";
+    stop
+endif
+
+|AfdParser|
+:解析 AFD JSON 文件;
+:校验必填字段\n(Meta/Defaults/Styles);
+
+if (校验通过?) then (否)
+    :抛出 AfdParseException;
+    |ConvertTab|
+    :显示"模板格式错误";
+    stop
+endif
+
+|ReferenceDocBuilder|
+:使用 OpenXML API\n构建 reference.docx\n(页面设置+样式+页眉页脚);
+
+|MarkdownNormalizers|
+:HTML表格 → pipe表格;
+:LaTeX特殊符号 → Unicode;
+:HTML图片 → MD图片语法;
+
+|PandocPipeline|
+:发现 Lua 筛选器;
+
+switch (导出格式?)
+case (DOCX)
+    :pandoc --to docx\n--reference-doc=ref.docx;
+case (PDF)
+    :pandoc --to docx\n(先转DOCX再转PDF);
+endswitch
+
+:启动 Pandoc 子进程;
+
+if (Pandoc退出码 == 0?) then (否)
+    :抛出 PandocException\n(ExitCode + Stderr);
+    |ConversionErrorFormatter|
+    :格式化为用户友好中文提示;
+    |ConvertTab|
+    :显示错误详情;
+    stop
+endif
+
+|OpenXmlStyleCorrector|
+:ApplyAfdStyles()\n遍历段落，匹配样式\n移除冗余内联属性;
+:ApplyHeaderFooter()\n写入页眉页脚;
+
+if (导出格式 == PDF?) then (是)
+    :ApplyPdfLayout()\n双栏/单栏处理;
+
+    |IPdfConverter|
+    :尝试PDF转换策略链;
+
+    switch (可用渲染器?)
+    case (Windows + Word)
+        :WordComPdfConverter\n(COM自动化);
+    case (LibreOffice)
+        :LibreOfficePdfConverter\n(headless soffice);
+    case (兜底)
+        :SyncfusionPdfConverter\n(纯.NET渲染);
+    endswitch
+
+    if (PDF转换成功?) then (否)
+        :所有策略失败;
+        |ConvertTab|
+        :提示"PDF转换失败\n请安装Word或LibreOffice";
+        stop
+    endif
+endif
+
+|DocumentConversionEngine|
+:清理临时文件;
+
+|ConvertTab|
+:显示"导出成功"\n+ 输出文件路径;
+
+|用户|
+:查看导出结果;
+
+stop
+
+@enduml

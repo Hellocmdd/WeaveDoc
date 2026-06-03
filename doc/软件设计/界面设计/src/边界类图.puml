@@ -1,0 +1,147 @@
+@startuml
+title WeaveDoc 界面边界类图
+
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #F8F9FA
+  BorderColor #D8DEE4
+  FontColor #1C2128
+}
+skinparam ArrowColor #0969DA
+hide circle
+
+class WorkspaceWindow <<boundary>> {
+  +showWorkspace()
+  +openWorkspace()
+  +toggleContextPanel()
+  +updateStatusBar()
+}
+
+class MenuBarView <<boundary>> {
+  +openFileMenu()
+  +openViewMenu()
+  +openExportMenu()
+  +openHelpMenu()
+}
+
+class ToolbarView <<boundary>> {
+  +newWorkspace()
+  +openWorkspace()
+  +saveDocument()
+  +openExportDialog()
+  +toggleAI()
+}
+
+class StatusBarView <<boundary>> {
+  +showCursorPosition()
+  +showWordCount()
+  +showCitationCount()
+  +showModelStatus()
+  +showMemoryStatus()
+}
+
+class PDFViewerBoundary <<boundary>> {
+  +renderPdf()
+  +selectFormulaRegion()
+  +createAnchor()
+  +jumpToPage()
+  +highlightRegion()
+}
+
+class MarkdownEditorBoundary <<boundary>> {
+  +editMarkdown()
+  +showCitationTooltip()
+  +insertCitation()
+  +insertAnchor()
+  +jumpFromAnchor()
+}
+
+class ContextPanelBoundary <<boundary>> {
+  +switchTab()
+  +collapse()
+  +expand()
+}
+
+class ChatPanelBoundary <<boundary>> {
+  +showModelStatus()
+  +submitQuestion()
+  +streamAnswer()
+  +showCitationChips()
+}
+
+class LiteraturePanelBoundary <<boundary>> {
+  +searchLiterature()
+  +filterByPdfStatus()
+  +syncZotero()
+  +insertCitationKey()
+}
+
+class SnapshotPanelBoundary <<boundary>> {
+  +showTimeline()
+  +previewSnapshot()
+  +confirmRestore()
+  +restoreSnapshot()
+}
+
+class ExportDialogBoundary <<boundary>> {
+  +selectTemplate()
+  +selectOutputFormat()
+  +pickOutputPath()
+  +showCitationValidation()
+  +startExport()
+  +showExportProgress()
+}
+
+class SettingsDialogBoundary <<boundary>> {
+  +showGeneralSettings()
+  +showModelManagement()
+  +showZoteroSync()
+  +showTemplateLibrary()
+  +showSnapshotPolicy()
+}
+
+class SetupWizardBoundary <<boundary>> {
+  +checkEnvironment()
+  +configureModels()
+  +configureZotero()
+  +importTemplates()
+  +finishSetup()
+}
+
+class OCRFloatingToolbarBoundary <<boundary>> {
+  +showNearSelection()
+  +showRecognizing()
+  +showLatexCode()
+  +copyLatex()
+  +retrySelection()
+}
+
+class ConfirmDialogBoundary <<boundary>> {
+  +showConfirm()
+  +cancel()
+  +confirm()
+}
+
+WorkspaceWindow *-- MenuBarView
+WorkspaceWindow *-- ToolbarView
+WorkspaceWindow *-- StatusBarView
+WorkspaceWindow *-- PDFViewerBoundary
+WorkspaceWindow *-- MarkdownEditorBoundary
+WorkspaceWindow *-- ContextPanelBoundary
+ContextPanelBoundary *-- ChatPanelBoundary
+ContextPanelBoundary *-- LiteraturePanelBoundary
+ContextPanelBoundary *-- SnapshotPanelBoundary
+
+WorkspaceWindow ..> ExportDialogBoundary : opens
+WorkspaceWindow ..> SettingsDialogBoundary : opens
+WorkspaceWindow ..> SetupWizardBoundary : first launch
+WorkspaceWindow ..> OCRFloatingToolbarBoundary : formula selection
+SnapshotPanelBoundary ..> ConfirmDialogBoundary : restore confirm
+ExportDialogBoundary ..> SettingsDialogBoundary : manage templates
+ChatPanelBoundary ..> PDFViewerBoundary : source jump
+MarkdownEditorBoundary ..> PDFViewerBoundary : anchor jump
+PDFViewerBoundary ..> MarkdownEditorBoundary : insert anchor
+
+@enduml

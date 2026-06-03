@@ -1,0 +1,136 @@
+@startuml 系统包图
+' ============================================
+' WeaveDoc 系统包图
+' 展示系统整体模块划分及包之间的依赖关系
+' ============================================
+
+skinparam packageStyle rectangle
+skinparam packageBorderColor #2C3E50
+skinparam packageBackgroundColor #ECF0F1
+skinparam packageFontSize 13
+skinparam arrowColor #7F8C8D
+skinparam arrowThickness 1.5
+skinparam componentBackgroundColor #D5F5E3
+skinparam componentBorderColor #27AE60
+
+title WeaveDoc 系统包图
+
+' --- 表示层 ---
+package "WeaveDoc.UI\n(表示层)" as UI #E8F8F5 {
+    package "Views\n(视图)" as Views #D5F5E3 {
+        component "MainWindow" as MainWindow
+        component "EditorView" as EditorView
+        component "PDFViewer" as PDFViewer
+        component "ExportDialog" as ExportDialog
+        component "ChatPanel" as ChatPanel
+        component "SnapshotTimeline" as SnapshotTimeline
+    }
+    package "ViewModels\n(视图模型)" as ViewModels #D4EFDF {
+        component "MainViewModel" as MainVM
+        component "EditorViewModel" as EditorVM
+        component "PDFViewerViewModel" as PDFVM
+        component "ExportViewModel" as ExportVM
+        component "ChatViewModel" as ChatVM
+        component "SnapshotViewModel" as SnapVM
+    }
+}
+
+' --- 服务层：文档编辑子系统 ---
+package "WeaveDoc.Editing\n(文档编辑子系统)" as Editing #FDEBD0 {
+    component "MarkdownEditor" as MarkdownEditor
+    component "PDFRenderEngine" as PDFRenderEngine
+    component "SyncEngine" as SyncEngine
+    component "AnchorService" as AnchorService
+}
+
+' --- 服务层：文档转换子系统 ---
+package "WeaveDoc.Conversion\n(文档转换子系统)" as Conversion #FCF3CF {
+    component "AFDParser" as AFDParser
+    component "AFDPluginManager" as AFDPluginMgr
+    component "IRGenerator" as IRGenerator
+    component "PandocPipeline" as PandocPipeline
+    component "CitationFormatter" as CiteFmt
+    component "ExportService" as ExportService
+}
+
+' --- 服务层：AI辅助子系统 ---
+package "WeaveDoc.AI\n(AI辅助子系统)" as AI #FDEDEC {
+    component "EmbeddingService" as EmbedSvc
+    component "VectorStore" as VectorStore
+    component "RAGEngine" as RAGEngine
+    component "LLMInferenceService" as LLMSvc
+    component "OCRService" as OCRSvc
+}
+
+' --- 服务层：文献管理子系统 ---
+package "WeaveDoc.Literature\n(文献管理子系统)" as Literature #F5EEF8 {
+    component "BibTeXParser" as BibTeXParser
+    component "ZoteroSyncService" as ZoteroSync
+    component "CitationIndex" as CitationIndex
+    component "SnapshotService" as SnapshotSvc
+    component "SnapshotStore" as SnapshotStore
+}
+
+' --- 基础设施层 ---
+package "WeaveDoc.Infrastructure\n(基础设施层)" as Infrastructure #F2F3F4 {
+    component "FileService" as FileService
+    component "PandocAdapter" as PandocAdapter
+    component "LLamaAdapter" as LLamaAdapter
+    component "ConfigurationService" as ConfigSvc
+    component "AuditLogger" as AuditLogger
+    component "SQLiteDatabase" as SQLiteDB
+}
+
+' --- 核心实体层 ---
+package "WeaveDoc.Core\n(核心实体层)" as Core #EAECEE {
+    component "DocumentIR" as DocIR
+    component "AFDTemplate" as AFDTpl
+    component "BibEntry" as BibEntry
+    component "CitationMap" as CiteMap
+    component "Snapshot" as Snapshot
+    component "VectorEntry" as VecEntry
+}
+
+' ========================================
+' 依赖关系
+' ========================================
+
+' UI 内部依赖
+Views --> ViewModels : 数据绑定
+
+' ViewModels 依赖服务层
+ViewModels --> Editing : IEditorService
+ViewModels --> Conversion : IExportService
+ViewModels --> AI : IRAGEngine
+ViewModels --> Literature : ISnapshotService
+
+' 服务层间依赖
+Conversion --> Literature : ICitationIndex
+Editing --> Literature : ISnapshotService
+AI --> Literature : 文献查询
+
+' 服务层依赖基础设施层
+Editing --> Infrastructure : IFileService
+Conversion --> Infrastructure : IPandocAdapter
+AI --> Infrastructure : ILLamaAdapter
+Literature --> Infrastructure : IFileService\nIConfigurationService
+
+' 所有模块依赖 Core（实体定义）
+UI --> Core
+Editing --> Core
+Conversion --> Core
+AI --> Core
+Literature --> Core
+Infrastructure --> Core
+
+legend right
+  |<#E8F8F5> 表示层 |
+  |<#FDEBD0> 服务层 - 编辑子系统 |
+  |<#FCF3CF> 服务层 - 转换子系统 |
+  |<#FDEDEC> 服务层 - AI子系统 |
+  |<#F5EEF8> 服务层 - 文献子系统 |
+  |<#F2F3F4> 基础设施层 |
+  |<#EAECEE> 核心实体层 |
+endlegend
+
+@enduml

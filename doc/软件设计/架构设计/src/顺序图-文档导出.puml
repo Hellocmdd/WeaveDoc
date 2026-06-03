@@ -1,0 +1,157 @@
+@startuml 顺序图-文档导出
+' ============================================
+' WeaveDoc 顺序图 — 用例A：学术文档高保真导出
+' 参与者 → 边界类 → 控制类 → 实体类
+' ============================================
+
+skinparam sequenceParticipantBackgroundColor #ECF0F1
+skinparam sequenceParticipantBorderColor #2C3E50
+skinparam sequenceActorBackgroundColor #FDEBD0
+skinparam sequenceActorBorderColor #E67E22
+skinparam sequenceBoxBackgroundColor #F8F9F9
+skinparam sequenceBoxBorderColor #BDC3C7
+skinparam noteBackgroundColor #FCF3CF
+skinparam noteBorderColor #F39C12
+
+title WeaveDoc — 用例A：学术文档高保真导出
+
+' ========================================
+' 参与者定义
+' ========================================
+actor "用户\n(研究者/学生)" as User
+
+' 边界类
+box "边界类 (Boundary)" #E8F8F5
+    participant "ExportDialog\n(导出对话框)" as ExportDialog
+    participant "MainWindow\n(主窗口)" as MainWindow
+end box
+
+' 控制类
+box "控制类 (Control)" #FDEDEC
+    participant "ExportController\n(导出控制器)" as ExportCtrl
+    participant "AFDPluginManager\n(模板管理器)" as PluginMgr
+    participant "CitationController\n(引文控制器)" as CitationCtrl
+    participant "PandocController\n(Pandoc 控制器)" as PandocCtrl
+end box
+
+' 实体类
+box "实体类 (Entity)" #F2F3F4
+    participant "AFDTemplate\n(AFD 样式模板)" as AFDTpl
+    participant "DocumentIR\n(文档中间表示)" as DocIR
+    participant "CitationMap\n(引文映射表)" as CiteMap
+    participant "BibEntry\n(文献条目)" as BibEntry
+end box
+
+' 外部
+box "外部系统" #FADBD8
+    participant "Pandoc CLI\n(转换引擎)" as PandocCLI
+    participant "FileSystem\n(文件系统)" as FS
+end box
+
+' ========================================
+' 交互流程
+' ========================================
+
+== 阶段1：发起导出请求 ==
+
+User -> ExportDialog : 1. 选择目标模板ID\n和导出路径
+activate ExportDialog
+
+ExportDialog -> ExportDialog : 2. 校验输入参数\n(模板ID非空, 路径合法)
+
+ExportDialog -> ExportCtrl : 3. ExportAsync(mdPath,\ntemplateId, format, outputPath)
+activate ExportCtrl
+
+== 阶段2：加载 AFD 样式模板 ==
+
+ExportCtrl -> PluginMgr : 4. LoadTemplate(templateId)
+activate PluginMgr
+
+PluginMgr -> AFDTpl : 5. 从模板目录加载\n并校验 JSON Schema
+activate AFDTpl
+
+AFDTpl --> PluginMgr : 6. 返回 AFDTemplate 实体
+deactivate AFDTpl
+
+PluginMgr --> ExportCtrl : 7. 返回已解析的模板对象
+deactivate PluginMgr
+
+== 阶段3：生成文档中间表示 (IR) ==
+
+ExportCtrl -> DocIR : 8. GenerateIR(markdownPath, template)
+activate DocIR
+
+DocIR -> DocIR : 9. 解析 Markdown AST\n提取段落/公式/引文标记
+
+DocIR -> FS : 10. 读取 .md 文件内容
+activate FS
+FS --> DocIR : 11. 返回 Markdown 文本
+deactivate FS
+
+DocIR --> ExportCtrl : 12. 返回 DocumentIR 中间表示
+deactivate DocIR
+
+== 阶段4：引文重排 (GB/T 7714) ==
+
+ExportCtrl -> CitationCtrl : 13. ReorderCitations(docIR)
+activate CitationCtrl
+
+CitationCtrl -> CiteMap : 14. 提取正文引文标记
+activate CiteMap
+
+CiteMap -> BibEntry : 15. 查询文献元数据
+activate BibEntry
+BibEntry --> CiteMap : 16. 返回文献条目列表
+deactivate BibEntry
+
+CiteMap -> CiteMap : 17. 按 GB/T 7714 规范\n重新编号并排序
+
+CiteMap --> CitationCtrl : 18. 返回重排后的 CitationMap
+deactivate CiteMap
+
+CitationCtrl -> DocIR : 19. 更新正文引用编号\n和文末参考文献列表
+
+CitationCtrl --> ExportCtrl : 20. 引文重排完成
+deactivate CitationCtrl
+
+== 阶段5：调用 Pandoc 转换 ==
+
+ExportCtrl -> PandocCtrl : 21. ConvertAsync(docIR, template, format)
+activate PandocCtrl
+
+PandocCtrl -> PandocCtrl : 22. 组装 Pandoc CLI 参数\n--from markdown --to docx\n--reference-doc=<AFD模板>
+
+PandocCtrl -> PandocCLI : 23. 启动子进程，传入 IR 数据
+activate PandocCLI
+
+PandocCLI -> PandocCLI : 24. 执行文档转换
+
+PandocCLI -> FS : 25. 写入目标文件
+activate FS
+FS --> PandocCLI : 26. 写入完成
+deactivate FS
+
+PandocCLI --> PandocCtrl : 27. 返回转换结果 (成功/失败)
+deactivate PandocCLI
+
+PandocCtrl --> ExportCtrl : 28. 返回 ExportResult
+deactivate PandocCtrl
+
+== 阶段6：返回结果与审计 ==
+
+ExportCtrl -> ExportCtrl : 29. 校验输出文件完整性
+
+ExportCtrl -> FS : 30. 写入审计日志
+activate FS
+FS --> ExportCtrl
+deactivate FS
+
+ExportCtrl --> ExportDialog : 31. 返回导出结果\n(文件路径 / 错误信息)
+deactivate ExportCtrl
+
+ExportDialog -> MainWindow : 32. 通知导出完成
+
+ExportDialog --> User : 33. 显示 "导出成功"\n提示框或错误详情
+deactivate ExportDialog
+
+@enduml

@@ -1,0 +1,197 @@
+    @startuml 顺序图-文档导出详细
+    ' ============================================
+    ' 用例1：学术文档高保真导出 - 详细顺序图
+    ' 基于实际代码：DocumentConversionEngine + PandocPipeline
+    ' 参与者 → 边界类 → 控制类 → 实体类 → 外部系统
+    ' ============================================
+
+    skinparam sequenceParticipantBackgroundColor #ECF0F1
+    skinparam sequenceParticipantBorderColor #2C3E50
+    skinparam sequenceActorBackgroundColor #FDEBD0
+    skinparam sequenceActorBorderColor #E67E22
+    skinparam sequenceBoxBackgroundColor #F8F9F9
+    skinparam sequenceBoxBorderColor #BDC3C7
+    skinparam noteBackgroundColor #FCF3CF
+    skinparam noteBorderColor #F39C12
+    skinparam maxMessageSize 300
+
+    title 用例1：学术文档高保真导出 — 详细顺序图
+
+    ' ========================================
+    ' 参与者定义
+    ' ========================================
+    actor "用户\n(研究者/学生)" as User
+
+    ' 边界类
+    box "边界类 (Boundary)" #E8F8F5
+        participant "ConvertTab\n(转换界面)" as ConvertTab
+    end box
+
+    ' 控制类
+    box "控制类 (Control)" #FDEDEC
+        participant "DocumentConversionEngine\n(文档转换引擎)" as Engine
+        participant "PandocPipeline\n(Pandoc管线)" as Pandoc
+        participant "ConfigManager\n(配置管理器)" as Config
+        participant "OpenXmlStyleCorrector\n(样式修正器)" as StyleCorrector
+    end box
+
+    ' 实体类
+    box "实体类 (Entity)" #F2F3F4
+        participant "AfdParser\n(AFD解析器)" as Parser
+        participant "ReferenceDocBuilder\n(参考文档构建器)" as RefBuilder
+        participant "AfdTemplate\n(AFD样式模板)" as Template
+        participant "TemplateRepository\n(模板仓库)" as Repo
+    end box
+
+    ' 外部系统
+    box "外部系统 / 基础设施" #FADBD8
+        participant "IPdfConverter\n(PDF转换策略)" as PdfConv
+        participant "Pandoc CLI\n(转换引擎)" as PandocCLI
+        participant "FileSystem\n(文件系统)" as FS
+    end box
+
+    ' ========================================
+    ' 交互流程
+    ' ========================================
+
+    == 阶段1：用户发起导出请求 ==
+
+    User -> ConvertTab : 1. 选择MD文件、模板、格式\n点击"转换"
+    activate ConvertTab
+
+    ConvertTab -> ConvertTab : 2. 校验输入参数\n(文件存在、输出路径合法)
+
+    ConvertTab -> Engine : 3. ConvertAsync(mdPath,\ntemplateId, format, pdfLayout, ct)
+    activate Engine
+
+    == 阶段2：加载AFD样式模板 ==
+
+    Engine -> Config : 4. GetTemplateAsync(templateId)
+    activate Config
+
+    Config -> Repo : 5. GetMetaAsync(templateId)
+    activate Repo
+    Repo -> Repo : 6. SELECT * FROM templates\nWHERE template_id = ?
+    Repo --> Config : AfdMeta (模板元数据)
+    deactivate Repo
+
+    Config -> Parser : 7. Parse(jsonPath)
+    activate Parser
+    Parser -> FS : 8. 读取 JSON 模板文件
+    activate FS
+    FS --> Parser : 9. JSON 文本内容
+    deactivate FS
+    Parser -> Parser : 10. 反序列化为 AfdTemplate\n校验必填字段
+    Parser --> Config : 11. AfdTemplate 实体
+    deactivate Parser
+
+    Config --> Engine : 12. AfdTemplate
+    deactivate Config
+
+    == 阶段3：构建Pandoc参考文档(reference.docx) ==
+
+    Engine -> RefBuilder : 13. Build(refDocPath, template)
+    activate RefBuilder
+    RefBuilder -> RefBuilder : 14. 使用 OpenXML API\n创建 reference.docx\n写入页面设置、样式定义\n页眉页脚
+    RefBuilder --> Engine : 15. refDocPath 已生成
+    deactivate RefBuilder
+
+    == 阶段4：Markdown预处理 ==
+
+    Engine -> Engine : 16. 调用 MarkdownHtmlTableNormalizer\nHTML表格 → pipe表格
+    Engine -> Engine : 17. 调用 MarkdownMathNormalizer\n\\textcircled{} → Unicode
+    Engine -> Engine : 18. 调用 MarkdownHtmlImageNormalizer\n<img> → MD图片语法
+    Engine -> FS : 19. 写入预处理后的临时MD文件
+    activate FS
+    FS --> Engine : 20. tempMdPath
+    deactivate FS
+
+    == 阶段5：Pandoc执行MD→DOCX转换 ==
+
+    Engine -> Pandoc : 21. ToDocxAsync(tempMdPath,\noutputDocx, refDocPath, luaFilter, ct)
+    activate Pandoc
+
+    Pandoc -> Pandoc : 22. 发现 Lua 筛选器\n(assign-block-styles.lua\nafd-heading-filter.lua)
+
+    Pandoc -> PandocCLI : 23. 启动 Pandoc 子进程\npandoc --from markdown\n--to docx\n--reference-doc=ref.docx\n--lua-filter=xxx.lua\n-o output.docx
+    activate PandocCLI
+
+    PandocCLI -> PandocCLI : 24. 执行文档转换
+
+    alt Pandoc 进程异常
+        PandocCLI --> Pandoc : 25a. PandocException\n(ExitCode, Stderr)
+        Pandoc -> Engine : 25b. 抛出 PandocException
+    else 正常完成
+        PandocCLI --> Pandoc : 25c. 转换完成 (ExitCode=0)
+    end
+    deactivate PandocCLI
+
+    Pandoc --> Engine : 26. DOCX 文件已生成
+    deactivate Pandoc
+
+    == 阶段6：OpenXML样式修正 ==
+
+    Engine -> StyleCorrector : 27. ApplyAfdStyles(docxPath, template)
+    activate StyleCorrector
+    StyleCorrector -> StyleCorrector : 28. 打开 DOCX (OpenXML)\n遍历段落，匹配样式\n移除冗余内联属性\n应用 AFD 定义的字体/字号/对齐
+    StyleCorrector --> Engine : 29. 样式修正完成
+    deactivate StyleCorrector
+
+    Engine -> StyleCorrector : 30. ApplyHeaderFooter(docxPath, headerFooter)
+    activate StyleCorrector
+    StyleCorrector --> Engine : 31. 页眉页脚已应用
+    deactivate StyleCorrector
+
+    == 阶段7：PDF转换（如需要） ==
+
+    alt 导出格式 == PDF
+        Engine -> StyleCorrector : 32. ApplyPdfLayout(docxPath,\npdfLayout, pdfConverter)
+        activate StyleCorrector
+        StyleCorrector -> StyleCorrector : 33. 双栏布局处理\n前置页检测\n宽表格跨栏处理
+        StyleCorrector --> Engine : 34. PDF布局已处理
+        deactivate StyleCorrector
+
+        Engine -> PdfConv : 35. ConvertToPdf(docxPath, pdfPath)
+        activate PdfConv
+        note right of PdfConv
+        <b>PDF转换策略链：</b>
+        1. WordComPdfConverter (Windows COM)
+        2. LibreOfficePdfConverter (headless)
+        3. SyncfusionPdfConverter (兜底)
+        按可用性自动选择。
+        end note
+
+        PdfConv -> PdfConv : 36. 尝试首选转换器\n失败则降级到下一个
+
+        alt 所有转换器失败
+            PdfConv --> Engine : 37a. InvalidOperationException
+        else 转换成功
+            PdfConv --> Engine : 37b. PDF 文件已生成
+        end
+        deactivate PdfConv
+    end
+
+    == 阶段8：返回结果 ==
+
+    Engine -> Engine : 38. 清理临时文件\n(预处理MD、ref.docx)
+
+    Engine -> Engine : 39. 格式化错误信息\nConversionErrorFormatter.ToUserMessage()
+
+    Engine --> ConvertTab : 40. ConversionResult\n{Success, OutputPath, Format,\nPdfConverterName, ErrorMessage}
+    deactivate Engine
+
+    alt 导出成功
+        ConvertTab --> User : 41a. 显示"导出成功"\n+ 输出文件路径
+    else 导出失败
+        ConvertTab --> User : 41b. 显示错误详情\n(用户友好的中文提示)
+    end
+    deactivate ConvertTab
+
+    note right of User
+    <b>转换管线总览：</b>
+    MD → 预处理 → Pandoc(MD→DOCX)
+    → OpenXML样式修正 → PDF(可选)
+    全部本地执行，无网络依赖。
+    end note
+
+    @enduml

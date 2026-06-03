@@ -1,0 +1,229 @@
+@startuml 顺序图-RAG问答详细
+' ============================================
+' 用例2：离线RAG文献问答 - 详细顺序图
+' 基于实际代码：LocalAiService + LlamaServerChatClient
+' 参与者 → 边界类 → 控制类 → 实体类 → 外部系统
+' ============================================
+
+skinparam sequenceParticipantBackgroundColor #ECF0F1
+skinparam sequenceParticipantBorderColor #2C3E50
+skinparam sequenceActorBackgroundColor #FDEBD0
+skinparam sequenceActorBorderColor #E67E22
+skinparam sequenceBoxBackgroundColor #F8F9F9
+skinparam sequenceBoxBorderColor #BDC3C7
+skinparam noteBackgroundColor #FCF3CF
+skinparam noteBorderColor #F39C12
+skinparam maxMessageSize 300
+
+title 用例2：离线RAG文献问答 — 详细顺序图
+
+' ========================================
+' 参与者定义
+' ========================================
+actor "用户\n(研究者/学生)" as User
+
+' 边界类
+box "边界类 (Boundary)" #E8F8F5
+    participant "MainWindow\n(主窗口)" as MainWindow
+    participant "RagTab\n(RAG问答面板)" as RagTab
+end box
+
+' 控制类
+box "控制类 (Control)" #FDEDEC
+    participant "RagTabViewModel\n(聊天视图模型)" as ChatVM
+    participant "LocalAiService\n(本地AI服务)" as AISvc
+    participant "QueryUnderstandingService\n(查询理解服务)" as QuerySvc
+    participant "AnswerComposer\n(回答组装器)" as Composer
+    participant "CandidateRetriever\n(候选检索器)" as Retriever
+    participant "ChunkRanker\n(分块排序器)" as Ranker
+end box
+
+' 实体类
+box "实体类 (Entity)" #F2F3F4
+    participant "LLamaEmbedder\n(向量嵌入器)" as Embedder
+    participant "LlamaServerChatClient\n(LLM聊天客户端)" as ChatClient
+    participant "LlamaServerProcess\n(Reranker进程)" as RerankerProc
+    participant "RagOptions\n(RAG配置)" as Options
+    participant "QueryProfile\n(查询画像)" as Profile
+    participant "ScoredChunk\n(评分分块)" as Scored
+end box
+
+' 外部系统
+box "外部系统 / 基础设施" #FADBD8
+    participant "llama-server\n(LLM推理服务)" as LlamaServer
+    participant "FileSystem\n(文件系统)" as FS
+end box
+
+' ========================================
+' 交互流程
+' ========================================
+
+== 阶段0：系统初始化（冷启动） ==
+
+User -> RagTab : 1. 切换到RAG问答标签页
+activate RagTab
+
+RagTab -> ChatVM : 2. InitializeAsync()
+activate ChatVM
+
+ChatVM -> AISvc : 3. InitializeAsync(ct)
+activate AISvc
+
+AISvc -> Options : 4. RagOptions.LoadFromEnvironment()
+activate Options
+Options --> AISvc : 5. 配置参数\n(模型路径、端口、TopK等)
+deactivate Options
+
+AISvc -> FS : 6. 扫描文档目录
+activate FS
+FS --> AISvc : 7. 文档文件列表
+deactivate FS
+
+AISvc -> Embedder : 8. LoadFromFileAsync(embeddingModelPath)
+activate Embedder
+Embedder -> Embedder : 9. 加载 GGUF Embedding 模型\n(BGE-small, LLamaWeights)
+Embedder --> AISvc : 10. LLamaEmbedder 就绪
+deactivate Embedder
+
+AISvc -> AISvc : 11. LoadCorpusAsync()\n对每个文档执行分块+向量化
+
+loop 对每个文档
+    AISvc -> AISvc : 12. MarkdownChunking/JsonChunking\n(标题分段/结构化分块)
+    AISvc -> Embedder : 13. 计算文本块向量
+    Embedder --> AISvc : 14. float[] 向量
+end
+
+AISvc -> AISvc : 15. 构建 EmbeddingCache\n(内存向量索引)
+
+AISvc -> RerankerProc : 16. StartIfNeededAsync(\nrerankerModelPath, port, ct)
+activate RerankerProc
+RerankerProc -> RerankerProc : 17. 启动 llama-server\n--embedding --pooling rank\n--reranking
+RerankerProc --> AISvc : 18. Reranker 服务就绪
+deactivate RerankerProc
+
+AISvc --> ChatVM : 19. 初始化完成
+deactivate AISvc
+
+ChatVM -> RagTab : 20. StatusText = "就绪"
+deactivate ChatVM
+RagTab --> User : 21. 显示"AI助手已就绪"
+deactivate RagTab
+
+== 阶段1：用户提交问题 ==
+
+User -> RagTab : 22. 输入问题\n"这篇论文的实验方法是什么？"
+activate RagTab
+
+RagTab -> ChatVM : 23. SendAsync()
+activate ChatVM
+
+ChatVM -> ChatVM : 24. IsBusy = true\n记录用户消息到ConversationText
+
+ChatVM -> AISvc : 25. AskAsync(question,\nhistory, ct)
+activate AISvc
+
+== 阶段2：查询理解 ==
+
+AISvc -> QuerySvc : 26. BuildProfile(question)
+activate QuerySvc
+QuerySvc -> QuerySvc : 27. LocalAiQuestionAnalyzer.BuildProfile()\n正则匹配意图(explain/compare/...)\n提取焦点术语\n检测追问/新问题
+QuerySvc -> Profile : 28. 构建 QueryProfile\n{Intent, FocusTerms, IsFollowUp}
+activate Profile
+Profile --> QuerySvc : 29. QueryProfile
+deactivate Profile
+QuerySvc --> AISvc : 30. QueryProfile
+deactivate QuerySvc
+
+== 阶段3：检索相关文档分块 ==
+
+AISvc -> Embedder : 31. 计算问题向量
+activate Embedder
+Embedder --> AISvc : 32. queryEmbedding: float[]
+deactivate Embedder
+
+AISvc -> AISvc : 33. FindRelevantChunksAsync()\n计算余弦相似度\n(内存 EmbeddingCache)
+
+loop 对每个缓存向量
+    AISvc -> AISvc : 34. cosineSimilarity =\ndot(A,B) / (norm(A)*norm(B))
+end
+
+AISvc -> AISvc : 35. 取 Top-K 候选分块
+
+AISvc -> Retriever : 36. TryRerankWithLearnedModelAsync(\nquery, candidates, ct)
+activate Retriever
+Retriever -> LlamaServer : 37. HTTP POST /rerank\n{query, documents}
+activate LlamaServer
+LlamaServer --> Retriever : 38. RerankScore[]\n(重排序分数)
+deactivate LlamaServer
+Retriever --> AISvc : 39. LearnedRerankResult\n(优化后的排序)
+deactivate Retriever
+
+AISvc -> Ranker : 40. ComputeTopChunkIntentBoost(\nchunk, profile)
+activate Ranker
+Ranker -> Ranker : 41. 根据查询意图计算加权\n(procedure/compare/definition\n各自不同的质量提升策略)
+Ranker --> AISvc : 42. boostedScore
+deactivate Ranker
+
+AISvc -> Scored : 43. 构建 ScoredChunk 列表\n(最终排序结果)
+activate Scored
+Scored --> AISvc : 44. 排序后的候选分块
+deactivate Scored
+
+== 阶段4：组装Prompt并推理 ==
+
+AISvc -> Composer : 45. BuildPrompt(question,\nscoredChunks, history)
+activate Composer
+Composer -> Composer : 46. 组装 System Prompt:\n角色定义 + 参考内容 + 问题\n+ 对话历史
+Composer --> AISvc : 47. 完整 Prompt
+deactivate Composer
+
+AISvc -> ChatClient : 48. CompleteAsync(prompt, ct)
+activate ChatClient
+
+ChatClient -> LlamaServer : 49. HTTP POST /v1/chat/completions\n{model, messages, stream}
+activate LlamaServer
+
+loop 流式生成每个 Token
+    LlamaServer --> ChatClient : 50. SSE data: {"choices":[{"delta":{"content":"token"}}]}
+    ChatClient --> AISvc : 51. token string
+    AISvc --> ChatVM : 52. 追加到 ConversationText
+    ChatVM --> RagTab : 53. 更新界面显示
+    RagTab --> User : 54. 实时显示回答
+end
+
+alt 响应被截断(长度限制)
+    LlamaServer --> ChatClient : 55a. finish_reason: "length"
+    ChatClient -> ChatClient : 55b. 自动发送续写请求\n传入已生成内容作为前缀
+    ChatClient -> LlamaServer : 55c. POST /v1/chat/completions\n(continuation)
+end
+
+LlamaServer --> ChatClient : 56. 推理完成
+deactivate LlamaServer
+
+ChatClient --> AISvc : 57. 完整回答文本
+deactivate ChatClient
+
+== 阶段5：后处理与展示 ==
+
+AISvc -> AISvc : 58. AnswerPostProcessing\n引用归一化\n离题检测\n修复提示(如有必要)
+
+AISvc --> ChatVM : 59. 最终回答文本\n+ LastRetrievalDebug
+deactivate AISvc
+
+ChatVM -> ChatVM : 60. IsBusy = false
+ChatVM --> RagTab : 61. ConversationText 已更新
+deactivate ChatVM
+
+RagTab --> User : 62. 显示完整回答
+deactivate RagTab
+
+note right of User
+  <b>离线保障：</b>
+  · Embedding → 本地 LLamaSharp
+  · 检索 → 内存 EmbeddingCache
+  · LLM → 本地 llama-server
+  · Reranker → 本地 llama-server
+  · 无外部网络请求。
+end note
+
+@enduml

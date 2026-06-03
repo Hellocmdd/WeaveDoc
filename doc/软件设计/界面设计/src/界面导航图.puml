@@ -1,0 +1,58 @@
+@startuml
+title WeaveDoc 界面导航图
+
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam state {
+  BackgroundColor #F8F9FA
+  BorderColor #D8DEE4
+  FontColor #1C2128
+}
+skinparam ArrowColor #0969DA
+
+[*] --> Start
+state "启动 WeaveDoc" as Start
+state "是否首次启动" as FirstLaunch <<choice>>
+state "首次配置向导\nSetup Wizard" as Setup
+state "工作台\nWorkspace" as Workspace
+
+state "AI 问答面板\nChat Panel" as AI
+state "文献列表面板\nLiterature Panel" as Literature
+state "快照时间轴面板\nSnapshot Timeline" as Snapshot
+state "导出对话框\nExport Dialog" as Export
+state "设置页面\nSettings" as Settings
+state "帮助 / 关于\nHelp About" as Help
+state "公式提取浮层\nOCR Floating Toolbar" as OCR
+state "PDF 阅读器定位原文" as PDF
+state "Markdown 编辑器插入内容" as Editor
+state "快照预览区" as Preview
+state "恢复确认对话框" as Confirm
+
+Start --> FirstLaunch
+FirstLaunch --> Setup : 是
+FirstLaunch --> Workspace : 否
+Setup --> Workspace : 完成配置
+
+Workspace --> AI : Ctrl+Shift+A / 工具栏 AI
+Workspace --> Literature : Ctrl+Shift+L / Refs 状态项
+Workspace --> Snapshot : Ctrl+Shift+T
+Workspace --> Export : Ctrl+Shift+E / 导出按钮
+Workspace --> Settings : Ctrl+,
+Workspace --> Help : F1 / Help 菜单
+Workspace --> OCR : PDF 框选公式
+
+AI --> PDF : 点击引用溯源
+Literature --> Editor : 双击或拖拽引用键
+Snapshot --> Preview : 选择快照
+Snapshot --> Confirm : 恢复版本
+Export --> Settings : 管理模板
+OCR --> Editor : 复制 LaTeX
+
+Settings --> Workspace : 关闭
+Help --> Workspace : 关闭
+PDF --> Workspace : 返回工作台
+Editor --> Workspace : 返回工作台
+Preview --> Snapshot : 返回时间轴
+Confirm --> Snapshot : 取消或恢复完成
+
+@enduml
