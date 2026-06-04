@@ -6,14 +6,24 @@ public sealed class PdfRendererDetector
 {
     private static readonly string[] LibreOfficePaths =
     [
+        // Windows
         @"C:\Program Files\LibreOffice\program\soffice.exe",
-        @"C:\Program Files (x86)\LibreOffice\program\soffice.exe"
+        @"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+        // Linux
+        "/usr/bin/soffice",
+        "/usr/local/bin/soffice",
+        "/opt/libreoffice/program/soffice",
+        // macOS
+        "/Applications/LibreOffice.app/Contents/MacOS/soffice"
     ];
 
     private static readonly string[] WordPaths =
     [
+        // Windows
         @"C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE",
-        @"C:\Program Files (x86)\Microsoft Office\root\Office16\WINWORD.EXE"
+        @"C:\Program Files (x86)\Microsoft Office\root\Office16\WINWORD.EXE",
+        // macOS
+        @"/Applications/Microsoft Word.app/Contents/MacOS/Microsoft Word"
     ];
 
     private readonly string? _libreOfficePathOverride;
