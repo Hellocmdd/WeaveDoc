@@ -39,14 +39,16 @@ README files under `llama.cpp/` are upstream documentation and are intentionally
 ## Quick Start
 
 ```bash
+git clone --recurse-submodules https://github.com/Hellocmdd/WeaveDoc.git
+cd WeaveDoc
 dotnet build WeaveDoc.slnx
 dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj
 ```
 
 The build imports `tools/DownloadExternalTools.targets` and runs the platform setup script when Pandoc is missing:
 
-- Windows: `scripts/setup-tools.ps1`
-- Linux/macOS: `scripts/setup-tools.sh`
+- Windows: `tools/setup-tools.ps1`
+- Linux/macOS: `tools/setup-tools.sh`
 
 Set `SkipExternalToolsDownload=true` if you want to skip the automatic download.
 
