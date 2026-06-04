@@ -1,0 +1,45 @@
+@startuml
+title WeaveDoc AI 文献问答界面交互顺序图
+
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #0969DA
+  LifeLineBorderColor #D8DEE4
+  LifeLineBackgroundColor #F8F9FA
+  ParticipantBorderColor #D8DEE4
+  ParticipantBackgroundColor #F8F9FA
+}
+
+actor "用户" as U
+boundary "工作台" as W
+boundary "AI 问答面板" as A
+boundary "模型状态条" as M
+control "RAG 检索服务" as R
+control "本地 LLM" as L
+boundary "PDF 阅读器" as P
+
+U -> W : 打开 AI 问答面板
+W -> A : 展开右侧上下文面板并激活 AI Tab
+A -> M : 查询模型状态
+M --> A : 返回未加载 / 加载中 / 就绪
+
+alt 模型未加载且允许自动加载
+  A -> M : 显示加载进度
+  M --> A : 模型就绪
+else 模型未配置
+  A --> U : 提示进入设置页面配置模型
+end
+
+U -> A : 输入问题并发送
+A -> R : 向量化问题并检索相关片段
+R --> A : 返回 Top-N 原文片段和页码
+A -> L : 组装 Prompt 并请求本地推理
+L --> A : 流式返回回答 Token
+A --> U : 展示流式回答
+A --> U : 显示引用溯源芯片
+U -> A : 点击 [1] p.3
+A -> P : 跳转到对应 PDF 页码和段落
+P --> U : 高亮原文出处
+
+@enduml

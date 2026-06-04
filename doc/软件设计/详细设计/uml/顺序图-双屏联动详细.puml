@@ -1,0 +1,241 @@
+@startuml 顺序图-双屏联动详细
+' ============================================
+' 用例3：双屏联动编辑与预览 - 详细顺序图
+' 基于实际代码：MonacoEditorControl + PreviewWebViewControl + PdfViewerControl
+' 参与者 → 边界类 → 控制类 → 实体类 → 外部系统
+' ============================================
+
+skinparam sequenceParticipantBackgroundColor #ECF0F1
+skinparam sequenceParticipantBorderColor #2C3E50
+skinparam sequenceActorBackgroundColor #FDEBD0
+skinparam sequenceActorBorderColor #E67E22
+skinparam sequenceBoxBackgroundColor #F8F9F9
+skinparam sequenceBoxBorderColor #BDC3C7
+skinparam noteBackgroundColor #FCF3CF
+skinparam noteBorderColor #F39C12
+skinparam maxMessageSize 300
+
+title 用例3：双屏联动编辑与预览 — 详细顺序图
+
+' ========================================
+' 参与者定义
+' ========================================
+actor "用户\n(研究者/学生)" as User
+
+' 边界类
+box "边界类 (Boundary)" #E8F8F5
+    participant "MainWindow\n(主窗口)" as MainWindow
+    participant "MarkdownEditorTab\n(编辑器标签页)" as EditorTab
+end box
+
+' 控制类
+box "控制类 (Control)" #FDEDEC
+    participant "MainWindowViewModel\n(主窗口VM)" as VM
+    participant "MarkdownService\n(MD转换服务)" as MDService
+end box
+
+' 实体类
+box "实体类 (Entity)" #F2F3F4
+    participant "MonacoEditorControl\n(Monaco编辑器)" as Monaco
+    participant "PreviewWebViewControl\n(HTML预览)" as Preview
+    participant "PdfViewerControl\n(PDF查看器)" as PdfViewer
+end box
+
+' 外部系统
+box "外部系统 / 基础设施" #FADBD8
+    participant "WebView2\n(Chromium内核)" as WebView2
+    participant "PDF.js\n(PDF渲染引擎)" as PdfJs
+    participant "FileSystem\n(文件系统)" as FS
+end box
+
+' ========================================
+' 交互流程
+' ========================================
+
+== 阶段1：打开工作区并初始化编辑器 ==
+
+User -> MainWindow : 1. 切换到"编辑器"标签页
+activate MainWindow
+
+MainWindow -> EditorTab : 2. ActivateAsync()
+activate EditorTab
+
+EditorTab -> Monaco : 3. Activate(forceReset: false)
+activate Monaco
+Monaco -> WebView2 : 4. 确保 WebView2 运行时初始化
+activate WebView2
+WebView2 --> Monaco : 5. 运行时就绪
+Monaco -> WebView2 : 6. 加载 monaco-editor/index.html
+WebView2 --> Monaco : 7. Monaco 编辑器已加载
+Monaco -> Monaco : 8. _isReady = true
+Monaco --> EditorTab : 9. Monaco 激活完成
+deactivate Monaco
+
+EditorTab -> Preview : 10. Activate(forceReset: false)
+activate Preview
+Preview -> WebView2 : 11. 加载 preview-template.html
+WebView2 --> Preview : 12. 预览模板已加载
+Preview -> Preview : 13. 注册 WeaveDocHost\nCOM可见对象(JS互操作)
+Preview --> EditorTab : 14. 预览激活完成
+deactivate Preview
+
+EditorTab -> PdfViewer : 15. Activate()
+activate PdfViewer
+PdfViewer -> PdfViewer : 16. 启动本地 HTTP 服务\n(PDF.js 资源服务)
+PdfViewer -> WebView2 : 17. 加载 PDF.js viewer.html
+WebView2 --> PdfViewer : 18. PDF.js 就绪
+PdfViewer --> EditorTab : 19. PDF查看器激活完成
+deactivate PdfViewer
+
+EditorTab --> MainWindow : 20. 编辑器标签页已激活
+deactivate EditorTab
+
+== 阶段2：加载文件 ==
+
+User -> MainWindow : 21. 打开 .md 文件
+MainWindow -> EditorTab : 22. LoadMarkdownFile(mdPath)
+activate EditorTab
+
+EditorTab -> FS : 23. ReadTextAsync(mdPath)
+activate FS
+FS --> EditorTab : 24. markdownContent
+deactivate FS
+
+EditorTab -> Monaco : 25. SetContentAsync(content)
+activate Monaco
+Monaco -> WebView2 : 26. PostWebMessageAsJson\n{type: "setContent", content}
+WebView2 -> WebView2 : 27. Monaco.setValue(content)
+WebView2 --> Monaco : 28. 内容已设置
+Monaco --> EditorTab : 29. Task 完成
+deactivate Monaco
+
+EditorTab -> VM : 30. EditorContent = content
+activate VM
+VM -> MDService : 31. ConvertMarkdownToHtmlWithCharPositions(content)
+activate MDService
+MDService -> MDService : 32. 正则替换：标题/列表/代码块\n插入 data-line, data-pos 属性
+MDService --> VM : 33. html (带行号标记)
+deactivate MDService
+
+VM -> EditorTab : 34. PreviewHtml = html
+deactivate VM
+
+EditorTab -> Preview : 35. SetContent(html)
+activate Preview
+Preview -> WebView2 : 36. 调用 JS: updatePreview(html)
+WebView2 -> WebView2 : 37. 渲染 Markdown 预览
+Preview --> EditorTab : 38. 预览已更新
+deactivate Preview
+
+EditorTab --> MainWindow : 39. 文件加载完成
+deactivate EditorTab
+
+User -> MainWindow : 40. 打开 .pdf 文件
+MainWindow -> EditorTab : 41. LoadPdfFile(pdfPath)
+activate EditorTab
+EditorTab -> PdfViewer : 42. LoadPdfAsync(pdfPath)
+activate PdfViewer
+PdfViewer -> WebView2 : 43. 调用 JS: PDFViewerApplication.open(pdfUrl)
+WebView2 -> PdfJs : 44. PDF.js 渲染 PDF 页面
+PdfJs --> WebView2 : 45. 页面渲染完成
+WebView2 --> PdfViewer : 46. PDF 已显示
+PdfViewer --> EditorTab : 47. 加载完成
+deactivate PdfViewer
+deactivate EditorTab
+
+== 阶段3：实时编辑与预览同步 ==
+
+User -> Monaco : 48. 输入/修改 Markdown 文本
+activate Monaco
+
+Monaco -> WebView2 : 49. Monaco onDidChangeModelContent\n事件触发
+WebView2 --> Monaco : 50. PostMessage to host:\n{type: "contentChanged", content}
+
+Monaco -> EditorTab : 51. OnContentChanged(content)
+activate EditorTab
+
+EditorTab -> VM : 52. EditorContent = content
+activate VM
+VM -> MDService : 53. ConvertMarkdownToHtmlWithCharPositions(content)
+MDService --> VM : 54. 更新后的 HTML
+VM -> EditorTab : 55. PreviewHtml 已更新
+deactivate VM
+
+EditorTab -> Preview : 56. SetContent(html)
+activate Preview
+Preview -> WebView2 : 57. 增量更新预览
+Preview --> EditorTab : 58. 预览已刷新
+deactivate Preview
+
+deactivate EditorTab
+deactivate Monaco
+
+EditorTab --> User : 59. 编辑器+预览同步更新
+
+note right of User
+  <b>性能保障 (NFR-01)：</b>
+  Monaco 编辑器基于 Chromium
+  的 WebView2 渲染，键入响应 < 30ms。
+  Markdown→HTML 转换为
+  内存中正则操作，延迟极低。
+end note
+
+== 阶段4：双向滚动联动 ==
+
+User -> Monaco : 60. 滚动编辑器到第50行
+activate Monaco
+
+Monaco -> WebView2 : 61. Monaco 滚动事件
+WebView2 --> Monaco : 62. PostMessage:\n{type: "scrollSync", line: 50}
+
+Monaco -> EditorTab : 63. ScrollPreviewToSelection(\nline=50, col=0, len=0)
+activate EditorTab
+
+EditorTab -> Preview : 64. ScrollToLine(line=50)
+activate Preview
+
+Preview -> WebView2 : 65. 调用 JS:\n查找 [data-line="50"] 元素\nscrollIntoView()
+WebView2 -> WebView2 : 66. 定位到第50行对应的\nHTML预览位置
+
+Preview --> EditorTab : 67. 预览已滚动
+deactivate Preview
+
+deactivate EditorTab
+deactivate Monaco
+
+EditorTab --> User : 68. 预览自动同步到编辑位置
+
+== 阶段5：编辑器选中高亮 ==
+
+User -> Monaco : 69. 选中编辑器中的一段文字
+activate Monaco
+
+Monaco -> WebView2 : 70. Monaco onDidChangeCursorSelection
+WebView2 --> Monaco : 71. PostMessage:\n{type: "selectionChanged",\nstartLine, endLine, startCol}
+
+Monaco -> EditorTab : 72. ScrollPreviewToSelection(\nstartLine, endLine)
+activate EditorTab
+
+EditorTab -> Preview : 73. ScrollToSelection(startLine, endLine)
+activate Preview
+Preview -> WebView2 : 74. 调用 JS:\n高亮对应预览区域\nscrollIntoView()
+Preview --> EditorTab : 75. 预览已定位并高亮
+deactivate Preview
+
+deactivate EditorTab
+deactivate Monaco
+
+EditorTab --> User : 76. 预览区域高亮显示选中内容
+
+== 阶段6：PDF全屏查看 ==
+
+User -> PdfViewer : 77. 点击全屏按钮
+activate PdfViewer
+
+PdfViewer -> PdfViewer : 78. ToggleFullScreen()
+PdfViewer -> WebView2 : 79. 调用 JS:\nPDFViewerApplication.pdfViewer\n改变页面布局
+
+PdfViewer --> User : 80. PDF 进入全屏/退出全屏
+deactivate PdfViewer
+
+@enduml

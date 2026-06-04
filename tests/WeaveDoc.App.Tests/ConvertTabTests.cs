@@ -303,7 +303,9 @@ public class ConvertTabTests : IDisposable
         {
             WasCalled = true;
             using var doc = WordprocessingDocument.Open(docxPath, false);
-            var finalSection = doc.MainDocumentPart!.Document.Body!.Elements<SectionProperties>().Last();
+            var body = doc.MainDocumentPart?.Document?.Body
+                       ?? throw new InvalidOperationException("DOCX 缺少主文档 Body。");
+            var finalSection = body.Elements<SectionProperties>().Last();
             SawTwoColumnFinalSection = finalSection.GetFirstChild<Columns>()?.ColumnCount?.Value == 2;
             if (!SawTwoColumnFinalSection)
                 Failure = "最终 section 没有收到双列设置，说明 UI 没有把 TwoColumn 传入转换引擎。";

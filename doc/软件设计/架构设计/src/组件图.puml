@@ -1,0 +1,128 @@
+@startuml 组件图
+' ============================================
+' WeaveDoc 组件图
+' 展示系统的物理组件及其之间的连接关系
+' ============================================
+
+skinparam componentBackgroundColor #ECF0F1
+skinparam componentBorderColor #2C3E50
+skinparam interfaceBackgroundColor #FDEBD0
+skinparam interfaceBorderColor #E67E22
+skinparam databaseBackgroundColor #A2D9CE
+skinparam databaseBorderColor #1ABC9C
+skinparam arrowColor #7F8C8D
+skinparam arrowThickness 1.5
+skinparam folderBackgroundColor #F9E79F
+skinparam folderBorderColor #F39C12
+
+title WeaveDoc 系统组件图
+
+' ========================================
+' 主应用程序组件
+' ========================================
+component "WeaveDoc.exe\n(主应用程序)" as WeaveDocApp #D5F5E3 {
+    component "Avalonia UI 运行时" as AvaloniaRuntime
+    component "MVVM 绑定引擎" as MVVMEngine
+    component "编辑引擎" as EditEngine
+    component "转换引擎" as ConvertEngine
+    component "AI 引擎" as AIEngine
+    component "文献引擎" as LitEngine
+}
+
+' ========================================
+' 外部可执行组件
+' ========================================
+component "Pandoc CLI\n(外部转换引擎)" as PandocCLI #FADBD8
+
+' ========================================
+' 接口定义
+' ========================================
+interface "进程通信\n(stdin/stdout)" as PandocIO
+
+' ========================================
+' 模型文件
+' ========================================
+artifact "GGUF 模型文件" as GGUFModel #FCF3CF {
+    artifact "LLM 模型\n(如 Phi-4 7B)" as LLMModel
+    artifact "Embedding 模型\n(如 BGE-small)" as EmbedModel
+    artifact "OCR 视觉模型" as OCRModel
+}
+
+' ========================================
+' 数据存储
+' ========================================
+database "SQLite\n本地数据库" as SQLiteDB #A2D9CE
+
+folder "本地文件系统" as FileSystem #F9E79F {
+    folder "工作区目录\n(*.md, *.pdf)" as Workspace
+    folder "模板目录\n(*.json AFD)" as TemplateDir
+    folder "快照目录\n(*.snap)" as SnapshotDir
+    folder "文献目录\n(*.bib)" as BibDir
+    folder "日志目录\n(audit.log)" as LogDir
+}
+
+' ========================================
+' 外部系统接口
+' ========================================
+component "Zotero\nBetter BibTeX" as Zotero #EBF5FB
+
+' ========================================
+' 服务层接口
+' ========================================
+interface "ISyncEngine" as ISync
+interface "IExportService" as IExport
+interface "IRAGEngine" as IRAG
+interface "ISnapshotService" as ISnapshot
+interface "IFileService" as IFile
+interface "IPandocAdapter" as IPandoc
+interface "ILLamaAdapter" as ILLaMa
+interface "IZoteroSyncService" as IZoteroSync
+
+' ========================================
+' 组件连接关系
+' ========================================
+
+' 主应用内部引擎
+WeaveDocApp --> EditEngine
+WeaveDocApp --> ConvertEngine
+WeaveDocApp --> AIEngine
+WeaveDocApp --> LitEngine
+
+' 引擎间关系
+EditEngine --> ConvertEngine : IExport
+EditEngine --> AIEngine : IRAG
+EditEngine --> LitEngine : ISnapshot
+ConvertEngine --> LitEngine : ICitationIndex
+AIEngine --> LitEngine : 文献查询
+
+' 转换引擎调用 Pandoc
+ConvertEngine --> IPandoc : 调用
+IPandoc --> PandocIO : 通信
+PandocIO --> PandocCLI : 进程通信
+
+' AI 引擎加载模型
+AIEngine --> ILLaMa : 调用
+ILLaMa --> GGUFModel : 加载
+
+' 应用与存储
+WeaveDocApp --> SQLiteDB : 读写
+WeaveDocApp --> FileSystem : 读写
+WeaveDocApp --> Zotero : ZoteroSync
+
+' 文件服务与目录
+IFile --> Workspace
+IFile --> TemplateDir
+IFile --> SnapshotDir
+IFile --> BibDir
+IFile --> LogDir
+
+legend right
+  |<#D5F5E3> 主应用组件 |
+  |<#FADBD8> 外部可执行组件 |
+  |<#FCF3CF> AI 模型文件 |
+  |<#A2D9CE> 数据库 |
+  |<#F9E79F> 文件系统 |
+  |<#EBF5FB> 外部系统 |
+endlegend
+
+@enduml

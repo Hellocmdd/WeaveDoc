@@ -1,0 +1,41 @@
+@startuml
+title WeaveDoc 公式 OCR 界面交互顺序图
+
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #0969DA
+  LifeLineBorderColor #D8DEE4
+  LifeLineBackgroundColor #F8F9FA
+  ParticipantBorderColor #D8DEE4
+  ParticipantBackgroundColor #F8F9FA
+}
+
+actor "用户" as U
+boundary "PDF 阅读器" as P
+boundary "公式提取浮层" as O
+control "OCR 视觉模型" as V
+collections "系统剪贴板" as Clip
+boundary "Markdown 编辑器" as M
+
+U -> P : 拖拽框选公式区域
+P --> U : 显示蓝色半透明选区
+P -> O : 松开鼠标后弹出浮层
+O --> U : 显示“正在识别公式...”
+O -> V : 提交选区截图
+
+alt OCR 模型已加载
+  V --> O : 返回 LaTeX 代码
+  O --> U : 展示识别结果和复制按钮
+  U -> O : 点击复制 LaTeX
+  O -> Clip : 写入 LaTeX 代码
+  O --> U : Toast 提示已复制
+  U -> M : 粘贴 LaTeX 公式
+else OCR 模型未加载
+  O --> U : 显示模型加载进度和取消入口
+  O -> V : 加载模型后重试识别
+else 识别失败
+  O --> U : 显示失败原因和重新框选入口
+end
+
+@enduml

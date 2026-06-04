@@ -1,0 +1,122 @@
+@startuml ER图
+' ============================================
+' WeaveDoc 数据库概念结构设计 - E-R 图
+' 基于实际代码：仅 templates 表 + 文件系统存储
+' ============================================
+
+skinparam linetype ortho
+skinparam entityBackgroundColor #ECF0F1
+skinparam entityBorderColor #2C3E50
+skinparam classAttributeIconSize 0
+
+title WeaveDoc 数据库 E-R 图
+
+' ========================================
+' SQLite 数据库实体
+' ========================================
+
+entity "templates\n(模板表)" as Templates {
+    * template_id : TEXT <<PK>>
+    --
+    name : TEXT NOT NULL
+    version : TEXT
+    author : TEXT
+    description : TEXT
+    json_path : TEXT NOT NULL
+    created_at : TEXT
+    updated_at : TEXT
+}
+
+' ========================================
+' 文件系统存储实体
+' ========================================
+
+entity "Markdown文档\n(文件系统)" as MDFiles {
+    * file_path : TEXT <<PK>>
+    --
+    title : TEXT
+    content : TEXT
+    last_modified : DATETIME
+}
+
+entity "PDF文档\n(文件系统)" as PDFFiles {
+    * file_path : TEXT <<PK>>
+    --
+    page_count : INTEGER
+    last_modified : DATETIME
+}
+
+entity "AFD模板JSON\n(文件系统)" as AFDJson {
+    * json_path : TEXT <<PK>>
+    --
+    template_id : TEXT <<FK>>
+    schema_version : TEXT
+    content : JSON
+}
+
+entity "GGUF模型文件\n(文件系统)" as GGUFModels {
+    * model_path : TEXT <<PK>>
+    --
+    model_type : TEXT
+    <<类型: LLM / Embedding / Reranker>>
+    file_size : BIGINT
+}
+
+entity "Lua筛选器\n(文件系统)" as LuaFilters {
+    * filter_path : TEXT <<PK>>
+    --
+    filter_name : TEXT
+    content : TEXT
+}
+
+' ========================================
+' 内存缓存实体（RAG）
+' ========================================
+
+entity "DocumentChunk\n(内存缓存)" as DocChunk {
+    * chunk_id : TEXT <<PK>>
+    --
+    source_file : TEXT <<FK>>
+    chunk_index : INTEGER
+    text : TEXT
+    embedding : float[]
+    token_count : INTEGER
+}
+
+entity "EmbeddingCache\n(内存缓存)" as EmbCache {
+    * cache_id : TEXT <<PK>>
+    --
+    model_path : TEXT <<FK>>
+    dimension : INTEGER
+    entry_count : INTEGER
+}
+
+' ========================================
+' 关系定义
+' ========================================
+
+Templates ||--|| AFDJson : "1:1\n模板元数据→JSON文件"
+MDFiles ||--o{ DocChunk : "1:N\n一个文档切分为多个块"
+GGUFModels ||--|| EmbCache : "1:1\n一个模型对应一个缓存"
+PDFFiles ||--o| MDFiles : "关联\nPDF与其对应编辑的MD"
+
+note right of Templates
+  <b>数据库说明：</b>
+  SQLite (Microsoft.Data.Sqlite)
+  数据库文件: data/weavedoc.db
+  目前仅 templates 一张表。
+  其他数据通过文件系统存储
+  或内存缓存管理。
+end note
+
+note right of DocChunk
+  <b>内存缓存说明：</b>
+  RAG分块和向量在
+  LocalAiService 初始化时
+  全部加载到内存
+  (EmbeddingCache)，
+  不持久化到数据库。
+  服务重启后重新构建。
+end note
+
+@enduml

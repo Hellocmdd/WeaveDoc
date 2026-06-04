@@ -65,6 +65,7 @@ public class PdfConverterSelectionTests
     {
         var fallback = new RecordingPdfConverter("Syncfusion DocIO", "syncfusion");
         var detector = new PdfRendererDetector(
+            libreOfficePathOverride: Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}", "soffice.exe"),
             isWindowsOverride: true,
             wordComAvailableOverride: true);
         var converter = new CompositePdfConverter(

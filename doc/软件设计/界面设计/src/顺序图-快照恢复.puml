@@ -1,0 +1,45 @@
+@startuml
+title WeaveDoc 快照恢复界面交互顺序图
+
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #0969DA
+  LifeLineBorderColor #D8DEE4
+  LifeLineBackgroundColor #F8F9FA
+  ParticipantBorderColor #D8DEE4
+  ParticipantBackgroundColor #F8F9FA
+}
+
+actor "用户" as U
+boundary "快照时间轴面板" as S
+boundary "快照预览区" as P
+boundary "确认对话框" as C
+boundary "Markdown 编辑器" as E
+database "快照存储" as Store
+
+U -> S : 打开快照时间轴面板
+S -> Store : 读取快照列表
+Store --> S : 返回快照节点
+S --> U : 显示时间轴
+U -> S : 点击历史快照节点
+S -> Store : 重建历史版本内容
+Store --> P : 返回只读 Markdown 内容
+P --> U : 显示预览
+U -> S : 点击恢复到此版本
+S -> C : 弹出恢复确认
+C --> U : 提示当前内容将被覆盖且会先创建保护性快照
+
+alt 用户确认恢复
+  C -> Store : 保存当前编辑器内容为保护性快照
+  Store --> C : 保存成功
+  C -> E : 用历史版本替换当前编辑器内容
+  E --> S : 通知恢复完成
+  S -> Store : 刷新快照列表
+  S --> U : 显示新的当前版本节点
+else 用户取消
+  C --> S : 关闭确认对话框
+  S --> U : 保持当前编辑内容不变
+end
+
+@enduml

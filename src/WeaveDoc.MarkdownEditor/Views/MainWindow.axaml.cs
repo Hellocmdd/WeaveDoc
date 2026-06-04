@@ -1,10 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using WeaveDoc.MarkdownEditor.ViewModels;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
+using System.Linq;
 using WeaveDoc.MarkdownEditor.Helpers;
 using WeaveDoc.MarkdownEditor.Controls;
 
@@ -16,6 +17,7 @@ namespace WeaveDoc.MarkdownEditor.Views
         private PreviewWebViewControl? _previewWebView;
         private PdfViewerControl? _pdfViewer;
         private bool _isMonacoReady = false;
+        private bool _isPreviewInitialized = false;
         private (int line, int column)? _pendingScrollRequest = null;
         private string _lastPdfFilePath = string.Empty;
 
@@ -29,6 +31,8 @@ namespace WeaveDoc.MarkdownEditor.Views
 
         public string PreviewHtml =>
             DataContext is MainWindowViewModel vm ? vm.PreviewHtml : string.Empty;
+
+        private bool _isPdfViewerInitialized = false;
 
         private async void OnKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
         {
@@ -49,21 +53,40 @@ namespace WeaveDoc.MarkdownEditor.Views
             _previewWebView = this.FindControl<PreviewWebViewControl>("PreviewWebView");
             _pdfViewer = this.FindControl<PdfViewerControl>("PdfViewer");
 
+            var tabControl = this.FindControl<TabControl>("MainTabControl");
+            if (tabControl != null)
+            {
+                tabControl.SelectionChanged += MainTabControl_SelectionChanged;
+            }
+
             if (DataContext is MainWindowViewModel vm)
             {
                 if (_monacoEditor != null)
                 {
                     _monacoEditor.SetContentAsync(vm.EditorContent);
                 }
-                if (_previewWebView != null)
-                {
-                    _previewWebView.SetContent(vm.PreviewHtml);
-                }
             }
 
             if (DataContext is MainWindowViewModel viewModel)
             {
                 viewModel.PropertyChanged += ViewModel_PropertyChanged;
+            }
+
+            // 延迟初始化预览面板
+            _ = InitializePreviewDelayedAsync();
+        }
+
+        private async Task InitializePreviewDelayedAsync()
+        {
+            await Task.Delay(1000);
+            
+            if (_previewWebView != null && !_isPreviewInitialized)
+            {
+                _isPreviewInitialized = true;
+                if (DataContext is MainWindowViewModel vm)
+                {
+                    _previewWebView.SetContent(vm.PreviewHtml);
+                }
             }
         }
 
@@ -86,27 +109,24 @@ namespace WeaveDoc.MarkdownEditor.Views
 
         public async Task OpenMarkdownFileAsync()
         {
-#pragma warning disable CS0618 // Type or member is obsolete
-            var dialog = new OpenFileDialog
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null)
+                return;
+
+            var selected = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "打开 Markdown 文件",
-                Filters = new List<FileDialogFilter>
-                {
-                    new FileDialogFilter { Name = "Markdown 文件", Extensions = { "md", "markdown", "txt" } },
-                    new FileDialogFilter { Name = "所有文件", Extensions = { "*" } }
-                }
-            };
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("Markdown 文件") { Patterns = ["*.md", "*.markdown", "*.txt"] },
+                    FilePickerFileTypes.All
+                ]
+            });
 
-            var result = await dialog.ShowAsync(this);
-            if (result != null && result.Length > 0)
-            {
-                var filePath = result[0];
-                if (DataContext is MainWindowViewModel vm)
-                {
-                    vm.OpenFile(filePath);
-                }
-            }
-#pragma warning restore CS0618 // Type or member is obsolete
+            var filePath = selected.FirstOrDefault()?.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(filePath) && DataContext is MainWindowViewModel vm)
+                vm.OpenFile(filePath);
         }
 
         private async void OpenFile_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -128,27 +148,25 @@ namespace WeaveDoc.MarkdownEditor.Views
 
         public async Task SaveMarkdownFileAsAsync()
         {
-#pragma warning disable CS0618 // Type or member is obsolete
-            var dialog = new SaveFileDialog
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null)
+                return;
+
+            var selected = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "保存 Markdown 文件",
-                Filters = new List<FileDialogFilter>
-                {
-                    new FileDialogFilter { Name = "Markdown 文件", Extensions = { "md", "markdown" } },
-                    new FileDialogFilter { Name = "文本文件", Extensions = { "txt" } },
-                    new FileDialogFilter { Name = "所有文件", Extensions = { "*" } }
-                }
-            };
+                DefaultExtension = "md",
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("Markdown 文件") { Patterns = ["*.md", "*.markdown"] },
+                    new FilePickerFileType("文本文件") { Patterns = ["*.txt"] },
+                    FilePickerFileTypes.All
+                ]
+            });
 
-            var result = await dialog.ShowAsync(this);
-            if (!string.IsNullOrEmpty(result))
-            {
-                if (DataContext is MainWindowViewModel vm)
-                {
-                    vm.SaveFile(result);
-                }
-            }
-#pragma warning restore CS0618 // Type or member is obsolete
+            var filePath = selected?.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(filePath) && DataContext is MainWindowViewModel vm)
+                vm.SaveFile(filePath);
         }
 
         private async void SaveFile_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -306,24 +324,24 @@ namespace WeaveDoc.MarkdownEditor.Views
 
         public async Task OpenPdfFileAsync()
         {
-#pragma warning disable CS0618 // Type or member is obsolete
-            var dialog = new OpenFileDialog
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null)
+                return;
+
+            var selected = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "打开 PDF 文件",
-                Filters = new List<FileDialogFilter>
-                {
-                    new FileDialogFilter { Name = "PDF 文件", Extensions = { "pdf" } },
-                    new FileDialogFilter { Name = "所有文件", Extensions = { "*" } }
-                }
-            };
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("PDF 文件") { Patterns = ["*.pdf"] },
+                    FilePickerFileTypes.All
+                ]
+            });
 
-            var result = await dialog.ShowAsync(this);
-            if (result != null && result.Length > 0)
-            {
-                var filePath = result[0];
+            var filePath = selected.FirstOrDefault()?.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(filePath))
                 await ShowPdfViewer(filePath);
-            }
-#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private async Task ShowPdfViewer(string filePath)
@@ -388,17 +406,16 @@ namespace WeaveDoc.MarkdownEditor.Views
                 {
                     Console.WriteLine("Switching to Markdown Editor");
                     
-                    // 先确保PDF完全隐藏（使用异步版本）
+                    // 先确保 PDF 完全隐藏（使用异步版本）
                     if (_pdfViewer != null)
                     {
                         await _pdfViewer.DeactivateAsync();
                     }
                     
-                    // 等待足够时间确保PDF WebView2完全关闭和隐藏
-                    // WebView2关闭可能需要较长时间，增加等待时间
-                    await Task.Delay(150);
+                    // 减少等待时间
+                    await Task.Delay(50);
 
-                    // 确保所有PDF相关资源已清理后再激活Markdown控件
+                    // 确保所有 PDF 相关资源已清理后再激活 Markdown 控件
                     if (_monacoEditor != null)
                     {
                         // 不强制重置，保留编辑内容
@@ -420,7 +437,7 @@ namespace WeaveDoc.MarkdownEditor.Views
                         // 激活预览器，它会自动更新内容
                         await _previewWebView.Activate(false);
 
-                        // 强制刷新预览内容，确保data-pos属性正确加载
+                        // 强制刷新预览内容，确保 data-pos 属性正确加载
                         if (DataContext is MainWindowViewModel vm)
                         {
                             Console.WriteLine("MainTabControl_SelectionChanged: Forcing preview content refresh");
@@ -429,27 +446,35 @@ namespace WeaveDoc.MarkdownEditor.Views
                     }
                 }
             else if (selectedTab.Header?.ToString() == "PDF Reader")
-            {
-                Console.WriteLine("Switching to PDF Reader");
-                
-                if (_monacoEditor != null)
                 {
-                    _monacoEditor.Deactivate();
+                    Console.WriteLine("Switching to PDF Reader");
+                    
+                    if (_monacoEditor != null)
+                    {
+                        _monacoEditor.Deactivate();
+                    }
+                    
+                    if (_previewWebView != null)
+                    {
+                        _previewWebView.Deactivate();
+                    }
+                    
+                    // 减少等待时间
+                    await Task.Delay(50);
+                    
+                    if (_pdfViewer != null)
+                    {
+                        if (!_isPdfViewerInitialized)
+                        {
+                            _isPdfViewerInitialized = true;
+                            await _pdfViewer.InitializeAsync();
+                        }
+                        else if (!string.IsNullOrEmpty(_lastPdfFilePath))
+                        {
+                            await _pdfViewer.Activate();
+                        }
+                    }
                 }
-                
-                if (_previewWebView != null)
-                {
-                    _previewWebView.Deactivate();
-                }
-                
-                // 等待足够时间确保Markdown控件完全隐藏
-                await Task.Delay(100);
-                
-                if (!string.IsNullOrEmpty(_lastPdfFilePath) && _pdfViewer != null)
-                {
-                    await _pdfViewer.Activate();
-                }
-            }
         }
     }
 }

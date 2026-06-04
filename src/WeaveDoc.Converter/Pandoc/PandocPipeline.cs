@@ -94,7 +94,9 @@ public class PandocPipeline
 
         try
         {
-            return await RunAsync(args, ct, workingDirectory);
+            var stdout = await RunAsync(args, ct, workingDirectory);
+            OpenXmlStyleCorrector.NormalizePandocBlockStyles(outputPath);
+            return stdout;
         }
         finally
         {

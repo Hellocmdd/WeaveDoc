@@ -24,6 +24,14 @@ namespace WeaveDoc.MarkdownEditor.Services
         private static readonly Regex FootnoteRegex = new Regex(@"\[\^(\d+)\]:\s*(.+)$", RegexOptions.Multiline);
         private static readonly Regex FootnoteRefRegex = new Regex(@"\[\^(\d+)\]");
 
+        // LaTeX 公式正则表达式
+        // 行内公式：$...$（不包括 $$，避免与块级公式混淆）
+        private static readonly Regex InlineMathRegex = new Regex(@"(?<!\$)\$(?!\$)([^\$]+)\$(?!\$)");
+        // 块级公式：$$...$$
+        private static readonly Regex DisplayMathRegex = new Regex(@"\$\$([\s\S]*?)\$\$");
+        // LaTeX 环境正则表达式：\begin{env}...\end{env}
+        private static readonly Regex LatexEnvRegex = new Regex(@"\\begin\{(\w+)\}([\s\S]*?)\\end\{\1\}");
+
         public string ConvertMarkdownToHtml(string markdown)
         {
             if (string.IsNullOrEmpty(markdown))
@@ -34,6 +42,9 @@ namespace WeaveDoc.MarkdownEditor.Services
             bool inPre = false;
             string preLang = "";
             var preContent = new StringBuilder();
+            bool inDisplayMath = false;
+            var displayMathContent = new StringBuilder();
+            int displayMathStartLine = 0;
             int i = 0;
 
             while (i < lines.Length)
@@ -41,6 +52,116 @@ namespace WeaveDoc.MarkdownEditor.Services
                 var line = lines[i];
                 var lineNumber = i + 1;
                 var trimmed = line.Trim();
+
+                // 处理块级 LaTeX 公式（$$...$$）
+                if (trimmed.StartsWith("$$") && !inPre && !inDisplayMath)
+                {
+                    if (trimmed == "$$")
+                    {
+                        // 开始新的块级公式
+                        inDisplayMath = true;
+                        displayMathStartLine = lineNumber;
+                        displayMathContent.Clear();
+                        i++;
+                        continue;
+                    }
+                    else if (trimmed.EndsWith("$$") && trimmed.Length > 4)
+                    {
+                        // 单行块级公式 $$...$$
+                        var mathContent = trimmed.Substring(2, trimmed.Length - 4);
+                        // 块级公式内容保持原始格式，不转义HTML特殊字符
+                        result.Append($"<div class=\"math-display\" data-line=\"{lineNumber}\">{mathContent}</div>\n");
+                        i++;
+                        continue;
+                    }
+                }
+
+                if (inDisplayMath)
+                {
+                    if (trimmed.EndsWith("$$"))
+                    {
+                        // 结束块级公式
+                        displayMathContent.AppendLine(trimmed.Substring(0, trimmed.Length - 2));
+                        // 块级公式内容保持原始格式，不转义HTML特殊字符
+                        result.Append($"<div class=\"math-display\" data-line=\"{displayMathStartLine}-{lineNumber}\">{displayMathContent.ToString().TrimEnd()}</div>\n");
+                        inDisplayMath = false;
+                        displayMathContent.Clear();
+                    }
+                    else
+                    {
+                        displayMathContent.AppendLine(line);
+                    }
+                    i++;
+                    continue;
+                }
+
+                // 处理 LaTeX 环境 \begin{env}...\end{env}
+                var envMatch = LatexEnvRegex.Match(line);
+                if (envMatch.Success && !inPre)
+                {
+                    // 单行 LaTeX 环境
+                    var mathContent = envMatch.Value;
+                    result.Append($"<div class=\"math-display\" data-line=\"{lineNumber}\">{mathContent}</div>\n");
+                    i++;
+                    continue;
+                }
+                
+                // 处理跨行 LaTeX 环境 \begin{env}...\end{env}（支持 \begin{ 不在行首的情况）
+                if (!inPre && line.Contains(@"\begin{"))
+                {
+                    var envStartMatch = Regex.Match(line, @"\\begin\{(\w+)\}");
+                    if (envStartMatch.Success)
+                    {
+                        string envName = envStartMatch.Groups[1].Value;
+                        var envContent = new StringBuilder();
+                        int startLine = lineNumber;
+                        bool foundEnd = false;
+                        int startIndex = envStartMatch.Index;
+                        
+                        // 如果 \begin{ 不在行首，先输出前面的普通文本
+                        if (startIndex > 0)
+                        {
+                            string textBefore = line.Substring(0, startIndex);
+                            result.AppendLine(ProcessInlineElements(textBefore));
+                        }
+                        
+                        // 收集 LaTeX 环境内容（从 \begin{ 开始）
+                        while (i < lines.Length)
+                        {
+                            line = lines[i];
+                            trimmed = line.Trim();
+                            
+                            // 第一行只取从 \begin{ 开始的部分
+                            if (i == startLine - 1)
+                            {
+                                envContent.AppendLine(line.Substring(startIndex));
+                            }
+                            else
+                            {
+                                envContent.AppendLine(line);
+                            }
+                            
+                            if (trimmed.EndsWith($@"\end{{{envName}}}"))
+                            {
+                                foundEnd = true;
+                                break;
+                            }
+                            i++;
+                        }
+                        
+                        if (foundEnd)
+                        {
+                            result.Append($"<div class=\"math-display\" data-line=\"{startLine}-{i + 1}\">{envContent.ToString().TrimEnd()}</div>\n");
+                        }
+                        else
+                        {
+                            // 如果没有找到结束标签，按普通文本处理
+                            result.AppendLine(EscapeHtml(line));
+                        }
+                        i++;
+                        continue;
+                    }
+                }
 
                 if (CodeBlockRegex.IsMatch(trimmed))
                 {
@@ -115,6 +236,12 @@ namespace WeaveDoc.MarkdownEditor.Services
                 result.Append($"<pre><code class=\"language-{EscapeHtml(preLang)}\" data-line=\"{lines.Length}\">{preContent.ToString()}</code></pre>\n");
             }
 
+            // 处理未闭合的块级 LaTeX 公式
+            if (inDisplayMath && displayMathContent.Length > 0)
+            {
+                result.Append($"<div class=\"math-display\" data-line=\"{displayMathStartLine}-{lines.Length}\">{displayMathContent.ToString().TrimEnd()}</div>\n");
+            }
+
             return result.ToString();
         }
 
@@ -175,17 +302,52 @@ namespace WeaveDoc.MarkdownEditor.Services
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
 
-            text = EscapeHtml(text);
+            // 第一步：提取所有行内 LaTeX 公式，用占位符替换（避免HTML转义破坏LaTeX语法）
+            var mathPlaceholders = new List<string>();
+            var processedText = InlineMathRegex.Replace(text, match =>
+            {
+                var mathContent = match.Value;
+                int placeholderIndex = mathPlaceholders.Count;
+                mathPlaceholders.Add(match.Value);
+                return $"{{MATH_PH_{placeholderIndex}}}";
+            });
 
-            text = InlineCodeRegex.Replace(text, "<code>$1</code>");
-            text = StrikethroughRegex.Replace(text, "<del>$1</del>");
-            text = LinkRegex.Replace(text, "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>");
-            text = ImageRegex.Replace(text, "<img src=\"$2\" alt=\"$1\" />");
-            text = FootnoteRefRegex.Replace(text, "<sup id=\"fnref:$1\"><a href=\"#fn:$1\" class=\"footnote-ref\">$1</a></sup>");
-            text = text.Replace("***", "<strong><em>").Replace("**", "<strong>").Replace("*", "<em>");
-            text = text.Replace("___", "<strong><em>").Replace("__", "<strong>").Replace("_", "<em>");
+            // 第二步：转义剩余的HTML特殊字符
+            processedText = EscapeHtml(processedText);
 
-            return text;
+            // 第三步：处理其他Markdown语法
+            processedText = InlineCodeRegex.Replace(processedText, "<code>$1</code>");
+            processedText = StrikethroughRegex.Replace(processedText, "<del>$1</del>");
+            processedText = LinkRegex.Replace(processedText, "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>");
+            processedText = ImageRegex.Replace(processedText, "<img src=\"$2\" alt=\"$1\" />");
+            processedText = FootnoteRefRegex.Replace(processedText, "<sup id=\"fnref:$1\"><a href=\"#fn:$1\" class=\"footnote-ref\">$1</a></sup>");
+
+            processedText = processedText.Replace("***", "<strong><em>").Replace("**", "<strong>").Replace("*", "<em>");
+            processedText = processedText.Replace("___", "<strong><em>").Replace("__", "<strong>").Replace("_", "<em>");
+
+            // 第四步：还原LaTeX占位符为实际的span标签
+            for (int i = 0; i < mathPlaceholders.Count; i++)
+            {
+                var mathContent = mathPlaceholders[i];
+                // 提取 $...$ 中的内容
+                var innerContent = mathContent.TrimStart('$').TrimEnd('$');
+                processedText = processedText.Replace($"{{MATH_PH_{i}}}", $"<span class=\"math-inline\">{innerContent}</span>");
+            }
+
+            return processedText;
+        }
+
+        /// <summary>
+        /// 处理行内 LaTeX 公式，将其转换为可被 KaTeX 渲染的格式
+        /// 注意：LaTeX内容保持原始格式，不转义HTML特殊字符
+        /// </summary>
+        private string ProcessInlineMath(string text)
+        {
+            return InlineMathRegex.Replace(text, match =>
+            {
+                var mathContent = match.Groups[1].Value;
+                return $"<span class=\"math-inline\">{mathContent}</span>";
+            });
         }
 
         public string ConvertMarkdownToHtmlWithCharPositions(string markdown)
@@ -199,6 +361,9 @@ namespace WeaveDoc.MarkdownEditor.Services
             bool inPre = false;
             string preLang = "";
             var preContent = new StringBuilder();
+            bool inDisplayMath = false;
+            var displayMathContent = new StringBuilder();
+            int displayMathStartLine = 0;
             int i = 0;
 
             while (i < lines.Length)
@@ -206,6 +371,116 @@ namespace WeaveDoc.MarkdownEditor.Services
                 var line = lines[i];
                 var lineNumber = i + 1;
                 var trimmed = line.Trim();
+
+                // 处理块级 LaTeX 公式（$$...$$）
+                if (trimmed.StartsWith("$$") && !inPre && !inDisplayMath)
+                {
+                    if (trimmed == "$$")
+                    {
+                        // 开始新的块级公式
+                        inDisplayMath = true;
+                        displayMathStartLine = lineNumber;
+                        displayMathContent.Clear();
+                        i++;
+                        continue;
+                    }
+                    else if (trimmed.EndsWith("$$") && trimmed.Length > 4)
+                    {
+                        // 单行块级公式 $$...$$
+                        var mathContent = trimmed.Substring(2, trimmed.Length - 4);
+                        // 块级公式内容保持原始格式，不转义HTML特殊字符
+                        result.Append($"<div class=\"math-display\" data-line=\"{lineNumber}\">{mathContent}</div>\n");
+                        i++;
+                        continue;
+                    }
+                }
+
+                if (inDisplayMath)
+                {
+                    if (trimmed.EndsWith("$$"))
+                    {
+                        // 结束块级公式
+                        displayMathContent.AppendLine(trimmed.Substring(0, trimmed.Length - 2));
+                        // 块级公式内容保持原始格式，不转义HTML特殊字符
+                        result.Append($"<div class=\"math-display\" data-line=\"{displayMathStartLine}-{lineNumber}\">{displayMathContent.ToString().TrimEnd()}</div>\n");
+                        inDisplayMath = false;
+                        displayMathContent.Clear();
+                    }
+                    else
+                    {
+                        displayMathContent.AppendLine(line);
+                    }
+                    i++;
+                    continue;
+                }
+
+                // 处理 LaTeX 环境 \begin{env}...\end{env}
+                var envMatch = LatexEnvRegex.Match(line);
+                if (envMatch.Success && !inPre)
+                {
+                    // 单行 LaTeX 环境
+                    var mathContent = envMatch.Value;
+                    result.Append($"<div class=\"math-display\" data-line=\"{lineNumber}\">{mathContent}</div>\n");
+                    i++;
+                    continue;
+                }
+                
+                // 处理跨行 LaTeX 环境 \begin{env}...\end{env}（支持 \begin{ 不在行首的情况）
+                if (!inPre && line.Contains(@"\begin{"))
+                {
+                    var envStartMatch = Regex.Match(line, @"\\begin\{(\w+)\}");
+                    if (envStartMatch.Success)
+                    {
+                        string envName = envStartMatch.Groups[1].Value;
+                        var envContent = new StringBuilder();
+                        int startLine = lineNumber;
+                        bool foundEnd = false;
+                        int startIndex = envStartMatch.Index;
+                        
+                        // 如果 \begin{ 不在行首，先输出前面的普通文本
+                        if (startIndex > 0)
+                        {
+                            string textBefore = line.Substring(0, startIndex);
+                            result.AppendLine(ProcessInlineElements(textBefore));
+                        }
+                        
+                        // 收集 LaTeX 环境内容（从 \begin{ 开始）
+                        while (i < lines.Length)
+                        {
+                            line = lines[i];
+                            trimmed = line.Trim();
+                            
+                            // 第一行只取从 \begin{ 开始的部分
+                            if (i == startLine - 1)
+                            {
+                                envContent.AppendLine(line.Substring(startIndex));
+                            }
+                            else
+                            {
+                                envContent.AppendLine(line);
+                            }
+                            
+                            if (trimmed.EndsWith($@"\end{{{envName}}}"))
+                            {
+                                foundEnd = true;
+                                break;
+                            }
+                            i++;
+                        }
+                        
+                        if (foundEnd)
+                        {
+                            result.Append($"<div class=\"math-display\" data-line=\"{startLine}-{i + 1}\">{envContent.ToString().TrimEnd()}</div>\n");
+                        }
+                        else
+                        {
+                            // 如果没有找到结束标签，按普通文本处理
+                            result.AppendLine(EscapeHtml(line));
+                        }
+                        i++;
+                        continue;
+                    }
+                }
 
                 if (CodeBlockRegex.IsMatch(trimmed))
                 {
@@ -290,6 +565,12 @@ namespace WeaveDoc.MarkdownEditor.Services
                 result.Append($"<pre><code class=\"language-{EscapeHtml(preLang)}\" data-line=\"{lines.Length}\">{preContent.ToString()}</code></pre>\n");
             }
 
+            // 处理未闭合的块级 LaTeX 公式
+            if (inDisplayMath && displayMathContent.Length > 0)
+            {
+                result.Append($"<div class=\"math-display\" data-line=\"{displayMathStartLine}-{lines.Length}\">{displayMathContent.ToString().TrimEnd()}</div>\n");
+            }
+
             return result.ToString();
         }
 
@@ -364,18 +645,75 @@ namespace WeaveDoc.MarkdownEditor.Services
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
 
-            var result = new StringBuilder();
+            // 第一步：提取所有行内 LaTeX 公式，用占位符替换（避免HTML转义破坏LaTeX语法）
+            var mathPlaceholders = new List<string>();
+            var processedText = new StringBuilder();
+            int i = 0;
             int currentColumn = startColumn;
             
-            int i = 0;
             while (i < text.Length)
             {
                 char currentChar = text[i];
                 
-                // 处理转义字符
-                if (currentChar == '\\' && i + 1 < text.Length)
+                // 处理行内 LaTeX 公式 $...$
+                if (currentChar == '$' && i + 1 < text.Length && text[i + 1] != '$')
                 {
-                    char nextChar = text[i + 1];
+                    int startPos = currentColumn;
+                    int endPos = -1;
+                    for (int j = i + 1; j < text.Length; j++)
+                    {
+                        if (text[j] == '$' && (j + 1 >= text.Length || text[j + 1] != '$'))
+                        {
+                            endPos = j;
+                            break;
+                        }
+                    }
+                    
+                    if (endPos > i)
+                    {
+                        // 找到完整的行内公式，保存到占位符列表
+                        string mathContent = text.Substring(i + 1, endPos - i - 1);
+                        int placeholderIndex = mathPlaceholders.Count;
+                        mathPlaceholders.Add($"<span class=\"math-inline\" data-pos=\"{lineNumber}-{startPos}\">{mathContent}</span>");
+                        
+                        // 用占位符替换（LaTeX内容保持原始格式，不转义）
+                        processedText.Append($"{{MATH_PH_{placeholderIndex}}}");
+                        currentColumn += endPos - i + 1;
+                        i = endPos + 1;
+                        continue;
+                    }
+                }
+                
+                processedText.Append(currentChar);
+                currentColumn++;
+                i++;
+            }
+            
+            // 第二步：处理转义字符和HTML特殊字符
+            var escapedText = processedText.ToString();
+            var result = new StringBuilder();
+            currentColumn = startColumn;
+            
+            for (int j = 0; j < escapedText.Length; j++)
+            {
+                char c = escapedText[j];
+                
+                // 检查是否是LaTeX占位符
+                if (c == '{' && escapedText.Substring(j).StartsWith("{MATH_PH_"))
+                {
+                    int endIndex = escapedText.IndexOf("}", j);
+                    if (endIndex > j)
+                    {
+                        result.Append(escapedText.Substring(j, endIndex - j + 1));
+                        j = endIndex;
+                        continue;
+                    }
+                }
+                
+                // 处理转义字符
+                if (c == '\\' && j + 1 < escapedText.Length)
+                {
+                    char nextChar = escapedText[j + 1];
                     string escapedChar;
                     
                     switch (nextChar)
@@ -398,6 +736,7 @@ namespace WeaveDoc.MarkdownEditor.Services
                         case '<': escapedChar = "&lt;"; break;
                         case '>': escapedChar = "&gt;"; break;
                         case '&': escapedChar = "&amp;"; break;
+                        case '$': escapedChar = "$"; break;  // 转义的 $ 不触发公式
                         default: 
                             escapedChar = "\\" + nextChar; 
                             break;
@@ -405,13 +744,13 @@ namespace WeaveDoc.MarkdownEditor.Services
                     
                     result.Append($"<span data-pos=\"{lineNumber}-{currentColumn}\">{escapedChar}</span>");
                     currentColumn++;
-                    i += 2;
+                    j++; // 跳过已处理的下一个字符
                     continue;
                 }
                 
-                // 处理特殊 HTML 字符
+                // 处理HTML特殊字符
                 string outputChar;
-                switch (currentChar)
+                switch (c)
                 {
                     case '<':
                         outputChar = "&lt;";
@@ -429,16 +768,22 @@ namespace WeaveDoc.MarkdownEditor.Services
                         outputChar = "&#39;";
                         break;
                     default:
-                        outputChar = currentChar.ToString();
+                        outputChar = c.ToString();
                         break;
                 }
                 
                 result.Append($"<span data-pos=\"{lineNumber}-{currentColumn}\">{outputChar}</span>");
                 currentColumn++;
-                i++;
             }
             
-            return result.ToString();
+            // 第三步：还原LaTeX占位符为实际的HTML span
+            string finalResult = result.ToString();
+            for (int k = 0; k < mathPlaceholders.Count; k++)
+            {
+                finalResult = finalResult.Replace($"{{MATH_PH_{k}}}", mathPlaceholders[k]);
+            }
+            
+            return finalResult;
         }
 
         private string EscapeHtml(string text)

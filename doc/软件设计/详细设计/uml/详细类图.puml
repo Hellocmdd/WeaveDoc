@@ -1,0 +1,542 @@
+@startuml 详细类图
+' ============================================
+' WeaveDoc 详细类图（基于实际代码）
+' 展示系统所有核心类的属性、方法及关系
+' ============================================
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam classFontName "Microsoft YaHei"
+skinparam shadowing false
+
+title WeaveDoc 详细类图
+
+' ========================================
+' WeaveDoc.App — 表示层
+' ========================================
+package "WeaveDoc.App (表示层)" #E8F8F5 {
+
+    class Program {
+        - _configManager: ConfigManager
+        - _engine: DocumentConversionEngine
+        + Main(args: string[]): void
+        - BuildServices(): (ConfigManager, DocumentConversionEngine)
+    }
+
+    class App {
+        - _configManager: ConfigManager
+        - _engine: DocumentConversionEngine
+        + App(config: ConfigManager, engine: DocumentConversionEngine)
+        + OnFrameworkInitializationCompleted(): void
+    }
+
+    class MainWindow {
+        - _viewModel: RagTabViewModel
+        + MainWindow(config: ConfigManager?, engine: DocumentConversionEngine?)
+        - OnOpened(): void
+        - InitConvertTab(): void
+        - InitTemplateTab(): void
+        - InitMarkdownEditorTab(): void
+    }
+
+    class ConvertTab {
+        - _configManager: ConfigManager
+        - _engine: DocumentConversionEngine
+        + SetServices(config: ConfigManager, engine: DocumentConversionEngine): void
+        + OnConvertClick(): void
+        + OnBrowseInput(): void
+        + OnBrowseOutput(): void
+    }
+
+    class TemplateTab {
+        - _configManager: ConfigManager
+        + SetConfigManager(config: ConfigManager): void
+        + OnImportTemplate(): void
+        + OnDeleteTemplate(): void
+        + OnSeedTemplates(): void
+    }
+}
+
+' ========================================
+' WeaveDoc.App — ViewModels
+' ========================================
+package "WeaveDoc.App.ViewModels" #D5F5E3 {
+
+    class RagTabViewModel {
+        - _aiService: LocalAiService
+        - _cloudSettings: CloudApiSettings
+        + ConversationText: string
+        + InputText: string
+        + StatusText: string
+        + IsBusy: bool
+        + CorpusFiles: ObservableCollection<string>
+        + ChatProvider: string
+        + InitializeAsync(): Task
+        + SendAsync(): Task
+        + AddDocumentAsync(path: string): Task
+        + RefreshCorpusAsync(): Task
+        + DeleteSelectedDocumentAsync(): Task
+        + ClearConversation(): void
+        + SaveCloudSettings(): void
+        + Dispose(): void
+    }
+}
+
+' ========================================
+' WeaveDoc.MarkdownEditor — 编辑器子系统
+' ========================================
+package "WeaveDoc.MarkdownEditor (编辑器子系统)" #FDEBD0 {
+
+    class MarkdownEditorTab {
+        - _monaco: MonacoEditorControl
+        - _preview: PreviewWebViewControl
+        - _pdfViewer: PdfViewerControl
+        + ActivateAsync(): Task
+        + DeactivateAsync(): Task
+        + PreviewHtml: string
+        + ScrollPreviewToSelection(line: int, col: int, len: int): void
+        + SetMonacoReady(ready: bool): void
+        + LoadMarkdownFile(path: string): Task
+        + LoadPdfFile(path: string): Task
+    }
+
+    class MonacoEditorControl {
+        - _webView: WebView2
+        - _isReady: bool
+        + SetContentAsync(content: string): Task
+        + ScrollToPositionAsync(line: int, col: int, length: int): Task
+        + ClearHighlightAsync(): Task
+        + RequestCurrentSelectionAsync(): Task
+        + Activate(forceReset: bool): void
+        + Deactivate(): void
+    }
+
+    class PreviewWebViewControl {
+        - _webView: WebView2
+        - _host: WeaveDocHost
+        + SetContent(html: string): void
+        + ScrollToLine(line: int): void
+        + ScrollToSelection(startLine: int, endLine: int): void
+        + Activate(forceReset: bool): void
+        + Deactivate(): void
+    }
+
+    class PdfViewerControl {
+        - _webView: WebView2
+        - _httpServer: HttpListener
+        + LoadPdfAsync(filePath: string): Task
+        + Activate(): void
+        + DeactivateAsync(): Task
+        + ToggleFullScreen(): void
+    }
+
+    class MainWindowViewModel {
+        + EditorContent: string
+        + Html: string
+        + PreviewHtml: string
+        + CurrentFilePath: string
+        + OpenFile(path: string): void
+        + SaveFile(path: string): void
+    }
+
+    class MarkdownService {
+        + ConvertMarkdownToHtml(markdown: string): string
+        + ConvertMarkdownToHtmlWithCharPositions(markdown: string): string
+    }
+}
+
+' ========================================
+' WeaveDoc.Converter — 文档转换子系统
+' ========================================
+package "WeaveDoc.Converter (文档转换子系统)" #FCF3CF {
+
+    class DocumentConversionEngine {
+        - _pandocPipeline: PandocPipeline
+        - _pdfConverter: IPdfConverter
+        - _configManager: ConfigManager
+        + ConvertAsync(mdPath: string, templateId: string, format: ExportFormat, pdfLayout: PdfLayoutMode, ct: CancellationToken): Task<ConversionResult>
+        - LoadTemplate(templateId: string): Task<AfdTemplate>
+        - BuildReferenceDoc(template: AfdTemplate): string
+        - RunPandocConvert(mdPath: string, outputDocx: string, refDoc: string, ct: CancellationToken): Task
+        - ApplyStyleCorrections(docxPath: string, template: AfdTemplate): void
+        - ConvertToPdfIfNeeded(docxPath: string, pdfPath: string, layout: PdfLayoutMode): void
+    }
+
+    class ConversionResult {
+        + Success: bool
+        + OutputPath: string
+        + Format: string
+        + PdfConverterName: string
+        + ErrorMessage: string
+        + TechnicalDetails: string
+    }
+
+    class PandocPipeline {
+        - _pandocPath: string
+        + PandocPath: string
+        + ToDocxAsync(inputPath: string, outputPath: string, referenceDoc: string, luaFilter: string, ct: CancellationToken): Task
+        + ToAstJsonAsync(inputPath: string, ct: CancellationToken): Task<string>
+        - NormalizeMarkdown(inputPath: string): string
+        - DiscoverLuaFilters(): List<string>
+        - RunPandocProcess(args: string, ct: CancellationToken): Task
+    }
+
+    interface IPdfConverter {
+        + Name: string
+        + ConvertToPdf(docxPath: string, pdfPath: string): void
+    }
+
+    class CompositePdfConverter {
+        - _detectors: PdfRendererDetector
+        - _converters: List<IPdfConverter>
+        + ConvertToPdf(docxPath: string, pdfPath: string): void
+    }
+
+    class SyncfusionPdfConverter {
+        + Name: string
+        + ConvertToPdf(docxPath: string, pdfPath: string): void
+    }
+
+    class WordComPdfConverter {
+        + Name: string
+        + ConvertToPdf(docxPath: string, pdfPath: string): void
+    }
+
+    class LibreOfficePdfConverter {
+        - _sofficePath: string
+        + Name: string
+        + ConvertToPdf(docxPath: string, pdfPath: string): void
+    }
+
+    class PdfRendererDetector {
+        + Detect(): PdfRendererInfo
+        + DetectWord(): PdfRendererInfo
+        + DetectLibreOffice(): PdfRendererInfo
+    }
+
+    class ReferenceDocBuilder {
+        + {static} Build(outputPath: string, template: AfdTemplate): void
+    }
+
+    class OpenXmlStyleCorrector {
+        + {static} ApplyAfdStyles(docxPath: string, template: AfdTemplate): void
+        + {static} ApplyPageSettings(docxPath: string, defaults: AfdDefaults): void
+        + {static} ApplyHeaderFooter(docxPath: string, hf: AfdHeaderFooter): void
+        + {static} ApplyPdfLayout(docxPath: string, mode: PdfLayoutMode, converter: IPdfConverter): void
+    }
+
+    class MarkdownHtmlTableNormalizer {
+        + {static} Normalize(inputPath: string): string
+    }
+
+    class MarkdownMathNormalizer {
+        + {static} Normalize(inputPath: string): string
+    }
+
+    class MarkdownHtmlImageNormalizer {
+        + {static} Normalize(inputPath: string): string
+    }
+
+    class AfdParser {
+        + Parse(jsonPath: string): AfdTemplate
+        + ParseJson(jsonContent: string): AfdTemplate
+        + Validate(template: AfdTemplate): void
+    }
+
+    class AfdStyleMapper {
+        + {static} AfdToOpenXml(afdKey: string): string
+        + {static} OpenXmlToAfd(styleId: string): string
+    }
+
+    class ConfigManager {
+        - _repo: TemplateRepository
+        - _parser: AfdParser
+        + GetTemplateAsync(id: string): Task<AfdTemplate>
+        + ListTemplatesAsync(): Task<List<AfdMeta>>
+        + SaveTemplateAsync(id: string, template: AfdTemplate): Task
+        + DeleteTemplateAsync(id: string): Task
+        + EnsureSeedTemplatesAsync(): Task
+    }
+
+    class TemplateRepository {
+        - _connection: SqliteConnection
+        + InitializeAsync(): Task
+        + GetMetaAsync(id: string): Task<AfdMeta?>
+        + GetAllMetasAsync(): Task<List<AfdMeta>>
+        + UpsertAsync(id: string, meta: AfdMeta, jsonPath: string): Task
+        + DeleteAsync(id: string): Task
+    }
+
+    class BibtexParser {
+        + Parse(bibContent: string): List<BibtexEntry>
+        + ParseSingle(entryText: string): BibtexEntry
+    }
+
+    class ConversionErrorFormatter {
+        + {static} ToUserMessage(ex: Exception, mdPath: string, format: string): string
+    }
+}
+
+' ========================================
+' WeaveDoc.Converter — AFD 模型
+' ========================================
+package "WeaveDoc.Converter.Afd.Models (AFD实体)" #EAECEE {
+
+    class AfdTemplate {
+        + Meta: AfdMeta
+        + Defaults: AfdDefaults
+        + Styles: Dictionary<string, AfdStyleDefinition>
+        + HeaderFooter: AfdHeaderFooter?
+        + Numbering: AfdNumbering?
+    }
+
+    class AfdMeta {
+        + TemplateId: string
+        + TemplateName: string
+        + Version: string
+        + Author: string
+        + Description: string
+    }
+
+    class AfdDefaults {
+        + FontFamily: string
+        + FontSize: double?
+        + LineSpacing: double?
+        + PageSize: AfdPageSize?
+        + Margins: AfdMargins?
+    }
+
+    class AfdStyleDefinition {
+        + DisplayName: string?
+        + FontFamily: string?
+        + FontSize: double?
+        + Bold: bool?
+        + Italic: bool?
+        + Alignment: string?
+        + SpaceBefore: double?
+        + SpaceAfter: double?
+        + LineSpacing: double?
+        + FirstLineIndent: double?
+    }
+
+    class AfdHeaderFooter {
+        + Header: AfdHeaderContent?
+        + Footer: AfdFooterContent?
+    }
+
+    class BibtexEntry {
+        + EntryType: string
+        + CitationKey: string
+        + Fields: Dictionary<string, string>
+    }
+}
+
+' ========================================
+' WeaveDoc.Rag — AI辅助子系统
+' ========================================
+package "WeaveDoc.Rag (AI辅助子系统)" #FDEDEC {
+
+    class LocalAiService {
+        - _embedder: LLamaEmbedder
+        - _chatClient: LlamaServerChatClient
+        - _rerankerProcess: LlamaServerProcess
+        - _embeddingCache: EmbeddingCache
+        - _chunks: List<IndexedChunk>
+        - _options: RagOptions
+        + WorkspaceRoot: string
+        + CorpusChunkCount: int
+        + CorpusFiles: List<string>
+        + LastRetrievalDebug: string
+        + InitializeAsync(ct: CancellationToken): Task
+        + AskAsync(question: string, history: List<ChatTurn>, ct: CancellationToken): Task<string>
+        + AddDocumentAsync(path: string, ct: CancellationToken): Task
+        + DeleteDocumentAsync(path: string, ct: CancellationToken): Task
+        + ReloadCorpusAsync(ct: CancellationToken): Task
+        + Dispose(): void
+    }
+
+    class LlamaServerChatClient {
+        - _httpClient: HttpClient
+        - _options: RagOptions
+        - _cloudSettings: CloudApiSettings
+        + EnsureServerAvailableAsync(ct: CancellationToken): Task
+        + CompleteAsync(prompt: string, ct: CancellationToken, systemPrompt: string): Task<string>
+    }
+
+    class LlamaServerProcess {
+        - _process: Process
+        + StartIfNeededAsync(modelPath: string, port: int, extraArgs: string, ct: CancellationToken): Task
+        + Dispose(): void
+    }
+
+    class AnswerComposer {
+        + RagSystemPrompt: string
+        + BuildPrompt(question: string, chunks: List<ScoredChunk>, history: List<ChatTurn>): string
+        + BuildRepairPrompt(originalAnswer: string): string
+    }
+
+    class CandidateRetriever {
+        + TryRerankWithLearnedModelAsync(query: string, chunks: List<ScoredChunk>, ct: CancellationToken): Task<LearnedRerankResult?>
+    }
+
+    class ChunkRanker {
+        + ComputeTopChunkIntentBoost(chunk: ScoredChunk, profile: QueryProfile): double
+    }
+
+    class EvidenceSelector {
+        + ShouldUseActiveDocumentScope(): bool
+        + RememberActiveDocumentScope(filePath: string): void
+    }
+
+    class QueryUnderstandingService {
+        + {static} BuildProfile(question: string): QueryProfile
+    }
+
+    class LocalAiQuestionAnalyzer {
+        + {static} BuildProfile(question: string): QueryProfile
+        + {static} NormalizeQuestionForRetrieval(question: string, history: List<ChatTurn>): string
+    }
+
+    class CloudApiSettings {
+        + ChatProvider: string
+        + CloudBaseUrl: string
+        + CloudApiKey: string
+        + CloudModel: string
+        + CloudEnableThinking: bool
+        + Load(): void
+        + Save(): void
+    }
+
+    class RagOptions {
+        + EmbeddingModelPath: string
+        + ChatModelPath: string
+        + LlamaServerPort: int
+        + TopK: int
+        + ContextSize: int
+        + GpuLayerCount: int
+        + {static} LoadFromEnvironment(): RagOptions
+    }
+}
+
+' ========================================
+' WeaveDoc.Rag — 数据模型
+' ========================================
+package "WeaveDoc.Rag.Models (RAG实体)" #EAECEE {
+
+    class ChatTurn {
+        + Role: string
+        + Content: string
+        + IsUser: bool
+    }
+
+    class DocumentChunk {
+        + Source: string
+        + FilePath: string
+        + Index: int
+        + Text: string
+        + Embedding: float[]
+    }
+
+    class QueryProfile {
+        + Intent: string
+        + FocusTerms: string[]
+        + IsFollowUp: bool
+        + DocumentTitle: string?
+    }
+
+    class ScoredChunk {
+        + Chunk: DocumentChunk
+        + Score: double
+        + IntentBoost: double
+    }
+}
+
+' ========================================
+' 枚举类型
+' ========================================
+package "枚举类型" #F2F3F4 {
+
+    enum PdfRendererKind {
+        Word
+        LibreOffice
+        Syncfusion
+    }
+
+    enum PdfLayoutMode {
+        SinglePage
+        TwoColumn
+    }
+}
+
+' ========================================
+' 类间关系
+' ========================================
+
+' App层组合
+App --> MainWindow : 创建
+MainWindow *-- RagTabViewModel : 持有
+MainWindow --> ConvertTab : 包含
+MainWindow --> TemplateTab : 包含
+MainWindow --> MarkdownEditorTab : 包含
+
+' Converter层核心关系
+DocumentConversionEngine --> PandocPipeline : 使用
+DocumentConversionEngine --> IPdfConverter : 使用
+DocumentConversionEngine --> ConfigManager : 使用
+DocumentConversionEngine ..> ConversionResult : 返回
+
+' PandocPipeline使用工具
+PandocPipeline --> MarkdownHtmlTableNormalizer : 调用
+PandocPipeline --> MarkdownMathNormalizer : 调用
+PandocPipeline --> MarkdownHtmlImageNormalizer : 调用
+
+' IPdfConverter策略模式
+IPdfConverter <|.. CompositePdfConverter
+IPdfConverter <|.. SyncfusionPdfConverter
+IPdfConverter <|.. WordComPdfConverter
+IPdfConverter <|.. LibreOfficePdfConverter
+CompositePdfConverter --> IPdfConverter : 链式尝试
+
+' AFD模板系统
+ConfigManager --> TemplateRepository : 使用
+ConfigManager --> AfdParser : 使用
+AfdParser ..> AfdTemplate : 解析
+ReferenceDocBuilder ..> AfdTemplate : 消费
+OpenXmlStyleCorrector ..> AfdTemplate : 消费
+AfdTemplate *-- AfdMeta
+AfdTemplate *-- AfdDefaults
+AfdTemplate *-- AfdStyleDefinition
+AfdTemplate *-- AfdHeaderFooter
+
+' PDF检测
+CompositePdfConverter --> PdfRendererDetector : 检测可用渲染器
+
+' Rag层核心关系
+RagTabViewModel --> LocalAiService : 创建并使用
+LocalAiService --> LlamaServerChatClient : HTTP调用
+LocalAiService --> AnswerComposer : 构建Prompt
+LocalAiService --> CandidateRetriever : 重排序
+LocalAiService --> ChunkRanker : 打分
+LocalAiService --> EvidenceSelector : 证据选择
+LocalAiService --> QueryUnderstandingService : 查询理解
+LocalAiService ..> ChatTurn : 使用
+LocalAiService ..> ScoredChunk : 使用
+LlamaServerChatClient --> RagOptions : 配置
+LlamaServerChatClient --> CloudApiSettings : 云端设置
+QueryUnderstandingService --> LocalAiQuestionAnalyzer : 委托
+
+' 编辑器层
+MarkdownEditorTab *-- MonacoEditorControl : 包含
+MarkdownEditorTab *-- PreviewWebViewControl : 包含
+MarkdownEditorTab *-- PdfViewerControl : 包含
+MainWindowViewModel --> MarkdownService : 使用
+
+legend right
+  |= 符号 |= 含义 |
+  | *-- | 组合（整体-部分） |
+  | --> | 依赖/使用 |
+  | ..> | 创建/返回 |
+  | <|.. | 实现接口 |
+endlegend
+
+@enduml

@@ -14,6 +14,42 @@ public static class OpenXmlStyleCorrector
     private const double MmToTwips = 1440.0 / 25.4; // ≈ 56.693
 
     /// <summary>
+    /// Pandoc may emit its built-in paragraph styles when Lua custom-style is
+    /// unavailable or ignored by a specific writer version. Normalize those
+    /// stable built-in names before AFD styling reads paragraph style IDs.
+    /// </summary>
+    public static void NormalizePandocBlockStyles(string docxPath)
+    {
+        using var doc = WordprocessingDocument.Open(docxPath, true);
+        var document = doc.MainDocumentPart?.Document;
+        var body = document?.Body;
+        if (document == null || body == null)
+            return;
+
+        foreach (var paragraph in body.Descendants<Paragraph>())
+        {
+            var paragraphProperties = paragraph.GetFirstChild<ParagraphProperties>();
+            var styleId = paragraphProperties?.ParagraphStyleId?.Val?.Value;
+            var normalizedStyleId = styleId switch
+            {
+                "BlockText" => "Blockquote",
+                "SourceCode" => "CodeBlock",
+                _ => null
+            };
+
+            if (normalizedStyleId == null)
+                continue;
+
+            paragraphProperties ??= paragraph.PrependChild(new ParagraphProperties());
+            var paragraphStyle = paragraphProperties.ParagraphStyleId
+                                 ?? paragraphProperties.PrependChild(new ParagraphStyleId());
+            paragraphStyle.Val = normalizedStyleId;
+        }
+
+        document.Save();
+    }
+
+    /// <summary>
     /// 遍历模板样式，将 AFD 属性写入文档的样式定义（styles.xml），
     /// 并清除匹配段落中与样式定义重复的内联属性。
     /// </summary>

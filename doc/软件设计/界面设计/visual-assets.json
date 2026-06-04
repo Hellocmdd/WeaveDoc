@@ -1,0 +1,468 @@
+{
+  "meta": {
+    "project": "WeaveDoc",
+    "version": "2.0.0",
+    "description": "Unified design system tokens for WeaveDoc — IDE-style local-first academic workbench. All tokens target Avalonia UI ResourceDictionary / XAML styling.",
+    "platform": "desktop",
+    "framework": ".NET 10.0 + Avalonia UI 11.x",
+    "themeMode": ["light", "dark"],
+    "totalTokens": 66
+  },
+
+  "colors": {
+    "description": "Unified color system. A single palette serves both themes via semantic token mapping. Neutral scale inspired by GitHub Primer Dark — proven in high-density IDE contexts.",
+
+    "neutralScale": {
+      "description": "Neutral gray scale covering deepest workspace background to high-contrast text. Tokens are theme-agnostic; semantic Avalonia resource assignment differs per theme.",
+      "tokens": [
+        { "name": "neutral-950", "hex": "#0D1117", "role": "Deepest background — Dark theme workspace / Markdown editor canvas" },
+        { "name": "neutral-900", "hex": "#161B22", "role": "Panel / card background in dark theme" },
+        { "name": "neutral-800", "hex": "#21262D", "role": "Raised surface, hover state, input background in dark theme" },
+        { "name": "neutral-700", "hex": "#30363D", "role": "Border / divider in dark theme" },
+        { "name": "neutral-500", "hex": "#6E7681", "role": "Disabled text / placeholder in dark theme" },
+        { "name": "neutral-400", "hex": "#8B949E", "role": "Muted / secondary text in dark theme" },
+        { "name": "neutral-300", "hex": "#C9D1D9", "role": "Body text in dark theme" },
+        { "name": "neutral-100", "hex": "#E6EDF3", "role": "Primary text / high-emphasis in dark theme" },
+        { "name": "neutral-50",  "hex": "#F0F6FC", "role": "Highest contrast text in dark theme; Muted background in light theme" },
+        { "name": "neutral-0",   "hex": "#FFFFFF", "role": "Light theme page background / Pure white reading surface" },
+        { "name": "neutral-l10", "hex": "#F8F9FA", "role": "Light theme page background (off-white)" },
+        { "name": "neutral-l20", "hex": "#EAEEF2", "role": "Light theme raised panel / secondary surface" },
+        { "name": "neutral-l30", "hex": "#D8DEE4", "role": "Light theme border / divider" },
+        { "name": "neutral-l60", "hex": "#57606A", "role": "Light theme muted text" },
+        { "name": "neutral-l80", "hex": "#1C2128", "role": "Light theme primary text" }
+      ]
+    },
+
+    "primaryAccent": {
+      "description": "Scientific Blue — primary interactive accent. Single scale used across both themes via different token assignments.",
+      "tokens": [
+        { "name": "blue-700", "hex": "#0550AE", "role": "Deep pressed state; focus ring (light theme)" },
+        { "name": "blue-600", "hex": "#0969DA", "role": "Default interactive (light theme); Link text" },
+        { "name": "blue-500", "hex": "#1F6FEB", "role": "Hover state (light theme)" },
+        { "name": "blue-400", "hex": "#388BFD", "role": "Interactive emphasis; Focus ring" },
+        { "name": "blue-300", "hex": "#58A6FF", "role": "Primary interactive (dark theme); Tab underline; Anchor links" },
+        { "name": "blue-200", "hex": "#A5D6FF", "role": "Focus ring highlight (dark theme)" },
+        { "name": "blue-100", "hex": "#CAE8FF", "role": "Surface accent / selected row background (light theme)" },
+        { "name": "blue-50",  "hex": "#DDF4FF", "role": "Light accent background; AI bubble highlight" }
+      ]
+    },
+
+    "semantic": {
+      "description": "Semantic status colors for success, warning, error, and info states.",
+      "success": {
+        "label": "Success Green — AI idle indicator, export complete, PDF matched",
+        "dot": "#3FB950",
+        "tokens": [
+          { "name": "green-700", "hex": "#1A7F37", "role": "Success text/icon (light theme)" },
+          { "name": "green-400", "hex": "#3FB950", "role": "Success (dark theme); AI idle status dot; Export complete" },
+          { "name": "green-100", "hex": "#DCFFE4", "role": "Success surface background" }
+        ]
+      },
+      "warning": {
+        "label": "Warning Amber — Memory 70-80%, partial recognition, citation mismatch",
+        "dot": "#D29922",
+        "tokens": [
+          { "name": "yellow-700", "hex": "#9A6700", "role": "Warning text/icon (light theme)" },
+          { "name": "yellow-400", "hex": "#D29922", "role": "Warning (dark theme); Memory 70-80%; Citation warning" },
+          { "name": "yellow-100", "hex": "#FFF8C5", "role": "Warning surface background" }
+        ]
+      },
+      "error": {
+        "label": "Error Red — Memory >80%, export failure, model load failure, destructive actions",
+        "dot": "#F85149",
+        "tokens": [
+          { "name": "red-700", "hex": "#CF222E", "role": "Error text/icon (light theme); Destructive button" },
+          { "name": "red-400", "hex": "#F85149", "role": "Error (dark theme); Memory critical; Delete/Restore warning" },
+          { "name": "red-100", "hex": "#FFEBE9", "role": "Error surface background" }
+        ]
+      },
+      "info": {
+        "label": "Info — neutral informational states",
+        "tokens": [
+          { "name": "info-400", "hex": "#3B82F6", "role": "Info indicator" }
+        ]
+      }
+    },
+
+    "aiStatus": {
+      "description": "Model status indicator colors (non-semantic — these are fixed LED-style signals).",
+      "unconfigured": { "hex": "#888888", "label": "Gray — no model configured" },
+      "unloaded":     { "hex": "#F85149", "label": "Red — model configured but not loaded" },
+      "loading":      { "hex": "#D29922", "label": "Amber — model loading (with rotation animation)" },
+      "idle":         { "hex": "#3FB950", "label": "Green — model ready, waiting for input" },
+      "inference":    { "hex": "#3FB950", "label": "Green pulse — model generating (with breathing animation)" }
+    }
+  },
+
+  "themeMapping": {
+    "description": "Semantic Avalonia ResourceDictionary key assignments per theme. These are the actual brush/resources consumed by Views/ViewModels.",
+
+    "light": {
+      "Background":            { "value": "#FFFFFF",          "source": "neutral-0" },
+      "Foreground":            { "value": "#1C2128",          "source": "neutral-l80" },
+      "PanelBackground":       { "value": "#F8F9FA",          "source": "neutral-l10" },
+      "CardBackground":        { "value": "#FFFFFF",          "source": "neutral-0" },
+      "EditorBackground":      { "value": "#0D1117",          "source": "neutral-950", "note": "Markdown editor — immersive dark coding zone" },
+      "EditorForeground":      { "value": "#E6EDF3",          "source": "neutral-100", "note": "Editor text — light on dark" },
+      "PopoverBackground":     { "value": "#FFFFFF",          "source": "neutral-0" },
+      "Primary":               { "value": "#0969DA",          "source": "blue-600" },
+      "PrimaryForeground":     { "value": "#FFFFFF",          "source": "neutral-0" },
+      "Secondary":             { "value": "#EAEEF2",          "source": "neutral-l20" },
+      "SecondaryForeground":   { "value": "#1C2128",          "source": "neutral-l80" },
+      "Muted":                 { "value": "#F0F6FC",          "source": "neutral-50" },
+      "MutedForeground":       { "value": "#57606A",          "source": "neutral-l60" },
+      "Accent":                { "value": "#DDF4FF",          "source": "blue-50" },
+      "AccentForeground":      { "value": "#0969DA",          "source": "blue-600", "note": "Interactive text color — links, active list items, focused states" },
+      "Destructive":           { "value": "#CF222E",          "source": "red-700" },
+      "DestructiveForeground": { "value": "#FFFFFF",          "source": "neutral-0" },
+      "Border":                { "value": "#D8DEE4",          "source": "neutral-l30" },
+      "InputBackground":       { "value": "#EAEEF2",          "source": "neutral-l20" },
+      "SwitchBackground":      { "value": "#B0B8C4",          "note": "Toggle switch track background (light theme)" },
+      "Ring":                  { "value": "#0550AE",          "source": "blue-700" },
+      "Sidebar":               { "value": "#F0F6FC",          "source": "neutral-50" },
+      "SidebarForeground":     { "value": "#1C2128",          "source": "neutral-l80" },
+      "SidebarPrimary":        { "value": "#0969DA",          "source": "blue-600" },
+      "SidebarAccent":         { "value": "#DDF4FF",          "source": "blue-50" },
+      "SidebarBorder":         { "value": "#D8DEE4",          "source": "neutral-l30" },
+      "SidebarRing":           { "value": "#0550AE",          "source": "blue-700" },
+      "UserBubbleBackground":  { "value": "#F3F3F3",          "note": "Chat user message bubble" },
+      "AIBubbleBorder":       { "value": "#0969DA",          "source": "blue-600", "note": "3px left border on AI chat bubbles" }
+    },
+
+    "dark": {
+      "Background":            { "value": "#0D1117",          "source": "neutral-950" },
+      "Foreground":            { "value": "#E6EDF3",          "source": "neutral-100" },
+      "PanelBackground":       { "value": "#161B22",          "source": "neutral-900" },
+      "CardBackground":        { "value": "#161B22",          "source": "neutral-900" },
+      "EditorBackground":      { "value": "#0D1117",          "source": "neutral-950", "note": "Same as workspace background — seamless" },
+      "EditorForeground":      { "value": "#E6EDF3",          "source": "neutral-100" },
+      "PopoverBackground":     { "value": "#21262D",          "source": "neutral-800" },
+      "Primary":               { "value": "#58A6FF",          "source": "blue-300" },
+      "PrimaryForeground":     { "value": "#0D1117",          "source": "neutral-950" },
+      "Secondary":             { "value": "#21262D",          "source": "neutral-800" },
+      "SecondaryForeground":   { "value": "#E6EDF3",          "source": "neutral-100" },
+      "Muted":                 { "value": "#21262D",          "source": "neutral-800" },
+      "MutedForeground":       { "value": "#8B949E",          "source": "neutral-400" },
+      "Accent":                { "value": "#21262D",          "source": "neutral-800" },
+      "AccentForeground":      { "value": "#58A6FF",          "source": "blue-300", "note": "Interactive text in dark theme — links, active states, Tab underline" },
+      "Destructive":           { "value": "#F85149",          "source": "red-400" },
+      "DestructiveForeground": { "value": "#0D1117",          "source": "neutral-950" },
+      "Border":                { "value": "#30363D",          "source": "neutral-700" },
+      "InputBackground":       { "value": "#21262D",          "source": "neutral-800" },
+      "SwitchBackground":      { "value": "#30363D",          "source": "neutral-700" },
+      "Ring":                  { "value": "#58A6FF",          "source": "blue-300" },
+      "Sidebar":               { "value": "#161B22",          "source": "neutral-900" },
+      "SidebarForeground":     { "value": "#E6EDF3",          "source": "neutral-100" },
+      "SidebarPrimary":        { "value": "#58A6FF",          "source": "blue-300" },
+      "SidebarAccent":         { "value": "#21262D",          "source": "neutral-800" },
+      "SidebarBorder":         { "value": "#30363D",          "source": "neutral-700" },
+      "SidebarRing":           { "value": "#58A6FF",          "source": "blue-300" },
+      "UserBubbleBackground":  { "value": "#21262D",          "source": "neutral-800" },
+      "AIBubbleBorder":       { "value": "#58A6FF",          "source": "blue-300" }
+    }
+  },
+
+  "elevation": {
+    "description": "Box-shadow elevation tokens. In Avalonia, these map to BoxShadow properties on Border/Decorator elements.",
+    "tokens": [
+      {
+        "name": "elevation-none",
+        "label": "None",
+        "usage": "Screen-edge panels, activity bar, status bar, split-view containers — boundaries defined by 1px border dividers only.",
+        "cssValue": "none"
+      },
+      {
+        "name": "elevation-low",
+        "label": "Low",
+        "usage": "Context menus, dropdowns, autocomplete popups, status popovers, menu bar flyouts.",
+        "cssValue": "0 1px 3px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.10)"
+      },
+      {
+        "name": "elevation-medium",
+        "label": "Medium",
+        "usage": "Blocking ModalHost shells, Floating OCR toolbar (z-index max above PDF layer), command palette, quick-open dialog.",
+        "cssValue": "0 4px 16px rgba(0,0,0,.28), 0 2px 6px rgba(0,0,0,.18)"
+      }
+    ]
+  },
+
+  "borderRadius": {
+    "description": "Corner radius token scale. Sharp desktop silhouettes — excessive web-style rounding is prohibited.",
+    "tokens": [
+      { "name": "radius-none", "value": "0px",  "usage": "Outer window frames, MenuBar, StatusBar, split-pane dividers — flush to edge." },
+      { "name": "radius-sm",   "value": "2px",  "usage": "Toolbar buttons, table row selectors, checkboxes, radio inputs, CitationChip, inline tags." },
+      { "name": "radius-md",   "value": "4px",  "usage": "Chat bubbles (AI panel), cards, dropdown panels, OCR floating toolbar." },
+      { "name": "radius-lg",   "value": "6px",  "usage": "[Maximum allowed] Modal dialog host shells — Export, Settings, Setup Wizard, Help/About." }
+    ]
+  },
+
+  "typography": {
+    "fontStacks": {
+      "ui": {
+        "name": "UI Shell",
+        "stack": "'Segoe UI', 'Noto Sans', system-ui, sans-serif",
+        "avaloniaMapping": "Segoe UI (Windows) / Noto Sans (Linux) — set via Avalonia FontFamily resource",
+        "usage": "All UI labels, menus, toolbars, panel headers, settings, status bar."
+      },
+      "code": {
+        "name": "Code & Citations",
+        "stack": "'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+        "avaloniaMapping": "JetBrains Mono — set via Avalonia FontFamily resource on editor / code blocks",
+        "usage": "Markdown editor, LaTeX code blocks, citation keys, timestamps, status labels."
+      }
+    },
+
+    "scale": [
+      {
+        "name": "Caption",
+        "size": "10px",
+        "lineHeight": "14px",
+        "lhRatio": "1.4",
+        "weight": 400,
+        "letterSpacing": "0",
+        "mono": true,
+        "sample": "Last modified 3 min ago · 12 refs · 4.2 MB",
+        "usage": "StatusBar indicators, micro tooltips, OCR confidence percentages, timestamps."
+      },
+      {
+        "name": "Body Dense",
+        "size": "11px",
+        "lineHeight": "16px",
+        "lhRatio": "1.45",
+        "weight": 400,
+        "letterSpacing": "0",
+        "mono": false,
+        "sample": "WeaveDoc.UI/Views/EditorView.axaml",
+        "usage": "File tree items, sidebar list items, dense tab labels, status bar text, reference counts."
+      },
+      {
+        "name": "Body Regular",
+        "size": "13px",
+        "lineHeight": "20px",
+        "lhRatio": "1.54",
+        "weight": 400,
+        "letterSpacing": "0",
+        "mono": false,
+        "sample": "The document analysis pipeline extracts semantic structure from PDF references and citation networks.",
+        "usage": "Core application font size: literature list items, chat bubble text, form labels, settings body."
+      },
+      {
+        "name": "Subheading",
+        "size": "12px",
+        "lineHeight": "16px",
+        "lhRatio": "1.33",
+        "weight": 600,
+        "letterSpacing": "0",
+        "mono": false,
+        "sample": "REFERENCES · 14 items",
+        "usage": "Panel section headers, group labels, category headings, dialog section titles."
+      },
+      {
+        "name": "Panel Header",
+        "size": "11px",
+        "lineHeight": "12px",
+        "lhRatio": "1.09",
+        "weight": 700,
+        "letterSpacing": "0",
+        "mono": false,
+        "sample": "EXPLORER",
+        "usage": "Sidebar panel chrome labels, ACTIVITY BAR captions."
+      },
+      {
+        "name": "Code Editor",
+        "size": "14px",
+        "lineHeight": "22px",
+        "lhRatio": "1.57",
+        "weight": 400,
+        "letterSpacing": "0",
+        "mono": true,
+        "sample": "## 第三章 方法论\n\n本研究采用混合方法设计...\n\n$$\\frac{\\partial^2 u}{\\partial x^2}$$",
+        "usage": "Markdown editor workspace content, LaTeX math rendering blocks, code snippets."
+      }
+    ]
+  },
+
+  "spacing": {
+    "description": "4px base grid spacing scale. All padding, margin, and gap values must be multiples of 4.",
+    "tokens": [
+      { "name": "space-2",  "value": "2px",  "usage": "Divider width; icon-to-label tight spacing" },
+      { "name": "space-4",  "value": "4px",  "usage": "Tight element grouping; icon padding inside toolbar buttons" },
+      { "name": "space-8",  "value": "8px",  "usage": "Default inner padding; toolbar button gap; chat bubble gap; list row vertical padding" },
+      { "name": "space-12", "value": "12px", "usage": "Panel padding; form field gap; status bar item gap" },
+      { "name": "space-16", "value": "16px", "usage": "Module gap; dialog section gap" },
+      { "name": "space-24", "value": "24px", "usage": "Dialog content-to-edge padding; page-level section gap" },
+      { "name": "space-32", "value": "32px", "usage": "Large section gaps (rarely used)" }
+    ]
+  },
+
+  "layout": {
+    "description": "IDE-style single-window multi-panel layout. NOT a web page — no left-nav, no max-width content column.",
+
+    "window": {
+      "defaultSize": "1440 × 900 px",
+      "minSize": "1024 × 700 px"
+    },
+
+    "chrome": [
+      { "element": "TitleBar",        "height": "32px", "closable": false, "note": "Native OS title bar" },
+      { "element": "MenuBar",         "height": "28px", "closable": false, "note": "7 menus: File, Edit, View, AI, Literature, Export, Help" },
+      { "element": "Toolbar",         "height": "40px", "closable": false, "note": "≤7 icon-only buttons, 16×16px icons" },
+      { "element": "StatusBar",       "height": "24px", "closable": true,  "note": "Left: cursor/word/ref count + sync scroll; Right: AI status + memory" }
+    ],
+
+    "workspace": {
+      "description": "Three-column workspace: PDF Viewer | Markdown Editor | Context Panel",
+      "pdfViewer":      { "defaultWidth": "35%", "minWidth": "300px", "maxWidth": "50%" },
+      "markdownEditor": { "defaultWidth": "auto", "minWidth": "400px", "note": "Fills remaining split width; about 65% when context panel is collapsed." },
+      "contextPanel":   { "width": "280px", "collapsible": true, "note": "Fixed width. Expanded by default at >=1440px; collapsed by default at 1024-1439px. Contains 3 tabs: AI Chat, Literature, Snapshot Timeline." },
+      "splitDivider":   { "width": "2px", "note": "Draggable. Double-click resets to 35:65. Snaps at 25% and 50%." }
+    },
+
+    "modalWindows": {
+      "exportDialog":    { "width": "540px", "height": "560px", "expandableTo": "620px" },
+      "settings":        { "width": "640px", "height": "520px" },
+      "setupWizard":     { "width": "600px", "height": "500px" },
+      "helpAbout":       { "width": "400px", "height": "520px" }
+    },
+
+    "zIndex": {
+      "description": "Stacking order for overlay elements. In Avalonia, this maps to ZIndex attached property or Panel order.",
+      "layers": [
+        { "level": "Z0",  "value": 0,  "element": "Workspace background" },
+        { "level": "Z1",  "value": 1,  "element": "PDF Viewer / Markdown Editor content" },
+        { "level": "Z2",  "value": 2,  "element": "SplitDivider (hover highlight)" },
+        { "level": "Z3",  "value": 3,  "element": "Context Panel" },
+        { "level": "Z4",  "value": 4,  "element": "Search/Replace bar (editor float)" },
+        { "level": "Z5",  "value": 5,  "element": "OCR Floating Toolbar (highest non-modal)" },
+        { "level": "Z10", "value": 10, "element": "Modal overlay — rgba(0,0,0,0.4)" },
+        { "level": "Z11", "value": 11, "element": "Modal window content" },
+        { "level": "Z12", "value": 12, "element": "ConfirmDialogHost (global confirmation layer; modal-on-modal when source is already modal)" },
+        { "level": "Z13", "value": 13, "element": "Toast notification (non-blocking)" }
+      ]
+    }
+  },
+
+  "iconography": {
+    "logo": {
+      "type": "SVG",
+      "description": "Four-square grid logo using blue primary accent colors. Suitable for window icon and About dialog.",
+      "colors": ["#0969DA", "#58A6FF", "#388BFD", "#1F6FEB"],
+      "size": "64x64px (About) / 16x16px (window icon)",
+      "svg": "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\"><rect x=\"0\" y=\"0\" width=\"6\" height=\"6\" rx=\"1\" fill=\"#0969DA\"/><rect x=\"8\" y=\"0\" width=\"6\" height=\"6\" rx=\"1\" fill=\"#58A6FF\" opacity=\"0.75\"/><rect x=\"0\" y=\"8\" width=\"6\" height=\"6\" rx=\"1\" fill=\"#388BFD\" opacity=\"0.65\"/><rect x=\"8\" y=\"8\" width=\"6\" height=\"6\" rx=\"1\" fill=\"#1F6FEB\" opacity=\"0.45\"/></svg>"
+    },
+
+    "iconSpec": {
+      "style": "Clean line icons — Lucide/Feather aesthetic",
+      "size": "16×16px (standard), 24×24px (empty-state placeholders)",
+      "strokeWidth": "1.5px",
+      "cap": "round",
+      "color": "Inherits parent text color (monochrome)",
+      "avaloniaImplementation": "Avalonia PathIcon with StreamGeometry or SvgImage. Icon data stored as XAML Path markup.",
+      "wireframeGlyphNote": "Emoji/status glyphs shown in Markdown wireframes are semantic placeholders only; implementation uses PathIcon/StatusDot plus semantic color tokens.",
+      "iconsRequired": [
+        "Sun", "Moon", "Copy", "Check", "FilePlus", "FolderOpen", "Save",
+        "Export", "Bot", "Undo", "Redo", "ChevronLeft", "ChevronRight",
+        "Search", "Filter", "ArrowUpDown", "Plus", "Refresh", "Trash",
+        "AlertTriangle", "AlertCircle", "X", "ChevronDown", "ExternalLink",
+        "Microscope", "Circle", "LoaderCircle", "CircleCheck"
+      ]
+    },
+
+    "statusDots": {
+      "description": "Micro color-coded dots for model status and connection indicators.",
+      "size": "8px diameter",
+      "positions": ["StatusBar (right)", "AI Panel top bar", "Settings → Model Management"],
+      "colors": {
+        "gray":    { "hex": "#888888", "meaning": "Unconfigured" },
+        "red":     { "hex": "#F85149", "meaning": "Unloaded / Error" },
+        "amber":   { "hex": "#D29922", "meaning": "Loading (with rotation anim)" },
+        "green":   { "hex": "#3FB950", "meaning": "Idle / Ready" },
+        "greenPulse": { "hex": "#3FB950", "meaning": "Inference (with breathing anim)" }
+      }
+    }
+  },
+
+  "componentMapping": {
+    "description": "How the project's own Avalonia component definitions consume these tokens. Components are defined in UI组件定义.md — this section maps tokens to components.",
+
+    "coreComponents": [
+      { "component": "ModalHost",        "tokens": ["radius-lg", "elevation-medium", "zIndex-Z11"], "note": "Shell for Export/Settings/Wizard/About" },
+      { "component": "SplitPane",        "tokens": ["radius-none", "elevation-none", "zIndex-Z2"], "note": "Draggable 2px divider" },
+      { "component": "TabBar",           "tokens": ["AccentForeground", "Border"], "note": "2px accent underline on active tab" },
+      { "component": "PanelContainer",   "tokens": ["Border", "PanelBackground"], "note": "280px fixed width; collapsible" },
+      { "component": "Toolbar",          "tokens": ["space-8", "space-4"], "note": "40px height; ≤7 IconButtons" },
+      { "component": "StatusBar",        "tokens": ["Caption", "Foreground", "MutedForeground"], "note": "24px; cursor/word/ref/sync state plus AI/memory; theme-mapped text colors" },
+      { "component": "FilterableList",   "tokens": ["Body Regular", "Accent", "radius-sm"], "note": "Search + filter + sort + expand" },
+      { "component": "Timeline",         "tokens": ["Body Dense", "AccentForeground", "neutral-700"], "note": "Vertical timeline with nodes" },
+      { "component": "ChatMessageList",  "tokens": ["Body Regular", "UserBubbleBackground", "AIBubbleBorder"], "note": "8px bubble gap" },
+      { "component": "StreamingTextBlock","tokens": ["Body Regular", "AccentForeground"], "note": "Streaming AI text with citation chips rendered after completion" },
+      { "component": "CitationChip",     "tokens": ["Body Dense", "AccentForeground", "radius-sm"], "note": "Clickable source chips such as [1] p.3" },
+      { "component": "ModelStatusIndicator", "tokens": ["Caption", "statusDots"], "note": "Compact (StatusBar), Detailed (AI Panel), and Row (Settings model list) variants" },
+      { "component": "MemoryIndicator",  "tokens": ["Caption", "statusDots"], "note": "Compact (StatusBar) and Detailed (Settings) variants; default warning at 70-80%, critical above configured threshold (default 80%)" },
+      { "component": "FloatingCodeBlock","tokens": ["elevation-medium", "radius-md", "Code Editor"], "note": "OCR LaTeX output float" },
+      { "component": "MarkdownEditor",   "tokens": ["EditorBackground", "EditorForeground", "Code Editor"], "note": "Dark immersive editing zone" },
+      { "component": "PDFViewer",        "tokens": ["neutral-0", "radius-none"], "note": "Pure white paper-like surface" },
+      { "component": "ConfirmDialog",    "tokens": ["Destructive", "radius-md"], "note": "Global confirmation layer for destructive actions; modal-on-modal only when invoked from an existing modal" },
+      { "component": "Toast",            "tokens": ["elevation-low", "radius-md"], "note": "Non-blocking; 3s auto-dismiss" },
+      { "component": "EmptyState",       "tokens": ["MutedForeground", "Body Regular"], "note": "Icon + title + description + CTA" },
+      { "component": "PathPicker",       "tokens": ["InputBackground", "Border", "radius-sm"], "note": "TextBox + Browse button" },
+      { "component": "FieldControls",    "tokens": ["Body Regular", "InputBackground", "Border", "radius-sm"], "note": "ToggleField / NumericField / ComboField / RadioListField standardized 32px form rows" },
+      { "component": "ProgressStepper",  "tokens": ["AccentForeground", "green-400"], "note": "Horizontal (wizard) or Vertical (pipeline)" },
+      { "component": "DiffViewer",       "tokens": ["red-100", "green-100", "Code Editor"], "note": "Red deleted / Green added; side-by-side in wide views, inline-compact in 280px panels" }
+    ]
+  },
+
+  "animation": {
+    "description": "Animation timing tokens. In Avalonia, these map to Transitions / KeyFrames / Animation properties.",
+    "tokens": [
+      { "name": "panel-expand",   "duration": "200ms", "easing": "ease-out", "usage": "Context panel expand" },
+      { "name": "panel-collapse", "duration": "150ms", "easing": "ease-in",  "usage": "Context panel collapse" },
+      { "name": "modal-open",     "duration": "200ms", "easing": "ease-out", "usage": "Modal fade-in + scale 0.97→1" },
+      { "name": "modal-close",    "duration": "150ms", "easing": "ease-in",  "usage": "Modal fade-out" },
+      { "name": "toast-enter",    "duration": "200ms", "easing": "ease-out", "usage": "Toast slide-up from bottom" },
+      { "name": "toast-exit",     "duration": "200ms", "easing": "ease-in",  "usage": "Toast fade-out" },
+      { "name": "tab-transition", "duration": "150ms", "easing": "ease-in-out", "usage": "Tab content crossfade" },
+      { "name": "hover-tooltip",  "duration": "400ms", "easing": "ease-out", "usage": "Tooltip appear delay" }
+    ]
+  },
+
+  "dependencies": {
+    "description": ".NET / Avalonia UI dependencies implementing this design system. All web dependencies from the original FigmaAI export have been replaced.",
+
+    "runtime": {
+      "dotnet": "10.0",
+      "avaloniaUI": "11.x",
+      "language": "C# 12+"
+    },
+
+    "ui": [
+      { "name": "Avalonia",              "purpose": "Cross-platform desktop UI framework" },
+      { "name": "Avalonia.Desktop",      "purpose": "Desktop platform backend" },
+      { "name": "Avalonia.Themes.Fluent","purpose": "Fluent theme base (customized with project brushes)" },
+      { "name": "Avalonia.Controls.ColorPicker", "purpose": "Optional color picker control" }
+    ],
+
+    "editor": [
+      { "name": "AvaloniaEdit",          "purpose": "Markdown source editor (syntax highlighting, line numbers, VS Code-like editing feel)" }
+    ],
+
+    "ai": [
+      { "name": "LLamaSharp",            "purpose": "Local LLM inference (GGUF model runtime)" },
+      { "name": "LLamaSharp.Backend.Cpu","purpose": "CPU backend for LLamaSharp (AVX2 optimized)" }
+    ],
+
+    "data": [
+      { "name": "Microsoft.Data.Sqlite", "purpose": "SQLite local database for citations, vectors, snapshots" },
+      { "name": "System.Text.Json",      "purpose": "AFD template JSON parsing" }
+    ],
+
+    "mvvm": [
+      { "name": "CommunityToolkit.Mvvm", "purpose": "MVVM source generators (ObservableProperty, RelayCommand)" },
+      { "name": "ReactiveUI",            "purpose": "Reactive bindings (WhenAnyValue for cross-panel联动)" }
+    ],
+
+    "utilities": [
+      { "name": "Serilog",               "purpose": "Structured logging / audit trail" }
+    ]
+  }
+}

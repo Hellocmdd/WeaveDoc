@@ -1,0 +1,98 @@
+@startuml 活动图-RAG问答
+title 用例2：离线RAG文献问答 - 活动图
+
+|用户|
+start
+:打开RAG问答面板;
+
+|RagTabViewModel|
+:触发初始化流程;
+
+|LocalAiService|
+:加载 RagOptions\n(从环境变量);
+
+if (Embedding模型文件存在?) then (否)
+    |RagTab|
+    :提示"Embedding模型未找到\n请检查模型路径";
+    stop
+else (是)
+endif
+
+|LLamaSharp|
+:加载 GGUF Embedding模型\n(LLamaWeights + LLamaEmbedder);
+
+|LocalAiService|
+:扫描文档目录;
+
+while (还有未处理文档?) is (是)
+    :文档分块\n(MarkdownChunking/JsonChunking);
+    :计算文本块向量\n(LLamaEmbedder);
+    :缓存到 EmbeddingCache;
+endwhile (否)
+
+:LlamaServerProcess.StartIfNeededAsync()\n启动 Reranker 服务;
+
+|RagTab|
+:提示"AI助手已就绪";
+
+|用户|
+:输入问题;
+
+|RagTabViewModel|
+:IsBusy = true;
+
+|LocalAiService|
+:计算问题向量\n(LLamaEmbedder);
+
+:在 EmbeddingCache 中\n计算余弦相似度\n取 Top-K 候选;
+
+|CandidateRetriever|
+if (Reranker 服务可用?) then (是)
+    :HTTP POST /rerank\n发送 query + candidates;
+    :获取重排序分数;
+else (否)
+    :跳过重排序\n使用原始相似度;
+endif
+
+|ChunkRanker|
+:根据查询意图计算加权\n(procedure/compare/definition);
+
+|AnswerComposer|
+:组装 System Prompt\n角色定义+参考内容+问题;
+
+|LlamaServerChatClient|
+if (云端模式启用?) then (是)
+    :HTTP POST 云端API\n(DeepSeek兼容格式);
+else (否)
+    :HTTP POST 本地 llama-server\n/v1/chat/completions;
+endif
+
+while (仍有 Token 输出?) is (是)
+    :接收 SSE 事件流;
+    |RagTab|
+    :实时显示回答;
+    |LlamaServerChatClient|
+endwhile (否)
+
+if (响应被截断?) then (是)
+    :自动续写\n(传入已生成内容);
+    note right
+      续写直到完成或达上限
+    end note
+else (否)
+endif
+
+|LocalAiService|
+:AnswerPostProcessing\n引用归一化\n离题检测;
+
+|RagTabViewModel|
+:IsBusy = false;
+
+|RagTab|
+:显示完整回答;
+
+|用户|
+:查看AI回答;
+
+stop
+@enduml

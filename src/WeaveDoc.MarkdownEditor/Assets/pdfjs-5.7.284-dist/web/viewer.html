@@ -30,6 +30,45 @@ See https://github.com/adobe-type-tools/cmap-resources
 <!-- This snippet is used in production (included from viewer.html) -->
 <link rel="resource" type="application/l10n" href="locale/locale.json" />
 <script src="../build/pdf.mjs" type="module"></script>
+  <script type="module">
+    import { GlobalWorkerOptions, version, getDocument, PDFJS, DefaultExternalResourcesFactory } from '../build/pdf.mjs';
+    GlobalWorkerOptions.workerSrc = '../build/pdf.worker.mjs';
+    
+    console.log('PDF.js version:', version);
+    console.log('cMapUrl from viewer.mjs:', './cmaps/');
+    console.log('Worker src:', GlobalWorkerOptions.workerSrc);
+    
+    fetch('./cmaps/Adobe-GB1-0.bcmap')
+      .then(response => {
+        if (response.ok) {
+          console.log('CMAP file loaded successfully');
+        } else {
+          console.log('CMAP file load failed:', response.status);
+        }
+      })
+      .catch(err => console.log('CMAP fetch error:', err));
+  </script>
+  
+  <style>
+    @font-face {
+      font-family: 'SimSun';
+      src: local('SimSun'), local('宋体'), local('Noto Sans CJK SC'), local('Microsoft YaHei'), local('微软雅黑');
+    }
+    @font-face {
+      font-family: 'STSong';
+      src: local('STSong'), local('SimSun'), local('Noto Serif CJK SC');
+    }
+    @font-face {
+      font-family: 'STHeiti';
+      src: local('STHeiti'), local('SimHei'), local('Microsoft YaHei');
+    }
+    body {
+      font-family: SimSun, STSong, STHeiti, 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
+    }
+    .textLayer {
+      font-family: SimSun, STSong, 'Noto Sans CJK SC', sans-serif !important;
+    }
+  </style>
 
     <link rel="stylesheet" href="viewer.css" />
 

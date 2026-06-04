@@ -16,11 +16,11 @@ if [[ -z "$SQLITE_BIN" ]]; then
   fi
 fi
 
-MARKDOWN_DIR="$ROOT_DIR/doc/markdown"
-JSON_DIR="$ROOT_DIR/doc/json"
+MARKDOWN_DIR="$ROOT_DIR/tests/test_doc/markdown"
+JSON_DIR="$ROOT_DIR/tests/test_doc/json"
 
 if [[ ! -d "$MARKDOWN_DIR" && ! -d "$JSON_DIR" ]]; then
-  echo "No markdown/json document directories found under doc/." >&2
+  echo "No markdown/json document directories found under tests/test_doc/." >&2
   exit 1
 fi
 

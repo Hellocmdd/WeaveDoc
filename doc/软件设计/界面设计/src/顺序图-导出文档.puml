@@ -1,0 +1,46 @@
+@startuml
+title WeaveDoc 导出文档界面交互顺序图
+
+skinparam shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #0969DA
+  LifeLineBorderColor #D8DEE4
+  LifeLineBackgroundColor #F8F9FA
+  ParticipantBorderColor #D8DEE4
+  ParticipantBackgroundColor #F8F9FA
+}
+
+actor "用户" as U
+boundary "工作台" as W
+boundary "导出对话框" as E
+boundary "引文校验区" as C
+boundary "进度区" as P
+control "导出服务" as S
+
+U -> W : 点击导出按钮 / Ctrl+Shift+E
+W -> E : 打开导出对话框
+E --> U : 显示模板列表、输出格式、路径选择
+U -> E : 选择模板、格式和输出路径
+E -> C : 请求引文一致性校验
+C --> E : 返回校验结果
+
+alt 校验通过
+  U -> E : 点击导出
+  E -> P : 展开导出进度区并锁定配置项
+  E -> S : 启动导出管线
+  S --> P : 解析模板完成
+  S --> P : 生成 IR 完成
+  S --> P : 引文重排完成
+  S --> P : Pandoc 转换完成
+  P --> E : 显示导出成功和文件路径
+  E --> U : 提供打开文件夹 / 关闭
+else 普通引文警告
+  C --> U : 显示未匹配引用列表
+  U -> E : 选择返回修改或仍要继续导出
+else 结构性错误
+  C --> E : 禁用导出按钮
+  E --> U : 显示错误原因并要求返回修改
+end
+
+@enduml

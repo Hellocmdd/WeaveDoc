@@ -1,0 +1,180 @@
+@startuml 顺序图-RAG问答
+' ============================================
+' WeaveDoc 顺序图 — 用例B：离线AI文献问答（RAG）
+' 参与者 → 边界类 → 控制类 → 实体类
+' ============================================
+
+skinparam sequenceParticipantBackgroundColor #ECF0F1
+skinparam sequenceParticipantBorderColor #2C3E50
+skinparam sequenceActorBackgroundColor #FDEBD0
+skinparam sequenceActorBorderColor #E67E22
+skinparam sequenceBoxBackgroundColor #F8F9F9
+skinparam sequenceBoxBorderColor #BDC3C7
+skinparam noteBackgroundColor #FCF3CF
+skinparam noteBorderColor #F39C12
+skinparam maxMessageSize 300
+
+title WeaveDoc — 用例B：离线AI文献问答（RAG）
+
+' ========================================
+' 参与者定义
+' ========================================
+actor "用户\n(研究者/学生)" as User
+
+' 边界类
+box "边界类 (Boundary)" #E8F8F5
+    participant "ChatPanel\n(问答面板)" as ChatPanel
+    participant "ProgressBar\n(加载指示器)" as Progress
+end box
+
+' 控制类
+box "控制类 (Control)" #FDEDEC
+    participant "RAGController\n(RAG 控制器)" as RAGCtrl
+    participant "EmbeddingController\n(向量化控制器)" as EmbedCtrl
+    participant "LLMController\n(LLM 推理控制器)" as LLMCtrl
+end box
+
+' 实体类
+box "实体类 (Entity)" #F2F3F4
+    participant "VectorStore\n(向量数据库)" as VecStore
+    participant "LLamaSharpModel\n(LLama 模型实例)" as LLamaModel
+    participant "ConversationContext\n(对话上下文)" as ConvCtx
+end box
+
+' 外部
+box "外部系统" #FADBD8
+    participant "FileSystem\n(文件系统)" as FS
+end box
+
+' ========================================
+' 交互流程
+' ========================================
+
+== 阶段1：系统初始化（冷启动） ==
+
+User -> ChatPanel : 1. 打开 RAG 问答面板
+activate ChatPanel
+
+ChatPanel -> RAGCtrl : 2. InitializeAsync()
+activate RAGCtrl
+
+RAGCtrl -> Progress : 3. 显示 "正在加载模型..."
+activate Progress
+
+RAGCtrl -> LLMCtrl : 4. LoadModelAsync(modelPath)
+activate LLMCtrl
+
+LLMCtrl -> FS : 5. 读取 GGUF 模型文件
+activate FS
+FS --> LLMCtrl : 6. 模型文件流
+deactivate FS
+
+LLMCtrl -> LLamaModel : 7. 创建 LLamaWeights\n和 LLamaContext
+activate LLamaModel
+
+LLamaModel --> LLMCtrl : 8. 模型加载完成
+deactivate LLamaModel
+
+LLMCtrl --> RAGCtrl : 9. 返回 LLM 推理句柄
+deactivate LLMCtrl
+
+RAGCtrl -> EmbedCtrl : 10. IndexDocumentsAsync(pdfPaths)
+activate EmbedCtrl
+
+EmbedCtrl -> FS : 11. 读取 PDF 文件列表
+activate FS
+FS --> EmbedCtrl : 12. PDF 文本内容
+deactivate FS
+
+EmbedCtrl -> EmbedCtrl : 13. 文本分块 (Chunking)\n每块 512 tokens，重叠 50
+
+EmbedCtrl -> VecStore : 14. 批量生成向量并存储
+activate VecStore
+
+VecStore -> VecStore : 15. 对每个 Chunk 计算\nEmbedding 向量，存入 SQLite
+
+VecStore --> EmbedCtrl : 16. 向量化完成 (ChunkCount)
+deactivate VecStore
+
+EmbedCtrl --> RAGCtrl : 17. 索引构建完成
+deactivate EmbedCtrl
+
+RAGCtrl -> Progress : 18. 隐藏加载指示器
+deactivate Progress
+
+RAGCtrl --> ChatPanel : 19. 系统就绪
+deactivate RAGCtrl
+
+ChatPanel --> User : 20. 显示 "AI 助手已就绪"
+deactivate ChatPanel
+
+== 阶段2：用户提问与检索增强 ==
+
+User -> ChatPanel : 21. 输入问题："本文提出的\n方法是什么？"
+activate ChatPanel
+
+ChatPanel -> RAGCtrl : 22. QueryAsync(question, docId)
+activate RAGCtrl
+
+RAGCtrl -> VecStore : 23. SearchAsync(question, topK=5)
+activate VecStore
+
+VecStore -> VecStore : 24. 将问题向量化\n计算余弦相似度
+
+VecStore --> RAGCtrl : 25. 返回 Top-5 相关文本片段
+deactivate VecStore
+
+== 阶段3：Prompt 组装与 LLM 推理 ==
+
+RAGCtrl -> ConvCtx : 26. 获取对话历史
+activate ConvCtx
+ConvCtx --> RAGCtrl : 27. 返回上下文
+deactivate ConvCtx
+
+RAGCtrl -> RAGCtrl : 28. 组装 System Prompt：\n"你是一个学术助手。\n基于以下文献内容回答问题：\n{检索结果}\n---\n问题：{用户问题}"
+
+RAGCtrl -> LLMCtrl : 29. GenerateAsync(prompt, config)
+activate LLMCtrl
+
+LLMCtrl -> LLamaModel : 30. 执行推理 (inference)
+activate LLamaModel
+
+loop 流式生成每个 Token
+    LLamaModel --> LLMCtrl : 31. Token 流
+    deactivate LLamaModel
+    LLMCtrl --> RAGCtrl : 32. 转发 Token
+    deactivate LLMCtrl
+    RAGCtrl --> ChatPanel : 33. 流式更新显示
+    activate LLMCtrl
+    activate LLamaModel
+end
+
+LLamaModel --> LLMCtrl : 34. 推理结束
+deactivate LLamaModel
+LLMCtrl --> RAGCtrl : 35. 生成完成
+deactivate LLMCtrl
+
+== 阶段4：保存上下文与展示 ==
+
+RAGCtrl -> ConvCtx : 36. 追加本轮对话记录
+activate ConvCtx
+ConvCtx --> RAGCtrl
+deactivate ConvCtx
+
+RAGCtrl --> ChatPanel : 37. 返回完整回答\n(含引用溯源)
+deactivate RAGCtrl
+
+ChatPanel -> ChatPanel : 38. 渲染引用标注\n高亮原文出处
+
+ChatPanel --> User : 39. 展示带溯源的 AI 回答
+deactivate ChatPanel
+
+note right of User
+  <b>离线保障：</b>
+  整个过程中，所有操作均在本地完成。
+  向量检索 → 本地 SQLite
+  LLM 推理 → 本地 LLamaSharp + GGUF
+  无任何网络请求发出。
+end note
+
+@enduml

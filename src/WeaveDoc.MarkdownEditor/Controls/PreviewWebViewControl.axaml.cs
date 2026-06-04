@@ -125,9 +125,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
                 }
 
-                // 减少延迟时间
-                await Task.Delay(100);
-
                 var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (hwnd == IntPtr.Zero)
                 {
@@ -138,11 +135,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 // 确保共享环境只创建一次
                 if (_sharedEnvironment == null)
                 {
-                    Console.WriteLine("Creating shared WebView2 environment...");
-                    _sharedEnvironment = await CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions 
-                    { 
-                        AllowSingleSignOnUsingOSPrimaryAccount = false
-                    });
+                    _sharedEnvironment = await WebView2EnvironmentManager.GetOrCreateEnvironmentAsync2();
                     Console.WriteLine("Shared WebView2 environment created");
                 }
 
@@ -163,13 +156,16 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _webview.AddHostObjectToScript("weaveDocHost", new WeaveDocHost(this));
 
                 var htmlPath = Path.Combine(AppContext.BaseDirectory, "Assets", "preview-template.html");
-                var html = File.ReadAllText(htmlPath);
+                var htmlUri = new Uri(htmlPath).AbsoluteUri;
+                
+                // 添加时间戳参数防止缓存
+                htmlUri += "?t=" + DateTime.Now.Ticks;
                 
                 UpdateControllerBounds();
                 _controller.IsVisible = true;
                 
-                _webview.NavigateToString(html);
-                Console.WriteLine("Preview WebView2 initialized");
+                _webview.Navigate(htmlUri);
+                Console.WriteLine("Preview WebView2 initialized, navigating to: " + htmlUri);
             }
             catch (Exception ex)
             {

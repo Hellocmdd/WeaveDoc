@@ -1,0 +1,80 @@
+@startuml 活动图-双屏联动
+' ============================================
+' 用例3：双屏联动编辑与预览 - 活动图
+' 基于实际代码：Monaco + PreviewWebView + PdfViewer (WebView2)
+' ============================================
+
+title 用例3：双屏联动编辑与预览 - 活动图
+
+|用户|
+start
+:切换到"编辑器"标签页;
+
+|MarkdownEditorTab|
+:ActivateAsync();
+
+|MonacoEditorControl|
+:初始化 WebView2;
+:加载 monaco-editor/index.html;
+
+|PreviewWebViewControl|
+:加载 preview-template.html;
+:注册 WeaveDocHost\n(JS互操作对象);
+
+|PdfViewerControl|
+:启动本地HTTP服务\n(PDF.js资源);
+:加载 PDF.js viewer.html;
+
+|用户|
+repeat
+    switch (用户操作?)
+    case (打开Markdown文件)
+        |FileSystem|
+        :读取 .md 文件;
+        |MonacoEditorControl|
+        :通过 WebView2 消息\n设置编辑器内容;
+        |MarkdownService|
+        :MD→HTML转换\n(正则+data-line标记);
+        |PreviewWebViewControl|
+        :更新 HTML 预览;
+    case (打开PDF文件)
+        |PdfViewerControl|
+        :通过 PDF.js 加载渲染;
+    case (编辑Markdown文本)
+        |MonacoEditorControl|
+        :捕获 onDidChangeModelContent;
+        |MarkdownService|
+        :实时 MD→HTML 转换;
+        |PreviewWebViewControl|
+        :增量更新预览;
+    case (滚动编辑器)
+        |MonacoEditorControl|
+        :捕获滚动事件;
+        |PreviewWebViewControl|
+        :查找 [data-line="N"] 元素\nscrollIntoView();
+    case (选中文字)
+        |MonacoEditorControl|
+        :捕获 onDidChangeCursorSelection;
+        |PreviewWebViewControl|
+        :高亮对应预览区域\nscrollIntoView();
+    case (PDF全屏切换)
+        |PdfViewerControl|
+        :ToggleFullScreen();
+    endswitch
+repeat while (继续操作?) is (是)
+
+|用户|
+:关闭编辑器;
+
+|MarkdownEditorTab|
+:DeactivateAsync();
+
+|MonacoEditorControl|
+:WebView2 隐藏/挂起;
+
+|PdfViewerControl|
+:停止 HTTP 服务;
+
+stop
+
+@enduml

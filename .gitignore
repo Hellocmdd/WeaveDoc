@@ -98,6 +98,7 @@ _debug/
 # Local environments and caches
 .conda/
 models/
+llama.cpp/
 .rag/
 *.db
 .codex/

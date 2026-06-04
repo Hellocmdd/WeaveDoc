@@ -1,0 +1,98 @@
+@startuml 状态图-文档导出
+' ============================================
+' DocumentConversionEngine 转换管线状态图
+' 基于实际代码
+' ============================================
+
+title 文档转换管线状态图 (DocumentConversionEngine)
+
+[*] --> Idle : 用户打开转换界面
+
+state "Idle\n(空闲)" as Idle {
+    Idle : 等待用户操作
+}
+
+Idle --> LoadingTemplate : 用户点击"转换"
+
+state "LoadingTemplate\n(加载模板)" as LoadingTemplate {
+    LoadingTemplate : ConfigManager.GetTemplateAsync()
+    LoadingTemplate : AfdParser.Parse()
+}
+
+LoadingTemplate --> BuildingRefDoc : 模板加载成功
+LoadingTemplate --> Error : AfdParseException\n(模板格式错误)
+
+state "BuildingRefDoc\n(构建参考文档)" as BuildingRefDoc {
+    BuildingRefDoc : ReferenceDocBuilder.Build()
+    BuildingRefDoc : OpenXML API 创建 reference.docx
+}
+
+BuildingRefDoc --> Normalizing : 参考文档生成完成
+
+state "Normalizing\n(MD预处理)" as Normalizing {
+    Normalizing : MarkdownHtmlTableNormalizer
+    Normalizing : MarkdownMathNormalizer
+    Normalizing : MarkdownHtmlImageNormalizer
+}
+
+Normalizing --> PandocConverting : 预处理完成
+
+state "PandocConverting\n(Pandoc转换中)" as PandocConverting {
+    PandocConverting : PandocPipeline.ToDocxAsync()
+    PandocConverting : 启动子进程
+    PandocConverting : Lua筛选器执行
+}
+
+PandocConverting --> StyleCorrecting : 转换成功(ExitCode=0)
+PandocConverting --> Error : PandocException\n(超时/崩溃/非零退出码)
+
+state "StyleCorrecting\n(样式修正中)" as StyleCorrecting {
+    StyleCorrecting : OpenXmlStyleCorrector.ApplyAfdStyles()
+    StyleCorrecting : OpenXmlStyleCorrector.ApplyHeaderFooter()
+    StyleCorrecting : 移除冗余内联属性
+}
+
+StyleCorrecting --> PdfConverting : 导出格式==PDF
+StyleCorrecting --> Completed : 导出格式==DOCX
+
+state "PdfConverting\n(PDF转换中)" as PdfConverting {
+    PdfConverting : CompositePdfConverter.ConvertToPdf()
+    PdfConverting : 策略链: Word→LibreOffice→Syncfusion
+}
+
+PdfConverting --> Completed : PDF转换成功
+PdfConverting --> Error : 所有策略失败
+
+state "Completed\n(转换完成)" as Completed {
+    Completed : ConversionResult(Success=true)
+    Completed : 清理临时文件
+}
+
+state "Error\n(转换失败)" as Error {
+    Error : ConversionErrorFormatter.ToUserMessage()
+    Error : 格式化为用户友好中文提示
+}
+
+Completed --> Idle : 用户可重新转换
+Error --> Idle : 用户修正后重试
+
+Completed --> [*]
+Error --> [*]
+
+note right of PandocConverting
+  <b>进程隔离：</b>
+  Pandoc 作为独立子进程运行
+  崩溃不影响主 WeaveDoc 进程
+  超时阈值: 由 CancellationToken 控制
+end note
+
+note right of PdfConverting
+  <b>策略链模式：</b>
+  CompositePdfConverter
+  按优先级尝试:
+  1. Word COM (Windows)
+  2. LibreOffice (跨平台)
+  3. Syncfusion (兜底)
+end note
+
+@enduml

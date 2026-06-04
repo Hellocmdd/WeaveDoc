@@ -1,0 +1,112 @@
+@startuml 部署图
+' ============================================
+' WeaveDoc 部署图
+' 展示系统在硬件环境中的部署方案
+' ============================================
+
+skinparam nodeBackgroundColor #ECF0F1
+skinparam nodeBorderColor #2C3E50
+skinparam componentBackgroundColor #D5F5E3
+skinparam componentBorderColor #27AE60
+skinparam databaseBackgroundColor #A2D9CE
+skinparam databaseBorderColor #1ABC9C
+skinparam artifactBackgroundColor #FCF3CF
+skinparam artifactBorderColor #F39C12
+skinparam arrowColor #7F8C8D
+skinparam arrowThickness 1.5
+skinparam rectangleBackgroundColor #FDEBD0
+skinparam rectangleBorderColor #E67E22
+skinparam folderBackgroundColor #F9E79F
+skinparam folderBorderColor #F39C12
+
+title WeaveDoc 系统部署图
+
+' ========================================
+' 目标部署环境：单机（Windows / Linux）
+' ========================================
+
+node "用户 PC / 工作站" as UserPC #EBF5FB {
+
+    rectangle "操作系统" as OSNode {
+        component "Windows 10/11 (64位)\n或 Ubuntu 22.04+ / Fedora" as OS
+    }
+
+    rectangle "运行时环境" as Runtime #FDEBD0 {
+        artifact ".NET 10.0 Runtime" as DotNetRuntime
+    }
+
+    rectangle "WeaveDoc 应用程序" as AppNode #D5F5E3 {
+        component "WeaveDoc.exe\n(主进程)" as MainProcess
+        component "Pandoc CLI\n(子进程)" as PandocProcess
+        component "LLamaSharp\n(进程内推理)" as LLamaInference
+    }
+
+    rectangle "本地存储" as Storage #F9E79F {
+        database "SQLite\n(向量/配置/快照索引)" as SQLiteDB
+
+        folder "用户文档目录" as DocDir {
+            artifact "工作区文件\n(*.md, *.pdf)" as Workspace
+        }
+
+        folder "应用数据目录" as AppData {
+            folder "AFD 模板库" as TemplateLib {
+                artifact "whu-thesis.json" as T1
+                artifact "ieee-paper.json" as T2
+            }
+            folder "快照存档" as SnapshotArchive
+            folder "模型缓存" as ModelCache {
+                artifact "GGUF 模型文件\n(LLM/Embedding/OCR)" as GGUF
+            }
+            folder "审计日志" as AuditLogDir
+        }
+    }
+
+    rectangle "外部依赖" as External #FADBD8 {
+        component "Zotero\n(独立应用)" as ZoteroApp
+        database "Better BibTeX\n(.bib 数据库)" as BibTeXDB
+    }
+}
+
+' ========================================
+' 连接关系
+' ========================================
+
+' 运行时依赖
+MainProcess --> DotNetRuntime : 运行于
+PandocProcess --> DotNetRuntime : 运行于
+LLamaInference --> DotNetRuntime : 运行于
+
+' 主进程与子进程
+MainProcess --> PandocProcess : 启动/管理
+
+' 主进程与存储
+MainProcess --> SQLiteDB : 读写
+MainProcess --> DocDir : 文件读写
+MainProcess --> TemplateLib : 模板加载
+MainProcess --> SnapshotArchive : 快照存取
+MainProcess --> AuditLogDir : 审计记录
+
+' LLM 推理与模型
+LLamaInference --> ModelCache : 加载模型
+
+' Zotero 同步
+MainProcess --> BibTeXDB : 文件监控
+BibTeXDB --> ZoteroApp : 数据导出
+
+' 硬件规格
+note right of UserPC
+  **推荐硬件配置：**
+  · CPU: x86-64, 支持 AVX2
+  · RAM: ≥ 16 GB
+  · 磁盘: ≥ 2 GB 可用空间
+  · 网络: 无需网络连接 (离线运行)
+end note
+
+note bottom of AppNode
+  **进程隔离说明：**
+  · WeaveDoc.exe: 主 UI 进程
+  · Pandoc CLI: 独立子进程
+  · LLamaSharp: 进程内推理
+end note
+
+@enduml
