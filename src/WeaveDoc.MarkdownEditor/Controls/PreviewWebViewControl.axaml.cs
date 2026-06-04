@@ -118,10 +118,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             try
             {
-                var root = this.VisualRoot as Window;
+                var root = TopLevel.GetTopLevel(this);
                 if (root == null)
                 {
-                    Console.WriteLine("InitializeWebViewAsync: No root window");
+                    Console.WriteLine("PreviewWebViewControl: TopLevel not found");
                     return;
                 }
 
@@ -476,10 +476,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 if (_controller == null) return;
 
-                var root = this.VisualRoot as Window;
+                var root = TopLevel.GetTopLevel(this);
                 if (root == null)
                 {
-                    Logger.Log("PreviewWebViewControl: No root window found for bounds update");
+                    Logger.Log("PreviewWebViewControl: No TopLevel found for bounds update");
                     return;
                 }
 

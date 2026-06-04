@@ -390,7 +390,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             try
             {
-                var root = VisualRoot as Window;
+                var root = TopLevel.GetTopLevel(this);
                 if (root == null)
                     return;
 
@@ -606,7 +606,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             if (_controller == null)
                 return;
 
-            var root = VisualRoot as Window;
+            var root = TopLevel.GetTopLevel(this);
             if (root == null)
                 return;
 
