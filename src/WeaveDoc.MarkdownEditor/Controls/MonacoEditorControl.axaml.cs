@@ -55,15 +55,19 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private async Task InitializeWebViewAsync()
         {
             if (_isInitializing)
+            {
+                Console.WriteLine("MonacoEditorControl: InitializeWebViewAsync skipped - already initializing");
                 return;
+            }
 
             _isInitializing = true;
 
             try
             {
-                var root = this.VisualRoot as Window;
+                var root = TopLevel.GetTopLevel(this);
                 if (root == null)
                 {
+                    Console.WriteLine("MonacoEditorControl: TopLevel not found");
                     return;
                 }
 
@@ -124,7 +128,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 if (_controller == null) return;
 
-                var root = this.VisualRoot as Window;
+                var root = TopLevel.GetTopLevel(this);
                 if (root == null) return;
 
                 var scaling = root.RenderScaling;
@@ -208,8 +212,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     }
                     else
                     {
-                        var visualRoot = this.VisualRoot;
-                        if (visualRoot is Window window && window.DataContext is MainWindowViewModel)
+                        var topLevel = TopLevel.GetTopLevel(this);
+                        if (topLevel is Window window && window.DataContext is MainWindowViewModel)
                         {
                             vm = window.DataContext as MainWindowViewModel;
                         }
@@ -275,7 +279,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 if (_webview != null && _controller != null)
                 {
-                    var root = VisualRoot as Window;
+                    var root = TopLevel.GetTopLevel(this);
                     if (root != null)
                     {
                         var scaling = root.RenderScaling;
