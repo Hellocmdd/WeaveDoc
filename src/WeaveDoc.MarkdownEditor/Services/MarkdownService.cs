@@ -352,7 +352,6 @@ namespace WeaveDoc.MarkdownEditor.Services
 
         public string ConvertMarkdownToHtmlWithCharPositions(string markdown)
         {
-            Console.WriteLine("ConvertMarkdownToHtmlWithCharPositions called");
             if (string.IsNullOrEmpty(markdown))
                 return string.Empty;
 

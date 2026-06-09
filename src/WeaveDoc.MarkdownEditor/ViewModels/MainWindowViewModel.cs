@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using WeaveDoc.MarkdownEditor.Services;
 
 namespace WeaveDoc.MarkdownEditor.ViewModels
@@ -11,8 +12,8 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
 
         public MainWindowViewModel()
         {
-            // 设置 EditorContent 属性，这样右侧预览就会显示由 MarkdownService 生成的 HTML 内容
-            EditorContent = "# Hello WeaveDoc!\n\nStart typing markdown here...";
+            DisplayName = "未命名 Markdown";
+            StatusText = "就绪";
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -34,30 +35,7 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
         public string EditorContent
         {
             get => _editorContent;
-            set
-            {
-                if (_editorContent == value) return;
-                _editorContent = value;
-                OnPropertyChanged(nameof(EditorContent));
-                // 每次编辑器内容变更时，更新预览 HTML（使用带字符位置信息的版本）
-                var html = _markdownService.ConvertMarkdownToHtmlWithCharPositions(_editorContent ?? string.Empty);
-                Console.WriteLine($"=== Markdown转HTML结果 ===");
-                Console.WriteLine($"行数: {html.Split('\n').Length}");
-                Console.WriteLine($"包含 math-inline: {html.Contains("math-inline")}");
-                Console.WriteLine($"包含 math-display: {html.Contains("math-display")}");
-                // 如果包含LaTeX，输出前500字符
-                if (html.Contains("math"))
-                {
-                    var mathIndex = html.IndexOf("math");
-                    var start = Math.Max(0, mathIndex - 50);
-                    var length = Math.Min(500, html.Length - start);
-                    Console.WriteLine($"LaTeX相关HTML片段: ...{html.Substring(start, length)}...");
-                }
-                Console.WriteLine($"=== HTML内容开始 ===");
-                Console.WriteLine(html.Substring(0, Math.Min(2000, html.Length)));
-                Console.WriteLine($"=== HTML内容结束 ===");
-                Html = html;
-            }
+            set => SetEditorContent(value, updatePreview: false);
         }
 
         /// <summary>
@@ -73,34 +51,115 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
 
         protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name ?? string.Empty));
-        
+
         /// <summary>
         /// 打开 Markdown 文件并加载内容
         /// </summary>
         /// <param name="filePath">Markdown 文件路径</param>
-        public void OpenFile(string filePath)
+        public async Task<MarkdownFileOpenResult> OpenFile(string? filePath)
         {
-            try
-            {
-                if (System.IO.File.Exists(filePath))
-                {
-                    var content = System.IO.File.ReadAllText(filePath);
-                    EditorContent = content;
-                    CurrentFilePath = filePath;
-                }
-            }
-            catch (Exception ex)
-            {
-                // 处理异常
-                System.Console.WriteLine($"打开文件时出错: {ex.Message}");
-            }
+            var result = await StorageFileOpenService.OpenMarkdownPathAsync(filePath).ConfigureAwait(true);
+            ApplyOpenedMarkdown(result);
+            return result;
         }
-        
+
+        public void ApplyOpenedMarkdown(MarkdownFileOpenResult result)
+        {
+            if (result.Succeeded)
+            {
+                SetEditorContent(result.Content, updatePreview: false);
+                Html = string.Empty;
+                CurrentFilePath = result.FilePath;
+                DisplayName = string.IsNullOrWhiteSpace(result.DisplayName)
+                    ? "未命名 Markdown"
+                    : result.DisplayName;
+                StatusText = $"已打开：{DisplayName}";
+                IsStatusError = false;
+                return;
+            }
+
+            SetOpenFailure(result.ErrorMessage ?? "打开 Markdown 文件失败。");
+        }
+
+        public void SetOpenFailure(string message)
+        {
+            SetStatus(string.IsNullOrWhiteSpace(message) ? "打开文件失败。" : message, isError: true);
+        }
+
+        public void SetStatus(string message, bool isError = false)
+        {
+            StatusText = string.IsNullOrWhiteSpace(message) ? "就绪" : message;
+            IsStatusError = isError;
+        }
+
         /// <summary>
         /// 当前打开的文件路径
         /// </summary>
-        public string? CurrentFilePath { get; set; }
-        
+        private string? _currentFilePath;
+        public string? CurrentFilePath
+        {
+            get => _currentFilePath;
+            set
+            {
+                if (_currentFilePath == value) return;
+                _currentFilePath = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public void RefreshPreview()
+        {
+            Html = _markdownService.ConvertMarkdownToHtmlWithCharPositions(EditorContent);
+        }
+
+        private void SetEditorContent(string? value, bool updatePreview)
+        {
+            var normalizedContent = value ?? string.Empty;
+            if (_editorContent == normalizedContent) return;
+
+            _editorContent = normalizedContent;
+            OnPropertyChanged(nameof(EditorContent));
+
+            if (updatePreview)
+                RefreshPreview();
+        }
+
+        private string _displayName = string.Empty;
+        public string DisplayName
+        {
+            get => _displayName;
+            set
+            {
+                if (_displayName == value) return;
+                _displayName = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private string _statusText = string.Empty;
+        public string StatusText
+        {
+            get => _statusText;
+            set
+            {
+                if (_statusText == value) return;
+                _statusText = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private bool _isStatusError;
+        public bool IsStatusError
+        {
+            get => _isStatusError;
+            set
+            {
+                if (_isStatusError == value) return;
+                _isStatusError = value;
+                OnPropertyChanged();
+            }
+        }
+
         /// <summary>
         /// 保存 Markdown 文件
         /// </summary>
@@ -111,11 +170,14 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
             {
                 System.IO.File.WriteAllText(filePath, EditorContent);
                 CurrentFilePath = filePath;
+                DisplayName = System.IO.Path.GetFileName(filePath);
+                StatusText = $"已保存：{DisplayName}";
+                IsStatusError = false;
             }
             catch (Exception ex)
             {
-                // 处理异常
-                System.Console.WriteLine($"保存文件时出错: {ex.Message}");
+                StatusText = $"保存 Markdown 文件失败：{ex.Message}";
+                IsStatusError = true;
             }
         }
     }

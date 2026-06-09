@@ -1,5 +1,39 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="WeaveDoc.MarkdownEditor.Controls.PdfViewerControl">
-  <Grid x:Name="MainGrid" Background="White" />
+             x:Class="WeaveDoc.MarkdownEditor.Controls.PdfViewerControl"
+             x:Name="Root">
+  <Grid x:Name="MainGrid" Background="White">
+    <Border x:Name="PdfFallbackState"
+            ZIndex="1"
+            IsVisible="{Binding IsUsingFallback, ElementName=Root}"
+            Background="#FFF7F7F7">
+      <Grid RowDefinitions="Auto,*" Margin="12">
+        <TextBlock x:Name="PdfFallbackStatusText"
+                   Text="{Binding FallbackStatusText, ElementName=Root}"
+                   Margin="0,0,0,10"
+                   FontSize="13"
+                   Foreground="#475569"
+                   TextAlignment="Center"
+                   TextWrapping="Wrap" />
+
+        <TextBox x:Name="PdfFallbackFilePathTextBox"
+                 Grid.Row="1"
+                 Text="{Binding PdfFilePath, ElementName=Root}"
+                 AcceptsReturn="True"
+                 IsReadOnly="True"
+                 TextWrapping="Wrap"
+                 FontFamily="Consolas, Menlo, monospace"
+                 FontSize="13"
+                 Foreground="#111827"
+                 Background="White"
+                 BorderBrush="#CBD5E1"
+                 BorderThickness="1"
+                 Padding="12"
+                 HorizontalAlignment="Stretch"
+                 VerticalAlignment="Stretch"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto" />
+      </Grid>
+    </Border>
+  </Grid>
 </UserControl>

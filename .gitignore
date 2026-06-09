@@ -103,6 +103,8 @@ llama.cpp/
 *.db
 .codex/
 .codex
+.agent/
+.agents/
 .~lock.*#
 .agent.md
 
@@ -114,3 +116,6 @@ llama.cpp/
 # Legacy docs folder retained from converter branch history
 docs/
 out/
+
+# codegraph
+.codegraph/

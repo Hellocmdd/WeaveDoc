@@ -3,8 +3,21 @@
              x:Class="WeaveDoc.MarkdownEditor.Controls.MonacoEditorControl"
              HorizontalAlignment="Stretch"
              VerticalAlignment="Stretch">
-  <Border x:Name="HostBorder" Background="#1E1E1E"
-          HorizontalAlignment="Stretch"
-          VerticalAlignment="Stretch">
-  </Border>
+  <Grid>
+    <Border x:Name="HostBorder"
+            Background="#1E1E1E"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch" />
+    <TextBox x:Name="EditorFallbackTextBox"
+             IsVisible="False"
+             AcceptsReturn="True"
+             TextWrapping="Wrap"
+             FontFamily="Consolas, monospace"
+             FontSize="14"
+             Background="#1E1E1E"
+             Foreground="#F4F4F4"
+             BorderThickness="0"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch" />
+  </Grid>
 </UserControl>

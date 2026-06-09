@@ -7,7 +7,7 @@ namespace WeaveDoc.MarkdownEditor.Tests
     [TestFixture]
     public class MarkdownServiceTests
     {
-        private MarkdownService _markdownService;
+        private MarkdownService _markdownService = null!;
 
         [SetUp]
         public void Setup()
@@ -46,7 +46,7 @@ namespace WeaveDoc.MarkdownEditor.Tests
         public void ConvertToHtml_NullMarkdown_ThrowsArgumentNullException()
         {
             // Arrange
-            string markdown = null;
+            string markdown = null!;
 
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() => _markdownService.ConvertToHtml(markdown));

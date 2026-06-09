@@ -1,32 +1,59 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
-using Avalonia.Input;
-using Microsoft.Web.WebView2.Core;
 using System;
 using System.IO;
-using System.Text.Json;
-using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Data;
+using Avalonia.Input;
+using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using WeaveDoc.MarkdownEditor.Controls.Web;
 
 namespace WeaveDoc.MarkdownEditor.Controls
 {
     public partial class PdfViewerControl : UserControl
     {
-        private CoreWebView2Controller? _controller;
-        private CoreWebView2? _webview;
+        public const string DefaultFallbackStatusText =
+            "PDF Reader 不可用：跨平台 WebView 未初始化。请确认系统 WebKit/WPE 运行库可用。";
+
+        private IWebViewHost? _webViewHost;
         private string? _pendingFilePath;
         private bool _isActive;
         private bool _isFullScreen;
+        private bool _isInitializing;
+        private bool _isNavigationCompleted;
         private Window? _fullScreenWindow;
-        private static CoreWebView2Environment? _sharedEnvironment;
         private static HttpListener? _httpListener;
-        private static int _serverPort = 0;
+        private static int _serverPort;
         private static string? _currentPdfPath;
+        private static readonly System.Collections.Generic.Dictionary<string, byte[]> _fileCache =
+            new System.Collections.Generic.Dictionary<string, byte[]>(StringComparer.Ordinal);
 
         public static readonly StyledProperty<string> PdfFilePathProperty =
             AvaloniaProperty.Register<PdfViewerControl, string>(nameof(PdfFilePath));
+
+        public static readonly StyledProperty<bool> IsUsingFallbackProperty =
+            AvaloniaProperty.Register<PdfViewerControl, bool>(nameof(IsUsingFallback), false);
+
+        public static readonly StyledProperty<string> FallbackStatusTextProperty =
+            AvaloniaProperty.Register<PdfViewerControl, string>(
+                nameof(FallbackStatusText),
+                DefaultFallbackStatusText);
+
+        public PdfViewerControl()
+        {
+            InitializeComponent();
+            Unloaded += OnUnloaded;
+        }
+
+        public IWebViewHostFactory WebViewHostFactory { get; set; } = WebViewHostFactoryProvider.Current;
+
+        public TimeSpan NavigationTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
         public string? PdfFilePath
         {
@@ -34,6 +61,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             set
             {
                 _pendingFilePath = value;
+                SetValue(PdfFilePathProperty, value ?? string.Empty);
                 if (_isActive && value != null)
                 {
                     _ = LoadPdfAsync(value);
@@ -41,36 +69,37 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
+        public bool IsUsingFallback
+        {
+            get => GetValue(IsUsingFallbackProperty);
+            set => SetValue(IsUsingFallbackProperty, value);
+        }
+
+        public string FallbackStatusText
+        {
+            get => GetValue(FallbackStatusTextProperty);
+            set => SetValue(FallbackStatusTextProperty, value ?? DefaultFallbackStatusText);
+        }
+
         public bool IsFullScreen => _isFullScreen;
 
         public event EventHandler? FullScreenChanged;
-
-        public PdfViewerControl()
-        {
-            InitializeComponent();
-            Loaded += OnLoaded;
-            Unloaded += OnUnloaded;
-            SizeChanged += OnSizeChanged;
-        }
 
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
         }
 
-        private void OnLoaded(object? sender, EventArgs e)
-        {
-            // 在Loaded时不自动激活，等待标签切换时再激活
-        }
-
         public async Task InitializeAsync()
         {
             if (_isActive)
+            {
                 return;
+            }
 
             _isActive = true;
-            await InitializeWebViewAsync();
-            
+            await EnsureWebViewAsync();
+
             if (_pendingFilePath != null)
             {
                 await LoadPdfAsync(_pendingFilePath);
@@ -79,69 +108,81 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         private async void OnUnloaded(object? sender, EventArgs e)
         {
-            await DeactivateAsync();
-        }
-
-        private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
-        {
-            if (_isActive)
-            {
-                UpdateBounds();
-            }
+            await DisposeHostAsync();
         }
 
         public async Task LoadPdfAsync(string filePath)
         {
-            if (!File.Exists(filePath))
+            _pendingFilePath = filePath;
+            SetCurrentValue(PdfFilePathProperty, filePath ?? string.Empty);
+
+            if (string.IsNullOrWhiteSpace(filePath))
             {
-                Console.WriteLine($"File not found: {filePath}");
+                ShowFallback("PDF 文件路径不能为空。");
                 return;
             }
 
-            _pendingFilePath = filePath;
+            if (!File.Exists(filePath))
+            {
+                ShowFallback($"PDF 文件不存在：{filePath}");
+                return;
+            }
+
             _currentPdfPath = filePath;
 
-            if (_controller == null)
+            if (!await EnsureWebViewAsync())
             {
-                await InitializeWebViewAsync();
+                return;
             }
 
-            // 如果控制器存在但位置不正确，先更新位置
-            if (_controller != null)
+            if (_webViewHost == null)
             {
-                UpdateBounds();
+                return;
             }
 
-            if (_webview != null && _serverPort > 0)
+            if (_serverPort <= 0)
             {
-                // 使用HTTP服务器加载PDF.js外壳，待页面初始化完成后再主动打开当前PDF。
-                string viewerUrl = BuildViewerUrl(_serverPort);
-                Console.WriteLine($"Loading PDF via HTTP server: {viewerUrl}");
-                _webview.Navigate(viewerUrl);
-                
-                // 显示WebView2（调用此方法时应该已经激活）
-                if (_controller != null)
+                ShowFallback("PDF Reader 不可用：本地 PDF.js 服务未启动。");
+                return;
+            }
+
+            var viewerUrl = BuildViewerUrl(_serverPort);
+            try
+            {
+                _isNavigationCompleted = false;
+                _webViewHost.Navigate(new Uri(viewerUrl));
+                _ = ShowFallbackIfNavigationDoesNotCompleteAsync(_webViewHost, filePath);
+                if (!IsUsingFallback)
                 {
-                    _controller.IsVisible = true;
+                    _webViewHost.View.IsVisible = _isActive;
+                    ClearFallback();
                 }
             }
-            else if (_webview != null)
+            catch (Exception ex)
             {
-                // 降级到直接导航
-                string fileUri = "file:///" + filePath.Replace("\\", "/");
-                _webview.Navigate(fileUri);
-                
-                // 显示WebView2
-                if (_controller != null)
-                {
-                    _controller.IsVisible = true;
-                }
+                ShowFallback($"PDF Reader 不可用：{ex.Message}");
+            }
+        }
+
+        private async Task ShowFallbackIfNavigationDoesNotCompleteAsync(IWebViewHost host, string filePath)
+        {
+            if (NavigationTimeout <= TimeSpan.Zero)
+            {
+                return;
+            }
+
+            await Task.Delay(NavigationTimeout).ConfigureAwait(true);
+
+            if (_webViewHost == host
+                && !_isNavigationCompleted
+                && string.Equals(_pendingFilePath, filePath, StringComparison.Ordinal))
+            {
+                ShowFallback("PDF Reader 不可用：PDF.js 导航超时。");
             }
         }
 
         public static string BuildViewerUrl(int serverPort)
         {
-            // 使用HTTP服务器的 /pdf/current 端点获取当前PDF文件
             return $"http://localhost:{serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=/pdf/current";
         }
 
@@ -151,7 +192,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 (() => {
                     const post = (type, data) => {
                         try {
-                            globalThis.chrome?.webview?.postMessage({ type, data });
+                            globalThis.weaveDocBridge?.post({ Type: type, Data: data });
                         } catch {
                         }
                     };
@@ -249,7 +290,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 (() => {
                     const post = (data) => {
                         try {
-                            globalThis.chrome?.webview?.postMessage({ type: "pdfjs-open", data });
+                            globalThis.weaveDocBridge?.post({ Type: "pdfjs-open", Data: data });
                         } catch {
                         }
                     };
@@ -322,18 +363,24 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         const app = globalThis.PDFViewerApplication;
 
                         if (!app || typeof app.open !== "function") {
-                            post(`waiting for PDFViewerApplication (${attempts})`);
-                            if (attempts < 100) {
-                                setTimeout(openWhenReady, 50);
+                            if (attempts >= 100) {
+                                post("open failed: PDFViewerApplication unavailable");
+                                return;
                             }
+
+                            post(`waiting for PDFViewerApplication (${attempts})`);
+                            setTimeout(openWhenReady, 50);
                             return;
                         }
 
                         if (!app.initialized) {
-                            post(`waiting for PDFViewerApplication initialization (${attempts})`);
-                            if (attempts < 100) {
-                                setTimeout(openWhenReady, 50);
+                            if (attempts >= 100) {
+                                post("open failed: PDFViewerApplication initialization timeout");
+                                return;
                             }
+
+                            post(`waiting for PDFViewerApplication initialization (${attempts})`);
+                            setTimeout(openWhenReady, 50);
                             return;
                         }
 
@@ -374,6 +421,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             })
                             .then(() => {
                                 post("open completed");
+                                window.dispatchEvent(new Event('resize'));
                                 setTimeout(() => enableTextSelection("open completed"), 0);
                                 setTimeout(() => enableTextSelection("open completed delayed"), 500);
                             })
@@ -386,88 +434,109 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 """;
         }
 
-        private async Task InitializeWebViewAsync()
+        private async Task<bool> EnsureWebViewAsync()
         {
+            if (_webViewHost != null)
+            {
+                return true;
+            }
+
+            if (_isInitializing)
+            {
+                return false;
+            }
+
+            _isInitializing = true;
             try
             {
-                var root = TopLevel.GetTopLevel(this);
-                if (root == null)
-                    return;
-
-                var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-                if (hwnd == IntPtr.Zero)
-                    return;
-
-                // 启动本地 HTTP 服务器
-                StartHttpServer();
-
-                if (_sharedEnvironment == null)
+                if (!StartHttpServer(out var serverError))
                 {
-                    _sharedEnvironment = await WebView2EnvironmentManager.GetOrCreateEnvironmentAsync2();
-                    Console.WriteLine("Shared PDF WebView2 environment created");
+                    ShowFallback($"PDF Reader 不可用：{serverError}");
+                    return false;
                 }
 
-                _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);
-                _webview = _controller.CoreWebView2;
-                await _webview.AddScriptToExecuteOnDocumentCreatedAsync(BuildPdfJsCompatibilityScript());
-                _webview.NavigationCompleted += PdfWebView_NavigationCompleted;
-                _webview.WebMessageReceived += PdfWebView_WebMessageReceived;
-
-                // 启用右键菜单
-                _webview.Settings.AreDefaultContextMenusEnabled = true;
-
-                // 初始化时始终设置为不可见，由 Activate 方法控制显示时机
-                _controller.IsVisible = false;
-                
-                // 设置一个初始的小尺寸和远离可见区域的位置，防止第一次初始化时意外显示
-                _controller.Bounds = new System.Drawing.Rectangle(-1000, -1000, 100, 100);
-
-                Console.WriteLine("PDF WebView2 initialized");
+                _webViewHost = WebViewHostFactory.Create();
+                _webViewHost.NavigationCompleted += PdfWebView_NavigationCompleted;
+                _webViewHost.MessageReceived += PdfWebView_WebMessageReceived;
+                GetMainGrid().Children.Add(_webViewHost.View);
+                _webViewHost.View.IsVisible = _isActive;
+                ClearFallback();
+                return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to initialize PDF WebView2: {ex.Message}");
+                await DisposeHostAsync();
+                ShowFallback($"PDF Reader 不可用：{ex.Message}");
+                return false;
+            }
+            finally
+            {
+                _isInitializing = false;
             }
         }
 
-        private void PdfWebView_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+        private void PdfWebView_WebMessageReceived(object? sender, WebViewHostMessageReceivedEventArgs e)
         {
-            Console.WriteLine($"PDF WebView2 message: {e.WebMessageAsJson}");
+            Console.WriteLine($"PDF WebView message: {e.Body}");
+            if (e.Body.Contains("open failed", StringComparison.OrdinalIgnoreCase)
+                || e.Body.Contains("window error", StringComparison.OrdinalIgnoreCase)
+                || e.Body.Contains("unhandled rejection", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowFallback($"PDF Reader 不可用：{e.Body}");
+            }
         }
 
-        private async void PdfWebView_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+        private async void PdfWebView_NavigationCompleted(object? sender, WebViewHostNavigationCompletedEventArgs e)
         {
-            Console.WriteLine($"PDF WebView2 NavigationCompleted: success={e.IsSuccess}, status={e.HttpStatusCode}, error={e.WebErrorStatus}");
+            _isNavigationCompleted = e.IsSuccess;
 
-            if (!e.IsSuccess || _webview == null || string.IsNullOrEmpty(_currentPdfPath))
+            if (!e.IsSuccess || _webViewHost == null || string.IsNullOrEmpty(_currentPdfPath))
+            {
+                if (!e.IsSuccess)
+                {
+                    ShowFallback("PDF Reader 不可用：PDF.js 导航失败。");
+                }
                 return;
+            }
+
+            if (ShowFallbackIfNativeRenderingUnavailable())
+            {
+                return;
+            }
 
             try
             {
-                var result = await _webview.ExecuteScriptAsync(BuildPdfOpenScript());
-                Console.WriteLine($"PDF.js open result: {result}");
+                await _webViewHost.InvokeScriptAsync(BuildPdfOpenScript());
+                ClearFallback();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to execute PDF.js open script: {ex.Message}");
+                ShowFallback($"PDF Reader 不可用：{ex.Message}");
             }
         }
 
-        private void StartHttpServer()
+        private bool StartHttpServer(out string? errorMessage)
         {
+            errorMessage = null;
             if (_httpListener != null)
-                return;
+            {
+                if (_httpListener.IsListening)
+                {
+                    return true;
+                }
+
+                errorMessage = "本地 PDF.js 服务未运行。";
+                return false;
+            }
 
             try
             {
                 _httpListener = new HttpListener();
                 _serverPort = GetAvailablePort();
-                string prefix = $"http://localhost:{_serverPort}/";
+                var prefix = $"http://localhost:{_serverPort}/";
                 _httpListener.Prefixes.Add(prefix);
                 _httpListener.Start();
-                Console.WriteLine($"HTTP server started on port {_serverPort}");
 
-                // 在后台处理请求
                 _ = Task.Run(async () =>
                 {
                     while (_httpListener.IsListening)
@@ -483,29 +552,41 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         }
                     }
                 });
+
+                return true;
             }
             catch (Exception ex)
             {
+                errorMessage = $"本地 PDF.js 服务启动失败：{ex.Message}";
                 Console.WriteLine($"Failed to start HTTP server: {ex.Message}");
+                try
+                {
+                    _httpListener?.Close();
+                }
+                catch
+                {
+                }
+
+                _httpListener = null;
+                _serverPort = 0;
+                return false;
             }
         }
 
-        private int GetAvailablePort()
+        private static int GetAvailablePort()
         {
-            using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
-            {
-                socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-                var endPoint = socket.LocalEndPoint as IPEndPoint;
-                return endPoint?.Port ?? 8080;
-            }
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            var endPoint = socket.LocalEndPoint as IPEndPoint;
+            return endPoint?.Port ?? 8080;
         }
 
-        private async Task ProcessHttpRequest(HttpListenerContext context)
+        private static async Task ProcessHttpRequest(HttpListenerContext context)
         {
             try
             {
-                string requestPath = context.Request.Url?.AbsolutePath ?? "/";
-                string assetsDir = Path.Combine(AppContext.BaseDirectory, "Assets");
+                var requestPath = context.Request.Url?.AbsolutePath ?? "/";
+                var assetsDir = Path.Combine(AppContext.BaseDirectory, "Assets");
                 if (!Directory.Exists(assetsDir))
                 {
                     assetsDir = Path.Combine(AppContext.BaseDirectory, "src", "Assets");
@@ -516,33 +597,27 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 if (requestPath == "/pdf/current")
                 {
                     filePath = _currentPdfPath ?? string.Empty;
-                    Console.WriteLine($"PDF request: {requestPath} -> {filePath}");
                 }
-                else if (requestPath.StartsWith("/pdf/"))
+                else if (requestPath.StartsWith("/pdf/", StringComparison.Ordinal))
                 {
-                    // PDF文件请求 - 获取URL解码后的路径
-                    string pdfPath = requestPath.Substring(5);
+                    var pdfPath = requestPath[5..];
                     filePath = Uri.UnescapeDataString(pdfPath);
-                    Console.WriteLine($"PDF request: {requestPath} -> {filePath}");
                 }
                 else
                 {
-                    // 静态文件请求
                     filePath = Path.Combine(assetsDir, requestPath.TrimStart('/'));
                 }
 
                 if (!File.Exists(filePath))
                 {
-                    Console.WriteLine($"File not found: {filePath}");
                     context.Response.StatusCode = 404;
-                    await context.Response.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("Not found"));
+                    await context.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Not found"));
                     context.Response.Close();
                     return;
                 }
 
-                // 设置正确的MIME类型
-                string extension = Path.GetExtension(filePath).ToLowerInvariant();
-                string contentType = extension switch
+                var extension = Path.GetExtension(filePath).ToLowerInvariant();
+                var contentType = extension switch
                 {
                     ".html" => "text/html",
                     ".js" => "application/javascript",
@@ -559,18 +634,29 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 context.Response.ContentType = contentType;
                 context.Response.AddHeader("Access-Control-Allow-Origin", "*");
 
-                byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
-                if (requestPath.EndsWith("/build/pdf.worker.mjs", StringComparison.OrdinalIgnoreCase))
+                byte[] fileBytes;
+                if (!_fileCache.TryGetValue(filePath, out fileBytes!))
                 {
-                    var prefixBytes = System.Text.Encoding.UTF8.GetBytes(BuildPdfWorkerCompatibilityPrefix());
+                    fileBytes = await File.ReadAllBytesAsync(filePath);
+                    // Only cache static assets (not the live PDF file)
+                    if (requestPath != "/pdf/current" && !requestPath.StartsWith("/pdf/", StringComparison.Ordinal))
+                    {
+                        _fileCache[filePath] = fileBytes;
+                    }
+                }
+                if (requestPath.EndsWith("/web/viewer.html", StringComparison.OrdinalIgnoreCase))
+                {
+                    fileBytes = InjectPdfViewerCompatibility(fileBytes);
+                }
+                else if (requestPath.EndsWith("/build/pdf.worker.mjs", StringComparison.OrdinalIgnoreCase))
+                {
+                    var prefixBytes = Encoding.UTF8.GetBytes(BuildPdfWorkerCompatibilityPrefix());
                     var patchedBytes = new byte[prefixBytes.Length + fileBytes.Length];
                     Buffer.BlockCopy(prefixBytes, 0, patchedBytes, 0, prefixBytes.Length);
                     Buffer.BlockCopy(fileBytes, 0, patchedBytes, prefixBytes.Length, fileBytes.Length);
                     fileBytes = patchedBytes;
-                    Console.WriteLine("Applied PDF worker compatibility prefix");
                 }
 
-                Console.WriteLine($"Serving file: {filePath}, size: {fileBytes.Length} bytes");
                 await context.Response.OutputStream.WriteAsync(fileBytes);
                 context.Response.Close();
             }
@@ -578,128 +664,94 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 Console.WriteLine($"Error processing request: {ex.Message}");
                 context.Response.StatusCode = 500;
-                await context.Response.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("Internal error"));
+                await context.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Internal error"));
                 context.Response.Close();
             }
         }
 
-        private void CleanupWebView()
+        private static byte[] InjectPdfViewerCompatibility(byte[] fileBytes)
         {
-            if (_controller != null)
+            var html = Encoding.UTF8.GetString(fileBytes);
+            if (html.Contains("__weaveDocPdfViewerCompatibilityInjected", StringComparison.Ordinal))
             {
-                try
-                {
-                    _controller.IsVisible = false;
-                    _controller.Close();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error while closing PDF WebView2: {ex.Message}");
-                }
-                _controller = null;
-                _webview = null;
+                return fileBytes;
             }
-        }
 
-        private void UpdateBounds()
-        {
-            if (_controller == null)
-                return;
+            var injectedScript = $"""
+                <script>
+                globalThis.__weaveDocPdfViewerCompatibilityInjected = true;
+                {WebViewBridge.Script}
+                {BuildPdfJsCompatibilityScript()}
+                </script>
+                """;
 
-            var root = TopLevel.GetTopLevel(this);
-            if (root == null)
-                return;
+            var insertionPoint = html.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
+            var patchedHtml = insertionPoint >= 0
+                ? html.Insert(insertionPoint, injectedScript)
+                : injectedScript + html;
 
-            var scaling = root.RenderScaling;
-
-            var transform = this.TransformToVisual(root);
-            var position = transform?.Transform(new Point(0, 0)) ?? new Point(0, 0);
-
-            var width = (int)(Bounds.Width * scaling);
-            var height = (int)(Bounds.Height * scaling);
-            var x = (int)(position.X * scaling);
-            var y = (int)(position.Y * scaling);
-
-            width = Math.Max(100, width);
-            height = Math.Max(100, height);
-
-            _controller.Bounds = new System.Drawing.Rectangle(x, y, width, height);
-            Console.WriteLine($"PDF WebView2 bounds updated: {_controller.Bounds}");
+            return Encoding.UTF8.GetBytes(patchedHtml);
         }
 
         public async Task Activate()
         {
-            if (_isActive) return;
+            if (_isActive)
+            {
+                return;
+            }
 
             _isActive = true;
-            Console.WriteLine("PDF viewer activated");
-
-            // 确保控件布局完成后再初始化WebView2
-            await WaitForValidBoundsAsync();
-
-            // 确保WebView2已初始化
-            if (_controller == null && _pendingFilePath != null)
+            if (!await EnsureWebViewAsync())
             {
-                await InitializeWebViewAsync();
+                return;
             }
 
-            if (_controller != null)
+            if (_webViewHost != null)
             {
-                // 更新边界到正确位置
-                UpdateBounds();
-                
-                // 设置可见性
-                _controller.IsVisible = true;
+                _webViewHost.View.IsVisible = true;
+
+                // Yield to the Avalonia dispatcher at Render priority so that any
+                // pending Layout-priority work (which commits the new control bounds
+                // to WebKitGTK's offscreen renderer) completes before we run scripts.
+                // This ensures PDF.js has a non-zero viewport to render into.
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+
+                if (ShowFallbackIfNativeRenderingUnavailable())
+                {
+                    return;
+                }
+
+                try
+                {
+                    // Force WebKitGTK offscreen to repaint by triggering a resize event.
+                    // This fixes the issue where the PDF view remains white when switching
+                    // back to the tab because the control bounds didn't change (so Avalonia
+                    // didn't trigger a new Arrange pass).
+                    await _webViewHost.InvokeScriptAsync("window.dispatchEvent(new Event('resize'));");
+                }
+                catch { }
             }
 
-            // 重新加载 PDF 内容使用 PDF.js
-            if (_pendingFilePath != null && _webview != null)
+            if (_pendingFilePath != null)
             {
-                await Task.Delay(30); // 减少等待时间
-                Console.WriteLine("Activate: Reloading PDF with PDF.js");
                 await LoadPdfAsync(_pendingFilePath);
             }
-        }
-        
-        private async Task WaitForValidBoundsAsync()
-        {
-            int attempts = 0;
-            const int maxAttempts = 20;
-            
-            while (attempts < maxAttempts && (this.Bounds.Width < 100 || this.Bounds.Height < 100))
-            {
-                await Task.Delay(10);
-                attempts++;
-            }
-            
-            Console.WriteLine($"WaitForValidBoundsAsync completed after {attempts} attempts, bounds: {this.Bounds}");
         }
 
         public async Task DeactivateAsync()
         {
-            if (!_isActive) return;
-
-            _isActive = false;
-            Console.WriteLine("PDF viewer deactivated");
-
-            // 立即隐藏控制器，防止与其他控件重叠
-            if (_controller != null)
+            if (!_isActive)
             {
-                try
-                {
-                    _controller.IsVisible = false;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error setting PDF WebView2 visibility: {ex.Message}");
-                }
+                return;
             }
 
-            // 等待一小段时间确保WebView2完全隐藏
-            await Task.Delay(50);
+            _isActive = false;
+            if (_webViewHost != null)
+            {
+                _webViewHost.View.IsVisible = false;
+            }
 
-            // 完全关闭WebView2控制器，释放资源
-            CleanupWebView();
+            await Task.CompletedTask;
         }
 
         public async Task ToggleFullScreen()
@@ -717,42 +769,31 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private async Task EnterFullScreen()
         {
             if (_pendingFilePath == null)
+            {
                 return;
+            }
 
             _isFullScreen = true;
             FullScreenChanged?.Invoke(this, EventArgs.Empty);
-            Console.WriteLine("Entering PDF full screen mode");
 
-            // 创建全屏窗口
             _fullScreenWindow = new Window
             {
                 WindowState = WindowState.FullScreen,
                 Title = "PDF Full Screen",
-                Background = Avalonia.Media.Brushes.Black
+                Background = Brushes.Black
             };
 
-            // 添加ESC键处理
             _fullScreenWindow.KeyDown += FullScreenWindow_KeyDown;
-
-            // 添加PDF查看器到全屏窗口
             var fullScreenViewer = new PdfViewerControl();
             _fullScreenWindow.Content = fullScreenViewer;
-
-            // 显示全屏窗口
             _fullScreenWindow.Show();
 
-            // 等待窗口加载完成
-            await Task.Delay(100);
-
-            // 加载PDF（确保窗口已初始化）
             await fullScreenViewer.LoadPdfAsync(_pendingFilePath);
-            await Task.Delay(100); // 确保WebView2初始化完成
             await fullScreenViewer.Activate();
 
-            // 隐藏当前控件
-            if (_controller != null)
+            if (_webViewHost != null)
             {
-                _controller.IsVisible = false;
+                _webViewHost.View.IsVisible = false;
             }
         }
 
@@ -767,12 +808,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
             _isFullScreen = false;
             FullScreenChanged?.Invoke(this, EventArgs.Empty);
-            Console.WriteLine("Exiting PDF full screen mode");
 
-            // 显示当前控件
-            if (_controller != null)
+            if (_webViewHost != null)
             {
-                _controller.IsVisible = true;
+                _webViewHost.View.IsVisible = _isActive;
             }
         }
 
@@ -782,6 +821,65 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 ExitFullScreen();
             }
+        }
+
+        private void ShowFallback(string? statusText = null)
+        {
+            FallbackStatusText = string.IsNullOrWhiteSpace(statusText)
+                ? DefaultFallbackStatusText
+                : statusText;
+            IsUsingFallback = true;
+
+            if (_webViewHost != null)
+            {
+                _webViewHost.View.IsVisible = false;
+            }
+        }
+
+        private void ClearFallback()
+        {
+            IsUsingFallback = false;
+            if (_webViewHost != null)
+            {
+                _webViewHost.View.IsVisible = _isActive;
+            }
+        }
+
+        private bool ShowFallbackIfNativeRenderingUnavailable()
+        {
+            if (!WebViewRenderPolicy.ShouldUseFallback(_webViewHost))
+            {
+                return false;
+            }
+
+            ShowFallback(WebViewRenderPolicy.BuildFallbackStatus("PDF Reader"));
+            return true;
+        }
+
+        private async Task DisposeHostAsync()
+        {
+            if (_webViewHost == null)
+            {
+                return;
+            }
+
+            _webViewHost.NavigationCompleted -= PdfWebView_NavigationCompleted;
+            _webViewHost.MessageReceived -= PdfWebView_WebMessageReceived;
+            TryGetMainGrid()?.Children.Remove(_webViewHost.View);
+            await _webViewHost.DisposeAsync();
+            _webViewHost = null;
+            _isNavigationCompleted = false;
+        }
+
+        private Grid GetMainGrid()
+        {
+            return TryGetMainGrid()
+                ?? throw new InvalidOperationException("PDF Reader 不可用：WebView 容器未初始化。");
+        }
+
+        private Grid? TryGetMainGrid()
+        {
+            return MainGrid ?? this.FindControl<Grid>("MainGrid");
         }
     }
 }

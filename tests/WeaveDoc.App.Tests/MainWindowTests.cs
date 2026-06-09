@@ -1,7 +1,19 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
+using Avalonia.Media;
 using Avalonia.Threading;
+using AvaloniaEdit;
+using System.Linq;
+using WeaveDoc.App.Tests.Fakes;
+using WeaveDoc.App.ViewModels;
 using WeaveDoc.App.Views;
+using WeaveDoc.MarkdownEditor.Controls;
+using WeaveDoc.MarkdownEditor.Controls.Web;
 using Xunit;
 
 namespace WeaveDoc.App.Tests;
@@ -9,22 +21,724 @@ namespace WeaveDoc.App.Tests;
 public class MainWindowTests
 {
     [AvaloniaFact]
-    public async Task MainWindow_ContainsMarkdownEditorTab()
+    public void ShellApp_InitializesAvaloniaEditFluentTheme()
+    {
+        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+        var appAxaml = File.ReadAllText(Path.Combine(repoRoot, "src/WeaveDoc.App/App.axaml"));
+
+        Assert.Contains("avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml", appAxaml);
+    }
+
+    [AvaloniaFact]
+    public async Task MainWindow_UsesShellViewModelWithEmptyDefaults()
     {
         var window = new MainWindow();
         window.Show();
 
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            var tabControl = window.FindControl<TabControl>("MainTabs");
-            Assert.NotNull(tabControl);
+            var viewModel = Assert.IsType<AppShellViewModel>(window.DataContext);
+            Assert.Equal(EditorSurfaceMode.Edit, viewModel.EditorMode);
+            Assert.Equal(ShellThemeKind.Dark, viewModel.Theme);
+            Assert.Equal(AiPanelTabKind.Chat, viewModel.SelectedAiPanelTab);
+            Assert.True(viewModel.IsAiPanelExpanded);
+            Assert.Empty(viewModel.Documents);
+            Assert.Equal("未打开 Markdown 文档", viewModel.CurrentDocumentTitle);
+            Assert.Equal("暂无打开的文档", viewModel.EmptyDocumentText);
+            Assert.Equal("暂无可预览内容", viewModel.EmptyPreviewText);
+            Assert.Equal("暂无问答记录", viewModel.EmptyAiConversationText);
 
-            var headers = tabControl!.Items
-                .OfType<TabItem>()
-                .Select(item => item.Header?.ToString())
-                .ToList();
-
-            Assert.Contains("Markdown 编辑", headers);
+            Assert.NotNull(window.FindControl<Grid>("ShellRoot"));
+            Assert.NotNull(window.FindControl<Border>("ShellTitleBar"));
+            Assert.NotNull(window.FindControl<Border>("ShellCommandBar"));
+            Assert.Null(window.FindControl<Border>("ShellMenuBar"));
+            Assert.Null(window.FindControl<Border>("ShellToolbar"));
+            Assert.NotNull(window.FindControl<Grid>("ShellWorkspace"));
+            Assert.Null(window.FindControl<Control>("ShellNavigationRailControl"));
+            Assert.NotNull(window.FindControl<WorkspaceSidebar>("WorkspaceSidebarControl"));
+            Assert.NotNull(window.FindControl<EditorWorkspace>("EditorWorkspaceControl"));
+            Assert.NotNull(window.FindControl<AiAssistantPanel>("AiAssistantPanelControl"));
+            Assert.NotNull(window.FindControl<ShellStatusBar>("ShellStatusBarControl"));
         });
+    }
+
+    [AvaloniaFact]
+    public async Task MainWindow_UsesFinalShellVisualAnchors()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var titleBar = Find<Border>(window, "ShellTitleBar");
+            var commandBar = Find<Border>(window, "ShellCommandBar");
+            var workspace = Find<Grid>(window, "ShellWorkspace");
+            var sidebar = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl");
+            var editor = Find<EditorWorkspace>(window, "EditorWorkspaceControl");
+            var aiPanel = Find<AiAssistantPanel>(window, "AiAssistantPanelControl");
+            var statusBar = Find<ShellStatusBar>(window, "ShellStatusBarControl");
+
+            Assert.NotNull(titleBar.Background);
+            Assert.NotNull(commandBar.Background);
+            Assert.Null(window.FindControl<Border>("ShellMenuBar"));
+            Assert.Null(window.FindControl<Border>("ShellToolbar"));
+            Assert.NotNull(workspace.Background);
+            Assert.Null(window.FindControl<Control>("ShellNavigationRailControl"));
+            Assert.NotNull(sidebar.FindControl<Grid>("WorkspaceSidebarRoot")?.Background);
+            Assert.NotNull(sidebar.FindControl<Border>("DocumentPreviewToolbar")?.Background);
+            Assert.NotNull(sidebar.FindControl<Border>("DocumentPreviewTabStrip")?.Background);
+            Assert.NotNull(sidebar.FindControl<Border>("DocumentPreviewCanvas")?.Background);
+            Assert.NotNull(sidebar.FindControl<Border>("DocumentPreviewPaper")?.Background);
+            Assert.NotNull(sidebar.FindControl<TextBlock>("DocumentPreviewEmptyStateText"));
+            Assert.NotNull(editor.FindControl<Grid>("EditorWorkspaceRoot")?.Background);
+            Assert.NotNull(aiPanel.FindControl<Grid>("AiAssistantPanelRoot")?.Background);
+            Assert.NotNull(statusBar.FindControl<Border>("ShellStatusBarRoot")?.Background);
+            Assert.NotNull(window.FindControl<GridSplitter>("LeftWorkspaceSplitter"));
+            Assert.NotNull(window.FindControl<GridSplitter>("RightWorkspaceSplitter"));
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task MainWindow_MinimumSizeKeepsCoreRegionsVisible()
+    {
+        var window = new MainWindow
+        {
+            Width = 1120,
+            Height = 680
+        };
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            ArrangeWindow(window);
+
+            AssertVisibleSize(Find<Border>(window, "ShellTitleBar"), 600, 24);
+            AssertVisibleSize(Find<Border>(window, "ShellCommandBar"), 600, 28);
+            AssertVisibleSize(Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl"), 300, 300);
+            AssertVisibleSize(Find<EditorWorkspace>(window, "EditorWorkspaceControl"), 400, 300);
+            AssertVisibleSize(Find<AiAssistantPanel>(window, "AiAssistantPanelControl"), 280, 300);
+            AssertVisibleSize(Find<ShellStatusBar>(window, "ShellStatusBarControl"), 600, 18);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task MainWindow_UsesResizableWorkspaceColumnsWithMinimums()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var workspace = Find<Grid>(window, "ShellWorkspace");
+            var columns = workspace.ColumnDefinitions;
+
+            Assert.Equal(300, columns[0].MinWidth);
+            Assert.Equal(4, columns[1].Width.Value);
+            Assert.Equal(400, columns[2].MinWidth);
+            Assert.Equal(4, columns[3].Width.Value);
+            Assert.Equal(280, columns[4].MinWidth);
+
+            Assert.Equal(GridResizeDirection.Columns, Find<GridSplitter>(window, "LeftWorkspaceSplitter").ResizeDirection);
+            Assert.Equal(GridResizeBehavior.PreviousAndNext, Find<GridSplitter>(window, "LeftWorkspaceSplitter").ResizeBehavior);
+            Assert.Equal(GridResizeDirection.Columns, Find<GridSplitter>(window, "RightWorkspaceSplitter").ResizeDirection);
+            Assert.Equal(GridResizeBehavior.PreviousAndNext, Find<GridSplitter>(window, "RightWorkspaceSplitter").ResizeBehavior);
+            Assert.False(Find<GridSplitter>(window, "LeftWorkspaceSplitter").ShowsPreview);
+            Assert.False(Find<GridSplitter>(window, "RightWorkspaceSplitter").ShowsPreview);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task WorkspaceSplitters_CanBeDraggedAndKeepColumnMinimums()
+    {
+        var window = new MainWindow
+        {
+            Width = 1280,
+            Height = 820
+        };
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var workspace = Find<Grid>(window, "ShellWorkspace");
+            var leftSplitter = Find<GridSplitter>(window, "LeftWorkspaceSplitter");
+            var rightSplitter = Find<GridSplitter>(window, "RightWorkspaceSplitter");
+
+            ArrangeWindow(window);
+            AssertWorkspaceColumnMinimums(window, workspace);
+            AssertWorkspaceLayoutIsStable(window, workspace);
+
+            var initialLeftWidth = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl").Bounds.Width;
+            DragSplitter(window, leftSplitter, 110);
+            ArrangeWindow(window);
+
+            var widenedLeftWidth = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl").Bounds.Width;
+            Assert.True(widenedLeftWidth > initialLeftWidth + 20, $"left column width stayed at {widenedLeftWidth}");
+            AssertWorkspaceColumnMinimums(window, workspace);
+            AssertWorkspaceLayoutIsStable(window, workspace);
+
+            DragSplitter(window, leftSplitter, -900);
+            ArrangeWindow(window);
+            AssertWorkspaceColumnMinimums(window, workspace);
+            AssertWorkspaceLayoutIsStable(window, workspace);
+
+            var initialAiWidth = Find<AiAssistantPanel>(window, "AiAssistantPanelControl").Bounds.Width;
+            DragSplitter(window, rightSplitter, -90);
+            ArrangeWindow(window);
+
+            var resizedAiWidth = Find<AiAssistantPanel>(window, "AiAssistantPanelControl").Bounds.Width;
+            Assert.True(Math.Abs(resizedAiWidth - initialAiWidth) > 20, $"AI column width stayed at {resizedAiWidth}");
+            AssertWorkspaceColumnMinimums(window, workspace);
+            AssertWorkspaceLayoutIsStable(window, workspace);
+
+            DragSplitter(window, rightSplitter, 900);
+            ArrangeWindow(window);
+            AssertWorkspaceColumnMinimums(window, workspace);
+            AssertWorkspaceLayoutIsStable(window, workspace);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task ShellVisualResources_AreLoadedByTestHost()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            AssertBrushResource("ShellBackgroundBrush");
+            AssertBrushResource("ShellPanelBrush");
+            AssertBrushResource("ShellEditorBackgroundBrush");
+            AssertBrushResource("ShellAccentBrush");
+            AssertBrushResource("ShellBorderBrush");
+
+            var root = Find<Grid>(window, "ShellRoot");
+            var documentPreviewRoot = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl")
+                .FindControl<Grid>("WorkspaceSidebarRoot");
+            var editorRoot = Find<EditorWorkspace>(window, "EditorWorkspaceControl")
+                .FindControl<Grid>("EditorWorkspaceRoot");
+
+            Assert.NotNull(root.Background);
+            Assert.NotNull(documentPreviewRoot?.Background);
+            Assert.NotNull(editorRoot?.Background);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task LeftDocumentPreview_MatchesDemoSkeletonWithEmptyState()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var preview = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl");
+
+            Assert.NotNull(preview.FindControl<Border>("DocumentPreviewToolbar"));
+            Assert.NotNull(preview.FindControl<Border>("DocumentPreviewTabStrip"));
+            Assert.NotNull(preview.FindControl<Border>("DocumentPreviewCanvas"));
+            Assert.NotNull(preview.FindControl<Border>("DocumentPreviewPaper"));
+
+            Assert.Equal("0 / 0", Find<TextBlock>(preview, "DocumentPreviewPageText").Text);
+            Assert.Equal("100%", Find<TextBlock>(preview, "DocumentPreviewZoomText").Text);
+            Assert.Equal("未打开 PDF 或 Markdown 文档", Find<TextBlock>(preview, "DocumentPreviewEmptyStateText").Text);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task ShellControls_UpdateLocalStateOnly()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var viewModel = Assert.IsType<AppShellViewModel>(window.DataContext);
+            var editor = window.FindControl<EditorWorkspace>("EditorWorkspaceControl");
+            var editModeButton = Find<Button>(editor, "EditModeButton");
+            var previewModeButton = Find<Button>(editor, "PreviewModeButton");
+            var aiButton = Find<Button>(window, "AiShellCommandButton");
+            var themeButton = Find<Button>(window, "ThemeMenuButton");
+            var aiChatButton = Find<Button>(window, "AiChatCommandButton");
+            var editorEmptyState = Find<Grid>(editor, "EditorEmptyState");
+            var previewEmptyState = Find<Grid>(editor, "PreviewEmptyState");
+            var markdownPreview = Find<PreviewWebViewControl>(editor, "MarkdownPreviewControl");
+
+            Assert.Contains("active", editModeButton.Classes);
+            Assert.DoesNotContain("active", previewModeButton.Classes);
+            Assert.True(editorEmptyState.IsVisible);
+            Assert.False(previewEmptyState.IsVisible);
+            Assert.False(markdownPreview.IsVisible);
+
+            Click(previewModeButton);
+            Assert.Equal(EditorSurfaceMode.Preview, viewModel.EditorMode);
+            Assert.True(viewModel.IsPreviewModeSelected);
+            Assert.DoesNotContain("active", editModeButton.Classes);
+            Assert.Contains("active", previewModeButton.Classes);
+            Assert.False(editorEmptyState.IsVisible);
+            Assert.True(previewEmptyState.IsVisible);
+            Assert.False(markdownPreview.IsVisible);
+
+            Assert.True(aiButton.IsEnabled);
+            Assert.Contains("active", aiButton.Classes);
+            Assert.True(aiChatButton.IsEnabled);
+            Assert.Contains("active", aiChatButton.Classes);
+            Click(aiButton);
+            Assert.False(viewModel.IsAiPanelExpanded);
+            Assert.DoesNotContain("active", aiButton.Classes);
+
+            var darkBackground = BrushColor("ShellBackgroundBrush");
+            Assert.Contains("active", themeButton.Classes);
+            Click(themeButton);
+            Assert.Equal(ShellThemeKind.Light, viewModel.Theme);
+            Assert.Equal("深色", themeButton.Content);
+            Assert.DoesNotContain("active", themeButton.Classes);
+            Assert.NotEqual(darkBackground, BrushColor("ShellBackgroundBrush"));
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task MarkdownEditor_UsesSnapshotBindingWithoutRealtimeContentSync()
+    {
+        var markdown = "# 标题\n\n正文内容";
+        var editedMarkdown = "# 新标题\n\n正文内容";
+        var filePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.md");
+        await File.WriteAllTextAsync(filePath, markdown, TestContext.Current.CancellationToken);
+
+        try
+        {
+            var window = new MainWindow();
+            window.Show();
+
+            await RunOnUiThreadAsync(async () =>
+            {
+                var viewModel = Assert.IsType<AppShellViewModel>(window.DataContext);
+                var editor = Find<EditorWorkspace>(window, "EditorWorkspaceControl");
+                var editorEmptyState = Find<Grid>(editor, "EditorEmptyState");
+                var previewEmptyState = Find<Grid>(editor, "PreviewEmptyState");
+                var markdownEditor = Find<NativeMarkdownEditorControl>(editor, "MarkdownEditorControl");
+                var textEditor = Find<TextEditor>(markdownEditor, "Editor");
+                var markdownPreview = Find<PreviewWebViewControl>(editor, "MarkdownPreviewControl");
+                var boldButton = Find<Button>(editor, "BoldButton");
+                var openButton = Find<Button>(editor, "OpenDocumentButton");
+                var saveButton = Find<Button>(editor, "SaveDocumentButton");
+                var previewModeButton = Find<Button>(editor, "PreviewModeButton");
+
+                Assert.True(editorEmptyState.IsVisible);
+                Assert.False(markdownEditor.IsVisible);
+                Assert.False(markdownPreview.IsVisible);
+                Assert.False(previewEmptyState.IsVisible);
+                Assert.False(boldButton.IsEnabled);
+                Assert.False(openButton.IsEnabled);
+                Assert.False(saveButton.IsEnabled);
+                Assert.DoesNotContain(EnumerateControls(editor), control => control is MonacoEditorControl);
+                Assert.DoesNotContain("# Hello WeaveDoc!", CollectText(window));
+
+                var opened = await viewModel.DocumentWorkspace.OpenAsync(filePath, TestContext.Current.CancellationToken);
+
+                Assert.True(opened);
+                Assert.True(markdownEditor.IsVisible);
+                Assert.False(markdownPreview.IsVisible);
+                Assert.False(editorEmptyState.IsVisible);
+                Assert.True(boldButton.IsEnabled);
+                Assert.Equal(markdown, markdownEditor.EditorContent);
+                Assert.Equal(markdown, markdownEditor.GetContent());
+                Assert.False(markdownEditor.HasUnsyncedContent);
+                Assert.Equal(markdown, viewModel.DocumentWorkspace.Content);
+                Assert.False(viewModel.DocumentWorkspace.IsDirty);
+                Assert.NotEmpty(viewModel.DocumentWorkspace.PreviewHtml);
+
+                markdownEditor.EditorContent = markdown;
+                Assert.False(viewModel.DocumentWorkspace.IsDirty);
+
+                textEditor.Text = editedMarkdown;
+
+                Assert.Equal(markdown, markdownEditor.EditorContent);
+                Assert.Equal(editedMarkdown, markdownEditor.GetContent());
+                Assert.True(markdownEditor.HasUnsyncedContent);
+                Assert.Equal(markdown, viewModel.DocumentWorkspace.Content);
+                Assert.False(viewModel.DocumentWorkspace.IsDirty);
+                Assert.False(viewModel.DocumentWorkspace.CanSave);
+                Assert.Contains("<h1 data-line=\"1\">", viewModel.DocumentWorkspace.PreviewHtml);
+                Assert.Contains("data-pos=", viewModel.DocumentWorkspace.PreviewHtml);
+                Assert.DoesNotContain("新", viewModel.DocumentWorkspace.PreviewHtml);
+                Assert.False(openButton.IsEnabled);
+                Assert.False(saveButton.IsEnabled);
+
+                var previewBeforeToolbar = viewModel.DocumentWorkspace.PreviewHtml;
+                markdownEditor.SetSelection(2, 3);
+                Click(boldButton);
+
+                Assert.Equal("# **新标题**\n\n正文内容", markdownEditor.GetContent());
+                Assert.Equal(markdown, markdownEditor.EditorContent);
+                Assert.Equal(markdown, viewModel.DocumentWorkspace.Content);
+                Assert.Equal(previewBeforeToolbar, viewModel.DocumentWorkspace.PreviewHtml);
+
+                Click(previewModeButton);
+                await markdownPreview.Activate(false);
+                await Task.Delay(50);
+
+                Assert.Equal(previewBeforeToolbar, viewModel.DocumentWorkspace.PreviewHtml);
+                Assert.DoesNotContain("新", viewModel.DocumentWorkspace.PreviewHtml);
+                Assert.False(markdownEditor.IsVisible);
+                Assert.False(editorEmptyState.IsVisible);
+                Assert.False(previewEmptyState.IsVisible);
+                Assert.True(markdownPreview.IsVisible);
+                Assert.False(boldButton.IsEnabled);
+                Assert.Equal(markdown, viewModel.DocumentWorkspace.Content);
+                Assert.Equal(markdown, markdownEditor.EditorContent);
+                Assert.Equal("# **新标题**\n\n正文内容", markdownEditor.GetContent());
+                Assert.Equal(viewModel.DocumentWorkspace.PreviewHtml, markdownPreview.HtmlContent);
+                Assert.False(markdownPreview.IsUsingFallback);
+
+                var fakeFactory = Assert.IsType<FakeWebViewHostFactory>(WebViewHostFactoryProvider.Current);
+                Assert.Same(fakeFactory, markdownPreview.WebViewHostFactory);
+                Assert.Contains(fakeFactory.Hosts, host =>
+                    host.NavigatedUris.Any(uri => uri.AbsolutePath.EndsWith("/preview-template.html", StringComparison.Ordinal)));
+            });
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task AiPanelCollapse_HidesRightColumnAndRestoresCurrentSessionWidth()
+    {
+        var window = new MainWindow
+        {
+            Width = 1280,
+            Height = 820
+        };
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var workspace = Find<Grid>(window, "ShellWorkspace");
+            var aiPanel = Find<AiAssistantPanel>(window, "AiAssistantPanelControl");
+            var rightSplitter = Find<GridSplitter>(window, "RightWorkspaceSplitter");
+            var aiButton = Find<Button>(window, "AiShellCommandButton");
+            var columns = workspace.ColumnDefinitions;
+
+            columns[4].Width = new GridLength(360);
+            ArrangeWindow(window);
+
+            Click(aiButton);
+            Assert.False(aiPanel.IsVisible);
+            Assert.False(rightSplitter.IsVisible);
+            Assert.Equal(0, columns[3].Width.Value);
+            Assert.Equal(0, columns[4].Width.Value);
+            Assert.Equal(0, columns[4].MinWidth);
+
+            Click(aiButton);
+            Assert.True(aiPanel.IsVisible);
+            Assert.True(rightSplitter.IsVisible);
+            Assert.Equal(4, columns[3].Width.Value);
+            Assert.Equal(280, columns[4].MinWidth);
+            Assert.Equal(360, columns[4].Width.Value, 3);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task ThemeToggle_RepaintsShellBrushesAndKeepsStatusInSync()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var viewModel = Assert.IsType<AppShellViewModel>(window.DataContext);
+            var statusBar = Find<ShellStatusBar>(window, "ShellStatusBarControl");
+            var statusThemeButton = Find<Button>(statusBar, "ThemeToggleButton");
+            var menuThemeButton = Find<Button>(window, "ThemeMenuButton");
+            var darkPanel = BrushColor("ShellPanelBrush");
+
+            Assert.Equal(ShellThemeKind.Dark, viewModel.Theme);
+            Assert.Equal("浅色", statusThemeButton.Content);
+            Assert.Equal("浅色", menuThemeButton.Content);
+
+            Click(statusThemeButton);
+            Assert.Equal(ShellThemeKind.Light, viewModel.Theme);
+            Assert.Equal("深色", statusThemeButton.Content);
+            Assert.Equal("深色", menuThemeButton.Content);
+            Assert.NotEqual(darkPanel, BrushColor("ShellPanelBrush"));
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task PendingBusinessEntrypoints_AreDisabled()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var sidebar = window.FindControl<WorkspaceSidebar>("WorkspaceSidebarControl");
+            var editor = window.FindControl<EditorWorkspace>("EditorWorkspaceControl");
+            var aiPanel = window.FindControl<AiAssistantPanel>("AiAssistantPanelControl");
+
+            Assert.Null(window.FindControl<Button>("FileMenuButton"));
+            Assert.Null(window.FindControl<Button>("EditMenuButton"));
+            Assert.Null(window.FindControl<Button>("ViewMenuButton"));
+            Assert.Null(window.FindControl<Button>("AiMenuButton"));
+            Assert.Null(window.FindControl<Button>("LiteratureMenuButton"));
+            Assert.Null(window.FindControl<Button>("ExportMenuButton"));
+            Assert.Null(window.FindControl<Button>("HelpMenuButton"));
+
+            var disabledButtons = new[]
+            {
+                Find<Button>(window, "NewShellDocumentButton"),
+                Find<Button>(window, "OpenShellDocumentButton"),
+                Find<Button>(window, "SaveShellDocumentButton"),
+                Find<Button>(window, "ExportShellDocumentButton"),
+                Find<Button>(window, "SetupShellCommandButton"),
+                Find<Button>(sidebar, "DocumentPreviousPageButton"),
+                Find<Button>(sidebar, "DocumentNextPageButton"),
+                Find<Button>(sidebar, "DocumentZoomOutButton"),
+                Find<Button>(sidebar, "DocumentZoomInButton"),
+                Find<Button>(sidebar, "DocumentPreviewTabButton"),
+                Find<Button>(sidebar, "DocumentPreviewCloseTabButton"),
+                Find<Button>(sidebar, "DocumentPreviewAddTabButton"),
+                Find<Button>(editor, "OpenDocumentButton"),
+                Find<Button>(editor, "SaveDocumentButton"),
+                Find<Button>(editor, "ExportDocumentButton"),
+                Find<Button>(aiPanel, "ClearAiConversationButton"),
+                Find<Button>(aiPanel, "SendAiPromptButton")
+            };
+
+            Assert.All(disabledButtons, button => Assert.False(button.IsEnabled));
+            Assert.True(Find<Button>(window, "AiShellCommandButton").IsEnabled);
+            Assert.True(Find<Button>(window, "AiChatCommandButton").IsEnabled);
+            Assert.True(Find<Button>(window, "AiLiteratureCommandButton").IsEnabled);
+            Assert.True(Find<Button>(window, "AiSnapshotCommandButton").IsEnabled);
+            Assert.True(Find<Button>(aiPanel, "AiChatTabButton").IsEnabled);
+            Assert.True(Find<Button>(aiPanel, "AiLiteratureTabButton").IsEnabled);
+            Assert.True(Find<Button>(aiPanel, "AiSnapshotTabButton").IsEnabled);
+            Assert.True(Find<Button>(window, "ThemeMenuButton").IsEnabled);
+            Assert.False(Find<TextBox>(aiPanel, "AiPromptInput").IsEnabled);
+            Assert.False(Find<TextBox>(window, "ShellSearchBox").IsEnabled);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task AiPanelTabs_SyncBetweenCommandBarAndPanel()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var viewModel = Assert.IsType<AppShellViewModel>(window.DataContext);
+            var aiPanel = Find<AiAssistantPanel>(window, "AiAssistantPanelControl");
+            var commandChatButton = Find<Button>(window, "AiChatCommandButton");
+            var commandLiteratureButton = Find<Button>(window, "AiLiteratureCommandButton");
+            var commandSnapshotButton = Find<Button>(window, "AiSnapshotCommandButton");
+            var panelChatButton = Find<Button>(aiPanel, "AiChatTabButton");
+            var panelLiteratureButton = Find<Button>(aiPanel, "AiLiteratureTabButton");
+            var panelSnapshotButton = Find<Button>(aiPanel, "AiSnapshotTabButton");
+            var panelTitle = Find<TextBlock>(aiPanel, "AiPanelTitleText");
+            var emptyStateText = Find<TextBlock>(aiPanel, "AiPanelEmptyStateText");
+
+            Assert.Equal(AiPanelTabKind.Chat, viewModel.SelectedAiPanelTab);
+            Assert.Equal("问答辅助", panelTitle.Text);
+            Assert.Contains("active", commandChatButton.Classes);
+            Assert.Contains("active", panelChatButton.Classes);
+            Assert.DoesNotContain("active", commandLiteratureButton.Classes);
+            Assert.DoesNotContain("active", panelLiteratureButton.Classes);
+            Assert.Equal("暂无问答记录", emptyStateText.Text);
+
+            Click(commandLiteratureButton);
+            Assert.Equal(AiPanelTabKind.Literature, viewModel.SelectedAiPanelTab);
+            Assert.Equal("文献辅助", panelTitle.Text);
+            Assert.Contains("active", commandLiteratureButton.Classes);
+            Assert.Contains("active", panelLiteratureButton.Classes);
+            Assert.DoesNotContain("active", commandChatButton.Classes);
+            Assert.DoesNotContain("active", panelChatButton.Classes);
+            Assert.Equal("暂无文献信息", emptyStateText.Text);
+
+            Click(panelSnapshotButton);
+            Assert.Equal(AiPanelTabKind.Snapshot, viewModel.SelectedAiPanelTab);
+            Assert.Equal("快照辅助", panelTitle.Text);
+            Assert.Contains("active", commandSnapshotButton.Classes);
+            Assert.Contains("active", panelSnapshotButton.Classes);
+            Assert.DoesNotContain("active", commandLiteratureButton.Classes);
+            Assert.DoesNotContain("active", panelLiteratureButton.Classes);
+            Assert.Equal("暂无快照", emptyStateText.Text);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task Shell_DoesNotShowRagOrDemoState()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var shellText = CollectText(window);
+            var staleDemoTexts = new[]
+            {
+                "本地 RAG 聊天",
+                "准备加载本地模型",
+                "正在加载 embedding",
+                "模型已就绪",
+                "尚未执行检索",
+                "本次检索命中",
+                "文档转换",
+                "模板管理",
+                "Attention Is All You Need",
+                "论文草稿.md",
+                "Qwen2.5",
+                "Transformer 架构",
+                "会议纪要",
+                "第 3 章草稿",
+                "参考文献待补充",
+                "请帮我总结",
+                "用户提问",
+                "AI 回复",
+                "暂无导入文档",
+                "删除选中文档",
+                "本地设置"
+            };
+
+            Assert.All(staleDemoTexts, text => Assert.DoesNotContain(text, shellText));
+        });
+    }
+
+    private static T Find<T>(Control? root, string name) where T : Control
+    {
+        Assert.NotNull(root);
+        var control = root!.FindControl<T>(name);
+        Assert.NotNull(control);
+        return control!;
+    }
+
+    private static void Click(Button button)
+    {
+        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    }
+
+    private static async Task RunOnUiThreadAsync(Func<Task> action)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                await action();
+                completion.SetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.SetException(ex);
+            }
+        });
+
+        await completion.Task;
+    }
+
+    private static void ArrangeWindow(Window window)
+    {
+        window.Measure(new Avalonia.Size(window.Width, window.Height));
+        window.Arrange(new Avalonia.Rect(0, 0, window.Width, window.Height));
+    }
+
+    private static void DragSplitter(Window window, Control splitter, double deltaX)
+    {
+        var center = splitter.TranslatePoint(
+            new Avalonia.Point(splitter.Bounds.Width / 2, splitter.Bounds.Height / 2),
+            window);
+        Assert.NotNull(center);
+
+        var start = center.Value;
+        var end = new Avalonia.Point(start.X + deltaX, start.Y);
+
+        window.MouseMove(start, RawInputModifiers.None);
+        window.MouseDown(start, MouseButton.Left, RawInputModifiers.None);
+        window.MouseMove(end, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(end, MouseButton.Left, RawInputModifiers.None);
+    }
+
+    private static void AssertWorkspaceColumnMinimums(Window window, Grid workspace)
+    {
+        var columns = workspace.ColumnDefinitions;
+
+        Assert.Equal(300, columns[0].MinWidth);
+        Assert.Equal(400, columns[2].MinWidth);
+        Assert.Equal(280, columns[4].MinWidth);
+        AssertVisibleSize(Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl"), 300, 1);
+        AssertVisibleSize(Find<EditorWorkspace>(window, "EditorWorkspaceControl"), 400, 1);
+        AssertVisibleSize(Find<AiAssistantPanel>(window, "AiAssistantPanelControl"), 280, 1);
+    }
+
+    private static void AssertWorkspaceLayoutIsStable(Window window, Grid workspace)
+    {
+        var sidebar = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl");
+        var leftSplitter = Find<GridSplitter>(window, "LeftWorkspaceSplitter");
+        var editor = Find<EditorWorkspace>(window, "EditorWorkspaceControl");
+        var rightSplitter = Find<GridSplitter>(window, "RightWorkspaceSplitter");
+        var aiPanel = Find<AiAssistantPanel>(window, "AiAssistantPanelControl");
+
+        AssertVisibleSize(leftSplitter, 4, 1);
+        AssertVisibleSize(rightSplitter, 4, 1);
+
+        var totalColumnWidth = sidebar.Bounds.Width
+            + leftSplitter.Bounds.Width
+            + editor.Bounds.Width
+            + rightSplitter.Bounds.Width
+            + aiPanel.Bounds.Width;
+        Assert.True(
+            totalColumnWidth >= workspace.Bounds.Width - 1
+                && totalColumnWidth <= workspace.Bounds.Width + leftSplitter.Bounds.Width + rightSplitter.Bounds.Width,
+            $"workspace width was {workspace.Bounds.Width}, column sum was {totalColumnWidth}");
+    }
+
+    private static void AssertVisibleSize(Control control, double minimumWidth, double minimumHeight)
+    {
+        Assert.True(control.IsVisible);
+        Assert.True(control.Bounds.Width >= minimumWidth, $"{control.Name} width was {control.Bounds.Width}");
+        Assert.True(control.Bounds.Height >= minimumHeight, $"{control.Name} height was {control.Bounds.Height}");
+    }
+
+    private static void AssertBrushResource(string key)
+    {
+        var resource = Avalonia.Application.Current!.Resources[key];
+        Assert.IsAssignableFrom<IBrush>(resource);
+    }
+
+    private static Color BrushColor(string key)
+    {
+        var resource = Avalonia.Application.Current!.Resources[key];
+        var brush = Assert.IsType<SolidColorBrush>(resource);
+        return brush.Color;
+    }
+
+    private static string CollectText(Control root)
+    {
+        var text = EnumerateControls(root)
+            .Select(control => control switch
+            {
+                Button button => button.Content?.ToString(),
+                TextBlock textBlock => textBlock.Text,
+                TextBox textBox => textBox.Text,
+                _ => null
+            })
+            .Where(value => !string.IsNullOrWhiteSpace(value));
+
+        return string.Join('\n', text);
+    }
+
+    private static IEnumerable<Control> EnumerateControls(Control root)
+    {
+        yield return root;
+
+        foreach (var child in root.GetLogicalChildren().OfType<Control>())
+        {
+            foreach (var descendant in EnumerateControls(child))
+            {
+                yield return descendant;
+            }
+        }
     }
 }

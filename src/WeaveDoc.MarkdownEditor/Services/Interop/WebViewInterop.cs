@@ -8,7 +8,7 @@ namespace WeaveDoc.MarkdownEditor.Services.Interop
 
         private void OnWebMessageReceived(object? sender, dynamic e)
         {
-            // 兼容不同 WebView2/Blazor 事件类型，防止 null 引发警告/异常
+            // 兼容不同 Web 宿主/Blazor 事件类型，防止 null 引发警告/异常。
             string json = string.Empty;
             try
             {

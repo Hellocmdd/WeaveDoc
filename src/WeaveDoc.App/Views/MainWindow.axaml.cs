@@ -1,7 +1,9 @@
+using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Platform.Storage;
+using Avalonia.Media;
+using Avalonia.Styling;
 using WeaveDoc.App.ViewModels;
 using WeaveDoc.Converter;
 using WeaveDoc.Converter.Config;
@@ -10,133 +12,225 @@ namespace WeaveDoc.App.Views;
 
 public partial class MainWindow : Window
 {
-    private readonly RagTabViewModel _viewModel;
+    private const double DefaultAiPanelWidth = 300;
+    private const double AiPanelMinWidth = 280;
+    private const double SplitterWidth = 4;
+
+    private readonly AppShellViewModel _viewModel;
+    private double _lastExpandedAiPanelWidth = DefaultAiPanelWidth;
 
     public MainWindow() : this(null!, null!) { }
 
     public MainWindow(ConfigManager? configManager, DocumentConversionEngine? engine)
     {
         InitializeComponent();
-        _viewModel = new RagTabViewModel();
+        _viewModel = new AppShellViewModel();
         DataContext = _viewModel;
-        Opened += OnOpened;
-        Closed += OnClosed;
+        _viewModel.PropertyChanged += OnShellPropertyChanged;
+        ApplyShellPalette(_viewModel.Theme);
+        ApplyAiPanelLayout();
+        UpdateStateClasses();
+    }
 
-        if (configManager != null && engine != null)
+    protected override void OnClosed(EventArgs e)
+    {
+        _viewModel.PropertyChanged -= OnShellPropertyChanged;
+        base.OnClosed(e);
+    }
+
+    private void OnToggleAiPanelClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.ToggleAiPanel();
+    }
+
+    private void OnSelectAiChatTabClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.SelectAiPanelTab(AiPanelTabKind.Chat);
+    }
+
+    private void OnSelectAiLiteratureTabClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.SelectAiPanelTab(AiPanelTabKind.Literature);
+    }
+
+    private void OnSelectAiSnapshotTabClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.SelectAiPanelTab(AiPanelTabKind.Snapshot);
+    }
+
+    private void OnToggleThemeClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.ToggleTheme();
+    }
+
+    private void OnShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
         {
-            ConvertTabControl.SetServices(configManager, engine);
-            TemplateTabControl.SetConfigManager(configManager);
+            case nameof(AppShellViewModel.IsAiPanelExpanded):
+                ApplyAiPanelLayout();
+                UpdateStateClasses();
+                break;
+            case nameof(AppShellViewModel.EditorMode):
+                UpdateStateClasses();
+                break;
+            case nameof(AppShellViewModel.SelectedAiPanelTab):
+                UpdateStateClasses();
+                break;
+            case nameof(AppShellViewModel.Theme):
+                ApplyShellPalette(_viewModel.Theme);
+                UpdateStateClasses();
+                break;
         }
     }
 
-    private async void OnOpened(object? sender, EventArgs e)
+    private void ApplyAiPanelLayout()
     {
-        await _viewModel.InitializeAsync();
-    }
+        var columns = ShellWorkspace.ColumnDefinitions;
+        var rightSplitterColumn = columns[3];
+        var aiPanelColumn = columns[4];
 
-    private async void OnSendClick(object? sender, RoutedEventArgs e)
-    {
-        await _viewModel.SendAsync();
-    }
-
-    private void OnToggleDocumentsClick(object? sender, RoutedEventArgs e)
-    {
-        _viewModel.ToggleDocumentPanel();
-    }
-
-    private async void OnRefreshCorpusClick(object? sender, RoutedEventArgs e)
-    {
-        await _viewModel.RefreshCorpusAsync();
-    }
-
-    private async void OnPickDocumentClick(object? sender, RoutedEventArgs e)
-    {
-        var selected = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        if (_viewModel.IsAiPanelExpanded)
         {
-            Title = "选择要导入的文档",
-            AllowMultiple = false,
-            FileTypeFilter =
-            [
-                new FilePickerFileType("Markdown / Text / JSON")
-                {
-                    Patterns = ["*.md", "*.txt", "*.json"]
-                }
-            ]
-        });
-
-        var localPath = selected.FirstOrDefault()?.TryGetLocalPath();
-        if (!string.IsNullOrWhiteSpace(localPath))
-        {
-            await _viewModel.AddDocumentFromPathAsync(localPath);
-        }
-    }
-
-    private void OnClearConversationClick(object? sender, RoutedEventArgs e)
-    {
-        _viewModel.ClearConversation();
-    }
-
-    private async void OnAddDocumentClick(object? sender, RoutedEventArgs e)
-    {
-        await _viewModel.AddDocumentAsync();
-    }
-
-    private async void OnDeleteDocumentClick(object? sender, RoutedEventArgs e)
-    {
-        await _viewModel.DeleteSelectedDocumentAsync();
-    }
-
-    private async void OnInputKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.None)
-        {
-            e.Handled = true;
-            await _viewModel.SendAsync();
-        }
-    }
-
-    private void OnSelectDocumentsTabClick(object? sender, RoutedEventArgs e)
-    {
-        _viewModel.SelectedPanelTab = 0;
-    }
-
-    private void OnSelectSettingsTabClick(object? sender, RoutedEventArgs e)
-    {
-        _viewModel.SelectedPanelTab = 1;
-    }
-
-    private void OnSelectLocalProviderClick(object? sender, RoutedEventArgs e)
-    {
-        _viewModel.ChatProvider = "llama_server";
-    }
-
-    private void OnSelectCloudProviderClick(object? sender, RoutedEventArgs e)
-    {
-        _viewModel.ChatProvider = "cloud";
-    }
-
-    private void OnSaveCloudSettingsClick(object? sender, RoutedEventArgs e)
-    {
-        _viewModel.SaveCloudSettings();
-    }
-
-    private async void OnMainTabsSelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        if (sender != MainTabs)
+            aiPanelColumn.MinWidth = AiPanelMinWidth;
+            aiPanelColumn.Width = new GridLength(Math.Max(AiPanelMinWidth, _lastExpandedAiPanelWidth));
+            rightSplitterColumn.MinWidth = SplitterWidth;
+            rightSplitterColumn.Width = new GridLength(SplitterWidth);
+            RightWorkspaceSplitter.IsVisible = true;
+            AiAssistantPanelControl.IsVisible = true;
             return;
+        }
 
-        if (MainTabs.SelectedItem is TabItem { Header: "Markdown 编辑" })
+        var currentWidth = aiPanelColumn.Width.Value >= AiPanelMinWidth
+            ? aiPanelColumn.Width.Value
+            : aiPanelColumn.ActualWidth;
+        if (currentWidth >= AiPanelMinWidth)
         {
-            await MarkdownEditorTabControl.ActivateAsync();
+            _lastExpandedAiPanelWidth = currentWidth;
         }
-        else
-        {
-            await MarkdownEditorTabControl.DeactivateAsync();
-        }
+
+        AiAssistantPanelControl.IsVisible = false;
+        RightWorkspaceSplitter.IsVisible = false;
+        rightSplitterColumn.MinWidth = 0;
+        rightSplitterColumn.Width = new GridLength(0);
+        aiPanelColumn.MinWidth = 0;
+        aiPanelColumn.Width = new GridLength(0);
     }
 
-    private void OnClosed(object? sender, EventArgs e)
+    private void UpdateStateClasses()
     {
-        _viewModel.Dispose();
+        SetActive(AiShellCommandButton, _viewModel.IsAiPanelExpanded);
+        SetActive(AiChatCommandButton, _viewModel.IsAiChatTabSelected);
+        SetActive(AiLiteratureCommandButton, _viewModel.IsAiLiteratureTabSelected);
+        SetActive(AiSnapshotCommandButton, _viewModel.IsAiSnapshotTabSelected);
+        SetActive(ThemeMenuButton, _viewModel.Theme == ShellThemeKind.Dark);
+
+        var editModeButton = EditorWorkspaceControl.FindControl<Button>("EditModeButton");
+        var previewModeButton = EditorWorkspaceControl.FindControl<Button>("PreviewModeButton");
+        SetActive(editModeButton, _viewModel.IsEditModeSelected);
+        SetActive(previewModeButton, _viewModel.IsPreviewModeSelected);
+
+        SetActive(AiAssistantPanelControl.FindControl<Button>("AiChatTabButton"), _viewModel.IsAiChatTabSelected);
+        SetActive(AiAssistantPanelControl.FindControl<Button>("AiLiteratureTabButton"), _viewModel.IsAiLiteratureTabSelected);
+        SetActive(AiAssistantPanelControl.FindControl<Button>("AiSnapshotTabButton"), _viewModel.IsAiSnapshotTabSelected);
     }
+
+    private static void SetActive(Button? button, bool isActive)
+    {
+        if (button is null)
+        {
+            return;
+        }
+
+        if (isActive)
+        {
+            if (!button.Classes.Contains("active"))
+            {
+                button.Classes.Add("active");
+            }
+            return;
+        }
+
+        button.Classes.Remove("active");
+    }
+
+    private static void ApplyShellPalette(ShellThemeKind theme)
+    {
+        var application = Application.Current;
+        if (application is null)
+        {
+            return;
+        }
+
+        application.RequestedThemeVariant = theme == ShellThemeKind.Dark
+            ? ThemeVariant.Dark
+            : ThemeVariant.Light;
+
+        var palette = theme == ShellThemeKind.Dark ? DarkShellPalette : LightShellPalette;
+        foreach (var (key, color) in palette)
+        {
+            SetBrushColor(application, key, color);
+        }
+    }
+
+    private static void SetBrushColor(Application application, string key, string color)
+    {
+        if (application.Resources[key] is SolidColorBrush brush)
+        {
+            brush.Color = Color.Parse(color);
+            return;
+        }
+
+        application.Resources[key] = new SolidColorBrush(Color.Parse(color));
+    }
+
+    private static readonly IReadOnlyDictionary<string, string> DarkShellPalette = new Dictionary<string, string>
+    {
+        ["ShellBackgroundBrush"] = "#0D1117",
+        ["ShellChromeBrush"] = "#161B22",
+        ["ShellTitleBarBrush"] = "#0D1117",
+        ["ShellPanelBrush"] = "#161B22",
+        ["ShellCardBrush"] = "#21262D",
+        ["ShellRaisedBrush"] = "#1B222D",
+        ["ShellInputBrush"] = "#0F151D",
+        ["ShellHoverBrush"] = "#21262D",
+        ["ShellSelectedBrush"] = "#1D3557",
+        ["ShellBorderBrush"] = "#30363D",
+        ["ShellSubtleBorderBrush"] = "#21262D",
+        ["ShellTextBrush"] = "#E6EDF3",
+        ["ShellMutedTextBrush"] = "#8B949E",
+        ["ShellDisabledTextBrush"] = "#6E7681",
+        ["ShellAccentBrush"] = "#58A6FF",
+        ["ShellAccentStrongBrush"] = "#1F6FEB",
+        ["ShellSuccessBrush"] = "#3FB950",
+        ["ShellWarningBrush"] = "#D29922",
+        ["ShellEditorBackgroundBrush"] = "#0D1117",
+        ["ShellEditorPanelBrush"] = "#161B22",
+        ["ShellPaperWorkspaceBrush"] = "#21262D"
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> LightShellPalette = new Dictionary<string, string>
+    {
+        ["ShellBackgroundBrush"] = "#FFFFFF",
+        ["ShellChromeBrush"] = "#F8F9FA",
+        ["ShellTitleBarBrush"] = "#161B22",
+        ["ShellPanelBrush"] = "#F8F9FA",
+        ["ShellCardBrush"] = "#FFFFFF",
+        ["ShellRaisedBrush"] = "#EAEEF2",
+        ["ShellInputBrush"] = "#EAEEF2",
+        ["ShellHoverBrush"] = "#D8DEE4",
+        ["ShellSelectedBrush"] = "#DDF4FF",
+        ["ShellBorderBrush"] = "#D8DEE4",
+        ["ShellSubtleBorderBrush"] = "#EAEEF2",
+        ["ShellTextBrush"] = "#1C2128",
+        ["ShellMutedTextBrush"] = "#57606A",
+        ["ShellDisabledTextBrush"] = "#8B949E",
+        ["ShellAccentBrush"] = "#0969DA",
+        ["ShellAccentStrongBrush"] = "#0550AE",
+        ["ShellSuccessBrush"] = "#1A7F37",
+        ["ShellWarningBrush"] = "#9A6700",
+        ["ShellEditorBackgroundBrush"] = "#0D1117",
+        ["ShellEditorPanelBrush"] = "#161B22",
+        ["ShellPaperWorkspaceBrush"] = "#EAEEF2"
+    };
 }

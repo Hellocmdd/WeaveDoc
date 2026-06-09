@@ -265,6 +265,67 @@
 <body>
     <div id='content'>Welcome to WeaveDoc Preview</div>
     <script>
+        (function() {
+            if (window.weaveDocBridge) {
+                return;
+            }
+
+            var listeners = [];
+            function normalize(message) {
+                if (typeof message === 'string') {
+                    try {
+                        return JSON.parse(message);
+                    } catch (err) {
+                        return { Type: 'raw', Data: message };
+                    }
+                }
+                return message || {};
+            }
+
+            window.weaveDocBridge = {
+                post: function(message) {
+                    var normalized = normalize(message);
+                    try {
+                        if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
+                            window.chrome.webview.postMessage(normalized);
+                            return;
+                        }
+                        if (window.external && typeof window.external.invoke === 'function') {
+                            window.external.invoke(JSON.stringify(normalized));
+                            return;
+                        }
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.webview) {
+                            window.webkit.messageHandlers.webview.postMessage(normalized);
+                        }
+                    } catch (err) {
+                        console.error('weaveDocBridge post failed', err);
+                    }
+                },
+                onHostMessage: function(listener) {
+                    if (typeof listener === 'function') {
+                        listeners.push(listener);
+                    }
+                },
+                receiveFromHost: function(message) {
+                    var normalized = normalize(message);
+                    var snapshot = listeners.slice();
+                    for (var i = 0; i < snapshot.length; i++) {
+                        snapshot[i](normalized);
+                    }
+                }
+            };
+
+            if (window.chrome && window.chrome.webview && typeof window.chrome.webview.addEventListener === 'function') {
+                window.chrome.webview.addEventListener('message', function(e) {
+                    window.weaveDocBridge.receiveFromHost(e.data);
+                });
+            }
+
+            window.addEventListener('message', function(e) {
+                window.weaveDocBridge.receiveFromHost(e.data);
+            });
+        })();
+
         // 检查 KaTeX 是否加载成功
         var katexLoaded = typeof katex !== 'undefined';
         console.log('KaTeX loaded:', katexLoaded);
@@ -296,6 +357,50 @@
             }
         };
 
+        function forEachNode(nodes, callback) {
+            for (var i = 0; i < nodes.length; i++) {
+                callback(nodes[i], i);
+            }
+        }
+
+        function mergeOptions(base, extra) {
+            var merged = {};
+            var key;
+            for (key in base) {
+                if (Object.prototype.hasOwnProperty.call(base, key)) {
+                    merged[key] = base[key];
+                }
+            }
+            for (key in extra) {
+                if (Object.prototype.hasOwnProperty.call(extra, key)) {
+                    merged[key] = extra[key];
+                }
+            }
+            return merged;
+        }
+
+        function matchesSelector(element, selector) {
+            if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+                return false;
+            }
+
+            var matcher = element.matches || element.webkitMatchesSelector || element.msMatchesSelector;
+            return matcher ? matcher.call(element, selector) : false;
+        }
+
+        function closestElement(element, selector) {
+            var current = element;
+            while (current && current.nodeType === Node.ELEMENT_NODE) {
+                if (matchesSelector(current, selector)) {
+                    return current;
+                }
+
+                current = current.parentElement;
+            }
+
+            return null;
+        }
+
         function renderMath() {
             console.log('renderMath called');
             sendMessage({ Type: 'debug', Data: 'renderMath called' });
@@ -304,11 +409,11 @@
                 var inlineMathElements = document.querySelectorAll('.math-inline');
                 console.log('Found inline math elements:', inlineMathElements.length);
                 sendMessage({ Type: 'debug', Data: 'Found inline math elements: ' + inlineMathElements.length });
-                inlineMathElements.forEach(function(el) {
+                forEachNode(inlineMathElements, function(el) {
                     try {
                         var mathContent = el.textContent;
                         console.log('Rendering inline math:', mathContent);
-                        var options = Object.assign({}, katexOptions, { displayMode: false });
+                        var options = mergeOptions(katexOptions, { displayMode: false });
                         var html = katex.renderToString(mathContent, options);
                         el.innerHTML = html;
                         console.log('Inline math rendered successfully');
@@ -325,12 +430,12 @@
                 var displayMathElements = document.querySelectorAll('.math-display');
                 console.log('Found display math elements:', displayMathElements.length);
                 sendMessage({ Type: 'debug', Data: 'Found display math elements: ' + displayMathElements.length });
-                displayMathElements.forEach(function(el) {
+                forEachNode(displayMathElements, function(el) {
                     try {
                         var mathContent = el.textContent;
                         console.log('Rendering display math:', mathContent);
                         sendMessage({ Type: 'debug', Data: 'Rendering display math: ' + mathContent });
-                        var options = Object.assign({}, katexOptions, { displayMode: true });
+                        var options = mergeOptions(katexOptions, { displayMode: true });
                         var html = katex.renderToString(mathContent, options);
                         el.innerHTML = html;
                         console.log('Display math rendered successfully');
@@ -349,15 +454,7 @@
         }
 
         function sendMessage(msg) {
-            if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
-                console.log('Using chrome.webview.postMessage:', msg);
-                window.chrome.webview.postMessage(msg);
-            } else if (window.external && typeof window.external.invoke === 'function') {
-                console.log('Using external.invoke:', JSON.stringify(msg));
-                window.external.invoke(JSON.stringify(msg));
-            } else {
-                console.log('No message API available');
-            }
+            window.weaveDocBridge.post(msg);
         }
 
         function testSendClick() {
@@ -375,7 +472,7 @@
                 sendMessage({ Type: 'debug', Data: 'Found ' + posElements.length + ' data-pos elements' });
 
                 // 添加点击事件到每个 data-pos 元素
-                posElements.forEach(function(el) {
+                forEachNode(posElements, function(el) {
                     el.addEventListener('click', function(e) {
                         var pos = el.getAttribute('data-pos');
                         console.log('data-pos element clicked:', pos);
@@ -496,7 +593,7 @@
             console.log('Click target:', target.tagName, target.className, target.id);
             
             // 检查是否点击了 data-pos 元素
-            var posElement = target.closest('[data-pos]');
+            var posElement = closestElement(target, '[data-pos]');
             if (posElement) {
                 var posAttr = posElement.getAttribute('data-pos');
                 console.log('Found data-pos element:', posAttr);
@@ -513,7 +610,7 @@
             }
             
             // 检查是否点击了 data-line 元素
-            var lineElement = target.closest('[data-line]');
+            var lineElement = closestElement(target, '[data-line]');
             if (lineElement) {
                 var lineNumber = parseInt(lineElement.getAttribute('data-line'), 10) || 1;
                 console.log('Found data-line element:', lineNumber);
@@ -527,7 +624,7 @@
 
         function clearHighlight() {
             var highlighted = document.querySelectorAll('.highlight-char');
-            highlighted.forEach(function(el) {
+            forEachNode(highlighted, function(el) {
                 el.classList.remove('highlight-char');
             });
         }

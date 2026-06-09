@@ -17,6 +17,14 @@
         <MenuItem Header="Save _As" Click="SaveAsFile_Click" />
       </MenuItem>
     </Menu>
+
+    <Border DockPanel.Dock="Bottom" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0">
+      <TextBlock Text="{Binding StatusText}"
+                 Margin="10,5"
+                 FontSize="12"
+                 Foreground="#334155"
+                 TextTrimming="CharacterEllipsis" />
+    </Border>
     
     <!-- 主内容区域 - 使用 TabControl 切换视图 -->
     <TabControl x:Name="MainTabControl" Margin="8" SelectionChanged="MainTabControl_SelectionChanged">
@@ -28,14 +36,21 @@
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
           
-          <!-- 左侧 Monaco 编辑器 -->
+          <!-- 左侧 Native 编辑器 -->
           <Border Grid.Column="0" Margin="0,0,4,0" Background="#1E1E1E" BorderBrush="#3C3C3C" BorderThickness="1">
-            <controls:MonacoEditorControl x:Name="MonacoEditor" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+            <controls:NativeMarkdownEditorControl x:Name="NativeEditor"
+                                                  HorizontalAlignment="Stretch"
+                                                  VerticalAlignment="Stretch"
+                                                  EditorContent="{Binding EditorContent}" />
           </Border>
 
           <!-- 右侧预览 -->
           <Border Grid.Column="1" Margin="4,0,0,0" Background="White" BorderBrush="#CCCCCC" BorderThickness="1">
-            <controls:PreviewWebViewControl x:Name="PreviewWebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HtmlContent="{Binding PreviewHtml}" />
+            <controls:PreviewWebViewControl x:Name="PreviewWebView"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch"
+                                            AutoActivateOnVisible="False"
+                                            HtmlContent="{Binding PreviewHtml}" />
           </Border>
         </Grid>
       </TabItem>

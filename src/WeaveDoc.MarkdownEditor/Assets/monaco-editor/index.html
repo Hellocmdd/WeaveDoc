@@ -36,6 +36,70 @@
     <script>
         console.log('Monaco Editor HTML loaded');
         window.monacoLoading = true;
+
+        (function() {
+            if (window.weaveDocBridge) {
+                return;
+            }
+
+            var listeners = [];
+            function normalize(message) {
+                if (typeof message === 'string') {
+                    try {
+                        return JSON.parse(message);
+                    } catch (err) {
+                        return { Type: 'raw', Data: message };
+                    }
+                }
+                return message || {};
+            }
+
+            window.weaveDocBridge = {
+                post: function(message) {
+                    var normalized = normalize(message);
+                    try {
+                        if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
+                            window.chrome.webview.postMessage(normalized);
+                            return;
+                        }
+                        if (window.external && typeof window.external.invoke === 'function') {
+                            window.external.invoke(JSON.stringify(normalized));
+                            return;
+                        }
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.webview) {
+                            window.webkit.messageHandlers.webview.postMessage(normalized);
+                        }
+                    } catch (err) {
+                        console.error('weaveDocBridge post failed', err);
+                    }
+                },
+                onHostMessage: function(listener) {
+                    if (typeof listener === 'function') {
+                        listeners.push(listener);
+                    }
+                },
+                receiveFromHost: function(message) {
+                    var normalized = normalize(message);
+                    listeners.slice().forEach(function(listener) {
+                        listener(normalized);
+                    });
+                }
+            };
+
+            if (window.chrome && window.chrome.webview && typeof window.chrome.webview.addEventListener === 'function') {
+                window.chrome.webview.addEventListener('message', function(e) {
+                    window.weaveDocBridge.receiveFromHost(e.data);
+                });
+            }
+
+            window.addEventListener('message', function(e) {
+                window.weaveDocBridge.receiveFromHost(e.data);
+            });
+        })();
+
+        function postHost(type, data) {
+            window.weaveDocBridge.post({ Type: type, Data: data });
+        }
         
         require.config({ paths: { 'vs': './min/vs' }});
         var editor = null;
@@ -116,36 +180,25 @@
                     }
                     debounceTimer = setTimeout(function() {
                         var content = editor.getValue();
-                        if (window.chrome && window.chrome.webview) {
-                            window.chrome.webview.postMessage({ Type: 'contentChanged', Data: content });
-                        }
+                        postHost('contentChanged', content);
                     }, 300);
                 } catch (e) {
                     console.error('Error sending content change:', e);
                 }
             });
 
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.addEventListener('message', function(e) {
-                    try {
-                        var msg = e.data;
-                        if (typeof msg === 'string') {
-                            try { msg = JSON.parse(msg); } catch (parseErr) {
-                                console.warn('Failed to parse message:', parseErr);
-                                return;
-                            }
+            window.weaveDocBridge.onHostMessage(function(msg) {
+                try {
+                    if (msg && msg.Type === 'setContent') {
+                        var current = editor.getValue();
+                        if (current !== msg.Data) {
+                            editor.setValue(msg.Data || '');
                         }
-                        if (msg && msg.Type === 'setContent') {
-                            var current = editor.getValue();
-                            if (current !== msg.Data) {
-                                editor.setValue(msg.Data || '');
-                            }
-                        }
-                    } catch (err) {
-                        console.error('Error handling message:', err);
                     }
-                });
-            }
+                } catch (err) {
+                    console.error('Error handling message:', err);
+                }
+            });
 
             window.resizeEditor = function(width, height) {
                 try {
@@ -169,9 +222,7 @@
                             endLine: selection.endLineNumber,
                             endColumn: selection.endColumn
                         };
-                        if (window.chrome && window.chrome.webview) {
-                            window.chrome.webview.postMessage({ Type: 'selectionChanged', Data: JSON.stringify(selectionData) });
-                        }
+                        postHost('selectionChanged', JSON.stringify(selectionData));
                     }
                 } catch (e) {
                 }
@@ -203,32 +254,20 @@
 
             window.scrollToPosition = function(lineNumber, column) {
                 try {
-                    if (window.chrome && window.chrome.webview) {
-                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'scrollToPosition called: line=' + lineNumber + ', column=' + column });
-                    }
+                    postHost('debug', 'scrollToPosition called: line=' + lineNumber + ', column=' + column);
                     if (!editor) {
-                        if (window.chrome && window.chrome.webview) {
-                            window.chrome.webview.postMessage({ Type: 'debug', Data: 'editor is null' });
-                        }
+                        postHost('debug', 'editor is null');
                         return 'editor is null';
                     }
-                    if (window.chrome && window.chrome.webview) {
-                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'editor found, revealing line' });
-                    }
+                    postHost('debug', 'editor found, revealing line');
                     editor.revealLine(lineNumber, 1);
                     editor.setPosition(new monaco.Position(lineNumber, column));
-                    if (window.chrome && window.chrome.webview) {
-                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'calling highlightChar' });
-                    }
+                    postHost('debug', 'calling highlightChar');
                     highlightChar(lineNumber, column);
-                    if (window.chrome && window.chrome.webview) {
-                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'highlightChar called' });
-                    }
+                    postHost('debug', 'highlightChar called');
                     return 'success: line=' + lineNumber + ', column=' + column;
                 } catch (e) {
-                    if (window.chrome && window.chrome.webview) {
-                        window.chrome.webview.postMessage({ Type: 'debug', Data: 'Error in scrollToPosition: ' + e.message });
-                    }
+                    postHost('debug', 'Error in scrollToPosition: ' + e.message);
                     return 'error: ' + e.message;
                 }
             };

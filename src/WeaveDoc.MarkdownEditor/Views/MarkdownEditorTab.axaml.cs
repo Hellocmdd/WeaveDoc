@@ -8,24 +8,25 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using WeaveDoc.MarkdownEditor.Controls;
+using WeaveDoc.MarkdownEditor.Services;
 using WeaveDoc.MarkdownEditor.ViewModels;
 
 namespace WeaveDoc.MarkdownEditor.Views;
 
 public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
 {
-    private MonacoEditorControl? _monacoEditor;
+    private NativeMarkdownEditorControl? _nativeEditor;
     private PreviewWebViewControl? _previewWebView;
     private PdfViewerControl? _pdfViewer;
-    private bool _isMonacoReady;
-    private (int line, int column)? _pendingScrollRequest;
     private string _lastPdfFilePath = string.Empty;
+    private string? _temporaryPdfFilePath;
 
     public MarkdownEditorTab()
     {
         InitializeComponent();
         DataContext = new MainWindowViewModel();
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
         KeyDown += OnKeyDown;
     }
 
@@ -33,6 +34,9 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
         DataContext is MainWindowViewModel vm ? vm.PreviewHtml : string.Empty;
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    private NativeMarkdownEditorControl? GetNativeEditor() =>
+        _nativeEditor ??= this.FindControl<NativeMarkdownEditorControl>("NativeEditor");
 
     private async void OnKeyDown(object? sender, KeyEventArgs e)
     {
@@ -45,25 +49,29 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
 
     private void OnLoaded(object? sender, EventArgs e)
     {
-        _monacoEditor = this.FindControl<MonacoEditorControl>("MonacoEditor");
+        _nativeEditor = GetNativeEditor();
         _previewWebView = this.FindControl<PreviewWebViewControl>("PreviewWebView");
         _pdfViewer = this.FindControl<PdfViewerControl>("PdfViewer");
 
         if (DataContext is MainWindowViewModel vm)
         {
-            _monacoEditor?.SetContentAsync(vm.EditorContent);
+            _nativeEditor?.SetContent(vm.EditorContent);
             _previewWebView?.SetContent(vm.PreviewHtml);
             vm.PropertyChanged += ViewModel_PropertyChanged;
         }
+    }
+
+    private void OnUnloaded(object? sender, EventArgs e)
+    {
+        ReplaceTemporaryPdfFile(null);
+        if (DataContext is MainWindowViewModel vm)
+            vm.PropertyChanged -= ViewModel_PropertyChanged;
     }
 
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (sender is not MainWindowViewModel vm)
             return;
-
-        if (e.PropertyName == nameof(MainWindowViewModel.EditorContent))
-            _monacoEditor?.SetContentAsync(vm.EditorContent);
 
         if (e.PropertyName == nameof(MainWindowViewModel.PreviewHtml))
             _previewWebView?.SetContent(vm.PreviewHtml);
@@ -86,13 +94,26 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
             ]
         });
 
-        var filePath = selected.FirstOrDefault()?.TryGetLocalPath();
-        if (!string.IsNullOrWhiteSpace(filePath) && DataContext is MainWindowViewModel vm)
-            vm.OpenFile(filePath);
+        var file = selected.FirstOrDefault();
+        if (file == null)
+            return;
+
+        await OpenMarkdownStorageFileAsync(file);
+    }
+
+    public async Task<MarkdownFileOpenResult> OpenMarkdownStorageFileAsync(IStorageFile file)
+    {
+        var result = await StorageFileOpenService.OpenMarkdownAsync(file).ConfigureAwait(true);
+        if (DataContext is MainWindowViewModel vm)
+            vm.ApplyOpenedMarkdown(result);
+
+        return result;
     }
 
     public async Task SaveMarkdownFileAsync()
     {
+        SyncLiveEditorContent();
+
         if (DataContext is MainWindowViewModel vm && !string.IsNullOrWhiteSpace(vm.CurrentFilePath))
         {
             vm.SaveFile(vm.CurrentFilePath);
@@ -104,6 +125,8 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
 
     public async Task SaveMarkdownFileAsAsync()
     {
+        SyncLiveEditorContent();
+
         var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
         if (storageProvider == null)
             return;
@@ -125,6 +148,12 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
             vm.SaveFile(filePath);
     }
 
+    private void SyncLiveEditorContent()
+    {
+        if (GetNativeEditor() is { } nativeEditor && DataContext is MainWindowViewModel vm)
+            vm.EditorContent = nativeEditor.GetContent();
+    }
+
     public async Task OpenPdfFileAsync()
     {
         var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
@@ -142,9 +171,22 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
             ]
         });
 
-        var filePath = selected.FirstOrDefault()?.TryGetLocalPath();
-        if (!string.IsNullOrWhiteSpace(filePath))
-            await ShowPdfViewer(filePath);
+        var file = selected.FirstOrDefault();
+        if (file == null)
+            return;
+
+        await OpenPdfStorageFileAsync(file);
+    }
+
+    public async Task<PdfFileOpenResult> OpenPdfStorageFileAsync(IStorageFile file)
+    {
+        var result = await StorageFileOpenService.PreparePdfAsync(file).ConfigureAwait(true);
+        if (result.Succeeded)
+            await ShowPdfViewer(result.FilePath, result.DisplayName, result.IsTemporary);
+        else
+            ShowPdfOpenFailure(result.ErrorMessage ?? "打开 PDF 文件失败。");
+
+        return result;
     }
 
     public void ScrollPreviewToSelection(int startLine, int startCol, int endLine, int endCol)
@@ -152,46 +194,26 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
         _previewWebView?.ScrollToSelection(startLine, startCol, endLine, endCol);
     }
 
-    public async void SetMonacoReady(bool ready)
+    public void SetMonacoReady(bool ready)
     {
-        _isMonacoReady = ready;
-
-        if (ready && _pendingScrollRequest.HasValue && _monacoEditor != null)
-        {
-            var request = _pendingScrollRequest.Value;
-            _pendingScrollRequest = null;
-            await _monacoEditor.ScrollToPositionAsync(request.line, request.column);
-        }
     }
 
-    public async void ScrollEditorToPosition(int lineNumber, int column)
+    public void ScrollEditorToPosition(int lineNumber, int column)
     {
-        if (_monacoEditor != null && _isMonacoReady)
-        {
-            await _monacoEditor.ScrollToPositionAsync(lineNumber, column);
-        }
-        else if (!_isMonacoReady)
-        {
-            _pendingScrollRequest = (lineNumber, column);
-        }
+        GetNativeEditor()?.ScrollToPosition(lineNumber, column);
     }
 
-    public async void ScrollEditorToPositionWithRange(int lineNumber, int column, int selectionLength)
+    public void ScrollEditorToPositionWithRange(int lineNumber, int column, int selectionLength)
     {
-        if (_monacoEditor != null && _isMonacoReady)
-        {
-            await _monacoEditor.ScrollToPositionAsync(lineNumber, column, selectionLength);
-        }
-        else if (!_isMonacoReady)
-        {
-            _pendingScrollRequest = (lineNumber, column);
-        }
+        GetNativeEditor()?.ScrollToPosition(lineNumber, column, selectionLength);
     }
 
-    public async void ClearEditorHighlight()
+    public void ClearEditorHighlight()
     {
-        if (_monacoEditor != null && _isMonacoReady)
-            await _monacoEditor.ClearHighlightAsync();
+        var nativeEditor = GetNativeEditor();
+        var selection = nativeEditor?.GetSelection();
+        if (selection.HasValue)
+            nativeEditor?.SetSelection(selection.Value.Start, 0);
     }
 
     public async Task ActivateAsync()
@@ -199,7 +221,6 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
         var innerTabs = this.FindControl<TabControl>("MarkdownEditorInnerTabs");
         if (innerTabs?.SelectedItem is TabItem { Header: "PDF Reader" })
         {
-            _monacoEditor?.Deactivate();
             _previewWebView?.Deactivate();
 
             if (!string.IsNullOrEmpty(_lastPdfFilePath) && _pdfViewer != null)
@@ -211,16 +232,12 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
         if (_pdfViewer != null)
             await _pdfViewer.DeactivateAsync();
 
-        if (_monacoEditor != null)
-            await _monacoEditor.Activate(false);
-
-        if (_previewWebView != null)
-            await _previewWebView.Activate(false);
+        if (_previewWebView != null && DataContext is MainWindowViewModel vm)
+            _previewWebView.SetContent(vm.PreviewHtml);
     }
 
     public async Task DeactivateAsync()
     {
-        _monacoEditor?.Deactivate();
         _previewWebView?.Deactivate();
 
         if (_pdfViewer != null && _pdfViewer.IsFullScreen)
@@ -230,7 +247,7 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
             await _pdfViewer.DeactivateAsync();
     }
 
-    private async Task ShowPdfViewer(string filePath)
+    private async Task ShowPdfViewer(string filePath, string displayName, bool isTemporary)
     {
         var pdfTabItem = this.FindControl<TabItem>("PdfTabItem");
         var mainTabControl = this.FindControl<TabControl>("MarkdownEditorInnerTabs");
@@ -239,16 +256,57 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
         if (pdfTabItem == null || mainTabControl == null || pdfFileName == null)
             return;
 
+        ReplaceTemporaryPdfFile(isTemporary ? filePath : null);
         _lastPdfFilePath = filePath;
-        pdfFileName.Text = Path.GetFileName(filePath);
+        pdfFileName.Text = string.IsNullOrWhiteSpace(displayName)
+            ? Path.GetFileName(filePath)
+            : displayName;
+
+        if (DataContext is MainWindowViewModel vm)
+            vm.SetStatus($"已打开 PDF：{pdfFileName.Text}");
+
         mainTabControl.SelectedItem = pdfTabItem;
 
         await Task.Delay(50);
+        _pdfViewer ??= this.FindControl<PdfViewerControl>("PdfViewer");
         if (_pdfViewer != null)
         {
             await _pdfViewer.Activate();
             await _pdfViewer.LoadPdfAsync(filePath);
+
+            if (_pdfViewer.IsUsingFallback && DataContext is MainWindowViewModel pdfFailureVm)
+                pdfFailureVm.SetStatus(_pdfViewer.FallbackStatusText, isError: true);
         }
+    }
+
+    private void ShowPdfOpenFailure(string message)
+    {
+        var pdfTabItem = this.FindControl<TabItem>("PdfTabItem");
+        var mainTabControl = this.FindControl<TabControl>("MarkdownEditorInnerTabs");
+        var pdfFileName = this.FindControl<TextBlock>("PdfFileName");
+
+        if (pdfFileName != null)
+            pdfFileName.Text = "PDF 未打开";
+
+        if (pdfTabItem != null && mainTabControl != null)
+            mainTabControl.SelectedItem = pdfTabItem;
+
+        if (_pdfViewer != null)
+        {
+            _pdfViewer.FallbackStatusText = message;
+            _pdfViewer.IsUsingFallback = true;
+        }
+
+        if (DataContext is MainWindowViewModel vm)
+            vm.SetStatus(message, isError: true);
+    }
+
+    private void ReplaceTemporaryPdfFile(string? filePath)
+    {
+        if (!string.Equals(_temporaryPdfFilePath, filePath, StringComparison.Ordinal))
+            StorageFileOpenService.TryDeleteTemporaryFile(_temporaryPdfFilePath);
+
+        _temporaryPdfFilePath = filePath;
     }
 
     private async void OpenFile_Click(object sender, RoutedEventArgs e) =>
@@ -284,25 +342,14 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
 
             await Task.Delay(150);
 
-            if (_monacoEditor != null)
-                await _monacoEditor.Activate(false);
-
             if (_previewWebView != null)
             {
-                _previewWebView.SetOnPreviewReadyCallback(async () =>
-                {
-                    if (_monacoEditor != null)
-                        await _monacoEditor.RequestCurrentSelectionAsync();
-                });
-
-                await _previewWebView.Activate(false);
                 if (DataContext is MainWindowViewModel vm)
                     _previewWebView.SetContent(vm.PreviewHtml);
             }
         }
         else if (selectedTab.Header?.ToString() == "PDF Reader")
         {
-            _monacoEditor?.Deactivate();
             _previewWebView?.Deactivate();
 
             await Task.Delay(100);

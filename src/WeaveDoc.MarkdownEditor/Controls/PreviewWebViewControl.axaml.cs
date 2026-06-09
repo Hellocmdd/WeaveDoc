@@ -1,56 +1,44 @@
+using System;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
-using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Microsoft.Web.WebView2.Core;
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+using WeaveDoc.MarkdownEditor.Controls.Web;
 using WeaveDoc.MarkdownEditor.Helpers;
 using WeaveDoc.MarkdownEditor.Views;
 
 namespace WeaveDoc.MarkdownEditor.Controls
 {
-    public class WeaveDocHost
-    {
-        private readonly PreviewWebViewControl _control;
-
-        public WeaveDocHost(PreviewWebViewControl control)
-        {
-            _control = control;
-        }
-
-        public void OnPreviewClick(int line, int column)
-        {
-            Console.WriteLine($"WeaveDocHost.OnPreviewClick: line={line}, column={column}");
-            _control.HandlePreviewClick(line, column);
-        }
-
-        public void OnDebug(string message)
-        {
-            Console.WriteLine($"WeaveDocHost Debug: {message}");
-        }
-    }
-
     public partial class PreviewWebViewControl : UserControl
     {
-        private CoreWebView2? _webview;
-        private CoreWebView2Controller? _controller;
-        private bool _isInitialized = false;
-        private bool _isActive = true;
+        public const string DefaultFallbackStatusText =
+            "HTML 预览不可用：跨平台 WebView 未初始化。请确认系统 WebKit/WPE 运行库可用。";
+
+        private IWebViewHost? _webViewHost;
+        private bool _isInitialized;
+        private bool _isActive;
+        private bool _isInitializing;
         private string _pendingContent = string.Empty;
-        private static CoreWebView2Environment? _sharedEnvironment;
+        private Action? _notifyPreviewReadyCallback;
 
         public PreviewWebViewControl()
         {
             InitializeComponent();
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
-            SizeChanged += OnSizeChanged;
         }
+
+        public IWebViewHostFactory WebViewHostFactory { get; set; } = WebViewHostFactoryProvider.Current;
+
+        public TimeSpan NavigationTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
         private IMarkdownEditorHost? Host =>
             this.GetVisualAncestors().OfType<IMarkdownEditorHost>().FirstOrDefault()
@@ -59,311 +47,206 @@ namespace WeaveDoc.MarkdownEditor.Controls
         public static readonly StyledProperty<string> HtmlContentProperty =
             AvaloniaProperty.Register<PreviewWebViewControl, string>(
                 nameof(HtmlContent),
+                string.Empty,
                 defaultBindingMode: BindingMode.OneWay);
 
         public string HtmlContent
         {
             get => GetValue(HtmlContentProperty);
-            set => SetValue(HtmlContentProperty, value);
+            set => SetValue(HtmlContentProperty, value ?? string.Empty);
+        }
+
+        public static readonly StyledProperty<bool> IsUsingFallbackProperty =
+            AvaloniaProperty.Register<PreviewWebViewControl, bool>(nameof(IsUsingFallback), false);
+
+        public bool IsUsingFallback
+        {
+            get => GetValue(IsUsingFallbackProperty);
+            set => SetValue(IsUsingFallbackProperty, value);
+        }
+
+        public static readonly StyledProperty<string> FallbackStatusTextProperty =
+            AvaloniaProperty.Register<PreviewWebViewControl, string>(
+                nameof(FallbackStatusText),
+                DefaultFallbackStatusText);
+
+        public string FallbackStatusText
+        {
+            get => GetValue(FallbackStatusTextProperty);
+            set => SetValue(FallbackStatusTextProperty, value ?? DefaultFallbackStatusText);
+        }
+
+        public static readonly StyledProperty<string> FallbackContentTextProperty =
+            AvaloniaProperty.Register<PreviewWebViewControl, string>(
+                nameof(FallbackContentText),
+                string.Empty);
+
+        public string FallbackContentText
+        {
+            get => GetValue(FallbackContentTextProperty);
+            set => SetValue(FallbackContentTextProperty, value ?? string.Empty);
+        }
+
+        public static readonly StyledProperty<bool> AutoActivateOnVisibleProperty =
+            AvaloniaProperty.Register<PreviewWebViewControl, bool>(nameof(AutoActivateOnVisible), true);
+
+        public bool AutoActivateOnVisible
+        {
+            get => GetValue(AutoActivateOnVisibleProperty);
+            set => SetValue(AutoActivateOnVisibleProperty, value);
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
         {
             base.OnPropertyChanged(change);
+
             if (change.Property == HtmlContentProperty)
             {
-                var newContent = change.NewValue as string;
-                UpdatePreview(newContent ?? string.Empty);
+                var content = change.NewValue as string ?? string.Empty;
+                UpdateFallbackContent(content);
+                UpdatePreview(content);
+            }
+            else if (change.Property == IsVisibleProperty)
+            {
+                if (IsVisible && AutoActivateOnVisible)
+                {
+                    _ = Activate(false);
+                }
+                else
+                {
+                    Deactivate();
+                }
             }
         }
 
-        private void OnLoaded(object? sender, EventArgs e)
+        private async void OnLoaded(object? sender, EventArgs e)
         {
-            _ = InitializeWebViewAsync();
+            if (IsVisible && AutoActivateOnVisible)
+            {
+                await Activate(false);
+            }
         }
 
         private void OnUnloaded(object? sender, EventArgs e)
         {
-            // 只隐藏，不关闭，以保留内容
-            if (_controller != null)
+            Deactivate();
+        }
+
+        private async Task<bool> EnsureWebViewAsync()
+        {
+            if (_webViewHost != null)
             {
-                _controller.IsVisible = false;
+                if (!_isInitialized)
+                {
+                    NavigateToPreview();
+                }
+                return true;
             }
-        }
 
-        private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
-        {
-            _ = HandleSizeChangeAsync();
-        }
+            if (_isInitializing)
+            {
+                return false;
+            }
 
-        private async Task HandleSizeChangeAsync()
-        {
+            _isInitializing = true;
             try
             {
-                await Task.Delay(100);
-                
-                UpdateControllerBounds();
-                
-                if (_webview != null && _isInitialized)
+                _webViewHost = WebViewHostFactory.Create();
+                _webViewHost.NavigationCompleted += WebViewHost_NavigationCompleted;
+                _webViewHost.MessageReceived += WebViewHost_MessageReceived;
+                GetWebViewContainer().Children.Add(_webViewHost.View);
+                _webViewHost.View.IsVisible = _isActive;
+
+                NavigateToPreview();
+                if (!IsUsingFallback)
                 {
-                    await _webview.ExecuteScriptAsync("window.dispatchEvent(new Event('resize'));");
+                    ClearFallback();
                 }
-            }
-            catch
-            {
-            }
-        }
-
-        private async Task InitializeWebViewAsync()
-        {
-            try
-            {
-                var root = TopLevel.GetTopLevel(this);
-                if (root == null)
-                {
-                    Console.WriteLine("PreviewWebViewControl: TopLevel not found");
-                    return;
-                }
-
-                var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-                if (hwnd == IntPtr.Zero)
-                {
-                    Console.WriteLine("InitializeWebViewAsync: No hwnd");
-                    return;
-                }
-
-                // 确保共享环境只创建一次
-                if (_sharedEnvironment == null)
-                {
-                    _sharedEnvironment = await WebView2EnvironmentManager.GetOrCreateEnvironmentAsync2();
-                    Console.WriteLine("Shared WebView2 environment created");
-                }
-
-                Console.WriteLine("Creating WebView2 controller...");
-                _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);
-                Console.WriteLine("WebView2 controller created");
-
-                _controller.IsVisible = false;
-                _controller.CoreWebView2.Settings.IsScriptEnabled = true;
-
-                _webview = _controller.CoreWebView2;
-                _webview.NavigationCompleted += Webview_NavigationCompleted;
-                _webview.WebMessageReceived += Webview_WebMessageReceived;
-
-                _webview.Settings.AreDefaultContextMenusEnabled = true;
-                _webview.Settings.IsZoomControlEnabled = true;
-
-                _webview.AddHostObjectToScript("weaveDocHost", new WeaveDocHost(this));
-
-                var htmlPath = Path.Combine(AppContext.BaseDirectory, "Assets", "preview-template.html");
-                var htmlUri = new Uri(htmlPath).AbsoluteUri;
-                
-                // 添加时间戳参数防止缓存
-                htmlUri += "?t=" + DateTime.Now.Ticks;
-                
-                UpdateControllerBounds();
-                _controller.IsVisible = true;
-                
-                _webview.Navigate(htmlUri);
-                Console.WriteLine("Preview WebView2 initialized, navigating to: " + htmlUri);
+                return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"InitializeWebViewAsync exception: {ex.Message}");
                 Logger.LogException(ex);
+                await DisposeHostAsync();
+                ShowFallback($"HTML 预览不可用：{ex.Message}");
+                return false;
             }
-        }
-
-        private void Webview_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs args)
-        {
-            if (args.IsSuccess)
+            finally
             {
-                _isInitialized = true;
-
-                UpdateControllerBounds();
-
-                // 执行测试脚本检查 JavaScript 环境
-                TestJavaScriptEnvironment();
-
-                if (!string.IsNullOrEmpty(_pendingContent))
-                {
-                    var contentToApply = _pendingContent;
-                    _pendingContent = string.Empty;
-                    UpdatePreview(contentToApply);
-                }
+                _isInitializing = false;
             }
         }
 
-        private async void TestJavaScriptEnvironment()
+        private void NavigateToPreview()
+        {
+            if (_webViewHost == null || IsUsingFallback)
+            {
+                return;
+            }
+
+            var htmlPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "preview-template.html");
+            _webViewHost.Navigate(new Uri(htmlPath));
+            _ = ShowFallbackIfNavigationDoesNotCompleteAsync(_webViewHost);
+        }
+
+        private async Task ShowFallbackIfNavigationDoesNotCompleteAsync(IWebViewHost host)
+        {
+            if (NavigationTimeout <= TimeSpan.Zero)
+            {
+                return;
+            }
+
+            await Task.Delay(NavigationTimeout).ConfigureAwait(true);
+
+            if (_webViewHost == host && !_isInitialized)
+            {
+                ShowFallback("HTML 预览不可用：跨平台 WebView 导航超时。");
+            }
+        }
+
+        private async void WebViewHost_NavigationCompleted(object? sender, WebViewHostNavigationCompletedEventArgs args)
+        {
+            if (!args.IsSuccess)
+            {
+                ShowFallback("HTML 预览不可用：跨平台 WebView 导航失败。");
+                return;
+            }
+
+            var contentToApply = string.IsNullOrEmpty(_pendingContent) ? HtmlContent : _pendingContent;
+            _pendingContent = string.Empty;
+            UpdateFallbackContent(contentToApply);
+
+            _isInitialized = true;
+            if (ShowFallbackIfNativeRenderingUnavailable())
+            {
+                NotifyPreviewReady();
+                return;
+            }
+
+            ClearFallback();
+            await UpdatePreviewAsync(contentToApply);
+        }
+
+        private void WebViewHost_MessageReceived(object? sender, WebViewHostMessageReceivedEventArgs args)
         {
             try
             {
-                if (_webview == null)
+                if (!TryReadMessage(args.Body, out var msgType, out var msgData))
                 {
-                    Console.WriteLine("_webview is null in TestJavaScriptEnvironment");
                     return;
                 }
-                
-                // 检查 window.weaveDocHost 是否存在
-                var checkWeaveDocHost = await _webview.ExecuteScriptAsync("typeof window.weaveDocHost !== 'undefined'");
-                Console.WriteLine($"window.weaveDocHost exists: {checkWeaveDocHost}");
 
-                // 检查 window.external 是否存在
-                var checkExternal = await _webview.ExecuteScriptAsync("typeof window.external !== 'undefined'");
-                Console.WriteLine($"window.external exists: {checkExternal}");
-
-                // 检查 window.chrome.webview 是否存在
-                var checkChrome = await _webview.ExecuteScriptAsync("typeof window.chrome !== 'undefined' && typeof window.chrome.webview !== 'undefined'");
-                Console.WriteLine($"window.chrome.webview exists: {checkChrome}");
-
-                // 发送测试消息
-                var testResult = await _webview.ExecuteScriptAsync(@"
-                    (function() {
-                        var result = {
-                            weaveDocHost: typeof window.weaveDocHost !== 'undefined',
-                            external: typeof window.external !== 'undefined',
-                            chromeWebview: typeof window.chrome !== 'undefined' && typeof window.chrome.webview !== 'undefined'
-                        };
-                        return JSON.stringify(result);
-                    })();
-                ");
-                Console.WriteLine($"JavaScript environment test result: {testResult}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"TestJavaScriptEnvironment exception: {ex.Message}");
-            }
-        }
-
-        private void Webview_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
-        {
-            Console.WriteLine("Webview_WebMessageReceived called");
-            try
-            {
-                var json = args.WebMessageAsJson;
-                Console.WriteLine($"Received JSON: {json}");
-                if (string.IsNullOrWhiteSpace(json)) return;
-
-                var doc = System.Text.Json.JsonDocument.Parse(json);
-                var jsonRoot = doc.RootElement;
-
-                string? msgType = null;
-                string? msgData = null;
-
-                if (jsonRoot.TryGetProperty("Type", out var typeProp))
+                if (msgType == "previewSelection" && msgData != null)
                 {
-                    msgType = typeProp.GetString();
-                }
-
-                if (jsonRoot.TryGetProperty("Data", out var dataProp))
-                {
-                    msgData = dataProp.GetString();
-                }
-
-                if (msgType == "debug" && msgData != null)
-                {
-                    Console.WriteLine($"PreviewWebViewControl: DEBUG - {msgData}");
-                }
-                else if (msgType == "previewSelection" && msgData != null)
-                {
-                    Console.WriteLine($"PreviewWebViewControl: Received previewSelection message");
-                    try
-                    {
-                        var selectionData = System.Text.Json.JsonDocument.Parse(msgData);
-                        var root = selectionData.RootElement;
-
-                        int startLine = 1;
-                        int startColumn = 1;
-                        int endLine = 1;
-                        int endColumn = 1;
-                        int selectionLength = 1;
-
-                        if (root.TryGetProperty("startLine", out var startLineProp))
-                        {
-                            startLine = startLineProp.GetInt32();
-                        }
-                        if (root.TryGetProperty("startColumn", out var startColProp))
-                        {
-                            startColumn = startColProp.GetInt32();
-                        }
-                        if (root.TryGetProperty("endLine", out var endLineProp))
-                        {
-                            endLine = endLineProp.GetInt32();
-                        }
-                        if (root.TryGetProperty("endColumn", out var endColProp))
-                        {
-                            endColumn = endColProp.GetInt32();
-                        }
-                        if (root.TryGetProperty("length", out var lengthProp))
-                        {
-                            selectionLength = lengthProp.GetInt32();
-                        }
-
-                        Console.WriteLine($"PreviewWebViewControl: Selection: startLine={startLine}, startColumn={startColumn}, endLine={endLine}, endColumn={endColumn}, length={selectionLength}");
-
-                        var host = Host;
-                        if (host != null)
-                        {
-                            host.ScrollEditorToPositionWithRange(startLine, startColumn, selectionLength);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"PreviewWebViewControl: Exception: {ex.Message}");
-                        Logger.LogException(ex);
-                    }
+                    HandlePreviewSelection(msgData);
                 }
                 else if (msgType == "previewClick" && msgData != null)
                 {
-                    Console.WriteLine($"PreviewWebViewControl: Received previewClick message");
-                    try
-                    {
-                        var clickData = System.Text.Json.JsonDocument.Parse(msgData);
-                        var root = clickData.RootElement;
-
-                        int clickedLine = 1;
-                        int clickedColumn = 1;
-                        if (root.TryGetProperty("line", out var lineProp))
-                        {
-                            clickedLine = lineProp.GetInt32();
-                        }
-                        if (root.TryGetProperty("column", out var colProp))
-                        {
-                            clickedColumn = colProp.GetInt32();
-                        }
-
-                        Console.WriteLine($"PreviewWebViewControl: line={clickedLine}, column={clickedColumn}");
-
-                        var host = Host;
-                        Console.WriteLine($"PreviewWebViewControl: host is null: {host == null}");
-
-                        if (host != null)
-                        {
-                            host.ScrollEditorToPosition(clickedLine, clickedColumn);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"PreviewWebViewControl: Exception: {ex.Message}");
-                        Logger.LogException(ex);
-                    }
+                    HandlePreviewClickMessage(msgData);
                 }
-                else if (msgType == "previewClearHighlight" && msgData != null)
+                else if (msgType == "previewClearHighlight")
                 {
-                    Console.WriteLine($"PreviewWebViewControl: Received previewClearHighlight message");
-                    try
-                    {
-                        var host = Host;
-                        if (host != null)
-                        {
-                            host.ClearEditorHighlight();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"PreviewWebViewControl: Exception: {ex.Message}");
-                        Logger.LogException(ex);
-                    }
+                    Host?.ClearEditorHighlight();
                 }
             }
             catch (Exception ex)
@@ -372,87 +255,193 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        private async void UpdatePreview(string content)
+        private void HandlePreviewSelection(string msgData)
         {
-            Console.WriteLine($"UpdatePreview called, content length: {content.Length}");
             try
             {
-                if (_webview == null)
-                {
-                    Console.WriteLine("_webview is null, setting pending content");
-                    _pendingContent = content;
-                    return;
-                }
+                using var selectionData = JsonDocument.Parse(msgData);
+                var root = selectionData.RootElement;
+                var startLine = ReadInt(root, "startLine", 1);
+                var startColumn = ReadInt(root, "startColumn", 1);
+                var selectionLength = ReadInt(root, "length", 1);
 
-                if (!_isInitialized)
-                {
-                    Console.WriteLine("_isInitialized is false, setting pending content");
-                    _pendingContent = content;
-                    return;
-                }
-
-                // 检查内容是否真的变了（比较原始值而不是_pendingContent，因为_pendingContent可能在前面被设置）
-                if (_pendingContent == content && !string.IsNullOrEmpty(_pendingContent))
-                {
-                    Console.WriteLine("Content unchanged, skipping update");
-                    return;
-                }
-
-                // 内容变了，更新_pendingContent并执行脚本
-                _pendingContent = content;
-
-                // 如果已初始化，立即执行JavaScript更新（无论是否活动）
-                if (_isInitialized)
-                {
-                    var script = $"window.updateContent({System.Text.Json.JsonSerializer.Serialize(content)});";
-                    Console.WriteLine($"Executing script: {script.Substring(0, Math.Min(100, script.Length))}...");
-
-                    // 检查内容是否包含 data-pos 属性
-                    if (content.Contains("data-pos"))
-                    {
-                        Console.WriteLine("HTML content contains data-pos attributes");
-                        // 检查是否包含 onclick 属性
-                        if (content.Contains("onclick"))
-                        {
-                            Console.WriteLine("HTML content contains onclick attributes");
-                        }
-                        else
-                        {
-                            Console.WriteLine("WARNING: HTML content does NOT contain onclick attributes");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("WARNING: HTML content does NOT contain data-pos attributes");
-                        // 输出前200个字符来检查内容
-                        Console.WriteLine("Content preview: " + content.Substring(0, Math.Min(200, content.Length)));
-                    }
-
-                    await _webview.ExecuteScriptAsync(script);
-                    Console.WriteLine("Script executed successfully");
-
-                    // 内容更新完成后，通知外部刷新高亮
-                    NotifyPreviewReady();
-                }
+                Host?.ScrollEditorToPositionWithRange(startLine, startColumn, selectionLength);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"UpdatePreview exception: {ex.Message}");
                 Logger.LogException(ex);
+            }
+        }
+
+        private void HandlePreviewClickMessage(string msgData)
+        {
+            try
+            {
+                using var clickData = JsonDocument.Parse(msgData);
+                var root = clickData.RootElement;
+                var clickedLine = ReadInt(root, "line", 1);
+                var clickedColumn = ReadInt(root, "column", 1);
+
+                Host?.ScrollEditorToPosition(clickedLine, clickedColumn);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+        }
+
+        private void UpdatePreview(string content)
+        {
+            _ = UpdatePreviewAsync(content);
+        }
+
+        private async Task UpdatePreviewAsync(string content)
+        {
+            try
+            {
+                UpdateFallbackContent(content);
+                if (IsUsingFallback)
+                {
+                    return;
+                }
+
+                if (_webViewHost == null || !_isInitialized)
+                {
+                    _pendingContent = content ?? string.Empty;
+                    return;
+                }
+
+                _pendingContent = content ?? string.Empty;
+                await WaitForJavaScriptReadyAsync();
+                var script = $"window.updateContent({JsonSerializer.Serialize(_pendingContent)});";
+                await _webViewHost.InvokeScriptAsync(script);
+                NotifyPreviewReady();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+                ShowFallback($"HTML 预览不可用：{ex.Message}");
+            }
+        }
+
+        private void ShowFallback(string? statusText = null)
+        {
+            FallbackStatusText = string.IsNullOrWhiteSpace(statusText)
+                ? DefaultFallbackStatusText
+                : statusText;
+            UpdateFallbackContent(HtmlContent);
+            IsUsingFallback = true;
+
+            if (_webViewHost != null)
+            {
+                _webViewHost.View.IsVisible = false;
+            }
+        }
+
+        private void ClearFallback()
+        {
+            IsUsingFallback = false;
+            if (_webViewHost != null)
+            {
+                _webViewHost.View.IsVisible = _isActive;
+            }
+        }
+
+        private bool ShowFallbackIfNativeRenderingUnavailable()
+        {
+            if (!WebViewRenderPolicy.ShouldUseFallback(_webViewHost))
+            {
+                return false;
+            }
+
+            ShowFallback(WebViewRenderPolicy.BuildFallbackStatus("HTML 预览"));
+            return true;
+        }
+
+        private void UpdateFallbackContent(string content)
+        {
+            FallbackContentText = ConvertHtmlToFallbackText(content);
+        }
+
+        public static string ConvertHtmlToFallbackText(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+            {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder(html.Length);
+            var tag = new StringBuilder();
+            var inTag = false;
+
+            foreach (var character in html)
+            {
+                if (character == '<')
+                {
+                    inTag = true;
+                    tag.Clear();
+                    continue;
+                }
+
+                if (inTag)
+                {
+                    if (character == '>')
+                    {
+                        AppendLineBreakForTag(tag.ToString(), builder);
+                        inTag = false;
+                    }
+                    else
+                    {
+                        tag.Append(character);
+                    }
+
+                    continue;
+                }
+
+                builder.Append(character);
+            }
+
+            var decoded = WebUtility.HtmlDecode(builder.ToString()) ?? string.Empty;
+            decoded = decoded.Replace('\u00a0', ' ');
+            var lines = decoded
+                .Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace('\r', '\n')
+                .Split('\n')
+                .Select(line => Regex.Replace(line.Trim(), "[ \t]+", " "))
+                .Where(line => !string.IsNullOrWhiteSpace(line));
+
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        private static void AppendLineBreakForTag(string rawTag, StringBuilder builder)
+        {
+            var tag = rawTag.Trim().TrimStart('/');
+            var separatorIndex = tag.IndexOfAny([' ', '\t', '\r', '\n', '/']);
+            if (separatorIndex >= 0)
+            {
+                tag = tag[..separatorIndex];
+            }
+
+            if (tag.Equals("br", StringComparison.OrdinalIgnoreCase)
+                || tag.Equals("p", StringComparison.OrdinalIgnoreCase)
+                || tag.Equals("div", StringComparison.OrdinalIgnoreCase)
+                || tag.Equals("li", StringComparison.OrdinalIgnoreCase)
+                || Regex.IsMatch(tag, "^h[1-6]$", RegexOptions.IgnoreCase))
+            {
+                builder.AppendLine();
             }
         }
 
         private void NotifyPreviewReady()
         {
-            if (_notifyPreviewReadyCallback != null)
+            if (_notifyPreviewReadyCallback == null)
             {
-                Console.WriteLine("PreviewWebViewControl: Notifying preview ready");
-                _notifyPreviewReadyCallback();
-                _notifyPreviewReadyCallback = null;
+                return;
             }
-        }
 
-        private Action? _notifyPreviewReadyCallback;
+            _notifyPreviewReadyCallback();
+            _notifyPreviewReadyCallback = null;
+        }
 
         public void SetOnPreviewReadyCallback(Action callback)
         {
@@ -461,46 +450,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         public void HandlePreviewClick(int line, int column)
         {
-            Console.WriteLine($"PreviewWebViewControl: HandlePreviewClick line={line}, column={column}");
-
-            var host = Host;
-            if (host != null)
-            {
-                host.ScrollEditorToPosition(line, column);
-            }
-        }
-
-        private void UpdateControllerBounds()
-        {
-            try
-            {
-                if (_controller == null) return;
-
-                var root = TopLevel.GetTopLevel(this);
-                if (root == null)
-                {
-                    Logger.Log("PreviewWebViewControl: No TopLevel found for bounds update");
-                    return;
-                }
-
-                var scaling = root.RenderScaling;
-
-                var transform = this.TransformToVisual(root);
-                var position = transform?.Transform(new Point(0, 0)) ?? new Point(0, 0);
-
-                var width = (int)(this.Bounds.Width * scaling);
-                var height = (int)(this.Bounds.Height * scaling);
-                var x = (int)(position.X * scaling);
-                var y = (int)(position.Y * scaling);
-
-                width = Math.Max(100, width);
-                height = Math.Max(100, height);
-
-                _controller.Bounds = new System.Drawing.Rectangle(x, y, width, height);
-            }
-            catch
-            {
-            }
+            Host?.ScrollEditorToPosition(line, column);
         }
 
         public void SetContent(string content)
@@ -510,232 +460,235 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         public async void ScrollToLine(int lineNumber)
         {
-            try
-            {
-                if (_webview == null || !_isInitialized)
-                {
-                    return;
-                }
+            var script = $@"
+                (function() {{
+                    if (window.clearHighlight) {{
+                        window.clearHighlight();
+                    }}
 
-                var script = $@"
-                    (function() {{
-                        if (window.clearHighlight) {{
-                            window.clearHighlight();
-                        }}
-                        
-                        var targetLine = {lineNumber};
-                        var targetElement = null;
-                        var allElements = document.querySelectorAll('[data-line]');
-                        
-                        for (var i = 0; i < allElements.length; i++) {{
-                            var el = allElements[i];
-                            var elLine = parseInt(el.getAttribute('data-line'), 10);
-                            
-                            if (elLine === targetLine) {{
-                                targetElement = el;
-                                break;
-                            }}
-                            if (elLine > targetLine) {{
-                                if (i > 0) {{
-                                    targetElement = allElements[i - 1];
-                                }} else {{
-                                    targetElement = el;
-                                }}
-                                break;
-                            }}
-                        }}
-                        
-                        if (!targetElement && allElements.length > 0) {{
-                            targetElement = allElements[allElements.length - 1];
-                        }}
-                        
-                        if (targetElement) {{
-                            targetElement.classList.add('highlight-line');
-                            targetElement.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
-                        }}
-                    }})();
-                ";
+                    var targetLine = {lineNumber};
+                    var targetElement = null;
+                    var allElements = document.querySelectorAll('[data-line]');
 
-                await _webview.ExecuteScriptAsync(script);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-            }
+                    for (var i = 0; i < allElements.length; i++) {{
+                        var el = allElements[i];
+                        var elLine = parseInt(el.getAttribute('data-line'), 10);
+
+                        if (elLine === targetLine) {{
+                            targetElement = el;
+                            break;
+                        }}
+                        if (elLine > targetLine) {{
+                            targetElement = i > 0 ? allElements[i - 1] : el;
+                            break;
+                        }}
+                    }}
+
+                    if (!targetElement && allElements.length > 0) {{
+                        targetElement = allElements[allElements.length - 1];
+                    }}
+
+                    if (targetElement) {{
+                        targetElement.classList.add('highlight-line');
+                        targetElement.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                    }}
+                }})();
+            ";
+
+            await InvokePreviewScriptAsync(script);
         }
 
         public async void ScrollToSelection(int startLine, int startCol, int endLine, int endCol)
         {
-            try
+            await WaitForJavaScriptReadyAsync();
+            await InvokePreviewScriptAsync($"window.scrollToSelection({startLine}, {startCol}, {endLine}, {endCol});");
+        }
+
+        private async Task WaitForJavaScriptReadyAsync()
+        {
+            if (_webViewHost == null)
             {
-                Console.WriteLine($"ScrollToSelection called: startLine={startLine}, startCol={startCol}, endLine={endLine}, endCol={endCol}");
-                
-                // 确保预览器已初始化
-                if (_webview == null || !_isInitialized)
+                return;
+            }
+
+            const int maxAttempts = 20;
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                try
                 {
-                    Console.WriteLine($"ScrollToSelection skipped: webview={_webview != null}, initialized={_isInitialized}");
+                    var result = await _webViewHost.InvokeScriptAsync("typeof window.updateContent");
+                    if (result == "\"function\"" || result == "function")
+                    {
+                        return;
+                    }
+                }
+                catch
+                {
+                }
+
+                await Task.Delay(50);
+            }
+        }
+
+        public async Task Activate(bool forceReset = false)
+        {
+            if (_isActive && !forceReset && _webViewHost != null && _isInitialized)
+            {
+                return;
+            }
+
+            _isActive = true;
+            if (!await EnsureWebViewAsync())
+            {
+                return;
+            }
+
+            if (_webViewHost != null)
+            {
+                _webViewHost.View.IsVisible = true;
+
+                // Yield to the Avalonia dispatcher at Render priority so that any
+                // pending Layout-priority work (which commits the new control bounds
+                // to WebKitGTK's offscreen renderer) completes before we run scripts.
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+
+                if (ShowFallbackIfNativeRenderingUnavailable())
+                {
                     return;
                 }
 
-                // 检查当前预览内容是否包含data-pos属性
-                var dataPosCount = await _webview.ExecuteScriptAsync("document.querySelectorAll('[data-pos]').length");
-                Console.WriteLine($"ScrollToSelection: Number of data-pos elements: {dataPosCount}");
-                
-                // 如果没有data-pos元素，等待内容更新
-                if (dataPosCount == "0")
-                {
-                    Console.WriteLine("ScrollToSelection: No data-pos elements found, waiting for content update...");
-                    await WaitForContentReadyAsync();
-                    dataPosCount = await _webview.ExecuteScriptAsync("document.querySelectorAll('[data-pos]').length");
-                    Console.WriteLine($"ScrollToSelection: After waiting, data-pos elements: {dataPosCount}");
-                }
-                
-                // 等待JavaScript环境完全就绪
-                await WaitForJavaScriptReadyAsync();
-                
-                var script = $"window.scrollToSelection({startLine}, {startCol}, {endLine}, {endCol});";
-                Console.WriteLine($"ScrollToSelection executing script: {script}");
-                var result = await _webview.ExecuteScriptAsync(script);
-                Console.WriteLine($"ScrollToSelection script result: {result}");
-                
-                // 检查高亮是否生效
-                var highlightedCount = await _webview.ExecuteScriptAsync("document.querySelectorAll('.highlight-char').length");
-                Console.WriteLine($"ScrollToSelection: Number of highlighted elements after script: {highlightedCount}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"ScrollToSelection exception: {ex.Message}");
-                Logger.LogException(ex);
-            }
-        }
-        
-        private async Task WaitForContentReadyAsync()
-        {
-            if (_webview == null) return;
-            
-            int attempts = 0;
-            const int maxAttempts = 30;
-            
-            while (attempts < maxAttempts)
-            {
                 try
                 {
-                    var result = await _webview.ExecuteScriptAsync("document.querySelectorAll('[data-pos]').length");
-                    if (result != "0")
-                    {
-                        Console.WriteLine("WaitForContentReadyAsync: Content is ready");
-                        return;
-                    }
+                    // Force WebKitGTK offscreen to repaint by triggering a resize event.
+                    await _webViewHost.InvokeScriptAsync("window.dispatchEvent(new Event('resize'));");
                 }
-                catch
-                {
-                }
-                
-                attempts++;
-                await Task.Delay(100);
-            }
-            
-            Console.WriteLine("Warning: Content not ready after timeout");
-        }
-        
-        private async Task WaitForJavaScriptReadyAsync()
-        {
-            if (_webview == null) return;
-            
-            int attempts = 0;
-            const int maxAttempts = 20;
-            
-            while (attempts < maxAttempts)
-            {
-                try
-                {
-                    var result = await _webview.ExecuteScriptAsync("typeof window.scrollToSelection");
-                    if (result == "\"function\"")
-                    {
-                        Console.WriteLine("JavaScript environment is ready");
-                        return;
-                    }
-                }
-                catch
-                {
-                }
-                
-                attempts++;
-                await Task.Delay(50);
-            }
-            
-            Console.WriteLine("Warning: JavaScript environment not fully ready after timeout");
-        }
+                catch { }
 
-        private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
-        
-        public async Task Activate(bool forceReset = false)
-        {
-            if (_isActive) return;
-            
-            _isActive = true;
-            Console.WriteLine("PreviewWebViewControl: Activating...");
-            
-            if (_controller != null && _webview != null)
-            {
-                UpdateControllerBounds();
-                _controller.IsVisible = true;
-                
-                // 只有在强制重置或未初始化时才重新加载模板
                 if (forceReset || !_isInitialized)
                 {
-                    Console.WriteLine("PreviewWebViewControl: Reloading preview template");
-                    
-                    _pendingContent = string.Empty;
-                    
-                    var host = Host;
-                    if (host != null)
-                    {
-                        _pendingContent = host.PreviewHtml;
-                        Console.WriteLine($"PreviewWebViewControl: Will restore content length: {_pendingContent.Length}");
-                    }
-                    
                     _isInitialized = false;
-                    
-                    var htmlPath = Path.Combine(AppContext.BaseDirectory, "Assets", "preview-template.html");
-                    var html = File.ReadAllText(htmlPath);
-                    _webview.NavigateToString(html);
+                    NavigateToPreview();
                 }
                 else
                 {
-                    Console.WriteLine("PreviewWebViewControl: Already initialized, showing existing content");
+                    ClearFallback();
+                    await UpdatePreviewAsync(HtmlContent);
                 }
-            }
-            else
-            {
-                _isInitialized = false;
-                await InitializeWebViewAsync();
             }
         }
-        
+
         public void Deactivate()
         {
-            if (!_isActive) return;
-            
-            _isActive = false;
-            Console.WriteLine("PreviewWebViewControl: Deactivating...");
-            
-            if (_controller != null)
+            if (!_isActive)
             {
-                try
-                {
-                    // 先关闭控制器，确保完全移除WebView2
-                    _controller.Close();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error closing preview controller: {ex.Message}");
-                }
-                _controller = null;
-                _webview = null;
+                return;
             }
-            // 重置初始化标志，下次激活时重新初始化
+
+            _isActive = false;
+            if (_webViewHost != null)
+            {
+                _webViewHost.View.IsVisible = false;
+            }
+        }
+
+        private async Task InvokePreviewScriptAsync(string script)
+        {
+            try
+            {
+                if (_webViewHost == null || !_isInitialized || IsUsingFallback)
+                {
+                    return;
+                }
+
+                await _webViewHost.InvokeScriptAsync(script);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+                ShowFallback($"HTML 预览不可用：{ex.Message}");
+            }
+        }
+
+        private async Task DisposeHostAsync()
+        {
+            if (_webViewHost == null)
+            {
+                return;
+            }
+
+            _webViewHost.NavigationCompleted -= WebViewHost_NavigationCompleted;
+            _webViewHost.MessageReceived -= WebViewHost_MessageReceived;
+            TryGetWebViewContainer()?.Children.Remove(_webViewHost.View);
+            await _webViewHost.DisposeAsync();
+            _webViewHost = null;
             _isInitialized = false;
+        }
+
+        private Grid GetWebViewContainer()
+        {
+            return TryGetWebViewContainer()
+                ?? throw new InvalidOperationException("HTML 预览不可用：WebView 容器未初始化。");
+        }
+
+        private Grid? TryGetWebViewContainer()
+        {
+            return WebViewContainer ?? this.FindControl<Grid>("WebViewContainer");
+        }
+
+        private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+        private static bool TryReadMessage(string body, out string? messageType, out string? messageData)
+        {
+            messageType = null;
+            messageData = null;
+
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                return false;
+            }
+
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+            if (root.ValueKind == JsonValueKind.String)
+            {
+                using var nested = JsonDocument.Parse(root.GetString() ?? string.Empty);
+                return TryReadMessage(nested.RootElement, out messageType, out messageData);
+            }
+
+            return TryReadMessage(root, out messageType, out messageData);
+        }
+
+        private static bool TryReadMessage(JsonElement root, out string? messageType, out string? messageData)
+        {
+            messageType = ReadString(root, "Type") ?? ReadString(root, "type");
+            messageData = ReadData(root, "Data") ?? ReadData(root, "data");
+            return !string.IsNullOrWhiteSpace(messageType);
+        }
+
+        private static string? ReadString(JsonElement root, string propertyName)
+        {
+            return root.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+                ? property.GetString()
+                : null;
+        }
+
+        private static string? ReadData(JsonElement root, string propertyName)
+        {
+            if (!root.TryGetProperty(propertyName, out var property))
+            {
+                return null;
+            }
+
+            return property.ValueKind == JsonValueKind.String
+                ? property.GetString()
+                : property.GetRawText();
+        }
+
+        private static int ReadInt(JsonElement root, string propertyName, int fallback)
+        {
+            return root.TryGetProperty(propertyName, out var property) && property.TryGetInt32(out var value)
+                ? value
+                : fallback;
         }
     }
 }

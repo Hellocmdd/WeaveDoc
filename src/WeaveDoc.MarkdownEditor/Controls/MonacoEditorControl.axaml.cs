@@ -1,622 +1,288 @@
 using System;
-using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Markup.Xaml;
-using Avalonia.VisualTree;
-using Microsoft.Web.WebView2.Core;
-using WeaveDoc.MarkdownEditor.ViewModels;
+using WeaveDoc.MarkdownEditor.Controls.Web;
 using WeaveDoc.MarkdownEditor.Helpers;
-using WeaveDoc.MarkdownEditor.Views;
 
-namespace WeaveDoc.MarkdownEditor.Controls
+namespace WeaveDoc.MarkdownEditor.Controls;
+
+public partial class MonacoEditorControl : UserControl
 {
-    public partial class MonacoEditorControl : UserControl
+    public const string DefaultFallbackStatusText =
+        "Monaco 编辑器不可用：该编辑路径正在退役，请使用原生 Markdown 编辑器。";
+
+    private IWebViewHost? _webViewHost;
+    private bool _isInitialized;
+    private TextBox? _fallbackEditor;
+    private Border? _hostBorder;
+
+    public static readonly StyledProperty<string> EditorContentProperty =
+        AvaloniaProperty.Register<MonacoEditorControl, string>(
+            nameof(EditorContent),
+            string.Empty,
+            defaultBindingMode: BindingMode.TwoWay);
+
+    public MonacoEditorControl()
     {
-        private CoreWebView2? _webview;
-        private CoreWebView2Controller? _controller;
-        private string _pendingContent = string.Empty;
-        private bool _isInitializing;
-        private bool _isActive;
-        
-        private static CoreWebView2Environment? _sharedEnvironment;
+        InitializeComponent();
+        _fallbackEditor = this.FindControl<TextBox>("EditorFallbackTextBox");
+        _hostBorder = this.FindControl<Border>("HostBorder");
+        UpdateFallbackEditor();
+    }
 
-        public MonacoEditorControl()
+    public IWebViewHostFactory WebViewHostFactory { get; set; } = WebViewHostFactoryProvider.Current;
+
+    public TimeSpan NavigationTimeout { get; set; } = TimeSpan.FromSeconds(5);
+
+    public string EditorContent
+    {
+        get => GetValue(EditorContentProperty);
+        set => SetValue(EditorContentProperty, value ?? string.Empty);
+    }
+
+    public static readonly StyledProperty<bool> IsUsingFallbackProperty =
+        AvaloniaProperty.Register<MonacoEditorControl, bool>(nameof(IsUsingFallback), false);
+
+    public bool IsUsingFallback
+    {
+        get => GetValue(IsUsingFallbackProperty);
+        set => SetValue(IsUsingFallbackProperty, value);
+    }
+
+    public static readonly StyledProperty<string> FallbackStatusTextProperty =
+        AvaloniaProperty.Register<MonacoEditorControl, string>(
+            nameof(FallbackStatusText),
+            DefaultFallbackStatusText);
+
+    public string FallbackStatusText
+    {
+        get => GetValue(FallbackStatusTextProperty);
+        set => SetValue(FallbackStatusTextProperty, value ?? DefaultFallbackStatusText);
+    }
+
+    private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == EditorContentProperty)
         {
-            InitializeComponent();
-            Loaded += OnLoaded;
-            Unloaded += OnUnloaded;
-            SizeChanged += OnSizeChanged;
-            PointerPressed += OnPointerPressed;
-            GotFocus += OnGotFocus;
-        }
+            UpdateFallbackEditor();
 
-        private IMarkdownEditorHost? Host =>
-            this.GetVisualAncestors().OfType<IMarkdownEditorHost>().FirstOrDefault()
-            ?? VisualRoot as IMarkdownEditorHost;
-
-        private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
-
-        private async void OnLoaded(object? sender, EventArgs e)
-        {
-            await Activate(false);
-        }
-
-        private void OnUnloaded(object? sender, EventArgs e)
-        {
-            // 只隐藏，不关闭，以保留内容
-            if (_controller != null)
+            if (_isInitialized && !IsUsingFallback)
             {
-                _controller.IsVisible = false;
-            }
-        }
-
-        private async Task InitializeWebViewAsync()
-        {
-            if (_isInitializing)
-            {
-                Console.WriteLine("MonacoEditorControl: InitializeWebViewAsync skipped - already initializing");
-                return;
-            }
-
-            _isInitializing = true;
-
-            try
-            {
-                var root = TopLevel.GetTopLevel(this);
-                if (root == null)
-                {
-                    Console.WriteLine("MonacoEditorControl: TopLevel not found");
-                    return;
-                }
-
-                var hwnd = root.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-                if (hwnd == IntPtr.Zero)
-                {
-                    return;
-                }
-
-                await WaitForValidBounds();
-
-                if (_sharedEnvironment == null)
-                {
-                    _sharedEnvironment = await WebView2EnvironmentManager.GetOrCreateEnvironmentAsync2();
-                }
-
-                _controller = await _sharedEnvironment.CreateCoreWebView2ControllerAsync(hwnd);
-
-                _controller.IsVisible = true;
-                _controller.CoreWebView2.Settings.IsScriptEnabled = true;
-
-                _webview = _controller.CoreWebView2;
-                _webview.WebMessageReceived += Webview_WebMessageReceived;
-                _webview.NavigationCompleted += Webview_NavigationCompleted;
-
-                _webview.Settings.AreDefaultContextMenusEnabled = false;
-
-                UpdateControllerBounds(true);
-
-                var htmlPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "monaco-editor", "index.html");
-
-                _webview.Navigate(htmlPath);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-            }
-            finally
-            {
-                _isInitializing = false;
+                _ = PostEditorContentAsync(EditorContent);
             }
         }
-
-        private async Task WaitForValidBounds()
+        else if (change.Property == IsUsingFallbackProperty)
         {
-            int attempts = 0;
-            const int maxAttempts = 30;
-            while (attempts < maxAttempts && (this.Bounds.Width < 100 || this.Bounds.Height < 100))
+            UpdateFallbackEditor();
+        }
+    }
+
+    public void SetContentAsync(string content)
+    {
+        EditorContent = content;
+    }
+
+    public Task ScrollToLineAsync(int lineNumber)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task ScrollToPositionAsync(int lineNumber, int column, int selectionLength = 1)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task ClearHighlightAsync()
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task RequestCurrentSelectionAsync()
+    {
+        return Task.CompletedTask;
+    }
+
+    public async Task Activate(bool forceReset = false)
+    {
+        if (_webViewHost != null)
+        {
+            _webViewHost.View.IsVisible = true;
+            if (_isInitialized && !IsUsingFallback)
             {
-                await Task.Delay(10);
-                attempts++;
+                await PostEditorContentAsync(EditorContent);
             }
+
+            return;
         }
 
-        private void UpdateControllerBounds(bool force = false)
+        try
         {
-            try
+            _webViewHost = WebViewHostFactory.Create();
+            _webViewHost.NavigationCompleted += WebViewHost_NavigationCompleted;
+            _webViewHost.MessageReceived += WebViewHost_MessageReceived;
+            _webViewHost.View.IsVisible = true;
+            if (_hostBorder != null)
             {
-                if (_controller == null) return;
-
-                var root = TopLevel.GetTopLevel(this);
-                if (root == null) return;
-
-                var scaling = root.RenderScaling;
-
-                var transform = this.TransformToVisual(root);
-                var position = transform?.Transform(new Point(0, 0)) ?? new Point(0, 0);
-
-                var width = (int)(this.Bounds.Width * scaling);
-                var height = (int)(this.Bounds.Height * scaling);
-                var x = (int)(position.X * scaling);
-                var y = (int)(position.Y * scaling);
-
-                width = Math.Max(100, width);
-                height = Math.Max(100, height);
-
-                _controller.Bounds = new System.Drawing.Rectangle(x, y, width, height);
+                _hostBorder.Child = _webViewHost.View;
             }
-            catch
-            {
-            }
+
+            var htmlPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "monaco-editor", "index.html");
+            _webViewHost.Navigate(new Uri(htmlPath));
+            _ = ShowFallbackIfNavigationDoesNotCompleteAsync(_webViewHost);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogException(ex);
+            await DisposeHostAsync();
+            ShowFallback($"Monaco 编辑器不可用：{ex.Message}");
+        }
+    }
+
+    public void Deactivate()
+    {
+        if (_webViewHost != null)
+        {
+            _webViewHost.View.IsVisible = false;
+        }
+    }
+
+    private async void WebViewHost_NavigationCompleted(object? sender, WebViewHostNavigationCompletedEventArgs args)
+    {
+        if (!args.IsSuccess)
+        {
+            ShowFallback("Monaco 编辑器不可用：跨平台 WebView 导航失败。");
+            return;
         }
 
-        private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
+        _isInitialized = true;
+        if (ShowFallbackIfNativeRenderingUnavailable())
         {
-            UpdateControllerBounds();
-
-            if (_webview != null)
-            {
-                _ = ResizeMonacoEditorAsync((int)(e.NewSize.Width * 2), (int)(e.NewSize.Height * 2));
-            }
+            return;
         }
 
-        private async Task ResizeMonacoEditorAsync(int width, int height)
-        {
-            try
-            {
-                if (_webview == null) return;
+        ClearFallback();
+        await PostEditorContentAsync(EditorContent);
+    }
 
-                var script = $"window.resizeEditor({width}, {height});";
-                await _webview.ExecuteScriptAsync(script);
-            }
-            catch
+    private void WebViewHost_MessageReceived(object? sender, WebViewHostMessageReceivedEventArgs args)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(args.Body);
+            var root = doc.RootElement;
+            var msgType = ReadString(root, "Type") ?? ReadString(root, "type");
+            var msgData = ReadString(root, "Data") ?? ReadString(root, "data");
+
+            if (string.Equals(msgType, "contentChanged", StringComparison.Ordinal) && msgData != null)
             {
+                EditorContent = msgData;
             }
         }
-
-        private void Webview_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
+        catch (Exception ex)
         {
-            try
+            Logger.LogException(ex);
+        }
+    }
+
+    private async Task ShowFallbackIfNavigationDoesNotCompleteAsync(IWebViewHost host)
+    {
+        if (NavigationTimeout <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        await Task.Delay(NavigationTimeout).ConfigureAwait(true);
+
+        if (_webViewHost == host && !_isInitialized)
+        {
+            ShowFallback("Monaco 编辑器不可用：跨平台 WebView 导航超时。");
+        }
+    }
+
+    private bool ShowFallbackIfNativeRenderingUnavailable()
+    {
+        var description = _webViewHost?.AdapterDescription ?? string.Empty;
+        if (description.Contains("NativeDialog", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowFallback("Monaco 编辑器不可用：当前 WebKitGTK 只支持 NativeDialog，不能承载内嵌编辑器。");
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task PostEditorContentAsync(string content)
+    {
+        if (_webViewHost == null || IsUsingFallback)
+        {
+            return;
+        }
+
+        var payload = JsonSerializer.Serialize(new { Type = "setContent", Data = content ?? string.Empty });
+        await _webViewHost.PostJsonAsync(payload);
+    }
+
+    private void ShowFallback(string message)
+    {
+        FallbackStatusText = string.IsNullOrWhiteSpace(message) ? DefaultFallbackStatusText : message;
+        IsUsingFallback = true;
+        UpdateFallbackEditor();
+    }
+
+    private void ClearFallback()
+    {
+        IsUsingFallback = false;
+        FallbackStatusText = DefaultFallbackStatusText;
+        UpdateFallbackEditor();
+    }
+
+    private void UpdateFallbackEditor()
+    {
+        _fallbackEditor ??= this.FindControl<TextBox>("EditorFallbackTextBox");
+        _hostBorder ??= this.FindControl<Border>("HostBorder");
+
+        if (_fallbackEditor != null)
+        {
+            _fallbackEditor.IsVisible = IsUsingFallback;
+            if (_fallbackEditor.Text != EditorContent)
             {
-                var json = args.WebMessageAsJson;
-                
-                if (string.IsNullOrWhiteSpace(json)) 
-                {
-                    return;
-                }
-
-                var doc = System.Text.Json.JsonDocument.Parse(json);
-                var jsonRoot = doc.RootElement;
-
-                string? msgType = null;
-                string? msgData = null;
-
-                if (jsonRoot.TryGetProperty("Type", out var typeProp))
-                {
-                    msgType = typeProp.GetString();
-                }
-
-                if (jsonRoot.TryGetProperty("Data", out var dataProp))
-                {
-                    msgData = dataProp.GetString();
-                }
-
-                if (msgType == "contentChanged" && msgData != null)
-                {
-                    MainWindowViewModel? vm = null;
-
-                    if (DataContext is MainWindowViewModel)
-                    {
-                        vm = DataContext as MainWindowViewModel;
-                    }
-                    else
-                    {
-                        var topLevel = TopLevel.GetTopLevel(this);
-                        if (topLevel is Window window && window.DataContext is MainWindowViewModel)
-                        {
-                            vm = window.DataContext as MainWindowViewModel;
-                        }
-                    }
-
-                    if (vm != null)
-                    {
-                        vm.EditorContent = msgData;
-                    }
-                }
-                else if (msgType == "selectionChanged" && msgData != null)
-                {
-                    try
-                    {
-                        Console.WriteLine($"MonacoEditorControl: Received selectionChanged message: {msgData}");
-                        
-                        var selectionData = System.Text.Json.JsonDocument.Parse(msgData);
-                        var root = selectionData.RootElement;
-
-                        int startLine = 1, startCol = 1, endLine = 1, endCol = 1;
-                        if (root.TryGetProperty("startLine", out var startLineProp)) startLine = startLineProp.GetInt32();
-                        if (root.TryGetProperty("startColumn", out var startColProp)) startCol = startColProp.GetInt32();
-                        if (root.TryGetProperty("endLine", out var endLineProp)) endLine = endLineProp.GetInt32();
-                        if (root.TryGetProperty("endColumn", out var endColProp)) endCol = endColProp.GetInt32();
-
-                        Console.WriteLine($"MonacoEditorControl: Selection - startLine={startLine}, startCol={startCol}, endLine={endLine}, endCol={endCol}");
-
-                        var host = Host;
-                        if (host != null)
-                        {
-                            Console.WriteLine("MonacoEditorControl: Calling host.ScrollPreviewToSelection");
-                            host.ScrollPreviewToSelection(startLine, startCol, endLine, endCol);
-                        }
-                        else
-                        {
-                            Console.WriteLine("MonacoEditorControl: host is null");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"MonacoEditorControl: selectionChanged exception: {ex.Message}");
-                        Logger.LogException(ex);
-                    }
-                }
-                
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
+                _fallbackEditor.Text = EditorContent;
             }
         }
 
-        private async void Webview_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs args)
+        if (_hostBorder != null)
         {
-            if (args.IsSuccess)
-            {
-                Console.WriteLine("Monaco Editor NavigationCompleted");
-                await Task.Delay(200);
-
-                UpdateControllerBounds(true);
-
-                await Task.Delay(100);
-
-                if (_webview != null && _controller != null)
-                {
-                    var root = TopLevel.GetTopLevel(this);
-                    if (root != null)
-                    {
-                        var scaling = root.RenderScaling;
-                        var width = (int)(this.Bounds.Width * scaling * 2);
-                        var height = (int)(this.Bounds.Height * scaling * 2);
-
-                        await ResizeMonacoEditorAsync(width, height);
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(_pendingContent))
-                {
-                    SetContentAsync(_pendingContent);
-                    _pendingContent = string.Empty;
-                }
-                
-                // 等待 Monaco 编辑器完全初始化
-                await WaitForMonacoReadyAsync();
-            }
+            _hostBorder.IsVisible = !IsUsingFallback;
         }
-        
-        private async Task WaitForMonacoReadyAsync()
+    }
+
+    private async Task DisposeHostAsync()
+    {
+        if (_webViewHost == null)
         {
-            int attempts = 0;
-            const int maxAttempts = 30;
-            
-            while (attempts < maxAttempts)
-            {
-                try
-                {
-                    if (_webview == null)
-                    {
-                        Console.WriteLine("_webview is null in WaitForMonacoReadyAsync");
-                        await Task.Delay(100);
-                        attempts++;
-                        continue;
-                    }
-                    
-                    // 只检查 editor 对象是否存在（scrollToPosition 在 require 回调内部定义，不在全局作用域）
-                    var editorResult = await _webview.ExecuteScriptAsync("typeof editor");
-                    
-                    Console.WriteLine($"Attempt {attempts + 1}: editor={editorResult}");
-                    
-                    if (editorResult == "\"object\"")
-                    {
-                        var host = Host;
-                        if (host != null)
-                        {
-                            host.SetMonacoReady(true);
-                        }
-                        return;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error checking Monaco ready state: {ex.Message}");
-                }
-                
-                attempts++;
-                await Task.Delay(200);
-            }
-            
-            Console.WriteLine("Monaco Editor failed to initialize within timeout");
+            return;
         }
 
-        public void SetContentAsync(string content)
-        {
-            try
-            {
-                if (_webview == null)
-                {
-                    _pendingContent = content;
-                    return;
-                }
+        var host = _webViewHost;
+        _webViewHost = null;
+        _isInitialized = false;
+        host.NavigationCompleted -= WebViewHost_NavigationCompleted;
+        host.MessageReceived -= WebViewHost_MessageReceived;
+        await host.DisposeAsync();
+    }
 
-                var obj = new { Type = "setContent", Data = content };
-                var json = System.Text.Json.JsonSerializer.Serialize(obj);
-                _webview.PostWebMessageAsJson(json);
-            }
-            catch
-            {
-            }
-        }
-
-        public async Task ScrollToLineAsync(int lineNumber)
-        {
-            try
-            {
-                if (_webview == null)
-                {
-                    return;
-                }
-
-                var script = $"window.scrollToLine({lineNumber});";
-                await _webview.ExecuteScriptAsync(script);
-            }
-            catch
-            {
-            }
-        }
-
-        public async Task ScrollToPositionAsync(int lineNumber, int column, int selectionLength = 1)
-        {
-            try
-            {
-                Console.WriteLine($"ScrollToPositionAsync called: line={lineNumber}, column={column}, length={selectionLength}");
-                
-                if (_webview == null)
-                {
-                    Console.WriteLine("_webview is null");
-                    return;
-                }
-
-                var editorType = await _webview.ExecuteScriptAsync("typeof editor");
-                Console.WriteLine($"editor type: {editorType}");
-                
-                if (editorType == "\"undefined\"")
-                {
-                    Console.WriteLine("Editor not yet initialized, scheduling retry");
-                    await Task.Delay(200);
-                    await ScrollToPositionAsync(lineNumber, column, selectionLength);
-                    return;
-                }
-
-                int endColumn = column + selectionLength;
-                
-                var script = $@"
-                    if (editor) {{
-                        console.log('Revealing line and setting position: line={lineNumber}, col={column}, endCol={endColumn}');
-                        
-                        if (typeof window.highlightDecoration === 'undefined') {{
-                            window.highlightDecoration = null;
-                        }}
-                        
-                        if (window.highlightDecoration) {{
-                            editor.deltaDecorations(window.highlightDecoration, []);
-                            window.highlightDecoration = null;
-                        }}
-                        
-                        // 滚动到指定行
-                        editor.revealLine({lineNumber}, 1);
-                        
-                        // 设置光标位置
-                        editor.setPosition(new monaco.Position({lineNumber}, {column}));
-                        
-                        var range = new monaco.Range({lineNumber}, {column}, {lineNumber}, {endColumn});
-                        console.log('Creating decoration with range: line={lineNumber}, startCol={column}, endCol={endColumn}');
-                        
-                        window.highlightDecoration = editor.deltaDecorations([], [{{
-                            range: range,
-                            options: {{
-                                isWholeLine: false,
-                                className: 'highlight-char'
-                            }}
-                        }}]);
-                        
-                        console.log('Decoration applied, ID:', window.highlightDecoration);
-                        'success';
-                    }} else {{
-                        'editor is null';
-                    }}
-                ";
-                Console.WriteLine($"Executing highlight script for line={lineNumber}, col={column}, endCol={endColumn}");
-                var result = await _webview.ExecuteScriptAsync(script);
-                Console.WriteLine($"Script executed, result: {result}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in ScrollToPositionAsync: {ex.Message}");
-            }
-        }
-
-        public async Task ClearHighlightAsync()
-        {
-            try
-            {
-                Console.WriteLine("ClearHighlightAsync called");
-                
-                if (_webview == null)
-                {
-                    Console.WriteLine("_webview is null");
-                    return;
-                }
-
-                var script = @"
-                    if (editor && window.highlightDecoration) {
-                        editor.deltaDecorations(window.highlightDecoration, []);
-                        window.highlightDecoration = null;
-                        console.log('Highlight cleared');
-                        'success';
-                    } else {
-                        'no highlight to clear';
-                    }
-                ";
-                
-                var result = await _webview.ExecuteScriptAsync(script);
-                Console.WriteLine($"ClearHighlightAsync executed, result: {result}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in ClearHighlightAsync: {ex.Message}");
-            }
-        }
-
-        private void OnPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
-        {
-            Console.WriteLine("MonacoEditorControl: Pointer pressed, clearing highlight");
-            _ = EnsureActiveThenClearHighlightAsync();
-        }
-
-        private void OnGotFocus(object? sender, Avalonia.Input.FocusChangedEventArgs e)
-        {
-            Console.WriteLine("MonacoEditorControl: Got focus, clearing highlight");
-            _ = EnsureActiveThenClearHighlightAsync();
-        }
-
-        private async Task EnsureActiveThenClearHighlightAsync()
-        {
-            if (_webview == null)
-            {
-                await Activate(false);
-            }
-
-            await ClearHighlightAsync();
-        }
-
-        public async Task RequestCurrentSelectionAsync()
-        {
-            try
-            {
-                Console.WriteLine("RequestCurrentSelectionAsync called");
-
-                if (_webview == null)
-                {
-                    Console.WriteLine($"RequestCurrentSelectionAsync: webview is null");
-                    return;
-                }
-
-                var script = @"
-                    (function() {
-                        if (editor) {
-                            var selection = editor.getSelection();
-                            if (selection) {
-                                var msg = {
-                                    type: 'selectionChanged',
-                                    data: JSON.stringify({
-                                        startLine: selection.startLineNumber,
-                                        startColumn: selection.startColumn,
-                                        endLine: selection.endLineNumber,
-                                        endColumn: selection.endColumn
-                                    })
-                                };
-                                window.chrome.webview.postMessage(JSON.stringify(msg));
-                                return 'selection sent';
-                            }
-                        }
-                        return 'no selection';
-                    })();
-                ";
-
-                var result = await _webview.ExecuteScriptAsync(script);
-                Console.WriteLine($"RequestCurrentSelectionAsync result: {result}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"RequestCurrentSelectionAsync error: {ex.Message}");
-            }
-        }
-        
-        public async Task Activate(bool forceReset = false)
-        {
-            if (_isActive && _controller != null && _webview != null)
-                return;
-            
-            _isActive = true;
-            Console.WriteLine("MonacoEditorControl: Activating...");
-            
-            if (_controller != null)
-            {
-                _controller.IsVisible = true;
-                await Task.Delay(200); // 等待WebView完全就绪
-                UpdateControllerBounds(true);
-                
-                // 确保Monaco编辑器接收焦点以便发送选择事件
-                try
-                {
-                    _controller.MoveFocus(CoreWebView2MoveFocusReason.Programmatic);
-                    
-                    // 通过JavaScript确保Monaco编辑器获得焦点
-                    if (_webview != null)
-                    {
-                        await _webview.ExecuteScriptAsync("if (editor) { editor.focus(); console.log('Monaco editor focus called'); }");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"MoveFocus exception: {ex.Message}");
-                }
-                
-                // 只有在强制重置或有待处理内容时才设置内容
-                if (forceReset && !string.IsNullOrEmpty(_pendingContent))
-                {
-                    Console.WriteLine("MonacoEditorControl: Setting pending content on activate (force reset)");
-                    SetContentAsync(_pendingContent);
-                }
-            }
-            else
-            {
-                // 如果控制器不存在，重新初始化
-                _isInitializing = false;
-                await InitializeWebViewAsync();
-            }
-            
-            var host = Host;
-            if (host != null)
-            {
-                host.SetMonacoReady(true);
-            }
-        }
-        
-        public void Deactivate()
-        {
-            if (!_isActive) return;
-            
-            _isActive = false;
-            Console.WriteLine("MonacoEditorControl: Deactivating...");
-            
-            if (_controller != null)
-            {
-                _controller.IsVisible = false;
-            }
-            
-            var host = Host;
-            if (host != null)
-            {
-                host.SetMonacoReady(false);
-            }
-        }
+    private static string? ReadString(JsonElement root, string propertyName)
+    {
+        return root.TryGetProperty(propertyName, out var value)
+            ? value.GetString()
+            : null;
     }
 }

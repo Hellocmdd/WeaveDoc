@@ -2,8 +2,33 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="WeaveDoc.App.App"
              RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <SolidColorBrush x:Key="ShellBackgroundBrush" Color="#0D1117" />
+    <SolidColorBrush x:Key="ShellChromeBrush" Color="#161B22" />
+    <SolidColorBrush x:Key="ShellTitleBarBrush" Color="#0D1117" />
+    <SolidColorBrush x:Key="ShellPanelBrush" Color="#161B22" />
+    <SolidColorBrush x:Key="ShellCardBrush" Color="#21262D" />
+    <SolidColorBrush x:Key="ShellRaisedBrush" Color="#1B222D" />
+    <SolidColorBrush x:Key="ShellInputBrush" Color="#0F151D" />
+    <SolidColorBrush x:Key="ShellHoverBrush" Color="#21262D" />
+    <SolidColorBrush x:Key="ShellSelectedBrush" Color="#1D3557" />
+    <SolidColorBrush x:Key="ShellBorderBrush" Color="#30363D" />
+    <SolidColorBrush x:Key="ShellSubtleBorderBrush" Color="#21262D" />
+    <SolidColorBrush x:Key="ShellTextBrush" Color="#E6EDF3" />
+    <SolidColorBrush x:Key="ShellMutedTextBrush" Color="#8B949E" />
+    <SolidColorBrush x:Key="ShellDisabledTextBrush" Color="#6E7681" />
+    <SolidColorBrush x:Key="ShellAccentBrush" Color="#58A6FF" />
+    <SolidColorBrush x:Key="ShellAccentStrongBrush" Color="#1F6FEB" />
+    <SolidColorBrush x:Key="ShellSuccessBrush" Color="#3FB950" />
+    <SolidColorBrush x:Key="ShellWarningBrush" Color="#D29922" />
+    <SolidColorBrush x:Key="ShellEditorBackgroundBrush" Color="#0D1117" />
+    <SolidColorBrush x:Key="ShellEditorPanelBrush" Color="#161B22" />
+    <SolidColorBrush x:Key="ShellPaperWorkspaceBrush" Color="#21262D" />
+  </Application.Resources>
+
   <Application.Styles>
     <FluentTheme />
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
   </Application.Styles>
 </Application>

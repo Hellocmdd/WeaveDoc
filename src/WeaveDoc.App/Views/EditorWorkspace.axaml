@@ -1,0 +1,234 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WeaveDoc.MarkdownEditor.Controls;assembly=WeaveDoc.MarkdownEditor"
+             xmlns:vm="using:WeaveDoc.App.ViewModels"
+             x:Class="WeaveDoc.App.Views.EditorWorkspace"
+             x:DataType="vm:AppShellViewModel">
+  <UserControl.Styles>
+    <Style Selector="Button.editor-tab">
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Background" Value="{DynamicResource ShellEditorBackgroundBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,2" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentBrush}" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+
+    <Style Selector="Button.editor-mode">
+      <Setter Property="Height" Value="26" />
+      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <Style Selector="Button.editor-mode.active">
+      <Setter Property="Background" Value="{DynamicResource ShellSelectedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.editor-tool">
+      <Setter Property="Width" Value="28" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellDisabledTextBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid x:Name="EditorWorkspaceRoot"
+        RowDefinitions="30,30,*,24"
+        Background="{DynamicResource ShellEditorBackgroundBrush}"
+        ClipToBounds="True">
+    <Border Grid.Row="0"
+            Background="{DynamicResource ShellEditorPanelBrush}"
+            BorderBrush="{DynamicResource ShellSubtleBorderBrush}"
+            BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="Auto,*">
+        <Button Grid.Column="0"
+                Classes="editor-tab"
+                Content="未打开文档"
+                IsEnabled="False" />
+        <TextBlock Grid.Column="1"
+                   Text="{Binding CurrentDocumentSubtitle}"
+                   VerticalAlignment="Center"
+                   FontSize="10"
+                   Foreground="{DynamicResource ShellMutedTextBrush}"
+                   TextTrimming="CharacterEllipsis"
+                   Margin="10,0" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1"
+            Background="{DynamicResource ShellEditorPanelBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto"
+            ColumnSpacing="4"
+            Margin="8,0">
+        <Button x:Name="Heading1Button"
+                Grid.Column="0"
+                Classes="editor-tool"
+                Content="H1"
+                IsEnabled="{Binding IsMarkdownEditorVisible}"
+                Click="OnHeading1Click" />
+        <Button x:Name="Heading2Button"
+                Grid.Column="1"
+                Classes="editor-tool"
+                Content="H2"
+                IsEnabled="{Binding IsMarkdownEditorVisible}"
+                Click="OnHeading2Click" />
+        <Border Grid.Column="2" Width="1" Height="14" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
+        <Button x:Name="BoldButton"
+                Grid.Column="3"
+                Classes="editor-tool"
+                Content="B"
+                IsEnabled="{Binding IsMarkdownEditorVisible}"
+                Click="OnBoldClick" />
+        <Button x:Name="ItalicButton"
+                Grid.Column="4"
+                Classes="editor-tool"
+                Content="I"
+                IsEnabled="{Binding IsMarkdownEditorVisible}"
+                Click="OnItalicClick" />
+        <Border Grid.Column="5" Width="1" Height="14" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
+        <Button x:Name="BulletListButton"
+                Grid.Column="6"
+                Classes="editor-tool"
+                Content="-"
+                IsEnabled="{Binding IsMarkdownEditorVisible}"
+                Click="OnBulletListClick" />
+        <Button x:Name="TaskListButton"
+                Grid.Column="7"
+                Classes="editor-tool"
+                Content="[]"
+                IsEnabled="{Binding IsMarkdownEditorVisible}"
+                Click="OnTaskListClick" />
+        <Button x:Name="EditModeButton"
+                Grid.Column="9"
+                Classes="editor-mode"
+                Classes.active="{Binding IsEditModeSelected}"
+                Content="编辑"
+                Click="OnEditModeClick" />
+        <Button x:Name="PreviewModeButton"
+                Grid.Column="10"
+                Classes="editor-mode"
+                Classes.active="{Binding IsPreviewModeSelected}"
+                Content="预览"
+                Click="OnPreviewModeClick" />
+        <Button x:Name="OpenDocumentButton"
+                Grid.Column="11"
+                Classes="editor-mode"
+                Content="打开"
+                IsEnabled="False" />
+        <Button x:Name="SaveDocumentButton"
+                Grid.Column="12"
+                Classes="editor-mode"
+                Content="保存"
+                IsEnabled="False" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2"
+            Background="{DynamicResource ShellEditorBackgroundBrush}"
+            Padding="16">
+      <Border CornerRadius="6"
+              BorderThickness="1"
+              BorderBrush="{DynamicResource ShellBorderBrush}"
+              Background="{DynamicResource ShellInputBrush}">
+        <Grid>
+          <Grid x:Name="EditorEmptyState"
+                RowDefinitions="*,Auto,Auto,*"
+                RowSpacing="8"
+                IsVisible="{Binding IsEditorEmptyStateVisible}">
+            <TextBlock x:Name="CurrentDocumentTitleText"
+                       Grid.Row="1"
+                       Text="{Binding CurrentDocumentTitle}"
+                       HorizontalAlignment="Center"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource ShellTextBrush}"
+                       TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="EditorEmptyStateText"
+                       Grid.Row="2"
+                       Text="{Binding EmptyDocumentText}"
+                       HorizontalAlignment="Center"
+                       FontSize="12"
+                       Foreground="{DynamicResource ShellMutedTextBrush}"
+                       TextWrapping="Wrap"
+                       MaxWidth="360" />
+          </Grid>
+
+          <controls:NativeMarkdownEditorControl x:Name="MarkdownEditorControl"
+                                                IsVisible="{Binding IsMarkdownEditorVisible}"
+                                                EditorContent="{Binding DocumentWorkspace.Content}" />
+
+          <controls:PreviewWebViewControl x:Name="MarkdownPreviewControl"
+                                          IsVisible="{Binding IsMarkdownPreviewVisible}"
+                                          HtmlContent="{Binding DocumentWorkspace.PreviewHtml}" />
+
+          <Grid x:Name="PreviewEmptyState"
+                RowDefinitions="*,Auto,Auto,*"
+                RowSpacing="8"
+                IsVisible="{Binding IsPreviewEmptyStateVisible}">
+            <TextBlock Grid.Row="1"
+                       Text="预览"
+                       HorizontalAlignment="Center"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource ShellTextBrush}" />
+            <TextBlock x:Name="PreviewEmptyStateText"
+                       Grid.Row="2"
+                       Text="{Binding EmptyPreviewText}"
+                       HorizontalAlignment="Center"
+                       FontSize="12"
+                       Foreground="{DynamicResource ShellMutedTextBrush}"
+                       TextWrapping="Wrap"
+                       MaxWidth="360" />
+          </Grid>
+        </Grid>
+      </Border>
+    </Border>
+
+    <Border Grid.Row="3"
+            Background="{DynamicResource ShellEditorPanelBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="8,0">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto"
+            ColumnSpacing="8">
+        <TextBlock Grid.Column="0"
+                   Text="{Binding ModeStatusText}"
+                   VerticalAlignment="Center"
+                   FontSize="10"
+                   Foreground="{DynamicResource ShellMutedTextBrush}" />
+        <TextBlock Grid.Column="1"
+                   Text=">"
+                   VerticalAlignment="Center"
+                   FontSize="10"
+                   Foreground="{DynamicResource ShellBorderBrush}" />
+        <TextBlock Grid.Column="2"
+                   Text="{Binding PendingCommandText}"
+                   VerticalAlignment="Center"
+                   FontSize="10"
+                   Foreground="{DynamicResource ShellMutedTextBrush}" />
+        <Button x:Name="ExportDocumentButton"
+                Grid.Column="4"
+                Classes="editor-mode"
+                Content="导出"
+                IsEnabled="False"
+                MinWidth="52" />
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

@@ -14,19 +14,29 @@
       </MenuItem>
     </Menu>
 
+    <Border DockPanel.Dock="Bottom" Background="#111827" BorderBrush="#334155" BorderThickness="0,1,0,0">
+      <TextBlock Text="{Binding StatusText}"
+                 Margin="10,5"
+                 FontSize="12"
+                 Foreground="#CBD5E1"
+                 TextTrimming="CharacterEllipsis" />
+    </Border>
+
     <TabControl x:Name="MarkdownEditorInnerTabs" Margin="16" SelectionChanged="MainTabControl_SelectionChanged">
       <TabItem Header="Markdown Editor">
         <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
           <Border Grid.Column="0" Background="#1E1E1E" BorderBrush="#334155" BorderThickness="1">
-            <controls:MonacoEditorControl x:Name="MonacoEditor"
-                                          HorizontalAlignment="Stretch"
-                                          VerticalAlignment="Stretch" />
+            <controls:NativeMarkdownEditorControl x:Name="NativeEditor"
+                                                  HorizontalAlignment="Stretch"
+                                                  VerticalAlignment="Stretch"
+                                                  EditorContent="{Binding EditorContent}" />
           </Border>
 
           <Border Grid.Column="1" Background="White" BorderBrush="#CBD5E1" BorderThickness="1">
             <controls:PreviewWebViewControl x:Name="PreviewWebView"
                                             HorizontalAlignment="Stretch"
                                             VerticalAlignment="Stretch"
+                                            AutoActivateOnVisible="False"
                                             HtmlContent="{Binding PreviewHtml}" />
           </Border>
         </Grid>
