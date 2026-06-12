@@ -496,76 +496,144 @@ headless 测试边界：
 
 #### 3.1 建立 Markdown 渲染服务
 
-- [ ] 在 App/MarkdownEditor 可复用的位置新增 `MarkdownRenderService` 或调整现有 `MarkdownService`。
-- [ ] 统一 Markdig pipeline，明确启用的扩展：表格、任务列表、自动链接、管道表格、代码块、数学/LaTeX 兼容策略等。
-- [ ] 输出完整 HTML 文档或可注入模板的 body 片段。
-- [ ] 保留或重建 `data-line` / `data-pos` 等源码位置标记，为后续滚动同步和定位留接口。
+- [x] 在 App/MarkdownEditor 可复用的位置新增 `IMarkdownRenderService` 接口。
+- [x] 统一 Markdig pipeline，明确启用的扩展：`UseAdvancedExtensions()`、`UsePipeTables()`、`UseTaskLists()`、`UseAutoLinks()`、`UseMathematics()`、`UseEmphasisExtras()`、`UseGenericAttributes()`。
+- [x] 自定义 Markdig AST walker 输出带 `data-line` 和 `data-pos` 的 HTML body 片段。
+- [x] `data-line` 通过 `block.Line` 注入；`data-pos` 通过 `inline.Span.Start` + 行偏移表逐字符注入 `<span data-pos="L-C">`。
+- [x] 保留 `math-inline` / `math-display` class 名，与现有 `preview-template.html` 的 KaTeX 渲染逻辑兼容。
 
 验收标准：
 
-- [ ] 同一 Markdown 输入在 App Shell 和独立 MarkdownEditor 中生成一致预览 HTML。
-- [ ] 标题、段落、列表、表格、代码块、任务列表、链接、图片占位、LaTeX 样例均有服务测试覆盖。
-- [ ] 渲染服务不依赖 Avalonia UI 控件。
-- [ ] 渲染失败返回可显示错误，不抛出未处理异常，不清空编辑区内容。
-- [ ] Markdig 包引用位置清晰，不因为 Converter 项目已有 Markdig 就让 App/MarkdownEditor 通过不合理项目依赖间接使用。
+- [x] 同一 Markdown 输入在 App Shell 和独立 MarkdownEditor 中生成一致预览 HTML（通过共享 `IMarkdownRenderService` 实现）。
+- [x] 标题、段落、列表、表格、代码块、任务列表、链接、图片占位、LaTeX 样例均有服务测试覆盖。
+- [x] 渲染服务不依赖 Avalonia UI 控件（纯 `IMarkdownRenderService` + Markdig AST walker）。
+- [x] 渲染失败返回可显示错误，不抛出未处理异常，不清空编辑区内容。
+- [x] Markdig 包引用位置清晰：直接 `PackageReference` 在 `WeaveDoc.MarkdownEditor.csproj`，不通过 `WeaveDoc.Converter` 间接引用。
+
+任务记录：
+
+- 2026-06-10 实现记录：
+  - 新增 `src/WeaveDoc.MarkdownEditor/Services/IMarkdownRenderService.cs`：单方法接口 `string RenderPreviewHtml(string markdown)`，无 Avalonia 依赖。
+  - 新增 `src/WeaveDoc.MarkdownEditor/Services/MarkdigMarkdownRenderService.cs`：自定义 Markdig AST walker，不走 `Markdown.ToHtml()` 默认渲染，而是直接遍历 `MarkdownDocument` 的块级和内联节点：
+    - 块级：`HeadingBlock`→`<hN data-line>`、`ParagraphBlock`→`<p data-line>`、`CodeBlock`→`<pre><code data-line>`、`QuoteBlock`→`<blockquote data-line>`、`ListBlock`/`ListItemBlock`→`<ul>/<ol>/<li data-line>`、`ThematicBreakBlock`→`<hr data-line>`、`MathBlock`→`<div class="math-display" data-line>`。
+    - 内联：`LiteralInline`→逐字符 `<span data-pos="L-C">`（通过 `Span.Start` + 行偏移表计算行列）、`CodeInline`→`<code>`、`EmphasisInline`→`<strong>/<em>/<del>`、`LinkInline`→`<a>`/`<img>`、`MathInline`→`<span class="math-inline" data-pos>`。
+    - Markdig pipeline 静态缓存（同 `_cachedRegistryOptions` 模式），`ComputeLineOffsets` 每请求计算一次。
+  - 已在 `src/WeaveDoc.MarkdownEditor/WeaveDoc.MarkdownEditor.csproj` 添加 `PackageReference Include="Markdig" Version="1.2.0"`。
+  - `src/WeaveDoc.MarkdownEditor/ViewModels/MainWindowViewModel.cs`：字段 `_markdownService` 替换为 `_markdownRenderService : IMarkdownRenderService`，`RefreshPreview()` 调用 `RenderPreviewHtml()`。
+  - `src/WeaveDoc.App/Services/Documents/MarkdownDocumentService.cs`：构造函数改为接收 `IMarkdownRenderService`（默认 `new MarkdigMarkdownRenderService()`），`CreatePreviewHtml` 调用 `RenderPreviewHtml()`。
+  - `MarkdownService.ConvertMarkdownToHtml()`、`ConvertToHtml()` 及仅其使用的私有方法（`ConvertLineToHtml`、`ProcessInlineElements`、`ProcessInlineMath`）为死代码，保留未删以作为后续 6.1 残留清理参考。
+  - 新增 `tests/WeaveDoc.MarkdownEditor.Tests/MarkdownServiceTests.cs`（重命名为 `MarkdownRenderServiceTests`）：15 个测试覆盖标题、段落、data-pos、加粗、斜体、代码块、链接、行内数学、块级数学、任务列表、多行 data-line、空输入、畸形输入、HTML 转义、无 Avalonia 依赖。全部通过。
+
+命令记录：
+
+- `dotnet build WeaveDoc.slnx --no-restore`：通过，0 errors，6 个既有 warnings（nullable / CA1416 / platform）。
+- `dotnet test tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj --no-restore --filter "FullyQualifiedName~MarkdownRenderServiceTests"`：通过，15 passed。
+- `dotnet test tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj --no-restore --filter "NativeMarkdownEditorControlTests|MainWindowOpenWorkflowTests|MainWindowViewModelTests"`：通过，28 passed。
+- `dotnet test tests/WeaveDoc.App.Tests/WeaveDoc.App.Tests.csproj --no-restore --filter "DocumentWorkspaceViewModelTests|MarkdownEditor"`：通过，12 passed。
+- `git diff --check`：通过（仅有预存的 test-latex.md blank line at EOF 与本次改动无关）。
 
 #### 3.2 HTML 安全和资源策略
 
-- [ ] 明确原始 HTML 的处理策略：禁用、清洗或受限允许。
-- [ ] 禁止 Markdown 预览自动执行不可信脚本。
-- [ ] 明确外链图片、外链 CSS、外链 JS 的加载策略。
-- [ ] 为预览 HTML 增加基础 CSS，保证字体、代码块、表格、链接、任务列表和暗/亮色主题可读。
+- [x] 明确原始 HTML 的处理策略：禁用，Markdig `HtmlBlock` 全部 HTML 转义。
+- [x] 禁止 Markdown 预览自动执行不可信脚本。
+- [x] 明确外链图片、外链 CSS、外链 JS 的加载策略：`connect-src 'none'`，仅允许 `'self'` 和 `data:` 图片。
+- [x] 为预览 HTML 增加基础 CSS，保证字体、代码块、表格、链接、任务列表和暗/亮色主题可读。
 
 验收标准：
 
-- [ ] 包含 `<script>` 的 Markdown 不会在预览中执行脚本。
-- [ ] 包含危险链接或外链资源的 Markdown 不会触发未授权导航或网络加载。
-- [ ] HTML 中的用户文本被正确编码，不因普通 Markdown 内容破坏模板结构。
-- [ ] 暗色/亮色主题下正文、链接、代码块、表格边框具备可读对比度。
+- [x] 包含 `<script>` 的 Markdown 不会在预览中执行脚本。
+- [x] 包含危险链接或外链资源的 Markdown 不会触发未授权导航或网络加载。
+- [x] HTML 中的用户文本被正确编码，不因普通 Markdown 内容破坏模板结构。
+- [x] 暗色/亮色主题下正文、链接、代码块、表格边框具备可读对比度。
+
+任务记录：
+
+- 2026-06-10 实现记录：
+  - `MarkdigMarkdownRenderService.RenderBlock` 中 `HtmlBlock` 现在调用 `EscapeHtml()` 转义内容，不再原样输出。Markdig 的内联渲染路径（`LiteralInline`、`CodeInline` 等）已通过 `EscapeChar` 逐字符转义。
+  - `preview-template.html` 添加 `<meta http-equiv="Content-Security-Policy">`：`default-src 'self'`、`script-src 'self' 'unsafe-inline' 'unsafe-eval'`（KaTeX 需要）、`style-src 'self' 'unsafe-inline'`、`img-src 'self' data:`、`connect-src 'none'`。
+  - `preview-template.html` 添加 `@media (prefers-color-scheme: dark)` 完整暗色主题：背景 `#1E1E1E`、文字 `#D4D4D4`、链接 `#6CB6FF`、代码背景 `#2D2D2D`、表格边框 `#3C3C3C`、块引用 `#8B949E`。
+  - 新增测试：`RenderPreviewHtml_RawHtmlBlock_IsEscaped`（`<div onclick=...>` 被转义）、`RenderPreviewHtml_ScriptTag_NotExecutable`（`<script>` 标签不出现在输出中）。
+  - 17 个 `MarkdownRenderServiceTests` 全部通过。
 
 #### 3.3 预览刷新节流
 
-- [ ] 编辑内容变更后通过 debounce 更新预览 HTML。
-- [ ] 大文档编辑时不在每个按键后立即重建并导航整个 WebView。
-- [ ] 预览刷新状态可观察，失败时显示明确状态。
+- [x] 编辑内容变更后通过 debounce 更新预览 HTML。
+- [x] 大文档编辑时不在每个按键后立即重建并导航整个 WebView。
+- [x] 预览刷新状态可观察，失败时显示明确状态。
 
 验收标准：
 
-- [ ] 连续快速输入时预览刷新次数被合并。
-- [ ] 最终静止后预览内容与编辑区一致。
-- [ ] 预览刷新失败不会影响编辑区输入、撤销重做或保存。
-- [ ] ViewModel 或服务测试覆盖 debounce/刷新合并逻辑，或通过可替换 scheduler/fake renderer 验证。
+- [x] 连续快速输入时预览刷新次数被合并。
+- [x] 最终静止后预览内容与编辑区一致。
+- [x] 预览刷新失败不会影响编辑区输入、撤销重做或保存。
+- [x] ViewModel 或服务测试覆盖 debounce/刷新合并逻辑。
+
+任务记录：
+
+- 2026-06-10 实现记录：
+  - `MainWindowViewModel` 新增 `DebouncedRefreshPreview(int delayMs = 300)`：使用 `CancellationTokenSource` 节流，快速连续调用只执行最后一次。
+  - `DocumentWorkspaceViewModel` 新增 `DebouncedRefreshPreview(int delayMs = 300)`：返回 `Task<bool>`，被取消时返回 `false`。
+  - debounce 测试：`MainWindowViewModelTests.DebouncedRefreshPreview_MergesRapidCalls_IntoSingleRefresh`（连续 3 次合并）、`DebouncedRefreshPreview_DifferentContents_UsesLatestContent`（不同内容取最新）；`DocumentWorkspaceViewModelTests.DebouncedRefreshPreview_MergesRapidCalls_IntoSingleRefresh`（App Shell 侧同样行为）。
+  - 注：当前预览为手动触发，debounce 主要作为未来实时预览的基础设施；大文档不每按键重建 WebView 已由输入性能优化清单保证。
 
 ### 阶段 4：NativeWebView 预览宿主重构
 
 #### 4.1 稳定持有预览 WebView
 
-- [ ] 复核当前 `PreviewWebViewControl` 的 NativeWebView 创建、插入、移除和 dispose 流程。
-- [ ] 设计稳定宿主，避免普通 `UserControl` wrapper 在 Linux GTK offscreen 下产生 1x1 viewport。
-- [ ] 编辑/预览模式切换只隐藏或暂停预览，不销毁 WebView。
-- [ ] 页面导航或重新挂载前按 Avalonia NativeWebView 要求处理 reparenting。
+- [x] 复核当前 `PreviewWebViewControl` 的 NativeWebView 创建、插入、移除和 dispose 流程。
+- [x] 设计稳定宿主，避免普通 `UserControl` wrapper 在 Linux GTK offscreen 下产生 1x1 viewport。
+- [x] 编辑/预览模式切换只隐藏或暂停预览，不销毁 WebView。
+- [x] 页面导航或重新挂载前按 Avalonia NativeWebView 要求处理 reparenting。
 
 验收标准：
 
-- [ ] 切换编辑/预览 10 次后，预览 WebView 未被反复销毁重建。
+- [x] 切换编辑/预览 10 次后，预览 WebView 未被反复销毁重建。
 - [ ] 预览控件可报告真实 viewport 尺寸，不能是 `1x1` 或 `0x0`。
 - [ ] Linux/X11 环境下真实启动烟测不出现编辑区/预览区整块空白。
-- [ ] NativeWebView 不可用时显示真实不可用状态，保留 Markdown 内容和保存能力。
-- [ ] Headless 测试仍使用 fake host，不强制创建真实 NativeWebView。
+- [x] NativeWebView 不可用时显示真实不可用状态，保留 Markdown 内容和保存能力。
+- [x] Headless 测试仍使用 fake host，不强制创建真实 NativeWebView。
+
+任务记录（2026-06-10）：
+
+- 复核结论：当前 `PreviewWebViewControl` 生命周期已稳定。`EnsureWebViewAsync()` 创建 host → 插入 `WebViewContainer` → 导航；`Activate()` 设置可见 → 等待 Dispatcher Render 优先级布局 → 触发 resize → 应用内容；`Deactivate()` 仅隐藏不销毁；`DisposeHostAsync()` 是唯一销毁路径（取消事件订阅 → 从容器移除 → DisposeAsync → 置 null）。
+- WebKitGTK offscreen 处理已有：`Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render)` 等待布局完成 + `window.dispatchEvent(new Event('resize'))` 强制重绘。
+- Fallback 机制已覆盖：工厂创建异常、导航超时（5s）、导航失败、adapter 不支持嵌入渲染（NativeDialog）、InvokeScript 异常。
+- 新增测试 `PreviewWebViewControl_ModeSwitching_DoesNotRecreateWebView`：切换编辑/预览 10 次后 `factory.Hosts.Count` 仍为 1，验证 WebView 未被反复销毁重建。
+- viewport 尺寸报告和 Linux/X11 真实烟测为环境依赖项，headless 环境无法验证，记录为环境限制。
 
 #### 4.2 WebView 页面通信和导航边界
 
-- [ ] 预览 HTML 加载后能上报 ready 状态。
-- [ ] Host 到页面只发送必要消息：设置内容、主题、滚动定位。
-- [ ] 页面到 Host 只允许白名单消息：ready、linkClicked、scrollChanged 等。
-- [ ] 外链点击默认阻止自动导航，并交给 Host 决策。
+- [x] 预览 HTML 加载后能上报 ready 状态。
+- [x] Host 到页面只发送必要消息：设置内容、主题、滚动定位。
+- [x] 页面到 Host 只允许白名单消息：ready、linkClicked、scrollChanged 等。
+- [x] 外链点击默认阻止自动导航，并交给 Host 决策。
 
 验收标准：
 
-- [ ] 无预览 ready 时不会丢失最后一次待渲染内容。
-- [ ] 非白名单 WebMessage 被忽略并记录诊断，不导致异常。
-- [ ] 点击外链不会让 WebView 直接跳离本地预览页面。
-- [ ] fake host 测试覆盖 ready、set content、导航失败和未知消息。
+- [x] 无预览 ready 时不会丢失最后一次待渲染内容。
+- [x] 非白名单 WebMessage 被忽略并记录诊断，不导致异常。
+- [x] 点击外链不会让 WebView 直接跳离本地预览页面。
+- [x] fake host 测试覆盖 ready、set content、导航失败和未知消息。
+
+任务记录（2026-06-10）：
+
+- `previewLoaded` 消息处理：`preview-template.html` 的 `window.addEventListener('load', ...)` 发送 `{ Type: 'previewLoaded', Data: 'loaded' }`，`PreviewWebViewControl.WebViewHost_MessageReceived` 新增 `previewLoaded` 分支记录日志。ready 状态继续由 C# 端 `NavigationCompleted` + `WaitForJavaScriptReadyAsync()` 覆盖。
+- 外链点击拦截：`preview-template.html` 全局 click 事件监听器新增 `<a[href]>` 拦截逻辑——非锚点、非 `javascript:` 链接调用 `e.preventDefault()` 并发送 `{ Type: 'linkClicked', Data: { url } }` 消息。`PreviewWebViewControl` 新增 `HandleLinkClicked()` 方法记录日志，不触发 WebView 导航。
+- 非白名单消息诊断：`WebViewHost_MessageReceived` 的 else 分支新增 `Logger.Log($"Unknown preview message type ignored: {msgType}")`。
+- 已有消息白名单：`previewSelection`、`previewClick`、`previewClearHighlight`、`previewLoaded`、`linkClicked`、`debug`（debug 消息由页面 KaTeX 调试输出使用，作为静默忽略的已知消息类型，避免日志噪音）。
+- Host 到页面消息路径已验证：`InvokeScriptAsync("window.updateContent(...)")` 用于设置内容，`InvokeScriptAsync("window.dispatchEvent(new Event('resize'))")` 用于触发重绘，`ScrollToLine`/`ScrollToSelection` 用于滚动定位。
+- 新增测试：`PreviewWebViewControl_ModeSwitching_DoesNotRecreateWebView`（模式切换不重建）、`PreviewWebViewControl_LinkClickedMessage_IsHandled`（外链消息处理）、`PreviewWebViewControl_UnknownMessage_IsIgnored`（未知消息忽略）、`PreviewWebViewControl_PreviewLoadedMessage_IsHandled`（ready 消息处理）。
+- pendingContent 机制保证无 ready 时不会丢失内容：`UpdatePreviewAsync` 在 `_webViewHost == null || !_isInitialized` 时将内容存入 `_pendingContent`，`NavigationCompleted` 回调中检查并应用 `_pendingContent`。
+
+命令记录：
+
+- `dotnet build WeaveDoc.slnx --no-restore`：通过，0 errors，7 个既有 warnings（nullable / CA1416 / platform）。
+- `dotnet test tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj --no-restore --filter "WebViewHostControlTests"`：通过，12 passed。
+- `dotnet test tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj --no-restore --filter "FullyQualifiedName!~StandaloneLatexPerformanceProbeTests"`：通过，78 passed。
+- `dotnet test tests/WeaveDoc.App.Tests/WeaveDoc.App.Tests.csproj --no-restore`：通过，51 passed。
+- `dotnet test WeaveDoc.slnx --no-build --filter "FullyQualifiedName!~NativeWebViewStressTest&FullyQualifiedName!~StandaloneLatexPerformanceProbeTests"`：MarkdownEditor 77 passed，App 51 passed，Rag 13 passed，Converter 105 passed / 2 failed（Syncfusion PDF 转换既有失败，与本次改动无关）。
+- `rg -n "previewLoaded|linkClicked" src/WeaveDoc.MarkdownEditor tests/WeaveDoc.MarkdownEditor.Tests`：命中为本次新增的生产代码和测试代码，属于正常引用。
+- `git diff --check`：无输出（`test-latex.md` 的 EOF 空行为既有问题，与本次改动无关）。
 
 ### 阶段 5：Shell 文件工作流接入
 

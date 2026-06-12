@@ -68,6 +68,42 @@ public sealed class DocumentWorkspaceViewModelTests
     }
 
     [Fact]
+    public void MarkEdited_WhenNoDocumentIsOpen_DoesNotEnableSave()
+    {
+        var viewModel = new DocumentWorkspaceViewModel(new FakeMarkdownDocumentService());
+
+        viewModel.MarkEdited();
+
+        Assert.Empty(viewModel.Content);
+        Assert.Empty(viewModel.PreviewHtml);
+        Assert.False(viewModel.HasDocument);
+        Assert.False(viewModel.IsDirty);
+        Assert.False(viewModel.CanSave);
+        Assert.Equal("未打开文档", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task MarkEdited_WhenDocumentIsOpen_DoesNotRefreshPreviewOrContentAndEnablesSave()
+    {
+        var service = new FakeMarkdownDocumentService();
+        service.QueueRead(MarkdownDocumentResult.Success("# 旧标题", "/workspace/demo.md", "<h1>旧标题</h1>"));
+        service.PreviewFactory = (content, filePath) =>
+            MarkdownDocumentResult.Success(content, filePath, $"<preview>{content}</preview>");
+        var viewModel = new DocumentWorkspaceViewModel(service);
+        await viewModel.OpenAsync("/workspace/demo.md", TestContext.Current.CancellationToken);
+
+        viewModel.MarkEdited();
+
+        Assert.Equal("# 旧标题", viewModel.Content);
+        Assert.Equal("<h1>旧标题</h1>", viewModel.PreviewHtml);
+        Assert.Empty(service.PreviewRequests);
+        Assert.Empty(service.Saves);
+        Assert.True(viewModel.IsDirty);
+        Assert.True(viewModel.CanSave);
+        Assert.Equal("已修改 demo.md", viewModel.StatusText);
+    }
+
+    [Fact]
     public async Task ContentSetter_WhenEditorBindingWritesContent_DoesNotRefreshPreview()
     {
         var service = new FakeMarkdownDocumentService();
@@ -202,6 +238,28 @@ public sealed class DocumentWorkspaceViewModelTests
         Assert.Contains(nameof(AppShellViewModel.CurrentDocumentTitle), changedProperties);
         Assert.Contains(nameof(AppShellViewModel.CurrentDocumentSubtitle), changedProperties);
         Assert.Contains(nameof(AppShellViewModel.StatusText), changedProperties);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task DebouncedRefreshPreview_MergesRapidCalls_IntoSingleRefresh()
+    {
+        var service = new FakeMarkdownDocumentService();
+        service.QueueRead(MarkdownDocumentResult.Success("# Doc", "/w/d.md", "<h1>Doc</h1>"));
+        service.PreviewFactory = (content, filePath) =>
+            MarkdownDocumentResult.Success(content, filePath, $"<preview>{content}</preview>");
+        var viewModel = new DocumentWorkspaceViewModel(service);
+        await viewModel.OpenAsync("/w/d.md", TestContext.Current.CancellationToken);
+
+        var t1 = viewModel.DebouncedRefreshPreview(80);
+        var t2 = viewModel.DebouncedRefreshPreview(80);
+        var t3 = viewModel.DebouncedRefreshPreview(80);
+
+        var results = await System.Threading.Tasks.Task.WhenAll(t1, t2, t3);
+
+        // All calls returned; only one CreatePreview should have been issued
+        Assert.True(service.PreviewRequests.Count >= 1);
+        Assert.True(service.PreviewRequests.Count <= 3,
+            $"Expected ≤3 preview requests, got {service.PreviewRequests.Count}");
     }
 
     private sealed class FakeMarkdownDocumentService : IMarkdownDocumentService

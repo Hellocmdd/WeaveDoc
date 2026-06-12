@@ -421,7 +421,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                             })
                             .then(() => {
                                 post("open completed");
-                                window.dispatchEvent(new Event('resize'));
+                                setTimeout(() => window.dispatchEvent(new Event('resize')), 150);
                                 setTimeout(() => enableTextSelection("open completed"), 0);
                                 setTimeout(() => enableTextSelection("open completed delayed"), 500);
                             })
@@ -723,11 +723,24 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 try
                 {
-                    // Force WebKitGTK offscreen to repaint by triggering a resize event.
+                    // Delay the JS injection to ensure the underlying X11/GTK widget is fully realized and mapped.
                     // This fixes the issue where the PDF view remains white when switching
-                    // back to the tab because the control bounds didn't change (so Avalonia
-                    // didn't trigger a new Arrange pass).
-                    await _webViewHost.InvokeScriptAsync("window.dispatchEvent(new Event('resize'));");
+                    // back to the tab because the control bounds didn't change.
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(150);
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+                        {
+                            try
+                            {
+                                if (_webViewHost != null && _webViewHost.View.IsVisible)
+                                {
+                                    await _webViewHost.InvokeScriptAsync("window.dispatchEvent(new Event('resize'));");
+                                }
+                            }
+                            catch { }
+                        });
+                    });
                 }
                 catch { }
             }

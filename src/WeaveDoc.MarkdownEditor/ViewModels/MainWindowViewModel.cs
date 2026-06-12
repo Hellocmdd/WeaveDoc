@@ -8,7 +8,7 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
 {
     public class MainWindowViewModel : INotifyPropertyChanged
     {
-        private readonly MarkdownService _markdownService = new();
+        private readonly IMarkdownRenderService _markdownRenderService = new MarkdigMarkdownRenderService();
 
         public MainWindowViewModel()
         {
@@ -68,7 +68,7 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
             if (result.Succeeded)
             {
                 SetEditorContent(result.Content, updatePreview: false);
-                Html = string.Empty;
+                RefreshPreview();
                 CurrentFilePath = result.FilePath;
                 DisplayName = string.IsNullOrWhiteSpace(result.DisplayName)
                     ? "未命名 Markdown"
@@ -109,7 +109,24 @@ namespace WeaveDoc.MarkdownEditor.ViewModels
 
         public void RefreshPreview()
         {
-            Html = _markdownService.ConvertMarkdownToHtmlWithCharPositions(EditorContent);
+            Html = _markdownRenderService.RenderPreviewHtml(EditorContent);
+        }
+
+        private System.Threading.CancellationTokenSource? _debounceCts;
+
+        public async System.Threading.Tasks.Task DebouncedRefreshPreview(int delayMs = 300)
+        {
+            _debounceCts?.Cancel();
+            _debounceCts = new System.Threading.CancellationTokenSource();
+            var token = _debounceCts.Token;
+            try
+            {
+                await System.Threading.Tasks.Task.Delay(delayMs, token);
+                RefreshPreview();
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+            }
         }
 
         private void SetEditorContent(string? value, bool updatePreview)

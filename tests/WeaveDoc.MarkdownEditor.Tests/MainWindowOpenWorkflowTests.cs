@@ -27,28 +27,37 @@ public class MainWindowOpenWorkflowTests
         await File.WriteAllTextAsync(filePath, "# Picked");
 
         var window = new MainWindow();
+        var loaded = new TaskCompletionSource();
+        window.Loaded += (_, _) => loaded.TrySetResult();
         window.Show();
+        await loaded.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         try
         {
             var storageFile = await window.StorageProvider.TryGetFileFromPathAsync(filePath);
             Assert.That(storageFile, Is.Not.Null);
 
+            var editor = window.FindControl<NativeMarkdownEditorControl>("NativeEditor");
+            Assert.That(editor, Is.Not.Null);
+            var contentEditedCount = 0;
+            editor!.ContentEdited += (_, _) => contentEditedCount++;
+
             var result = await window.OpenMarkdownStorageFileAsync(storageFile!);
 
             var viewModel = (MainWindowViewModel)window.DataContext!;
-            var editor = window.FindControl<NativeMarkdownEditorControl>("NativeEditor");
             var preview = window.FindControl<PreviewWebViewControl>("PreviewWebView");
 
             Assert.That(result.Succeeded, Is.True);
             Assert.That(viewModel.EditorContent, Is.EqualTo("# Picked"));
             Assert.That(viewModel.DisplayName, Is.EqualTo(Path.GetFileName(filePath)));
             Assert.That(viewModel.StatusText, Does.Contain("已打开"));
-            Assert.That(editor?.EditorContent, Is.EqualTo("# Picked"));
-            Assert.That(editor?.GetContent(), Is.EqualTo("# Picked"));
+            Assert.That(editor.EditorContent, Is.EqualTo("# Picked"));
+            Assert.That(editor.GetContent(), Is.EqualTo("# Picked"));
+            Assert.That(contentEditedCount, Is.Zero);
             Assert.That(preview?.HtmlContent, Is.EqualTo(viewModel.PreviewHtml));
+            AssertPreviewPaneCollapsed(window);
             window.ScrollEditorToPositionWithRange(1, 3, 6);
-            Assert.That(editor?.GetSelection().Text, Is.EqualTo("Picked"));
+            Assert.That(editor.GetSelection().Text, Is.EqualTo("Picked"));
             Assert.That(factory.Hosts, Is.Empty);
         }
         finally
@@ -59,7 +68,79 @@ public class MainWindowOpenWorkflowTests
     }
 
     [AvaloniaTest]
-    public async Task OpenMarkdownStorageFileAsync_LargeMarkdownUsesNativeEditorPerformanceMode()
+    public async Task SaveMarkdownFileAsync_SyncsLiveEditorContentWithoutRealtimeViewModelUpdates()
+    {
+        var factory = new FakeWebViewHostFactory();
+        WebViewHostFactoryProvider.Current = factory;
+        var filePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.md");
+        const string originalContent = "# Original";
+        const string editedContent = "# Edited\n\nBody";
+        await File.WriteAllTextAsync(filePath, originalContent);
+
+        var originalOutput = Console.Out;
+        var output = new StringWriter();
+        var window = new MainWindow();
+        window.Show();
+
+        try
+        {
+            var storageFile = await window.StorageProvider.TryGetFileFromPathAsync(filePath);
+            Assert.That(storageFile, Is.Not.Null);
+
+            var result = await window.OpenMarkdownStorageFileAsync(storageFile!);
+            var viewModel = (MainWindowViewModel)window.DataContext!;
+            var editor = window.FindControl<NativeMarkdownEditorControl>("NativeEditor");
+            var innerEditor = editor?.FindControl<TextEditor>("Editor");
+            var preview = window.FindControl<PreviewWebViewControl>("PreviewWebView");
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(editor, Is.Not.Null);
+            Assert.That(innerEditor, Is.Not.Null);
+            Assert.That(viewModel.EditorContent, Is.EqualTo(originalContent));
+            Assert.That(editor!.EditorContent, Is.EqualTo(originalContent));
+            Assert.That(editor.GetContent(), Is.EqualTo(originalContent));
+            Assert.That(viewModel.PreviewHtml, Is.Empty);
+            Assert.That(preview?.HtmlContent, Is.EqualTo(viewModel.PreviewHtml));
+            AssertPreviewPaneCollapsed(window);
+            Assert.That(factory.Hosts, Is.Empty);
+
+            Console.SetOut(output);
+            innerEditor!.Text = editedContent;
+            Console.SetOut(originalOutput);
+
+            Assert.That(editor.GetContent(), Is.EqualTo(editedContent));
+            Assert.That(editor.EditorContent, Is.EqualTo(originalContent));
+            Assert.That(viewModel.EditorContent, Is.EqualTo(originalContent));
+            Assert.That(editor.HasUnsyncedContent, Is.True);
+            Assert.That(viewModel.PreviewHtml, Is.Empty);
+            Assert.That(preview?.HtmlContent, Is.EqualTo(viewModel.PreviewHtml));
+            AssertPreviewPaneCollapsed(window);
+            Assert.That(factory.Hosts, Is.Empty);
+            Assert.That(output.ToString(), Is.Empty);
+
+            await window.SaveMarkdownFileAsync();
+
+            await WaitUntilAsync(() => editor.EditorContent == editedContent && !editor.HasUnsyncedContent);
+            Assert.That(await File.ReadAllTextAsync(filePath), Is.EqualTo(editedContent));
+            Assert.That(viewModel.EditorContent, Is.EqualTo(editedContent));
+            Assert.That(editor.GetContent(), Is.EqualTo(editedContent));
+            Assert.That(editor.EditorContent, Is.EqualTo(editedContent));
+            Assert.That(editor.HasUnsyncedContent, Is.False);
+            Assert.That(viewModel.PreviewHtml, Is.Empty);
+            Assert.That(preview?.HtmlContent, Is.EqualTo(viewModel.PreviewHtml));
+            AssertPreviewPaneCollapsed(window);
+            Assert.That(factory.Hosts, Is.Empty);
+        }
+        finally
+        {
+            Console.SetOut(originalOutput);
+            window.Close();
+            File.Delete(filePath);
+        }
+    }
+
+    [AvaloniaTest]
+    public async Task OpenMarkdownStorageFileAsync_LargeMarkdownKeepsTextMateAndNonWrappingMode()
     {
         var factory = new FakeWebViewHostFactory();
         WebViewHostFactoryProvider.Current = factory;
@@ -84,10 +165,11 @@ public class MainWindowOpenWorkflowTests
             Assert.That(result.Succeeded, Is.True);
             Assert.That(viewModel.EditorContent, Is.EqualTo(content));
             await WaitUntilAsync(() => editor?.GetContent() == content);
-            Assert.That(editor!.IsMarkdownGrammarLoaded, Is.False);
-            Assert.That(editor.MarkdownGrammarStatusText, Does.Contain("大 Markdown 文件"));
+            Assert.That(editor!.IsMarkdownGrammarLoaded, Is.True);
+            Assert.That(editor.MarkdownGrammarStatusText, Does.Contain("已加载"));
             Assert.That(innerEditor?.WordWrap, Is.False);
             Assert.That(viewModel.PreviewHtml, Is.Empty);
+            AssertPreviewPaneCollapsed(window);
             Assert.That(factory.Hosts, Is.Empty);
         }
         finally
@@ -95,6 +177,225 @@ public class MainWindowOpenWorkflowTests
             window.Close();
             File.Delete(filePath);
         }
+    }
+
+    [AvaloniaTest]
+    public async Task OpenMarkdownStorageFileAsync_MathMarkdownUsesNativeEditorNonWrappingMode()
+    {
+        var factory = new FakeWebViewHostFactory();
+        WebViewHostFactoryProvider.Current = factory;
+        var filePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.md");
+        const string content = "# Math\n\nInline formula: $x + y = z$";
+        await File.WriteAllTextAsync(filePath, content);
+
+        var window = new MainWindow();
+        window.Show();
+
+        try
+        {
+            var storageFile = await window.StorageProvider.TryGetFileFromPathAsync(filePath);
+            Assert.That(storageFile, Is.Not.Null);
+
+            var result = await window.OpenMarkdownStorageFileAsync(storageFile!);
+
+            var viewModel = (MainWindowViewModel)window.DataContext!;
+            var editor = window.FindControl<NativeMarkdownEditorControl>("NativeEditor");
+            var innerEditor = editor?.FindControl<TextEditor>("Editor");
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(viewModel.EditorContent, Is.EqualTo(content));
+            await WaitUntilAsync(() => editor?.GetContent() == content);
+            Assert.That(editor!.IsMarkdownGrammarLoaded, Is.True);
+            Assert.That(editor.MarkdownGrammarStatusText, Does.Contain("已加载"));
+            Assert.That(innerEditor?.WordWrap, Is.False);
+            Assert.That(viewModel.PreviewHtml, Is.Empty);
+            AssertPreviewPaneCollapsed(window);
+            Assert.That(factory.Hosts, Is.Empty);
+        }
+        finally
+        {
+            window.Close();
+            File.Delete(filePath);
+        }
+    }
+
+    [AvaloniaTest]
+    public async Task OpenMarkdownStorageFileAsync_OverflowingLatexSymbolLineDisablesTextMate()
+    {
+        var factory = new FakeWebViewHostFactory();
+        WebViewHostFactoryProvider.Current = factory;
+        var filePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.md");
+        const string symbolLine = @"$$\alpha \beta \gamma \delta \epsilon \zeta \eta \theta \iota \kappa \lambda \mu \nu \xi \pi \rho \sigma \tau \upsilon \phi \chi \psi \omega$$";
+        var content = "# LaTeX symbols\n\n" + symbolLine;
+        await File.WriteAllTextAsync(filePath, content);
+
+        var window = new MainWindow();
+        window.Show();
+
+        try
+        {
+            var storageFile = await window.StorageProvider.TryGetFileFromPathAsync(filePath);
+            Assert.That(storageFile, Is.Not.Null);
+
+            var result = await window.OpenMarkdownStorageFileAsync(storageFile!);
+
+            var viewModel = (MainWindowViewModel)window.DataContext!;
+            var editor = window.FindControl<NativeMarkdownEditorControl>("NativeEditor");
+            var innerEditor = editor?.FindControl<TextEditor>("Editor");
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(viewModel.EditorContent, Is.EqualTo(content));
+            await WaitUntilAsync(() => editor?.GetContent() == content);
+            Assert.That(symbolLine.Length, Is.LessThan(512));
+            Assert.That(editor!.IsMarkdownGrammarLoaded, Is.False);
+            Assert.That(editor.MarkdownGrammarStatusText, Does.Contain("横向溢出"));
+            Assert.That(innerEditor?.WordWrap, Is.False);
+            Assert.That(factory.Hosts, Is.Empty);
+        }
+        finally
+        {
+            window.Close();
+            File.Delete(filePath);
+        }
+    }
+
+    [AvaloniaTest]
+    public async Task RefreshPreview_ShowsPreviewPaneOnDemandWithoutOpeningHost()
+    {
+        var factory = new FakeWebViewHostFactory();
+        WebViewHostFactoryProvider.Current = factory;
+        var filePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.md");
+        await File.WriteAllTextAsync(filePath, "# Preview");
+
+        var window = new MainWindow();
+        window.Show();
+
+        try
+        {
+            var storageFile = await window.StorageProvider.TryGetFileFromPathAsync(filePath);
+            Assert.That(storageFile, Is.Not.Null);
+
+            var result = await window.OpenMarkdownStorageFileAsync(storageFile!);
+            var viewModel = (MainWindowViewModel)window.DataContext!;
+            var preview = window.FindControl<PreviewWebViewControl>("PreviewWebView");
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(viewModel.PreviewHtml, Is.Empty);
+            AssertPreviewPaneCollapsed(window);
+
+            viewModel.RefreshPreview();
+
+            await WaitUntilAsync(() => window.FindControl<Border>("PreviewPane")?.IsVisible == true);
+            Assert.That(viewModel.PreviewHtml, Does.Contain("<h1 data-line=\"1\">"));
+            Assert.That(preview?.HtmlContent, Is.EqualTo(viewModel.PreviewHtml));
+            AssertPreviewPaneVisible(window);
+            Assert.That(factory.Hosts, Is.Empty);
+        }
+        finally
+        {
+            window.Close();
+            File.Delete(filePath);
+        }
+    }
+
+    [AvaloniaTest]
+    public async Task PreviewActivate_SimulatesPreviewClick_InjectsContentIntoWebView()
+    {
+        var factory = new FakeWebViewHostFactory();
+        WebViewHostFactoryProvider.Current = factory;
+        var filePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.md");
+        await File.WriteAllTextAsync(filePath, "# Hello\n\nWorld $x^2$.");
+
+        var window = new MainWindow();
+        window.Show();
+
+        try
+        {
+            var storageFile = await window.StorageProvider.TryGetFileFromPathAsync(filePath);
+            var result = await window.OpenMarkdownStorageFileAsync(storageFile!);
+            var viewModel = (MainWindowViewModel)window.DataContext!;
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(viewModel.PreviewHtml, Is.Empty);
+            AssertPreviewPaneCollapsed(window);
+
+            // === Step 1: SyncLiveEditorContent ===
+            var nativeEditor = window.FindControl<NativeMarkdownEditorControl>("NativeEditor");
+            var liveContent = nativeEditor!.GetContent();
+            viewModel.EditorContent = liveContent;
+
+            // === Step 2: RefreshPreview ===
+            viewModel.RefreshPreview();
+            Assert.That(viewModel.PreviewHtml, Is.Not.Empty);
+            Assert.That(viewModel.PreviewHtml, Does.Contain("<h1"));
+            Assert.That(viewModel.PreviewHtml, Does.Contain("data-pos"));
+
+            // === Step 3: SetContent synchronously (bypass binding race) ===
+            var preview = window.FindControl<PreviewWebViewControl>("PreviewWebView");
+            preview!.SetContent(viewModel.PreviewHtml);
+
+            // === Step 4: UpdatePreviewPaneVisibility ===
+            UpdateMainWindowPreviewPane(window, visible: true);
+
+            await WaitUntilAsync(() => window.FindControl<Border>("PreviewPane")?.IsVisible == true);
+            AssertPreviewPaneVisible(window);
+
+            // === Step 5: Activate the WebView ===
+            await preview.Activate(false);
+
+            // Verify WebView host was created
+            Assert.That(factory.Hosts, Has.Count.EqualTo(1),
+                "Preview WebView host was not created.");
+
+            var host = factory.Hosts[0];
+
+            // Verify navigation happened
+            Assert.That(host.NavigatedUris, Has.Count.GreaterThanOrEqualTo(1),
+                "WebView never navigated to preview template.");
+
+            // Verify content injection happened via InvokeScriptAsync (window.updateContent).
+            // The template is loaded via Navigate(file://) which preserves the correct origin,
+            // then content is injected via JS.
+            var updateContentScripts = host.InvokedScripts
+                .Where(s => s.Contains("window.updateContent('"))
+                .ToList();
+
+            Assert.That(updateContentScripts, Has.Count.GreaterThanOrEqualTo(1),
+                $"window.updateContent was never called. Scripts:\n{string.Join("\n", host.InvokedScripts)}");
+
+            var updateScript = updateContentScripts[0];
+            Assert.That(updateScript, Does.Contain("data-pos"),
+                "Injected HTML should contain data-pos attributes.");
+            Assert.That(updateScript, Does.Contain("math-inline"),
+                "Injected HTML should contain math-inline spans for LaTeX.");
+
+            // Verify HtmlContent is still correct after activation
+            Assert.That(preview.HtmlContent, Is.EqualTo(viewModel.PreviewHtml),
+                "HtmlContent diverged from PreviewHtml after activation.");
+        }
+        finally
+        {
+            window.Close();
+            File.Delete(filePath);
+        }
+    }
+
+    private static void UpdateMainWindowPreviewPane(MainWindow window, bool visible)
+    {
+        var layoutGrid = window.FindControl<Grid>("MarkdownEditorLayoutGrid");
+        var editorPane = window.FindControl<Border>("EditorPane");
+        var previewPane = window.FindControl<Border>("PreviewPane");
+
+        if (layoutGrid?.ColumnDefinitions.Count < 2 || previewPane == null)
+            return;
+
+        layoutGrid.ColumnDefinitions[1].Width = visible
+            ? new GridLength(1, GridUnitType.Star)
+            : new GridLength(0);
+        previewPane.IsVisible = visible;
+
+        if (editorPane != null)
+            editorPane.Margin = visible ? new Avalonia.Thickness(0, 0, 4, 0) : new Avalonia.Thickness(0);
     }
 
     [AvaloniaTest]
@@ -192,6 +493,36 @@ public class MainWindowOpenWorkflowTests
 
         return factory.Hosts.Last(host =>
             host.NavigatedUris.Any(uri => uri.ToString().Contains(uriFragment, StringComparison.Ordinal)));
+    }
+
+    private static void AssertPreviewPaneCollapsed(MainWindow window)
+    {
+        var layout = window.FindControl<Grid>("MarkdownEditorLayoutGrid");
+        var editorPane = window.FindControl<Border>("EditorPane");
+        var previewPane = window.FindControl<Border>("PreviewPane");
+
+        Assert.That(layout, Is.Not.Null);
+        Assert.That(editorPane, Is.Not.Null);
+        Assert.That(previewPane, Is.Not.Null);
+        Assert.That(layout!.ColumnDefinitions[1].Width.Value, Is.Zero);
+        Assert.That(layout.ColumnDefinitions[1].Width.GridUnitType, Is.EqualTo(GridUnitType.Pixel));
+        Assert.That(editorPane!.Margin, Is.EqualTo(new Avalonia.Thickness(0)));
+        Assert.That(previewPane!.IsVisible, Is.False);
+    }
+
+    private static void AssertPreviewPaneVisible(MainWindow window)
+    {
+        var layout = window.FindControl<Grid>("MarkdownEditorLayoutGrid");
+        var editorPane = window.FindControl<Border>("EditorPane");
+        var previewPane = window.FindControl<Border>("PreviewPane");
+
+        Assert.That(layout, Is.Not.Null);
+        Assert.That(editorPane, Is.Not.Null);
+        Assert.That(previewPane, Is.Not.Null);
+        Assert.That(layout!.ColumnDefinitions[1].Width.Value, Is.EqualTo(1));
+        Assert.That(layout.ColumnDefinitions[1].Width.GridUnitType, Is.EqualTo(GridUnitType.Star));
+        Assert.That(editorPane!.Margin, Is.EqualTo(new Avalonia.Thickness(0, 0, 4, 0)));
+        Assert.That(previewPane!.IsVisible, Is.True);
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)

@@ -13,6 +13,9 @@
       <MenuItem Header="_File">
         <MenuItem Header="_Open" Click="OpenFile_Click" />
         <MenuItem Header="_Open PDF" Click="OpenPdfFile_Click" />
+        <Separator />
+        <MenuItem Header="Preview" Click="PreviewToggle_Click" />
+        <Separator />
         <MenuItem Header="_Save" Click="SaveFile_Click" />
         <MenuItem Header="Save _As" Click="SaveAsFile_Click" />
       </MenuItem>
@@ -30,14 +33,18 @@
     <TabControl x:Name="MainTabControl" Margin="8" SelectionChanged="MainTabControl_SelectionChanged">
       <!-- Markdown 编辑器标签页 -->
       <TabItem Header="Markdown Editor">
-        <Grid>
+        <Grid x:Name="MarkdownEditorLayoutGrid">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="0" />
           </Grid.ColumnDefinitions>
           
           <!-- 左侧 Native 编辑器 -->
-          <Border Grid.Column="0" Margin="0,0,4,0" Background="#1E1E1E" BorderBrush="#3C3C3C" BorderThickness="1">
+          <Border x:Name="EditorPane"
+                  Grid.Column="0"
+                  Background="#1E1E1E"
+                  BorderBrush="#3C3C3C"
+                  BorderThickness="1">
             <controls:NativeMarkdownEditorControl x:Name="NativeEditor"
                                                   HorizontalAlignment="Stretch"
                                                   VerticalAlignment="Stretch"
@@ -45,11 +52,17 @@
           </Border>
 
           <!-- 右侧预览 -->
-          <Border Grid.Column="1" Margin="4,0,0,0" Background="White" BorderBrush="#CCCCCC" BorderThickness="1">
+          <Border x:Name="PreviewPane"
+                  Grid.Column="1"
+                  Margin="4,0,0,0"
+                  Background="White"
+                  BorderBrush="#CCCCCC"
+                  BorderThickness="1"
+                  IsVisible="False">
             <controls:PreviewWebViewControl x:Name="PreviewWebView"
                                             HorizontalAlignment="Stretch"
                                             VerticalAlignment="Stretch"
-                                            AutoActivateOnVisible="False"
+                                            AutoActivateOnVisible="True"
                                             HtmlContent="{Binding PreviewHtml}" />
           </Border>
         </Grid>

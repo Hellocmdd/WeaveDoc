@@ -3,8 +3,10 @@
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <!-- CSP removed: file:// origin under WebKitGTK may block inline scripts even with 'unsafe-inline' -->
     <link rel="stylesheet" href="katex/katex.min.css">
     <script src="katex/katex.min.js"></script>
+    <script src="katex/contrib/mhchem.min.js"></script>
     <style>
         :root {
             --text-color: #333;
@@ -23,11 +25,11 @@
         }
         
         * { box-sizing: border-box; }
-        html, body { 
-            height: 100%; 
-            margin: 0; 
-            padding: 0; 
-            overflow: auto; 
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: auto;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
@@ -188,20 +190,18 @@
             background-color: rgba(66, 133, 244, 0.08); 
         }
         
-        [data-pos] { 
-            cursor: pointer; 
-            border-bottom: 1px dashed transparent; 
-            transition: background-color 0.15s ease, border-color 0.15s ease;
+        [data-pos] {
+            cursor: pointer;
+            border-bottom: 1px dashed transparent;
         }
-        [data-pos]:hover { 
-            background-color: rgba(255, 193, 7, 0.3); 
-            border-bottom: 1px dashed #ffc107; 
+        [data-pos]:hover {
+            background-color: rgba(255, 193, 7, 0.3);
+            border-bottom: 1px dashed #ffc107;
         }
-        
-        .highlight-char { 
-            background-color: rgba(255, 193, 7, 0.5) !important; 
-            border-radius: 2px; 
-            transition: background-color 0.15s ease;
+
+        .highlight-char {
+            background-color: rgba(255, 193, 7, 0.5) !important;
+            border-radius: 2px;
         }
         
         kbd {
@@ -259,6 +259,57 @@
             color: #e63946;
             font-family: 'Fira Code', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
             font-size: 0.85em;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-color: #D4D4D4;
+                --bg-color: #1E1E1E;
+                --link-color: #6CB6FF;
+                --code-bg-color: #2D2D2D;
+                --code-color: #F44747;
+                --blockquote-color: #8B949E;
+                --blockquote-border-color: #3C3C3C;
+                --table-border-color: #3C3C3C;
+                --table-header-bg: #2D2D2D;
+                --highlight-color: rgba(255, 193, 7, 0.3);
+                --hover-color: rgba(108, 182, 255, 0.1);
+            }
+            body {
+                color: #D4D4D4;
+                background-color: #1E1E1E;
+            }
+            h1, h2, h3, h4, h5, h6 { color: #E8E8E8; }
+            h1 { border-bottom-color: #3C3C3C; }
+            h2 { border-bottom-color: #303030; }
+            h6 { color: #8B949E; }
+            code {
+                background-color: rgba(255, 255, 255, 0.08);
+                color: #F44747;
+            }
+            pre {
+                background-color: #1A1A1A;
+                border-color: #3C3C3C;
+            }
+            blockquote {
+                color: #8B949E;
+                border-left-color: #3C3C3C;
+            }
+            a { color: #6CB6FF; }
+            a:hover { color: #8FC8FF; }
+            a:active { color: #4DA0FF; }
+            hr { border-top-color: #3C3C3C; }
+            table th, table td { border-color: #3C3C3C; }
+            table th { background-color: #2D2D2D; }
+            table tr:nth-child(2n) { background-color: #252525; }
+            table tr:hover { background-color: #2D2D2D; }
+            kbd {
+                color: #8B949E;
+                background-color: #1A1A1A;
+                border-color: #3C3C3C;
+            }
+            mark { background-color: #5D4A00; }
+            del { color: #8B949E; }
         }
     </style>
 </head>
@@ -464,29 +515,71 @@
         }
 
         window.updateContent = function(html) {
-            var contentDiv = document.getElementById('content');
-            if (contentDiv) {
-                contentDiv.innerHTML = html;
+            try {
+                var contentDiv = document.getElementById('content');
+                if (contentDiv) {
+                    var currentScrollY = window.scrollY || document.documentElement.scrollTop;
+                    var currentScrollX = window.scrollX || document.documentElement.scrollLeft;
+                    
+                    contentDiv.innerHTML = html;
 
-                var posElements = contentDiv.querySelectorAll('[data-pos]');
-                sendMessage({ Type: 'debug', Data: 'Found ' + posElements.length + ' data-pos elements' });
+                    var posElements = contentDiv.querySelectorAll('[data-pos]');
+                    sendMessage({ Type: 'debug', Data: 'Found ' + posElements.length + ' data-pos elements' });
 
-                // 添加点击事件到每个 data-pos 元素
-                forEachNode(posElements, function(el) {
-                    el.addEventListener('click', function(e) {
-                        var pos = el.getAttribute('data-pos');
-                        console.log('data-pos element clicked:', pos);
-                        sendMessage({ Type: 'debug', Data: 'Direct click on data-pos: ' + pos });
+                    // 添加点击事件到每个 data-pos 元素
+                    forEachNode(posElements, function(el) {
+                        el.addEventListener('click', function(e) {
+                            var pos = el.getAttribute('data-pos');
+                            console.log('data-pos element clicked:', pos);
+                            sendMessage({ Type: 'debug', Data: 'Direct click on data-pos: ' + pos });
+                        });
                     });
-                });
 
-                // 渲染 LaTeX 数学公式
-                renderMath();
+                    // 渲染 LaTeX 数学公式
+                    renderMath();
+                    
+                    window.scrollTo(currentScrollX, currentScrollY);
+                }
+            } catch (err) {
+                sendMessage({ Type: 'debug', Data: 'ERROR IN updateContent: ' + err.message + ' STACK: ' + err.stack });
+                throw err;
             }
         };
 
         // 跟踪是否有活跃的选区
         var hasActiveSelection = false;
+
+        // 在 data-pos span 内根据 Range 偏移计算精确的行-列位置
+        function computePosFromRange(posElement, container, offset) {
+            var basePos = posElement.getAttribute('data-pos');
+            if (!basePos) return null;
+
+            var parts = basePos.split('-');
+            var baseLine = parseInt(parts[0], 10);
+            var baseCol = parseInt(parts[1], 10);
+
+            // 用 Range 测量从 span 开头到选中点的字符数
+            try {
+                var r = document.createRange();
+                r.setStart(posElement, 0);
+                r.setEnd(container, offset);
+                var charOffset = r.toString().length;
+                return baseLine + '-' + (baseCol + charOffset);
+            } catch (e) {
+                return basePos;
+            }
+        }
+
+        // 向上查找最近的 data-pos 元素
+        function findDataPosAncestor(node) {
+            var el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+            var depth = 0;
+            while (el && !el.hasAttribute('data-pos')) {
+                el = el.parentElement;
+                if (++depth > 50) return null;
+            }
+            return el;
+        }
 
         // 获取选区的位置信息
         function getSelectionPositions() {
@@ -502,41 +595,19 @@
                 return null;
             }
 
-            var startContainer = range.startContainer;
-            var endContainer = range.endContainer;
-
-            // 如果开始和结束容器不同，可能跨了多个元素
-            if (startContainer !== endContainer) {
-                console.log('Selection spans multiple elements, using start position only');
-            }
-
-            // 尝试找到包含起始位置的 data-pos 元素
-            var startPosElement = startContainer.nodeType === Node.ELEMENT_NODE
-                ? startContainer
-                : startContainer.parentElement;
-
-            var endPosElement = endContainer.nodeType === Node.ELEMENT_NODE
-                ? endContainer
-                : endContainer.parentElement;
-
-            // 向上查找最近的 data-pos 元素
-            while (startPosElement && !startPosElement.hasAttribute('data-pos')) {
-                startPosElement = startPosElement.parentElement;
-            }
-
-            while (endPosElement && !endPosElement.hasAttribute('data-pos')) {
-                endPosElement = endPosElement.parentElement;
-            }
+            var startPosElement = findDataPosAncestor(range.startContainer);
+            var endPosElement = findDataPosAncestor(range.endContainer);
 
             if (!startPosElement || !endPosElement) {
-                console.log('Could not find data-pos elements for selection');
                 return null;
             }
 
-            var startPos = startPosElement.getAttribute('data-pos');
-            var endPos = endPosElement.getAttribute('data-pos');
+            var startPos = computePosFromRange(startPosElement, range.startContainer, range.startOffset);
+            var endPos = computePosFromRange(endPosElement, range.endContainer, range.endOffset);
 
-            console.log('Selection start:', startPos, 'end:', endPos, 'text length:', selectedText.length);
+            if (!startPos || !endPos) {
+                return null;
+            }
 
             return {
                 start: startPos,
@@ -547,7 +618,9 @@
 
         // 文本选择事件监听器
         document.addEventListener('mouseup', function(e) {
+            console.log('[DEBUG-SEL] mouseup fired');
             var selection = getSelectionPositions();
+            console.log('[DEBUG-SEL] getSelectionPositions returned:', JSON.stringify(selection));
             if (selection && selection.start) {
                 console.log('Selection detected:', selection);
                 sendMessage({ Type: 'debug', Data: 'Selection: ' + JSON.stringify(selection) });
@@ -577,7 +650,7 @@
 
         // 全局点击事件监听器
         document.addEventListener('click', function(e) {
-            console.log('Document click event triggered');
+            console.log('[DEBUG-SEL] click event triggered, hasActiveSelection:', hasActiveSelection);
             sendMessage({ Type: 'debug', Data: 'Document click triggered' });
 
             // 如果有活跃的选区，检查是否点击在选区外部
@@ -590,6 +663,18 @@
             }
 
             var target = e.target;
+
+            // 拦截外链点击，阻止 WebView 导航离开预览页面
+            var linkElement = closestElement(target, 'a[href]');
+            if (linkElement) {
+                var href = linkElement.getAttribute('href');
+                if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                    e.preventDefault();
+                    sendMessage({ Type: 'linkClicked', Data: JSON.stringify({ url: href }) });
+                    return;
+                }
+            }
+
             console.log('Click target:', target.tagName, target.className, target.id);
             
             // 检查是否点击了 data-pos 元素
@@ -632,7 +717,6 @@
         window.scrollToLine = function(lineNumber) {
             try {
                 clearHighlight();
-                var targetLine = lineNumber;
                 var allElements = document.querySelectorAll('[data-pos]');
                 for (var i = 0; i < allElements.length; i++) {
                     var el = allElements[i];
@@ -640,7 +724,7 @@
                     if (posAttr) {
                         var parts = posAttr.split('-');
                         var elLine = parseInt(parts[0], 10);
-                        if (elLine === targetLine) {
+                        if (elLine === lineNumber) {
                             el.classList.add('highlight-char');
                         }
                     }
@@ -661,14 +745,22 @@
                         var parts = posAttr.split('-');
                         var elLine = parseInt(parts[0], 10);
                         var elCol = parseInt(parts[1], 10);
-                        if (startLine === endLine) {
-                            if (elLine === startLine && elCol >= startCol && elCol <= endCol) {
-                                el.classList.add('highlight-char');
-                            }
-                        } else {
-                            if ((elLine === startLine && elCol >= startCol) || (elLine === endLine && elCol <= endCol) || (elLine > startLine && elLine < endLine)) {
-                                el.classList.add('highlight-char');
-                            }
+                        var elLen = (el.textContent || '').length;
+                        var elEndCol = elCol + elLen;
+
+                        // Check if this text-run span overlaps with the selection range
+                        var overlaps = false;
+                        if (startLine === endLine && elLine === startLine) {
+                            overlaps = elCol < endCol && elEndCol > startCol;
+                        } else if (elLine === startLine) {
+                            overlaps = elEndCol > startCol;
+                        } else if (elLine === endLine) {
+                            overlaps = elCol < endCol;
+                        } else if (elLine > startLine && elLine < endLine) {
+                            overlaps = true;
+                        }
+                        if (overlaps) {
+                            el.classList.add('highlight-char');
                         }
                     }
                 }

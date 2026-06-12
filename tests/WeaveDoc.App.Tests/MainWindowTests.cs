@@ -302,7 +302,9 @@ public class MainWindowTests
         var markdown = "# 标题\n\n正文内容";
         var editedMarkdown = "# 新标题\n\n正文内容";
         var filePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.md");
+        var secondFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.md");
         await File.WriteAllTextAsync(filePath, markdown, TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(secondFilePath, markdown, TestContext.Current.CancellationToken);
 
         try
         {
@@ -321,8 +323,10 @@ public class MainWindowTests
                 var boldButton = Find<Button>(editor, "BoldButton");
                 var openButton = Find<Button>(editor, "OpenDocumentButton");
                 var saveButton = Find<Button>(editor, "SaveDocumentButton");
+                var editModeButton = Find<Button>(editor, "EditModeButton");
                 var previewModeButton = Find<Button>(editor, "PreviewModeButton");
 
+                AssertDeferredShellEntrypointsUnavailable(window);
                 Assert.True(editorEmptyState.IsVisible);
                 Assert.False(markdownEditor.IsVisible);
                 Assert.False(markdownPreview.IsVisible);
@@ -356,49 +360,84 @@ public class MainWindowTests
                 Assert.Equal(editedMarkdown, markdownEditor.GetContent());
                 Assert.True(markdownEditor.HasUnsyncedContent);
                 Assert.Equal(markdown, viewModel.DocumentWorkspace.Content);
-                Assert.False(viewModel.DocumentWorkspace.IsDirty);
-                Assert.False(viewModel.DocumentWorkspace.CanSave);
+                Assert.True(viewModel.DocumentWorkspace.IsDirty);
+                Assert.True(viewModel.DocumentWorkspace.CanSave);
                 Assert.Contains("<h1 data-line=\"1\">", viewModel.DocumentWorkspace.PreviewHtml);
                 Assert.Contains("data-pos=", viewModel.DocumentWorkspace.PreviewHtml);
                 Assert.DoesNotContain("新", viewModel.DocumentWorkspace.PreviewHtml);
                 Assert.False(openButton.IsEnabled);
                 Assert.False(saveButton.IsEnabled);
+                AssertDeferredShellEntrypointsUnavailable(window);
 
                 var previewBeforeToolbar = viewModel.DocumentWorkspace.PreviewHtml;
                 markdownEditor.SetSelection(2, 3);
                 Click(boldButton);
+                var formattedMarkdown = "# **新标题**\n\n正文内容";
 
-                Assert.Equal("# **新标题**\n\n正文内容", markdownEditor.GetContent());
+                Assert.Equal(formattedMarkdown, markdownEditor.GetContent());
                 Assert.Equal(markdown, markdownEditor.EditorContent);
                 Assert.Equal(markdown, viewModel.DocumentWorkspace.Content);
                 Assert.Equal(previewBeforeToolbar, viewModel.DocumentWorkspace.PreviewHtml);
+                Assert.True(viewModel.DocumentWorkspace.IsDirty);
+                Assert.True(viewModel.DocumentWorkspace.CanSave);
+                AssertDeferredShellEntrypointsUnavailable(window);
 
                 Click(previewModeButton);
                 await markdownPreview.Activate(false);
                 await Task.Delay(50);
 
-                Assert.Equal(previewBeforeToolbar, viewModel.DocumentWorkspace.PreviewHtml);
-                Assert.DoesNotContain("新", viewModel.DocumentWorkspace.PreviewHtml);
+                Assert.NotEqual(previewBeforeToolbar, viewModel.DocumentWorkspace.PreviewHtml);
+                Assert.Contains("data-pos=\"1-5\">新", viewModel.DocumentWorkspace.PreviewHtml);
+                Assert.Contains("<p data-line=\"3\">", viewModel.DocumentWorkspace.PreviewHtml);
                 Assert.False(markdownEditor.IsVisible);
                 Assert.False(editorEmptyState.IsVisible);
                 Assert.False(previewEmptyState.IsVisible);
                 Assert.True(markdownPreview.IsVisible);
                 Assert.False(boldButton.IsEnabled);
-                Assert.Equal(markdown, viewModel.DocumentWorkspace.Content);
-                Assert.Equal(markdown, markdownEditor.EditorContent);
-                Assert.Equal("# **新标题**\n\n正文内容", markdownEditor.GetContent());
+                Assert.Equal(formattedMarkdown, viewModel.DocumentWorkspace.Content);
+                Assert.Equal(formattedMarkdown, markdownEditor.EditorContent);
+                Assert.Equal(formattedMarkdown, markdownEditor.GetContent());
+                Assert.False(markdownEditor.HasUnsyncedContent);
+                Assert.True(viewModel.DocumentWorkspace.IsDirty);
+                Assert.True(viewModel.DocumentWorkspace.CanSave);
                 Assert.Equal(viewModel.DocumentWorkspace.PreviewHtml, markdownPreview.HtmlContent);
                 Assert.False(markdownPreview.IsUsingFallback);
+                Assert.False(openButton.IsEnabled);
+                Assert.False(saveButton.IsEnabled);
+                AssertDeferredShellEntrypointsUnavailable(window);
+
+                Click(editModeButton);
+
+                Assert.True(markdownEditor.IsVisible);
+                Assert.False(markdownPreview.IsVisible);
+                Assert.False(editorEmptyState.IsVisible);
+                Assert.Equal(formattedMarkdown, viewModel.DocumentWorkspace.Content);
+                Assert.Equal(formattedMarkdown, markdownEditor.EditorContent);
+                Assert.Equal(formattedMarkdown, markdownEditor.GetContent());
 
                 var fakeFactory = Assert.IsType<FakeWebViewHostFactory>(WebViewHostFactoryProvider.Current);
                 Assert.Same(fakeFactory, markdownPreview.WebViewHostFactory);
                 Assert.Contains(fakeFactory.Hosts, host =>
                     host.NavigatedUris.Any(uri => uri.AbsolutePath.EndsWith("/preview-template.html", StringComparison.Ordinal)));
+
+                var reopened = await viewModel.DocumentWorkspace.OpenAsync(
+                    secondFilePath,
+                    TestContext.Current.CancellationToken);
+
+                Assert.True(reopened);
+                Assert.Equal(Path.GetFileName(secondFilePath), viewModel.DocumentWorkspace.DisplayName);
+                Assert.Equal(markdown, viewModel.DocumentWorkspace.Content);
+                Assert.Equal(markdown, markdownEditor.EditorContent);
+                Assert.Equal(markdown, markdownEditor.GetContent());
+                Assert.False(markdownEditor.HasUnsyncedContent);
+                Assert.False(viewModel.DocumentWorkspace.IsDirty);
+                AssertDeferredShellEntrypointsUnavailable(window);
             });
         }
         finally
         {
             File.Delete(filePath);
+            File.Delete(secondFilePath);
         }
     }
 
@@ -473,40 +512,9 @@ public class MainWindowTests
 
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            var sidebar = window.FindControl<WorkspaceSidebar>("WorkspaceSidebarControl");
-            var editor = window.FindControl<EditorWorkspace>("EditorWorkspaceControl");
-            var aiPanel = window.FindControl<AiAssistantPanel>("AiAssistantPanelControl");
+            var aiPanel = Find<AiAssistantPanel>(window, "AiAssistantPanelControl");
 
-            Assert.Null(window.FindControl<Button>("FileMenuButton"));
-            Assert.Null(window.FindControl<Button>("EditMenuButton"));
-            Assert.Null(window.FindControl<Button>("ViewMenuButton"));
-            Assert.Null(window.FindControl<Button>("AiMenuButton"));
-            Assert.Null(window.FindControl<Button>("LiteratureMenuButton"));
-            Assert.Null(window.FindControl<Button>("ExportMenuButton"));
-            Assert.Null(window.FindControl<Button>("HelpMenuButton"));
-
-            var disabledButtons = new[]
-            {
-                Find<Button>(window, "NewShellDocumentButton"),
-                Find<Button>(window, "OpenShellDocumentButton"),
-                Find<Button>(window, "SaveShellDocumentButton"),
-                Find<Button>(window, "ExportShellDocumentButton"),
-                Find<Button>(window, "SetupShellCommandButton"),
-                Find<Button>(sidebar, "DocumentPreviousPageButton"),
-                Find<Button>(sidebar, "DocumentNextPageButton"),
-                Find<Button>(sidebar, "DocumentZoomOutButton"),
-                Find<Button>(sidebar, "DocumentZoomInButton"),
-                Find<Button>(sidebar, "DocumentPreviewTabButton"),
-                Find<Button>(sidebar, "DocumentPreviewCloseTabButton"),
-                Find<Button>(sidebar, "DocumentPreviewAddTabButton"),
-                Find<Button>(editor, "OpenDocumentButton"),
-                Find<Button>(editor, "SaveDocumentButton"),
-                Find<Button>(editor, "ExportDocumentButton"),
-                Find<Button>(aiPanel, "ClearAiConversationButton"),
-                Find<Button>(aiPanel, "SendAiPromptButton")
-            };
-
-            Assert.All(disabledButtons, button => Assert.False(button.IsEnabled));
+            AssertDeferredShellEntrypointsUnavailable(window);
             Assert.True(Find<Button>(window, "AiShellCommandButton").IsEnabled);
             Assert.True(Find<Button>(window, "AiChatCommandButton").IsEnabled);
             Assert.True(Find<Button>(window, "AiLiteratureCommandButton").IsEnabled);
@@ -515,8 +523,6 @@ public class MainWindowTests
             Assert.True(Find<Button>(aiPanel, "AiLiteratureTabButton").IsEnabled);
             Assert.True(Find<Button>(aiPanel, "AiSnapshotTabButton").IsEnabled);
             Assert.True(Find<Button>(window, "ThemeMenuButton").IsEnabled);
-            Assert.False(Find<TextBox>(aiPanel, "AiPromptInput").IsEnabled);
-            Assert.False(Find<TextBox>(window, "ShellSearchBox").IsEnabled);
         });
     }
 
@@ -699,6 +705,49 @@ public class MainWindowTests
         Assert.True(control.IsVisible);
         Assert.True(control.Bounds.Width >= minimumWidth, $"{control.Name} width was {control.Bounds.Width}");
         Assert.True(control.Bounds.Height >= minimumHeight, $"{control.Name} height was {control.Bounds.Height}");
+    }
+
+    private static void AssertDeferredShellEntrypointsUnavailable(Window window)
+    {
+        var sidebar = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl");
+        var editor = Find<EditorWorkspace>(window, "EditorWorkspaceControl");
+        var aiPanel = Find<AiAssistantPanel>(window, "AiAssistantPanelControl");
+
+        Assert.Null(window.FindControl<Control>("FileMenuButton"));
+        Assert.Null(window.FindControl<Control>("EditMenuButton"));
+        Assert.Null(window.FindControl<Control>("ViewMenuButton"));
+        Assert.Null(window.FindControl<Control>("AiMenuButton"));
+        Assert.Null(window.FindControl<Control>("LiteratureMenuButton"));
+        Assert.Null(window.FindControl<Control>("ExportMenuButton"));
+        Assert.Null(window.FindControl<Control>("HelpMenuButton"));
+        Assert.Null(window.FindControl<Control>("ConvertButton"));
+        Assert.Null(window.FindControl<Control>("TemplateGrid"));
+        Assert.DoesNotContain("# Hello WeaveDoc!", CollectText(window));
+
+        var disabledButtons = new[]
+        {
+            Find<Button>(window, "NewShellDocumentButton"),
+            Find<Button>(window, "OpenShellDocumentButton"),
+            Find<Button>(window, "SaveShellDocumentButton"),
+            Find<Button>(window, "ExportShellDocumentButton"),
+            Find<Button>(window, "SetupShellCommandButton"),
+            Find<Button>(sidebar, "DocumentPreviousPageButton"),
+            Find<Button>(sidebar, "DocumentNextPageButton"),
+            Find<Button>(sidebar, "DocumentZoomOutButton"),
+            Find<Button>(sidebar, "DocumentZoomInButton"),
+            Find<Button>(sidebar, "DocumentPreviewTabButton"),
+            Find<Button>(sidebar, "DocumentPreviewCloseTabButton"),
+            Find<Button>(sidebar, "DocumentPreviewAddTabButton"),
+            Find<Button>(editor, "OpenDocumentButton"),
+            Find<Button>(editor, "SaveDocumentButton"),
+            Find<Button>(editor, "ExportDocumentButton"),
+            Find<Button>(aiPanel, "ClearAiConversationButton"),
+            Find<Button>(aiPanel, "SendAiPromptButton")
+        };
+
+        Assert.All(disabledButtons, button => Assert.False(button.IsEnabled));
+        Assert.False(Find<TextBox>(aiPanel, "AiPromptInput").IsEnabled);
+        Assert.False(Find<TextBox>(window, "ShellSearchBox").IsEnabled);
     }
 
     private static void AssertBrushResource(string key)

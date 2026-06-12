@@ -116,11 +116,18 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
             return;
         }
 
-        if (HasDocument)
+        MarkEdited();
+    }
+
+    public void MarkEdited()
+    {
+        if (!HasDocument)
         {
-            IsDirty = true;
-            StatusText = $"已修改 {DisplayName}";
+            return;
         }
+
+        IsDirty = true;
+        StatusText = $"已修改 {DisplayName}";
     }
 
     public bool RefreshPreview()
@@ -135,6 +142,24 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
         PreviewHtml = previewResult.PreviewHtml;
         ClearError();
         return true;
+    }
+
+    private System.Threading.CancellationTokenSource? _debounceCts;
+
+    public async System.Threading.Tasks.Task<bool> DebouncedRefreshPreview(int delayMs = 300)
+    {
+        _debounceCts?.Cancel();
+        _debounceCts = new System.Threading.CancellationTokenSource();
+        var token = _debounceCts.Token;
+        try
+        {
+            await System.Threading.Tasks.Task.Delay(delayMs, token);
+            return RefreshPreview();
+        }
+        catch (System.Threading.Tasks.TaskCanceledException)
+        {
+            return false;
+        }
     }
 
     public async Task<bool> SaveAsync(CancellationToken cancellationToken = default)

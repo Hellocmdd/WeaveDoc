@@ -93,4 +93,43 @@ public class MainWindowViewModelTests
         Assert.That(viewModel.PreviewHtml, Does.Contain("<h1 data-line=\"1\">"));
         Assert.That(viewModel.PreviewHtml, Does.Contain("data-pos=\"1-3\""));
     }
+
+    [Test]
+    public async System.Threading.Tasks.Task DebouncedRefreshPreview_MergesRapidCalls_IntoSingleRefresh()
+    {
+        var viewModel = new MainWindowViewModel
+        {
+            EditorContent = "# Debounced"
+        };
+
+        // Fire rapid debounced refreshes — only the last one should take effect
+        var t1 = viewModel.DebouncedRefreshPreview(100);
+        var t2 = viewModel.DebouncedRefreshPreview(100);
+        var t3 = viewModel.DebouncedRefreshPreview(100);
+
+        await System.Threading.Tasks.Task.WhenAll(t1, t2, t3);
+
+        // Only the last call's content should be present
+        Assert.That(viewModel.PreviewHtml, Does.Contain("<h1 data-line=\"1\">"));
+    }
+
+    [Test]
+    public async System.Threading.Tasks.Task DebouncedRefreshPreview_DifferentContents_UsesLatestContent()
+    {
+        var viewModel = new MainWindowViewModel
+        {
+            EditorContent = "# First"
+        };
+
+        var t1 = viewModel.DebouncedRefreshPreview(80);
+        viewModel.EditorContent = "# Second";
+        var t2 = viewModel.DebouncedRefreshPreview(80);
+
+        await System.Threading.Tasks.Task.WhenAll(t1, t2);
+
+        // Latest content wins — check the S character from "Second" starts at data-pos 1-3
+        // (after "# " which is positions 1-1 and 1-2)
+        Assert.That(viewModel.PreviewHtml, Does.Contain("data-pos=\"1-3\">S</span>"));
+        Assert.That(viewModel.PreviewHtml, Does.Not.Contain("data-pos=\"1-3\">F</span>"));
+    }
 }

@@ -36,7 +36,7 @@
             <controls:PreviewWebViewControl x:Name="PreviewWebView"
                                             HorizontalAlignment="Stretch"
                                             VerticalAlignment="Stretch"
-                                            AutoActivateOnVisible="False"
+                                            AutoActivateOnVisible="True"
                                             HtmlContent="{Binding PreviewHtml}" />
           </Border>
         </Grid>

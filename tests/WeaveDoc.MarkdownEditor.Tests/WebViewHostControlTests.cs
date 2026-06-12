@@ -213,6 +213,91 @@ namespace WeaveDoc.MarkdownEditor.Tests
             }
         }
 
+        [AvaloniaTest]
+        public async Task PreviewWebViewControl_ModeSwitching_DoesNotRecreateWebView()
+        {
+            var factory = new FakeWebViewHostFactory();
+            var control = new PreviewWebViewControl
+            {
+                WebViewHostFactory = factory,
+                HtmlContent = "<h1>Test</h1>"
+            };
+
+            await control.Activate();
+            Assert.That(factory.Hosts, Has.Count.EqualTo(1));
+
+            // 切换编辑/预览 10 次
+            for (var i = 0; i < 10; i++)
+            {
+                control.Deactivate();
+                await control.Activate();
+            }
+
+            // WebView 未被反复销毁重建
+            Assert.That(factory.Hosts, Has.Count.EqualTo(1));
+            Assert.That(control.IsUsingFallback, Is.False);
+        }
+
+        [AvaloniaTest]
+        public async Task PreviewWebViewControl_LinkClickedMessage_IsHandled()
+        {
+            var factory = new FakeWebViewHostFactory();
+            var control = new PreviewWebViewControl
+            {
+                WebViewHostFactory = factory,
+                HtmlContent = "<h1>Test</h1>"
+            };
+
+            await control.Activate();
+            var host = AssertSingleHost(factory);
+
+            // 模拟页面发送 linkClicked 消息
+            host.SendMessage("""{"Type":"linkClicked","Data":"{\"url\":\"https://example.com\"}"}""");
+
+            // 不抛异常，不进入 fallback
+            Assert.That(control.IsUsingFallback, Is.False);
+        }
+
+        [AvaloniaTest]
+        public async Task PreviewWebViewControl_UnknownMessage_IsIgnored()
+        {
+            var factory = new FakeWebViewHostFactory();
+            var control = new PreviewWebViewControl
+            {
+                WebViewHostFactory = factory,
+                HtmlContent = "<h1>Test</h1>"
+            };
+
+            await control.Activate();
+            var host = AssertSingleHost(factory);
+
+            // 模拟页面发送未知类型消息
+            host.SendMessage("""{"Type":"unknownMessageType","Data":"some data"}""");
+
+            // 不抛异常，不进入 fallback
+            Assert.That(control.IsUsingFallback, Is.False);
+        }
+
+        [AvaloniaTest]
+        public async Task PreviewWebViewControl_PreviewLoadedMessage_IsHandled()
+        {
+            var factory = new FakeWebViewHostFactory();
+            var control = new PreviewWebViewControl
+            {
+                WebViewHostFactory = factory,
+                HtmlContent = "<h1>Test</h1>"
+            };
+
+            await control.Activate();
+            var host = AssertSingleHost(factory);
+
+            // 模拟页面发送 previewLoaded 消息
+            host.SendMessage("""{"Type":"previewLoaded","Data":"loaded"}""");
+
+            // 不抛异常，不进入 fallback
+            Assert.That(control.IsUsingFallback, Is.False);
+        }
+
         private static FakeWebViewHost AssertSingleHost(FakeWebViewHostFactory factory)
         {
             Assert.That(factory.Hosts, Has.Count.EqualTo(1));

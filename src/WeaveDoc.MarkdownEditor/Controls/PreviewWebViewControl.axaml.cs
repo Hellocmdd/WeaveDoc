@@ -27,6 +27,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private bool _isActive;
         private bool _isInitializing;
         private string _pendingContent = string.Empty;
+        private bool _needsRepaintTweak = false;
         private Action? _notifyPreviewReadyCallback;
 
         public PreviewWebViewControl()
@@ -108,28 +109,110 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
             else if (change.Property == IsVisibleProperty)
             {
-                if (IsVisible && AutoActivateOnVisible)
+                if (IsVisible && AutoActivateOnVisible && Bounds.Width > 0 && Bounds.Height > 0)
                 {
                     _ = Activate(false);
                 }
-                else
+                else if (!IsVisible)
                 {
                     Deactivate();
                 }
             }
+            else if (change.Property == BoundsProperty)
+            {
+                if (Bounds.Width > 0 && Bounds.Height > 0)
+                {
+                    if ((IsVisible && AutoActivateOnVisible && !_isActive) || _activationPending)
+                    {
+                        _ = Activate(false);
+                    }
+                }
+            }
         }
 
-        private async void OnLoaded(object? sender, EventArgs e)
+        private bool _isWindowOpened = false;
+        private Window? _attachedWindow;
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
-            if (IsVisible && AutoActivateOnVisible)
+            base.OnAttachedToVisualTree(e);
+            
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel is Window window)
+            {
+                _attachedWindow = window;
+                _isWindowOpened = window.IsVisible; // If already visible, it's opened
+                window.Opened += Window_Opened;
+            }
+
+            // Activate is now handled by OnLoaded
+        }
+
+        private async void OnLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (IsVisible && AutoActivateOnVisible && Bounds.Width > 0 && Bounds.Height > 0)
             {
                 await Activate(false);
             }
         }
 
-        private void OnUnloaded(object? sender, EventArgs e)
+        private void OnUnloaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             Deactivate();
+        }
+
+        private void Window_Opened(object? sender, EventArgs e)
+        {
+            _isWindowOpened = true;
+            // The window is now mapped to X11. If a tweak is pending, apply it now.
+            if (_pendingMarginTweak)
+            {
+                _pendingMarginTweak = false;
+                ApplyMarginTweakCore();
+            }
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            
+            if (_attachedWindow != null)
+            {
+                _attachedWindow.Opened -= Window_Opened;
+                _attachedWindow = null;
+            }
+        }
+
+        private bool _pendingMarginTweak = false;
+
+        private void ApplyMarginTweak()
+        {
+            if (!_isWindowOpened)
+            {
+                _pendingMarginTweak = true;
+                return;
+            }
+            
+            ApplyMarginTweakCore();
+        }
+
+        private void ApplyMarginTweakCore()
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(async () => 
+            {
+                if (_webViewHost == null) return;
+                var originalMargin = _webViewHost.View.Margin;
+                _webViewHost.View.Margin = new Avalonia.Thickness(originalMargin.Left, originalMargin.Top, originalMargin.Right, originalMargin.Bottom + 1.0);
+                _webViewHost.View.InvalidateMeasure();
+                _webViewHost.View.InvalidateArrange();
+                await Task.Delay(150);
+                if (_webViewHost != null) 
+                {
+                    _webViewHost.View.Margin = originalMargin;
+                    _webViewHost.View.InvalidateMeasure();
+                    _webViewHost.View.InvalidateArrange();
+                }
+            });
         }
 
         private async Task<bool> EnsureWebViewAsync()
@@ -157,6 +240,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 GetWebViewContainer().Children.Add(_webViewHost.View);
                 _webViewHost.View.IsVisible = _isActive;
 
+                // Yield to the dispatcher to allow Avalonia to perform the layout pass
+                // and create the underlying native GTK handle for the NativeControlHost
+                // before we attempt to load HTML into it.
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Loaded);
+
                 NavigateToPreview();
                 if (!IsUsingFallback)
                 {
@@ -177,7 +265,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
-        private void NavigateToPreview()
+        private async void NavigateToPreview()
         {
             if (_webViewHost == null || IsUsingFallback)
             {
@@ -185,20 +273,62 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
 
             var htmlPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "preview-template.html");
-            _webViewHost.Navigate(new Uri(htmlPath));
-            _ = ShowFallbackIfNavigationDoesNotCompleteAsync(_webViewHost);
-        }
-
-        private async Task ShowFallbackIfNavigationDoesNotCompleteAsync(IWebViewHost host)
-        {
-            if (NavigationTimeout <= TimeSpan.Zero)
+            if (!System.IO.File.Exists(htmlPath))
             {
+                ShowFallback("HTML 预览不可用：模板文件未找到。");
                 return;
             }
 
-            await Task.Delay(NavigationTimeout).ConfigureAwait(true);
+            try
+            {
+                var tplHtml = await System.IO.File.ReadAllTextAsync(htmlPath);
+                var baseDir = System.IO.Path.GetDirectoryName(htmlPath);
+                
+                // Inline KaTeX CSS and JS to bypass file:// restrictions
+                var katexCss = await System.IO.File.ReadAllTextAsync(System.IO.Path.Combine(baseDir!, "katex", "katex.min.css"));
+                var katexJs = await System.IO.File.ReadAllTextAsync(System.IO.Path.Combine(baseDir!, "katex", "katex.min.js"));
+                var mhchemJs = await System.IO.File.ReadAllTextAsync(System.IO.Path.Combine(baseDir!, "katex", "contrib", "mhchem.min.js"));
 
-            if (_webViewHost == host && !_isInitialized)
+                // Rewrite font paths: CSS has url(fonts/...) relative to katex/, but once inlined
+                // the base URI is Assets/, so we need url(katex/fonts/...) to resolve correctly.
+                katexCss = katexCss.Replace("url(fonts/", "url(katex/fonts/");
+                tplHtml = tplHtml.Replace("<link rel=\"stylesheet\" href=\"katex/katex.min.css\">", $"<style>{katexCss}</style>");
+                tplHtml = tplHtml.Replace("<script src=\"katex/katex.min.js\"></script>", $"<script>{katexJs}</script>");
+                tplHtml = tplHtml.Replace("<script src=\"katex/contrib/mhchem.min.js\"></script>", $"<script>{mhchemJs}</script>");
+
+                var baseUri = new Uri(baseDir + System.IO.Path.DirectorySeparatorChar);
+                _ = RobustLoadHtmlAsync(tplHtml, baseUri);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[PREVIEW] NavigateToPreview failed: {ex}");
+                ShowFallback($"HTML 预览不可用：{ex.Message}");
+            }
+        }
+
+        private async Task RobustLoadHtmlAsync(string html, Uri baseUri)
+        {
+            var host = _webViewHost;
+            for (int i = 0; i < 10; i++)
+            {
+                if (host == null || _webViewHost != host || _isInitialized || IsUsingFallback)
+                {
+                    return;
+                }
+
+                try
+                {
+                    host.NavigateToString(html, baseUri);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log($"[PREVIEW] NavigateToString retry failed: {ex}");
+                }
+
+                await Task.Delay(500);
+            }
+
+            if (!_isInitialized && !IsUsingFallback)
             {
                 ShowFallback("HTML 预览不可用：跨平台 WebView 导航超时。");
             }
@@ -224,6 +354,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
 
             ClearFallback();
+            _needsRepaintTweak = true;
             await UpdatePreviewAsync(contentToApply);
         }
 
@@ -313,8 +444,15 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 _pendingContent = content ?? string.Empty;
                 await WaitForJavaScriptReadyAsync();
-                var script = $"window.updateContent({JsonSerializer.Serialize(_pendingContent)});";
+                var script = $"window.updateContent({JsonSerializer.Serialize(_pendingContent)}); window.dispatchEvent(new Event('resize'));";
                 await _webViewHost.InvokeScriptAsync(script);
+                
+                if (_needsRepaintTweak)
+                {
+                    _needsRepaintTweak = false;
+                    ApplyMarginTweak();
+                }
+                
                 NotifyPreviewReady();
             }
             catch (Exception ex)
@@ -530,8 +668,17 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
+        private bool _activationPending = false;
+
         public async Task Activate(bool forceReset = false)
         {
+            if (Bounds.Width <= 0 || Bounds.Height <= 0)
+            {
+                _activationPending = true;
+                return;
+            }
+            _activationPending = false;
+
             if (_isActive && !forceReset && _webViewHost != null && _isInitialized)
             {
                 return;

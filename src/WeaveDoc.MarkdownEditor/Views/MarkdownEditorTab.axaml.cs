@@ -59,6 +59,21 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
             _previewWebView?.SetContent(vm.PreviewHtml);
             vm.PropertyChanged += ViewModel_PropertyChanged;
         }
+
+        // Wire up live preview: editor changes → debounced preview refresh
+        if (_nativeEditor != null)
+        {
+            _nativeEditor.ContentEdited += NativeEditor_ContentEdited;
+        }
+    }
+
+    private void NativeEditor_ContentEdited(object? sender, EventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm && _nativeEditor != null)
+        {
+            vm.EditorContent = _nativeEditor.GetContent();
+            _ = vm.DebouncedRefreshPreview();
+        }
     }
 
     private void OnUnloaded(object? sender, EventArgs e)
@@ -105,7 +120,12 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
     {
         var result = await StorageFileOpenService.OpenMarkdownAsync(file).ConfigureAwait(true);
         if (DataContext is MainWindowViewModel vm)
+        {
             vm.ApplyOpenedMarkdown(result);
+
+            if (result.Succeeded)
+                ApplyViewModelContentToEditor();
+        }
 
         return result;
     }
@@ -151,7 +171,17 @@ public partial class MarkdownEditorTab : UserControl, IMarkdownEditorHost
     private void SyncLiveEditorContent()
     {
         if (GetNativeEditor() is { } nativeEditor && DataContext is MainWindowViewModel vm)
-            vm.EditorContent = nativeEditor.GetContent();
+        {
+            var content = nativeEditor.GetContent();
+            vm.EditorContent = content;
+            nativeEditor.SetContent(content);
+        }
+    }
+
+    private void ApplyViewModelContentToEditor()
+    {
+        if (GetNativeEditor() is { } nativeEditor && DataContext is MainWindowViewModel vm)
+            nativeEditor.SetContent(vm.EditorContent);
     }
 
     public async Task OpenPdfFileAsync()

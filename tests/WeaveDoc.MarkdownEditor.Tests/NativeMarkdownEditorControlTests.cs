@@ -95,6 +95,19 @@ public class NativeMarkdownEditorControlTests
     }
 
     [AvaloniaTest]
+    public void EditorConfiguration_DefaultsToNonWrappingEditingWithHorizontalScroll()
+    {
+        var control = new NativeMarkdownEditorControl();
+        var textEditor = FindInnerEditor(control);
+        var fallbackEditor = FindPlainTextFallbackEditor(control);
+
+        Assert.That(textEditor.WordWrap, Is.False);
+        Assert.That(textEditor.HorizontalScrollBarVisibility.ToString(), Is.EqualTo("Auto"));
+        Assert.That(fallbackEditor.TextWrapping, Is.EqualTo(TextWrapping.NoWrap));
+        Assert.That(ScrollViewer.GetHorizontalScrollBarVisibility(fallbackEditor).ToString(), Is.EqualTo("Auto"));
+    }
+
+    [AvaloniaTest]
     public void WrapSelection_WrapsSelectedTextAndPreservesInnerSelection()
     {
         var control = new NativeMarkdownEditorControl();
@@ -155,11 +168,13 @@ public class NativeMarkdownEditorControlTests
     public void MarkdownGrammar_DefaultInitializationLeavesPlainEditingUsable()
     {
         var control = new NativeMarkdownEditorControl();
+        var textEditor = FindInnerEditor(control);
 
         control.SetContent("# Heading");
 
         Assert.That(control.IsMarkdownGrammarLoaded, Is.True);
         Assert.That(control.MarkdownGrammarStatusText, Does.Contain("已加载"));
+        Assert.That(textEditor.WordWrap, Is.False);
         Assert.That(control.GetContent(), Is.EqualTo("# Heading"));
     }
 
@@ -168,16 +183,18 @@ public class NativeMarkdownEditorControlTests
     {
         var control = new NativeMarkdownEditorControl(_ =>
             throw new InvalidOperationException("broken grammar"));
+        var textEditor = FindInnerEditor(control);
 
         control.SetContent("# Still editable");
 
         Assert.That(control.IsMarkdownGrammarLoaded, Is.False);
         Assert.That(control.MarkdownGrammarStatusText, Does.Contain("broken grammar"));
+        Assert.That(textEditor.WordWrap, Is.False);
         Assert.That(control.GetContent(), Is.EqualTo("# Still editable"));
     }
 
     [AvaloniaTest]
-    public void LargeContent_UsesPlainNonWrappingPerformanceModeAndRestoresForSmallContent()
+    public void LargeContent_KeepsTextMateGrammarAndUsesNonWrappingMode()
     {
         var control = new NativeMarkdownEditorControl();
         var textEditor = FindInnerEditor(control);
@@ -186,36 +203,30 @@ public class NativeMarkdownEditorControlTests
         control.SetContent(largeContent);
 
         Assert.That(control.GetContent(), Is.EqualTo(largeContent));
-        Assert.That(control.IsMarkdownGrammarLoaded, Is.False);
-        Assert.That(control.MarkdownGrammarStatusText, Does.Contain("大 Markdown 文件"));
-        Assert.That(textEditor.WordWrap, Is.False);
-        Assert.That(control.HasUnsyncedContent, Is.False);
-
-        control.SetContent("# Small");
-
-        Assert.That(control.GetContent(), Is.EqualTo("# Small"));
-        Assert.That(textEditor.WordWrap, Is.True);
         Assert.That(control.IsMarkdownGrammarLoaded, Is.True);
+        Assert.That(control.MarkdownGrammarStatusText, Does.Contain("已加载"));
+        Assert.That(textEditor.WordWrap, Is.False);
         Assert.That(control.HasUnsyncedContent, Is.False);
     }
 
     [AvaloniaTest]
-    public void MathMarkdown_UsesPlainHighlightingModeButKeepsWordWrap()
+    public void MathMarkdown_KeepsTextMateGrammarAndUsesNonWrappingMode()
     {
         var control = new NativeMarkdownEditorControl();
         var textEditor = FindInnerEditor(control);
 
         control.SetContent("# Math\n\nInline formula: $x + y = z$");
 
-        Assert.That(control.IsMarkdownGrammarLoaded, Is.False);
-        Assert.That(control.MarkdownGrammarStatusText, Does.Contain("LaTeX"));
-        Assert.That(textEditor.WordWrap, Is.True);
+        Assert.That(control.IsMarkdownGrammarLoaded, Is.True);
+        Assert.That(control.IsUsingPlainTextFallback, Is.False);
+        Assert.That(control.MarkdownGrammarStatusText, Does.Contain("已加载"));
+        Assert.That(textEditor.WordWrap, Is.False);
         Assert.That(control.GetContent(), Does.Contain("$x + y = z$"));
         Assert.That(control.HasUnsyncedContent, Is.False);
     }
 
     [AvaloniaTest]
-    public void UserTextChange_ToLargeContentUsesPerformanceModeWithoutUpdatingSnapshot()
+    public void UserTextChange_ToLargeContentKeepsTextMateAndDoesNotUpdateSnapshot()
     {
         var control = new NativeMarkdownEditorControl();
         var textEditor = FindInnerEditor(control);
@@ -227,13 +238,13 @@ public class NativeMarkdownEditorControlTests
         Assert.That(control.EditorContent, Is.EqualTo("# Small"));
         Assert.That(control.GetContent(), Is.EqualTo(largeContent));
         Assert.That(control.HasUnsyncedContent, Is.True);
-        Assert.That(control.IsMarkdownGrammarLoaded, Is.False);
-        Assert.That(control.MarkdownGrammarStatusText, Does.Contain("大 Markdown 文件"));
+        Assert.That(control.IsMarkdownGrammarLoaded, Is.True);
+        Assert.That(control.MarkdownGrammarStatusText, Does.Contain("已加载"));
         Assert.That(textEditor.WordWrap, Is.False);
     }
 
     [AvaloniaTest]
-    public void UserTextChange_AddsMathMarkdownUsesPerformanceModeWithoutUpdatingSnapshot()
+    public void UserTextChange_AddsMathMarkdownKeepsTextMateAndDoesNotUpdateSnapshot()
     {
         var control = new NativeMarkdownEditorControl();
         var textEditor = FindInnerEditor(control);
@@ -244,9 +255,49 @@ public class NativeMarkdownEditorControlTests
         Assert.That(control.EditorContent, Is.EqualTo("# Small"));
         Assert.That(control.GetContent(), Does.Contain("$x + y$"));
         Assert.That(control.HasUnsyncedContent, Is.True);
+        Assert.That(control.IsMarkdownGrammarLoaded, Is.True);
+        Assert.That(control.MarkdownGrammarStatusText, Does.Contain("已加载"));
+        Assert.That(textEditor.WordWrap, Is.False);
+    }
+
+    [AvaloniaTest]
+    public void DisplayMathLine_UsesPlainTextFallbackAndKeepsNonWrappingSelection()
+    {
+        var control = new NativeMarkdownEditorControl();
+        var textEditor = FindInnerEditor(control);
+        var fallbackEditor = FindPlainTextFallbackEditor(control);
+        var formula = @"$$\Gamma \Delta \Theta \Lambda \Xi \Pi \Sigma \Upsilon \Phi \Psi \Omega$$";
+
+        control.SetContent("# Display math\n\n" + formula + "\n");
+        control.SetSelection("# Display math\n\n".Length, formula.Length);
+
+        Assert.That(formula.Length, Is.LessThan(80));
+        Assert.That(control.GetSelection().Text, Is.EqualTo(formula));
         Assert.That(control.IsMarkdownGrammarLoaded, Is.False);
-        Assert.That(control.MarkdownGrammarStatusText, Does.Contain("LaTeX"));
-        Assert.That(textEditor.WordWrap, Is.True);
+        Assert.That(control.IsUsingPlainTextFallback, Is.True);
+        Assert.That(control.MarkdownGrammarStatusText, Does.Contain("纯文本编辑模式"));
+        Assert.That(textEditor.IsVisible, Is.False);
+        Assert.That(fallbackEditor.IsVisible, Is.True);
+        Assert.That(textEditor.WordWrap, Is.False);
+        Assert.That(fallbackEditor.TextWrapping, Is.EqualTo(TextWrapping.NoWrap));
+        Assert.That(ScrollViewer.GetHorizontalScrollBarVisibility(fallbackEditor).ToString(), Is.EqualTo("Auto"));
+    }
+
+    [AvaloniaTest]
+    public void PlainTextFallbackEdits_AreExposedThroughSharedEditorApi()
+    {
+        var control = new NativeMarkdownEditorControl();
+        var fallbackEditor = FindPlainTextFallbackEditor(control);
+        control.SetContent("Before\n$$x$$");
+
+        fallbackEditor.Text = "Before\n$$x + y$$";
+        control.SetSelection("Before\n".Length, "$$x + y$$".Length);
+        control.WrapSelection("**", "**");
+
+        Assert.That(control.IsUsingPlainTextFallback, Is.True);
+        Assert.That(control.GetContent(), Is.EqualTo("Before\n**$$x + y$$**"));
+        Assert.That(control.HasUnsyncedContent, Is.True);
+        Assert.That(control.GetSelection().Text, Is.EqualTo("$$x + y$$"));
     }
 
     [AvaloniaTest]
@@ -289,4 +340,11 @@ public class NativeMarkdownEditorControlTests
         return control.FindControl<TextEditor>("Editor")
             ?? throw new InvalidOperationException("Native Markdown editor inner TextEditor was not found.");
     }
+
+    private static TextBox FindPlainTextFallbackEditor(NativeMarkdownEditorControl control)
+    {
+        return control.FindControl<TextBox>("PlainTextFallbackEditor")
+            ?? throw new InvalidOperationException("Native Markdown editor plain text fallback was not found.");
+    }
+
 }

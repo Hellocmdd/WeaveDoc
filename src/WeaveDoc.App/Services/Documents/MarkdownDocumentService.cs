@@ -6,16 +6,16 @@ public sealed class MarkdownDocumentService : IMarkdownDocumentService
 {
     private static readonly string[] SupportedExtensions = [".md", ".markdown", ".txt"];
 
-    private readonly MarkdownService _markdownService;
+    private readonly IMarkdownRenderService _markdownRenderService;
 
     public MarkdownDocumentService()
-        : this(new MarkdownService())
+        : this(new MarkdigMarkdownRenderService())
     {
     }
 
-    internal MarkdownDocumentService(MarkdownService markdownService)
+    internal MarkdownDocumentService(IMarkdownRenderService markdownRenderService)
     {
-        _markdownService = markdownService ?? throw new ArgumentNullException(nameof(markdownService));
+        _markdownRenderService = markdownRenderService ?? throw new ArgumentNullException(nameof(markdownRenderService));
     }
 
     public async Task<MarkdownDocumentResult> ReadAsync(
@@ -100,7 +100,7 @@ public sealed class MarkdownDocumentService : IMarkdownDocumentService
 
     private string CreatePreviewHtml(string content)
     {
-        return _markdownService.ConvertMarkdownToHtmlWithCharPositions(content);
+        return _markdownRenderService.RenderPreviewHtml(content);
     }
 
     private string CreatePreviewHtmlOrEmpty(string content)

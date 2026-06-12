@@ -15,8 +15,10 @@ internal static class WebViewRenderPolicy
             return false;
         }
 
-        return description.Contains("SupportedScenarios = NativeDialog", StringComparison.OrdinalIgnoreCase)
-            || description.Contains("IsSupported = False", StringComparison.OrdinalIgnoreCase)
+        // NativeDialog: WebView renders as a floating dialog (not embedded).
+        // The content IS visible — just sized differently. Do not fallback.
+        // Only fallback when the adapter genuinely cannot render.
+        return description.Contains("IsSupported = False", StringComparison.OrdinalIgnoreCase)
             || description.Contains("IsInstalled = False", StringComparison.OrdinalIgnoreCase);
     }
 

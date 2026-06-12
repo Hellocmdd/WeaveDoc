@@ -117,13 +117,13 @@ public sealed class NativeWebViewHost : IWebViewHost
 
         if (e is LinuxWpeWebViewEnvironmentRequestedEventArgs linuxWpe)
         {
-            linuxWpe.PreferWebKitGtkInstead = false;
-            Logger.Log("NativeWebViewHost environment requested: Linux WPE preferred over WebKitGTK.");
+            linuxWpe.PreferWebKitGtkInstead = true;
+            Logger.Log("NativeWebViewHost environment requested: Linux WPE event — preferring WebKitGTK instead.");
         }
         else if (e is GtkWebViewEnvironmentRequestedEventArgs gtk)
         {
             gtk.ExperimentalOffscreen = true;
-            Logger.Log("NativeWebViewHost environment requested: GTK experimental offscreen enabled.");
+            Logger.Log("NativeWebViewHost environment requested: GTK experimental offscreen ENABLED.");
         }
     }
 

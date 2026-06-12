@@ -56,14 +56,32 @@ namespace WeaveDoc.MarkdownEditor.Views
 
             if (DataContext is MainWindowViewModel vm)
             {
-                _nativeEditor?.SetContent(vm.EditorContent);
+                ApplyViewModelContentToEditorIfNotEmpty();
                 _previewWebView?.SetContent(vm.PreviewHtml);
+                UpdatePreviewPaneVisibility(vm);
                 vm.PropertyChanged += ViewModel_PropertyChanged;
+            }
+
+            // Wire up live preview: editor changes → debounced preview refresh
+            if (_nativeEditor != null)
+            {
+                _nativeEditor.ContentEdited += NativeEditor_ContentEdited;
             }
 
             if (!string.IsNullOrEmpty(InitialFilePath))
             {
                 await OpenFileFromPathAsync(InitialFilePath);
+            }
+
+        }
+
+        private void NativeEditor_ContentEdited(object? sender, EventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm && _nativeEditor != null)
+            {
+                // Sync editor content to ViewModel before refreshing preview
+                vm.EditorContent = _nativeEditor.GetContent();
+                _ = vm.DebouncedRefreshPreview();
             }
         }
 
@@ -94,6 +112,7 @@ namespace WeaveDoc.MarkdownEditor.Views
                 if (e.PropertyName == nameof(MainWindowViewModel.PreviewHtml) && _previewWebView != null)
                 {
                     _previewWebView.SetContent(vm.PreviewHtml);
+                    UpdatePreviewPaneVisibility(vm);
                 }
             }
         }
@@ -131,7 +150,15 @@ namespace WeaveDoc.MarkdownEditor.Views
         {
             var result = await StorageFileOpenService.OpenMarkdownAsync(file).ConfigureAwait(true);
             if (DataContext is MainWindowViewModel vm)
+            {
                 vm.ApplyOpenedMarkdown(result);
+
+                if (result.Succeeded)
+                {
+                    ApplyViewModelContentToEditor();
+                    UpdatePreviewPaneVisibility(vm);
+                }
+            }
 
             return result;
         }
@@ -159,8 +186,49 @@ namespace WeaveDoc.MarkdownEditor.Views
         {
             if (GetNativeEditor() is { } nativeEditor && DataContext is MainWindowViewModel vm)
             {
-                vm.EditorContent = nativeEditor.GetContent();
+                var content = nativeEditor.GetContent();
+                vm.EditorContent = content;
+                nativeEditor.SetContent(content);
             }
+        }
+
+        private void ApplyViewModelContentToEditorIfNotEmpty()
+        {
+            if (DataContext is MainWindowViewModel vm && string.IsNullOrEmpty(vm.EditorContent))
+                return;
+
+            ApplyViewModelContentToEditor();
+        }
+
+        private void ApplyViewModelContentToEditor()
+        {
+            if (GetNativeEditor() is { } nativeEditor && DataContext is MainWindowViewModel vm)
+            {
+                nativeEditor.SetContent(vm.EditorContent);
+            }
+        }
+
+        private void UpdatePreviewPaneVisibility(MainWindowViewModel? viewModel = null)
+        {
+            viewModel ??= DataContext as MainWindowViewModel;
+
+            var layoutGrid = this.FindControl<Grid>("MarkdownEditorLayoutGrid");
+            var editorPane = this.FindControl<Border>("EditorPane");
+            var previewPane = this.FindControl<Border>("PreviewPane");
+            if (layoutGrid?.ColumnDefinitions.Count < 2 || previewPane == null)
+                return;
+
+            var hasPreview = !string.IsNullOrWhiteSpace(viewModel?.PreviewHtml);
+            
+            WeaveDoc.MarkdownEditor.Helpers.Logger.Log($"[DIAG] UpdatePreviewPaneVisibility: hasPreview={hasPreview}, PreviewHtml.Length={viewModel?.PreviewHtml?.Length ?? 0}");
+
+            layoutGrid.ColumnDefinitions[1].Width = hasPreview
+                ? new GridLength(1, GridUnitType.Star)
+                : new GridLength(0);
+            previewPane.IsVisible = hasPreview;
+
+            if (editorPane != null)
+                editorPane.Margin = hasPreview ? new Thickness(0, 0, 4, 0) : new Thickness(0);
         }
 
         public async Task SaveMarkdownFileAsAsync()
@@ -190,6 +258,28 @@ namespace WeaveDoc.MarkdownEditor.Views
         private async void SaveFile_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             await SaveMarkdownFileAsync();
+        }
+
+        private async void PreviewToggle_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            SyncLiveEditorContent();
+
+            if (DataContext is MainWindowViewModel vm)
+            {
+                vm.RefreshPreview();
+                WeaveDoc.MarkdownEditor.Helpers.Logger.Log($"[DIAG] PreviewToggle: PreviewHtml length={vm.PreviewHtml.Length}");
+
+                _previewWebView?.SetContent(vm.PreviewHtml);
+
+                UpdatePreviewPaneVisibility(vm);
+
+                if (_previewWebView != null)
+                {
+                    WeaveDoc.MarkdownEditor.Helpers.Logger.Log("[DIAG] PreviewToggle: calling Activate...");
+                    await _previewWebView.Activate(false);
+                    WeaveDoc.MarkdownEditor.Helpers.Logger.Log("[DIAG] PreviewToggle: Activate returned.");
+                }
+            }
         }
 
         private async void SaveAsFile_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -450,6 +540,7 @@ namespace WeaveDoc.MarkdownEditor.Views
                         if (DataContext is MainWindowViewModel vm)
                         {
                             _previewWebView.SetContent(vm.PreviewHtml);
+                            UpdatePreviewPaneVisibility(vm);
                         }
                     }
                 }

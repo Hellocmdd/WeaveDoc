@@ -170,8 +170,7 @@
           </Grid>
 
           <controls:NativeMarkdownEditorControl x:Name="MarkdownEditorControl"
-                                                IsVisible="{Binding IsMarkdownEditorVisible}"
-                                                EditorContent="{Binding DocumentWorkspace.Content}" />
+                                                IsVisible="{Binding IsMarkdownEditorVisible}" />
 
           <controls:PreviewWebViewControl x:Name="MarkdownPreviewControl"
                                           IsVisible="{Binding IsMarkdownPreviewVisible}"
