@@ -1,0 +1,73 @@
+位于分支 refactor/frontend-shell
+尚未暂存以备提交的变更：
+  （使用 "git add/rm <文件>..." 更新要提交的内容）
+  （使用 "git restore <文件>..." 丢弃工作区的改动）
+	修改：     .gitignore
+	修改：     src/WeaveDoc.App/App.axaml
+	修改：     src/WeaveDoc.App/Views/MainWindow.axaml
+	修改：     src/WeaveDoc.App/Views/MainWindow.axaml.cs
+	修改：     src/WeaveDoc.MarkdownEditor/App.axaml.cs
+	修改：     src/WeaveDoc.MarkdownEditor/Assets/monaco-editor/index.html
+	修改：     src/WeaveDoc.MarkdownEditor/Assets/preview-template.html
+	修改：     src/WeaveDoc.MarkdownEditor/Controls/MonacoEditorControl.axaml
+	修改：     src/WeaveDoc.MarkdownEditor/Controls/MonacoEditorControl.axaml.cs
+	修改：     src/WeaveDoc.MarkdownEditor/Controls/PdfViewerControl.axaml
+	修改：     src/WeaveDoc.MarkdownEditor/Controls/PdfViewerControl.axaml.cs
+	修改：     src/WeaveDoc.MarkdownEditor/Controls/PreviewWebViewControl.axaml
+	修改：     src/WeaveDoc.MarkdownEditor/Controls/PreviewWebViewControl.axaml.cs
+	删除：     src/WeaveDoc.MarkdownEditor/Controls/WebView2EnvironmentManager.cs
+	修改：     src/WeaveDoc.MarkdownEditor/README.md
+	修改：     src/WeaveDoc.MarkdownEditor/Services/Interop/WebViewInterop.cs
+	修改：     src/WeaveDoc.MarkdownEditor/ViewModels/MainWindowViewModel.cs
+	修改：     src/WeaveDoc.MarkdownEditor/Views/MainWindow.axaml
+	修改：     src/WeaveDoc.MarkdownEditor/Views/MainWindow.axaml.cs
+	修改：     src/WeaveDoc.MarkdownEditor/Views/MarkdownEditorTab.axaml
+	修改：     src/WeaveDoc.MarkdownEditor/Views/MarkdownEditorTab.axaml.cs
+	修改：     src/WeaveDoc.MarkdownEditor/WeaveDoc.MarkdownEditor.csproj
+	修改：     tests/WeaveDoc.App.Tests/MainWindowTests.cs
+	修改：     tests/WeaveDoc.App.Tests/TestAppBuilder.cs
+	修改：     tests/WeaveDoc.MarkdownEditor.Tests/MarkdownServiceTests.cs
+	修改：     tests/WeaveDoc.MarkdownEditor.Tests/PdfViewerControlTests.cs
+	修改：     tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj
+
+未跟踪的文件:
+  （使用 "git add <文件>..." 以包含要提交的内容）
+	.agents/
+	ORIGINAL_REQUEST.md
+	PROJECT.md
+	doc/task_doc/
+	"doc/\350\275\257\344\273\266\350\256\276\350\256\241/\347\225\214\351\235\242\350\256\276\350\256\241_demo/pnpm-workspace.yaml"
+	git_diff.txt
+	git_status.txt
+	src/WeaveDoc.App/Services/
+	src/WeaveDoc.App/ViewModels/AppShellViewModel.cs
+	src/WeaveDoc.App/ViewModels/DocumentWorkspaceViewModel.cs
+	src/WeaveDoc.App/Views/AiAssistantPanel.axaml
+	src/WeaveDoc.App/Views/AiAssistantPanel.axaml.cs
+	src/WeaveDoc.App/Views/EditorWorkspace.axaml
+	src/WeaveDoc.App/Views/EditorWorkspace.axaml.cs
+	src/WeaveDoc.App/Views/ShellStatusBar.axaml
+	src/WeaveDoc.App/Views/ShellStatusBar.axaml.cs
+	src/WeaveDoc.App/Views/WorkspaceSidebar.axaml
+	src/WeaveDoc.App/Views/WorkspaceSidebar.axaml.cs
+	src/WeaveDoc.MarkdownEditor/Controls/Web/
+	src/WeaveDoc.MarkdownEditor/Services/StorageFileOpenService.cs
+	test.md
+	tests/Harness/
+	tests/WeaveDoc.App.Tests/DocumentWorkspaceViewModelTests.cs
+	tests/WeaveDoc.App.Tests/Fakes/
+	tests/WeaveDoc.App.Tests/MarkdownDocumentContractsTests.cs
+	tests/WeaveDoc.App.Tests/MarkdownDocumentServiceTests.cs
+	tests/WeaveDoc.MarkdownEditor.Tests/AppCrashChallengeTests.cs
+	tests/WeaveDoc.MarkdownEditor.Tests/AppInitTests.cs
+	tests/WeaveDoc.MarkdownEditor.Tests/Fakes/
+	tests/WeaveDoc.MarkdownEditor.Tests/MainWindowOpenWorkflowTests.cs
+	tests/WeaveDoc.MarkdownEditor.Tests/MainWindowViewModelTests.cs
+	tests/WeaveDoc.MarkdownEditor.Tests/NativeWebViewStressTest.cs
+	tests/WeaveDoc.MarkdownEditor.Tests/PreviewTemplateCompatibilityTests.cs
+	tests/WeaveDoc.MarkdownEditor.Tests/StorageFileOpenServiceTests.cs
+	tests/WeaveDoc.MarkdownEditor.Tests/TestAppBuilder.cs
+	tests/WeaveDoc.MarkdownEditor.Tests/WebViewHostControlTests.cs
+	tests/manual/test-empty-arg.cs
+
+修改尚未加入提交（使用 "git add" 和/或 "git commit -a"）
