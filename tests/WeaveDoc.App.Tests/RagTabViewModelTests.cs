@@ -60,6 +60,50 @@ public sealed class RagTabViewModelTests
     }
 
     [Fact]
+    public void ChatBackendScopeSummary_StatesCloudOnlyChangesChatLlm()
+    {
+        var vm = NewViewModel();
+
+        vm.ChatProvider = "cloud";
+
+        Assert.Contains("只接管 Chat LLM", vm.ChatBackendScopeSummary);
+        Assert.Contains("Embedding", vm.ChatBackendScopeSummary);
+        Assert.Contains("reranker", vm.ChatBackendScopeSummary);
+        Assert.Contains("本地", vm.ChatBackendScopeSummary);
+    }
+
+    [Fact]
+    public void SelectedLocalLlamaModel_TogglesDeleteAvailability()
+    {
+        var vm = NewViewModel();
+        var model = new LocalLlamaModelItem("chat.gguf", "可用", "1.0 GB", "/tmp/chat.gguf");
+
+        Assert.False(vm.CanDeleteSelectedLocalLlamaModel);
+
+        vm.SelectedLocalLlamaModel = model;
+
+        Assert.True(vm.CanDeleteSelectedLocalLlamaModel);
+
+        vm.SelectedLocalLlamaModel = null;
+
+        Assert.False(vm.CanDeleteSelectedLocalLlamaModel);
+    }
+
+    [Fact]
+    public void UnloadModels_ResetsUiState()
+    {
+        var vm = NewViewModel();
+        vm.Turns.Add(new ChatTurn("用户", "hi", true));
+
+        vm.UnloadModels();
+
+        Assert.Equal("模型已卸载。", vm.StatusText);
+        Assert.Empty(vm.CorpusFiles);
+        Assert.Empty(vm.LastRankedChunks);
+        Assert.Equal("模型已卸载，尚未执行检索。", vm.RetrievalDebugText);
+    }
+
+    [Fact]
     public void ClearConversation_EmptiesTurnsAndResetsSnapshots()
     {
         var vm = NewViewModel();

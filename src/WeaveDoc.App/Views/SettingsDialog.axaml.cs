@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using WeaveDoc.App.ViewModels;
 using WeaveDoc.Converter.Afd;
 using WeaveDoc.Converter.Afd.Models;
 using WeaveDoc.Converter.Config;
+using WeaveDoc.Rag.Services;
 
 namespace WeaveDoc.App.Views;
 
@@ -100,6 +102,7 @@ public partial class SettingsDialog : Window
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
+        DefaultWorkspaceTextBox.Text = WorkspacePaths.FindWorkspaceRoot();
         SelectTab(_initialTab);
         await LoadTemplatesAsync();
         WireCloudApi();
@@ -140,6 +143,87 @@ public partial class SettingsDialog : Window
     private void OnSaveCloudClick(object? sender, RoutedEventArgs e)
     {
         _ragViewModel?.SaveCloudSettings();
+    }
+
+    private async void OnLoadModelsClick(object? sender, RoutedEventArgs e)
+    {
+        if (_ragViewModel is { } vm)
+        {
+            await vm.LoadModelsAsync();
+        }
+    }
+
+    private void OnUnloadModelsClick(object? sender, RoutedEventArgs e)
+    {
+        _ragViewModel?.UnloadModels();
+    }
+
+    private void OnRefreshLocalModelsClick(object? sender, RoutedEventArgs e)
+    {
+        _ragViewModel?.RefreshLocalModels();
+    }
+
+    private void OnDeleteLocalModelClick(object? sender, RoutedEventArgs e)
+    {
+        _ragViewModel?.DeleteSelectedLocalChatModel();
+    }
+
+    private async void OnImportLocalModelClick(object? sender, RoutedEventArgs e)
+    {
+        if (_ragViewModel is null)
+        {
+            return;
+        }
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "导入 GGUF Chat 模型",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("GGUF 模型")
+                {
+                    Patterns = ["*.gguf"],
+                    AppleUniformTypeIdentifiers = ["public.data"],
+                    MimeTypes = ["application/octet-stream"],
+                },
+            ],
+        });
+
+        var path = files.FirstOrDefault()?.TryGetLocalPath();
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            _ragViewModel.ImportLocalChatModel(path);
+        }
+    }
+
+    private async void OnBrowseModelDirectoryClick(object? sender, RoutedEventArgs e)
+    {
+        if (_ragViewModel is null)
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(_ragViewModel.LocalModelStoragePath);
+        OpenDirectory(_ragViewModel.LocalModelStoragePath);
+        await Task.CompletedTask;
+    }
+
+    private static void OpenDirectory(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true });
+            return;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            Process.Start("open", path);
+            return;
+        }
+
+        Process.Start("xdg-open", path);
     }
 
     // ── Template management (mirrors TemplateTab.axaml.cs) ──

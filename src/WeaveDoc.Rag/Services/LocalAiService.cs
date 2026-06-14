@@ -165,6 +165,32 @@ public sealed partial class LocalAiService : IDisposable
         }
     }
 
+    public void UnloadModels()
+    {
+        _chatProcess?.Dispose();
+        _chatProcess = null;
+        _rerankerProcess?.Dispose();
+        _rerankerProcess = null;
+        _embedder?.Dispose();
+        _embedder = null;
+        _embeddingWeights?.Dispose();
+        _embeddingWeights = null;
+        _embeddingCache = null;
+        _embeddingCacheChanged = false;
+
+        _chunks.Clear();
+        _indexedChunks.Clear();
+        _corpusFiles.Clear();
+        _documentFrequency.Clear();
+        ClearLastRetrievalSnapshots();
+        LastRetrievalDebug = "模型已卸载，尚未执行检索。";
+
+        _readyChatProvider = null;
+        _readyChatEndpoint = null;
+        _readyChatModel = null;
+        _initialized = false;
+    }
+
     public async Task<string> AskAsync(string question, IReadOnlyList<ChatTurn> history, CancellationToken cancellationToken = default)
     {
         await InitializeAsync(cancellationToken).ConfigureAwait(false);

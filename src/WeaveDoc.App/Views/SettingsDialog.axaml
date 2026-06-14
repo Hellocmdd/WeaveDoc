@@ -2,8 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:CompileBindings="False"
         x:Class="WeaveDoc.App.Views.SettingsDialog"
-        Width="640"
-        Height="520"
+        Width="760"
+        Height="760"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
@@ -126,19 +126,82 @@
       <!-- Body -->
       <Grid Background="{DynamicResource ShellCardBrush}">
 
-        <!-- 通用 (placeholder) -->
-        <StackPanel x:Name="GeneralPanel"
-                    IsVisible="True"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Spacing="6">
-          <TextBlock Text="通用设置" FontSize="13" FontWeight="SemiBold"
-                     Foreground="{DynamicResource ShellTextBrush}"
-                     HorizontalAlignment="Center" />
-          <TextBlock Text="该功能待接入" FontSize="11"
-                     Foreground="{DynamicResource ShellMutedTextBrush}"
-                     HorizontalAlignment="Center" />
-        </StackPanel>
+        <!-- 通用 -->
+        <ScrollViewer x:Name="GeneralPanel"
+                      IsVisible="True"
+                      Padding="16">
+          <StackPanel Spacing="12">
+            <Grid ColumnDefinitions="112,*,Auto"
+                  RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                  RowSpacing="8"
+                  ColumnSpacing="8">
+              <TextBlock Grid.Row="0" Grid.Column="0"
+                         Text="语言"
+                         FontSize="11"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource ShellMutedTextBrush}" />
+              <ComboBox Grid.Row="0" Grid.Column="1"
+                        SelectedIndex="0"
+                        FontSize="11"
+                        Background="{DynamicResource ShellInputBrush}"
+                        Foreground="{DynamicResource ShellTextBrush}">
+                <ComboBoxItem Content="中文简体" />
+              </ComboBox>
+
+              <TextBlock Grid.Row="1" Grid.Column="0"
+                         Text="默认工作区"
+                         FontSize="11"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource ShellMutedTextBrush}" />
+              <TextBox Grid.Row="1" Grid.Column="1"
+                       x:Name="DefaultWorkspaceTextBox"
+                       IsReadOnly="True"
+                       FontSize="11"
+                       BorderThickness="1"
+                       BorderBrush="{DynamicResource ShellBorderBrush}"
+                       Background="{DynamicResource ShellInputBrush}"
+                       Foreground="{DynamicResource ShellTextBrush}"
+                       Padding="6,4" />
+              <Button Grid.Row="1" Grid.Column="2"
+                      Classes="dlg-chip"
+                      Content="浏览" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0"
+                         Text="编辑器字体"
+                         FontSize="11"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource ShellMutedTextBrush}" />
+              <TextBox Grid.Row="2" Grid.Column="1"
+                       Text="JetBrains Mono"
+                       FontSize="11"
+                       BorderThickness="1"
+                       BorderBrush="{DynamicResource ShellBorderBrush}"
+                       Background="{DynamicResource ShellInputBrush}"
+                       Foreground="{DynamicResource ShellTextBrush}"
+                       Padding="6,4" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0"
+                         Text="编辑器字号"
+                         FontSize="11"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource ShellMutedTextBrush}" />
+              <TextBox Grid.Row="3" Grid.Column="1"
+                       Text="14 px"
+                       FontSize="11"
+                       BorderThickness="1"
+                       BorderBrush="{DynamicResource ShellBorderBrush}"
+                       Background="{DynamicResource ShellInputBrush}"
+                       Foreground="{DynamicResource ShellTextBrush}"
+                       Padding="6,4" />
+
+              <CheckBox Grid.Row="4" Grid.Column="1"
+                        Content="启动时恢复上次工作区"
+                        IsChecked="True"
+                        FontSize="11"
+                        Foreground="{DynamicResource ShellTextBrush}" />
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
 
         <!-- 模型管理：本地模型占位 + 云 API 栏目 -->
         <Grid x:Name="ModelsPanel"
@@ -161,16 +224,15 @@
           <ScrollViewer x:Name="ModelsContent"
                         IsVisible="False"
                         Padding="16">
-            <StackPanel Spacing="14">
+            <StackPanel Spacing="12">
 
-              <!-- 当前生效配置：一眼看出在用本地还是云 API -->
               <Border Background="{DynamicResource ShellInputBrush}"
                       BorderBrush="{DynamicResource ShellAccentBrush}"
                       BorderThickness="3,0,0,0"
                       CornerRadius="{DynamicResource ShellRadiusSm}"
                       Padding="12,8">
-                <StackPanel Spacing="3">
-                  <TextBlock Text="当前生效配置"
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Chat LLM"
                              FontSize="10"
                              Foreground="{DynamicResource ShellMutedTextBrush}" />
                   <StackPanel Orientation="Horizontal" Spacing="6">
@@ -187,12 +249,69 @@
                                TextWrapping="Wrap"
                                Foreground="{DynamicResource ShellTextBrush}" />
                   </StackPanel>
+                  <TextBlock Text="{Binding ChatBackendScopeSummary}"
+                             FontSize="11"
+                             TextWrapping="Wrap"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
                 </StackPanel>
               </Border>
 
-              <!-- 推理后端选择（顶层，不再埋在「云 API」栏目下） -->
-              <StackPanel Spacing="6">
-                <TextBlock Text="推理后端"
+              <StackPanel Spacing="8">
+                <TextBlock Text="本地检索模型" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource ShellTextBrush}" />
+                <Grid ColumnDefinitions="112,*"
+                      RowDefinitions="Auto,Auto"
+                      RowSpacing="8"
+                      ColumnSpacing="8">
+                  <TextBlock Grid.Row="0" Grid.Column="0"
+                             Text="Embedding"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                  <TextBox Grid.Row="0" Grid.Column="1"
+                           Text="{Binding LocalEmbeddingModelSummary}"
+                           IsReadOnly="True"
+                           FontSize="11"
+                           BorderThickness="1"
+                           BorderBrush="{DynamicResource ShellBorderBrush}"
+                           Background="{DynamicResource ShellInputBrush}"
+                           Foreground="{DynamicResource ShellTextBrush}"
+                           Padding="6,4" />
+                  <TextBlock Grid.Row="1" Grid.Column="0"
+                             Text="Reranker"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                  <TextBox Grid.Row="1" Grid.Column="1"
+                           Text="{Binding LocalRerankerModelSummary}"
+                           IsReadOnly="True"
+                           FontSize="11"
+                           BorderThickness="1"
+                           BorderBrush="{DynamicResource ShellBorderBrush}"
+                           Background="{DynamicResource ShellInputBrush}"
+                           Foreground="{DynamicResource ShellTextBrush}"
+                           Padding="6,4" />
+                </Grid>
+                <Border Background="{DynamicResource ShellInputBrush}"
+                        BorderBrush="{DynamicResource ShellWarningBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="10,8">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="▣"
+                               FontSize="12"
+                               Foreground="{DynamicResource ShellWarningBrush}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding LocalMemorySummary}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource ShellTextBrush}" />
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+
+              <StackPanel Spacing="8">
+                <TextBlock Text="Chat 后端"
                            FontSize="13" FontWeight="SemiBold"
                            Foreground="{DynamicResource ShellTextBrush}" />
                 <StackPanel Orientation="Horizontal" Spacing="16">
@@ -205,27 +324,136 @@
                 </StackPanel>
               </StackPanel>
 
-              <!-- 栏目① 本地模型（仅本地后端时显示；GGUF 加载/卸载为后端缺口，占位） -->
-              <StackPanel Spacing="6"
-                          IsVisible="{Binding IsLocalProviderSelected}">
-                <TextBlock Text="本地模型" FontSize="13" FontWeight="SemiBold"
+              <StackPanel Spacing="8">
+                <TextBlock Text="模型操作"
+                           FontSize="13" FontWeight="SemiBold"
                            Foreground="{DynamicResource ShellTextBrush}" />
-                <Border Background="{DynamicResource ShellInputBrush}"
-                        BorderBrush="{DynamicResource ShellBorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="{DynamicResource ShellRadiusSm}"
-                        Padding="12,10">
-                  <StackPanel Spacing="2">
-                    <TextBlock Text="该功能待接入" FontSize="11"
-                               Foreground="{DynamicResource ShellTextBrush}" />
-                    <TextBlock Text="本地 GGUF 模型的加载/卸载与内存监控暂未实现；当前可使用云 API 或本地 llama-server。"
-                               FontSize="10" TextWrapping="Wrap"
-                               Foreground="{DynamicResource ShellMutedTextBrush}" />
-                  </StackPanel>
-                </Border>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="dlg primary" Content="加载" Click="OnLoadModelsClick" />
+                  <Button Classes="dlg" Content="卸载" Click="OnUnloadModelsClick" />
+                  <Button Classes="dlg" Content="刷新" Click="OnRefreshLocalModelsClick" />
+                </StackPanel>
               </StackPanel>
 
-              <!-- 栏目② 云 API（仅云后端时显示） -->
+              <!-- 栏目① 本地 llama-server（仅本地 Chat 后端时显示） -->
+              <StackPanel Spacing="10"
+                          IsVisible="{Binding IsLocalProviderSelected}">
+                <TextBlock Text="本地 llama-server" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource ShellTextBrush}" />
+
+                <StackPanel Spacing="6">
+                  <TextBlock Text="LLM 模型"
+                             FontSize="11"
+                             FontWeight="Medium"
+                             Foreground="{DynamicResource ShellTextBrush}" />
+                  <Border BorderBrush="{DynamicResource ShellBorderBrush}"
+                          BorderThickness="1"
+                          CornerRadius="4"
+                          ClipToBounds="True">
+                    <Grid>
+                      <ListBox ItemsSource="{Binding LocalLlamaServerModels}"
+                               SelectedItem="{Binding SelectedLocalLlamaModel}"
+                               IsVisible="{Binding HasLocalLlamaServerModels}"
+                               Background="{DynamicResource ShellCardBrush}"
+                               BorderThickness="0"
+                               MinHeight="84"
+                               MaxHeight="150">
+                        <ListBox.ItemTemplate>
+                          <DataTemplate>
+                            <Border Padding="8"
+                                    BorderBrush="{DynamicResource ShellBorderBrush}"
+                                    BorderThickness="0,0,0,1">
+                              <Grid ColumnDefinitions="*,76,70"
+                                    ColumnSpacing="8">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding Name}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource ShellTextBrush}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Status}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource ShellSuccessBrush}" />
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding Size}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ListBox.ItemTemplate>
+                      </ListBox>
+                      <Border Padding="10"
+                              IsVisible="{Binding HasNoLocalLlamaServerModels}">
+                        <TextBlock Text="models/ 下未发现可用于 llama-server 的聊天 GGUF 模型"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource ShellMutedTextBrush}" />
+                      </Border>
+                    </Grid>
+                  </Border>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="dlg danger" Content="删除" IsEnabled="{Binding CanDeleteSelectedLocalLlamaModel}" Click="OnDeleteLocalModelClick" />
+                  <Button Classes="dlg" Content="导入模型" Click="OnImportLocalModelClick" />
+                </StackPanel>
+
+                <Grid ColumnDefinitions="112,*,Auto"
+                      RowDefinitions="Auto,Auto,Auto"
+                      RowSpacing="8"
+                      ColumnSpacing="8">
+                  <TextBlock Grid.Row="0" Grid.Column="0"
+                             Text="Endpoint"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                  <TextBox Grid.Row="0" Grid.Column="1"
+                           Text="{Binding LocalLlamaServerEndpoint}"
+                           IsReadOnly="True"
+                           FontSize="11"
+                           BorderThickness="1"
+                           BorderBrush="{DynamicResource ShellBorderBrush}"
+                           Background="{DynamicResource ShellInputBrush}"
+                           Foreground="{DynamicResource ShellTextBrush}"
+                           Padding="6,4" />
+
+                  <TextBlock Grid.Row="1" Grid.Column="0"
+                             Text="模型路径"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                  <TextBox Grid.Row="1" Grid.Column="1"
+                           Text="{Binding LocalModelStoragePath}"
+                           IsReadOnly="True"
+                           FontSize="11"
+                           BorderThickness="1"
+                           BorderBrush="{DynamicResource ShellBorderBrush}"
+                           Background="{DynamicResource ShellInputBrush}"
+                           Foreground="{DynamicResource ShellTextBrush}"
+                           Padding="6,4" />
+                  <Button Grid.Row="1" Grid.Column="2"
+                          Classes="dlg-chip"
+                          Content="浏览"
+                          Click="OnBrowseModelDirectoryClick" />
+
+                  <TextBlock Grid.Row="2" Grid.Column="0"
+                             Text="Chat 模型"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                  <TextBox Grid.Row="2" Grid.Column="1"
+                           Text="{Binding LocalLlamaServerModel}"
+                           IsReadOnly="True"
+                           FontSize="11"
+                           BorderThickness="1"
+                           BorderBrush="{DynamicResource ShellBorderBrush}"
+                           Background="{DynamicResource ShellInputBrush}"
+                           Foreground="{DynamicResource ShellTextBrush}"
+                           Padding="6,4" />
+                </Grid>
+              </StackPanel>
+
+              <!-- 栏目② 云 API（仅云端 Chat 后端时显示） -->
               <StackPanel Spacing="8"
                           IsVisible="{Binding IsCloudProviderSelected}">
                 <TextBlock Text="云 API" FontSize="13" FontWeight="SemiBold"

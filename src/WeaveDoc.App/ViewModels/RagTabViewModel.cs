@@ -11,6 +11,8 @@ namespace WeaveDoc.App.ViewModels;
 /// <summary>UI-facing projection of a retrieved chunk — decouples views from RAG service internals.</summary>
 public sealed record RetrievalChunkItem(string Citation, string FilePath, string SectionTitle, string ContentKind, string Text);
 
+public sealed record LocalLlamaModelItem(string Name, string Status, string Size, string Path);
+
 public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
 {
     /// <summary>Minimum time between streamed UI flushes, to avoid per-token re-render cost.</summary>
@@ -34,6 +36,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
     private IReadOnlyList<RetrievalChunkItem> _lastContextChunks = [];
     private bool _lastUsedSparsePrefilter;
     private CancellationTokenSource? _sendCts;
+    private LocalLlamaModelItem? _selectedLocalLlamaModel;
 
     public RagTabViewModel(LocalAiService service)
     {
@@ -210,6 +213,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveProviderSummary)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProviderBadgeText)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProviderBadgeToolTip)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChatBackendScopeSummary)));
             }
         }
     }
@@ -314,6 +318,73 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
     public string ProviderBadgeToolTip => IsCloudProviderSelected
         ? $"当前回答由云 API 提供：{ActiveProviderSummary}"
         : $"当前回答由本地 llama-server 提供：{_service.LlamaServerModel} ({_service.LlamaServerEndpoint})";
+
+    public string LocalLlamaServerModel => _service.LlamaServerModel;
+
+    public string LocalLlamaServerEndpoint => _service.LlamaServerEndpoint;
+
+    public IReadOnlyList<LocalLlamaModelItem> LocalLlamaServerModels => DiscoverLocalLlamaServerModels();
+
+    public bool HasLocalLlamaServerModels => LocalLlamaServerModels.Count > 0;
+
+    public bool HasNoLocalLlamaServerModels => !HasLocalLlamaServerModels;
+
+    public LocalLlamaModelItem? SelectedLocalLlamaModel
+    {
+        get => _selectedLocalLlamaModel;
+        set
+        {
+            if (SetProperty(ref _selectedLocalLlamaModel, value))
+            {
+                OnPropertyChanged(nameof(CanDeleteSelectedLocalLlamaModel));
+            }
+        }
+    }
+
+    public bool CanDeleteSelectedLocalLlamaModel => SelectedLocalLlamaModel is not null;
+
+    public string ChatBackendScopeSummary => IsCloudProviderSelected
+        ? "云 API 只接管 Chat LLM；Embedding 与 reranker 仍使用本地 models/ 下的 GGUF 模型。"
+        : "本地 llama-server 提供 Chat LLM；Embedding 与 reranker 同样使用本地模型。";
+
+    public string LocalEmbeddingModelSummary
+    {
+        get
+        {
+            var fileName = Environment.GetEnvironmentVariable("RAG_EMBEDDING_MODEL_FILE");
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                fileName = "bge-m3.gguf";
+            }
+
+            return $"{fileName.Trim()} · 本地 embedding · 启动时加载";
+        }
+    }
+
+    public string LocalRerankerModelSummary
+    {
+        get
+        {
+            var enabled = Environment.GetEnvironmentVariable("RAG_RERANKER_ENABLED");
+            if (string.Equals(enabled, "false", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(enabled, "0", StringComparison.OrdinalIgnoreCase))
+            {
+                return "已关闭 · 本地 reranker";
+            }
+
+            var model = Environment.GetEnvironmentVariable("RAG_RERANKER_MODEL");
+            if (string.IsNullOrWhiteSpace(model))
+            {
+                model = "bge-reranker-v2-m3";
+            }
+
+            return $"{model.Trim()} · 本地 reranker · 按需启动";
+        }
+    }
+
+    public string LocalModelStoragePath => Path.Combine(_service.WorkspaceRoot, "models");
+
+    public string LocalMemorySummary => "加载会准备 embedding、语料索引、当前 Chat 后端，并按配置启动本地 reranker；卸载会释放本地模型与 llama-server 进程。";
 
     /// <summary>Allowed values for <see cref="CloudReasoningEffort"/> (cloud thinking models).</summary>
     public string[] ReasoningEffortOptions { get; } = ["low", "medium", "high"];
@@ -584,6 +655,137 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public async Task LoadModelsAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        _service.CloudSettings = _cloudSettings;
+        IsBusy = true;
+        StatusText = IsCloudProviderSelected
+            ? "正在加载本地检索模型，并检查云端 Chat LLM..."
+            : "正在加载本地检索模型，并启动 llama-server...";
+        try
+        {
+            lock (_initializationGate)
+            {
+                _initializationTask = null;
+            }
+
+            _isInitialized = false;
+            var initialized = await EnsureInitializedAsync();
+            if (initialized)
+            {
+                RefreshCorpusState();
+                RefreshModelManagementState();
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public void UnloadModels()
+    {
+        if (IsBusy)
+        {
+            StatusText = "请等待当前操作完成后再卸载模型。";
+            return;
+        }
+
+        StopGenerating();
+        _service.UnloadModels();
+        lock (_initializationGate)
+        {
+            _initializationTask = null;
+        }
+
+        _isInitialized = false;
+        CorpusFiles.Clear();
+        LastRankedChunks = [];
+        LastContextChunks = [];
+        SourceText = string.Empty;
+        RetrievalDebugText = _service.LastRetrievalDebug;
+        StatusText = "模型已卸载。";
+        RefreshModelManagementState();
+    }
+
+    public void RefreshLocalModels()
+    {
+        RefreshModelManagementState();
+        StatusText = "本地模型列表已刷新。";
+    }
+
+    public void ImportLocalChatModel(string sourcePath)
+    {
+        if (IsBusy)
+        {
+            StatusText = "请等待当前操作完成后再导入模型。";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+        {
+            StatusText = "请选择有效的 GGUF 模型文件。";
+            return;
+        }
+
+        if (!Path.GetExtension(sourcePath).Equals(".gguf", StringComparison.OrdinalIgnoreCase))
+        {
+            StatusText = "只能导入 .gguf 模型文件。";
+            return;
+        }
+
+        Directory.CreateDirectory(LocalModelStoragePath);
+        var targetPath = Path.Combine(LocalModelStoragePath, Path.GetFileName(sourcePath));
+        if (!Path.GetFullPath(sourcePath).Equals(Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(sourcePath, targetPath, overwrite: true);
+        }
+
+        RefreshModelManagementState();
+        StatusText = $"已导入模型：{Path.GetFileName(targetPath)}";
+    }
+
+    public void DeleteSelectedLocalChatModel()
+    {
+        if (IsBusy)
+        {
+            StatusText = "请等待当前操作完成后再删除模型。";
+            return;
+        }
+
+        var selected = SelectedLocalLlamaModel;
+        if (selected is null)
+        {
+            StatusText = "请先选择要删除的 Chat GGUF 模型。";
+            return;
+        }
+
+        var modelsRoot = Path.GetFullPath(LocalModelStoragePath + Path.DirectorySeparatorChar);
+        var fullPath = Path.GetFullPath(selected.Path);
+        if (!fullPath.StartsWith(modelsRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            StatusText = "不允许删除模型目录之外的文件。";
+            return;
+        }
+
+        if (!File.Exists(fullPath))
+        {
+            StatusText = "模型文件不存在，列表已刷新。";
+            RefreshModelManagementState();
+            return;
+        }
+
+        File.Delete(fullPath);
+        SelectedLocalLlamaModel = null;
+        RefreshModelManagementState();
+        StatusText = $"已删除模型：{selected.Name}";
+    }
+
     public async Task DeleteSelectedDocumentAsync()
     {
         if (IsBusy)
@@ -699,6 +901,94 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
 
     private static RetrievalChunkItem ToItem(LocalAiService.RetrievalChunkSnapshot snapshot)
         => new(snapshot.Citation, snapshot.FilePath, snapshot.SectionTitle, snapshot.ContentKind, snapshot.Text);
+
+    private IReadOnlyList<LocalLlamaModelItem> DiscoverLocalLlamaServerModels()
+    {
+        var modelsRoot = LocalModelStoragePath;
+        if (!Directory.Exists(modelsRoot))
+        {
+            return [];
+        }
+
+        var configuredModel = ResolveConfiguredChatModelPath(modelsRoot);
+        return Directory.EnumerateFiles(modelsRoot, "*.gguf", SearchOption.TopDirectoryOnly)
+            .Where(IsLikelyChatModel)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .Select(path =>
+            {
+                var name = Path.GetFileName(path);
+                var status = string.Equals(path, configuredModel, StringComparison.OrdinalIgnoreCase)
+                    ? "当前配置"
+                    : "可用";
+                return new LocalLlamaModelItem(name, status, FormatFileSize(path), path);
+            })
+            .ToArray();
+    }
+
+    private void RefreshModelManagementState()
+    {
+        var previousPath = SelectedLocalLlamaModel?.Path;
+        OnPropertyChanged(nameof(LocalLlamaServerModels));
+        OnPropertyChanged(nameof(HasLocalLlamaServerModels));
+        OnPropertyChanged(nameof(HasNoLocalLlamaServerModels));
+        OnPropertyChanged(nameof(LocalLlamaServerModel));
+        OnPropertyChanged(nameof(LocalLlamaServerEndpoint));
+        OnPropertyChanged(nameof(LocalEmbeddingModelSummary));
+        OnPropertyChanged(nameof(LocalRerankerModelSummary));
+        OnPropertyChanged(nameof(LocalModelStoragePath));
+        OnPropertyChanged(nameof(LocalMemorySummary));
+        OnPropertyChanged(nameof(ActiveProviderSummary));
+        OnPropertyChanged(nameof(ProviderBadgeText));
+        OnPropertyChanged(nameof(ProviderBadgeToolTip));
+        OnPropertyChanged(nameof(ChatBackendScopeSummary));
+
+        if (!string.IsNullOrWhiteSpace(previousPath))
+        {
+            SelectedLocalLlamaModel = LocalLlamaServerModels.FirstOrDefault(item =>
+                string.Equals(item.Path, previousPath, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    private string? ResolveConfiguredChatModelPath(string modelsRoot)
+    {
+        var explicitModelPath = Environment.GetEnvironmentVariable("LLAMA_SERVER_MODEL");
+        if (!string.IsNullOrWhiteSpace(explicitModelPath))
+        {
+            var fullPath = Path.GetFullPath(explicitModelPath.Trim());
+            return File.Exists(fullPath) ? fullPath : null;
+        }
+
+        var preferredPath = Path.Combine(modelsRoot, "Qwen3.5-4B-Q4_K_M.gguf");
+        if (File.Exists(preferredPath))
+        {
+            return preferredPath;
+        }
+
+        return Directory.EnumerateFiles(modelsRoot, "*.gguf", SearchOption.TopDirectoryOnly)
+            .Where(IsLikelyChatModel)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+    }
+
+    private static bool IsLikelyChatModel(string path)
+    {
+        var fileName = Path.GetFileName(path).ToLowerInvariant();
+        return !fileName.Contains("embedding", StringComparison.Ordinal)
+            && !fileName.Contains("reranker", StringComparison.Ordinal)
+            && !fileName.Contains("ranker", StringComparison.Ordinal)
+            && !fileName.Contains("bge", StringComparison.Ordinal)
+            && !fileName.Contains("minilm", StringComparison.Ordinal);
+    }
+
+    private static string FormatFileSize(string path)
+    {
+        var length = new FileInfo(path).Length;
+        const double gib = 1024d * 1024d * 1024d;
+        const double mib = 1024d * 1024d;
+        return length >= gib
+            ? $"{length / gib:0.0} GB"
+            : $"{length / mib:0.0} MB";
+    }
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
