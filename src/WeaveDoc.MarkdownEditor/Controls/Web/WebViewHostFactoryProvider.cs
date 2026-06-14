@@ -1,11 +1,20 @@
+using System;
+
 namespace WeaveDoc.MarkdownEditor.Controls.Web;
 
 public static class WebViewHostFactoryProvider
 {
-    public static IWebViewHostFactory Current { get; set; } = NativeWebViewHostFactory.Instance;
+    public static IWebViewHostFactory Current { get; set; } = CreateDefaultFactory();
 
     public static void Reset()
     {
-        Current = NativeWebViewHostFactory.Instance;
+        Current = CreateDefaultFactory();
+    }
+
+    private static IWebViewHostFactory CreateDefaultFactory()
+    {
+        return OperatingSystem.IsWindows()
+            ? WindowsWebView2HostFactory.Instance
+            : NativeWebViewHostFactory.Instance;
     }
 }

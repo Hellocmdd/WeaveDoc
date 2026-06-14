@@ -54,8 +54,9 @@ namespace WeaveDoc.MarkdownEditor.Tests
             Assert.That(script, Does.Contain("documentloaded"));
             Assert.That(script, Does.Contain("pagerendered"));
             Assert.That(script, Does.Contain("textlayerrendered"));
-            Assert.That(script, Does.Contain("fetch(url"));
-            Assert.That(script, Does.Contain("new Uint8Array"));
+            Assert.That(script, Does.Contain("app.open({"));
+            Assert.That(script, Does.Contain("url: url"));
+            Assert.That(script, Does.Contain("opening via url"));
             Assert.That(script, Does.Contain("/pdf/current"));
         }
 

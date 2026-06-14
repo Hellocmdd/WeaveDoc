@@ -309,7 +309,13 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private async Task RobustLoadHtmlAsync(string html, Uri baseUri)
         {
             var host = _webViewHost;
-            for (int i = 0; i < 10; i++)
+            var retryDelay = TimeSpan.FromMilliseconds(100);
+            var timeout = NavigationTimeout <= TimeSpan.Zero
+                ? TimeSpan.FromSeconds(5)
+                : NavigationTimeout;
+            var deadline = DateTimeOffset.UtcNow + timeout;
+
+            do
             {
                 if (host == null || _webViewHost != host || _isInitialized || IsUsingFallback)
                 {
@@ -325,8 +331,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     Logger.Log($"[PREVIEW] NavigateToString retry failed: {ex}");
                 }
 
-                await Task.Delay(500);
+                await Task.Delay(retryDelay);
             }
+            while (DateTimeOffset.UtcNow < deadline);
 
             if (!_isInitialized && !IsUsingFallback)
             {
@@ -675,9 +682,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
             if (Bounds.Width <= 0 || Bounds.Height <= 0)
             {
                 _activationPending = true;
-                return;
             }
-            _activationPending = false;
+            else
+            {
+                _activationPending = false;
+            }
 
             if (_isActive && !forceReset && _webViewHost != null && _isInitialized)
             {

@@ -27,7 +27,7 @@ namespace WeaveDoc.MarkdownEditor.Tests
             var host = AssertSingleHost(factory);
             await WaitUntilAsync(() => host.InvokedScripts.Any(script => script.Contains("Initial", StringComparison.Ordinal)));
 
-            Assert.That(host.NavigatedUris.Single().ToString(), Does.Contain("preview-template.html"));
+            Assert.That(host.NavigatedHtml.Single(), Does.Contain("weaveDocBridge"));
             Assert.That(host.InvokedScripts.Last(script => script.Contains("Initial", StringComparison.Ordinal)), Does.Contain("window.updateContent"));
             Assert.That(control.IsUsingFallback, Is.False);
 

@@ -16,6 +16,11 @@ namespace WeaveDoc.MarkdownEditor.Tests
         [AvaloniaTest]
         public async Task TestViewportSizeAndOverlays()
         {
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Ignore("NativeWebView is the Linux/WebKitGTK backend; Windows uses WebView2Host.");
+            }
+
             var host = new NativeWebViewHost();
             var window = new Window
             {
