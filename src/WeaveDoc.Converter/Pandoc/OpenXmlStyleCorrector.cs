@@ -63,7 +63,7 @@ public static class OpenXmlStyleCorrector
 
         // Phase 2 & 3: 清除冗余内联属性，保留用户有意的行内格式
         StripRedundantInline(mainPart.Document.Body!, template);
-        ApplyStandardTableBorders(mainPart.Document.Body!);
+        ApplyStandardTableBorders(mainPart.Document.Body!, template.Defaults);
 
         mainPart.Document.Save();
     }
@@ -219,32 +219,88 @@ public static class OpenXmlStyleCorrector
         }
     }
 
-    private static void ApplyStandardTableBorders(Body body)
+    private static void ApplyStandardTableBorders(Body body, AfdDefaults defaults)
     {
         foreach (var table in body.Descendants<Table>())
         {
-            var tableProperties = table.GetFirstChild<TableProperties>()
-                ?? table.PrependChild(new TableProperties());
+            var columnCount = GetTableColumnCount(table);
+            if (columnCount == 0)
+                continue;
 
-            tableProperties.RemoveAllChildren<TableStyle>();
-            tableProperties.RemoveAllChildren<TableJustification>();
-            tableProperties.RemoveAllChildren<TableCellMarginDefault>();
-            tableProperties.RemoveAllChildren<TableBorders>();
-            tableProperties.AppendChild(new TableJustification { Val = TableRowAlignmentValues.Center });
-            tableProperties.AppendChild(CreateTableCellMargins());
-            tableProperties.AppendChild(new TableBorders(
-                CreateTableBorder<TopBorder>(12),
-                CreateTableBorder<BottomBorder>(12)));
+            var tableWidth = ResolveTableContentWidthTwips(defaults);
+            var columnWidths = DistributeColumnWidths(tableWidth, columnCount);
+            ReplaceTableProperties(table, tableWidth);
+            ReplaceTableGrid(table, columnWidths);
 
             var rows = table.Elements<TableRow>().ToList();
             for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
             {
+                var columnIndex = 0;
                 foreach (var cell in rows[rowIndex].Elements<TableCell>())
                 {
-                    ApplyStandardTableCellLayout(cell, rowIndex == 0);
+                    ApplyStandardTableCellLayout(cell, rowIndex == 0, columnWidths[columnIndex]);
+                    columnIndex++;
                 }
             }
         }
+    }
+
+    private static void ReplaceTableProperties(Table table, int tableWidth)
+    {
+        var tableLook = table.GetFirstChild<TableProperties>()?
+            .GetFirstChild<TableLook>()?
+            .CloneNode(true);
+
+        table.RemoveAllChildren<TableProperties>();
+        var tableProperties = new TableProperties(
+            new TableWidth { Width = tableWidth.ToString(), Type = TableWidthUnitValues.Dxa },
+            new TableJustification { Val = TableRowAlignmentValues.Center },
+            new TableBorders(
+                CreateTableBorder<TopBorder>(12),
+                CreateTableBorder<BottomBorder>(12)),
+            new TableLayout { Type = TableLayoutValues.Fixed },
+            CreateTableCellMargins());
+
+        if (tableLook != null)
+            tableProperties.AppendChild(tableLook);
+
+        table.PrependChild(tableProperties);
+    }
+
+    private static void ReplaceTableGrid(Table table, IReadOnlyList<int> columnWidths)
+    {
+        table.RemoveAllChildren<TableGrid>();
+        var grid = new TableGrid(columnWidths.Select(width => new GridColumn { Width = width.ToString() }));
+        var tableProperties = table.GetFirstChild<TableProperties>();
+        if (tableProperties == null)
+            table.PrependChild(grid);
+        else
+            table.InsertAfter(grid, tableProperties);
+    }
+
+    private static int GetTableColumnCount(Table table) =>
+        table.Elements<TableRow>()
+            .Select(row => row.Elements<TableCell>().Count())
+            .DefaultIfEmpty(0)
+            .Max();
+
+    private static int ResolveTableContentWidthTwips(AfdDefaults defaults)
+    {
+        var pageWidthMm = defaults.PageSize?.Width ?? 210;
+        var leftMarginMm = defaults.Margins?.Left ?? 30;
+        var rightMarginMm = defaults.Margins?.Right ?? 30;
+        var contentWidthMm = Math.Max(25.4, pageWidthMm - leftMarginMm - rightMarginMm);
+        return Math.Max(1440, (int)Math.Round(contentWidthMm * MmToTwips));
+    }
+
+    private static IReadOnlyList<int> DistributeColumnWidths(int tableWidth, int columnCount)
+    {
+        var width = Math.Max(columnCount, tableWidth);
+        var baseWidth = width / columnCount;
+        var remainder = width % columnCount;
+        return Enumerable.Range(0, columnCount)
+            .Select(index => baseWidth + (index < remainder ? 1 : 0))
+            .ToArray();
     }
 
     private static TableCellMarginDefault CreateTableCellMargins()
@@ -256,12 +312,14 @@ public static class OpenXmlStyleCorrector
             new TableCellRightMargin { Width = 108, Type = TableWidthValues.Dxa });
     }
 
-    private static void ApplyStandardTableCellLayout(TableCell cell, bool isHeaderRow)
+    private static void ApplyStandardTableCellLayout(TableCell cell, bool isHeaderRow, int cellWidth)
     {
         var cellProperties = cell.GetFirstChild<TableCellProperties>()
             ?? cell.PrependChild(new TableCellProperties());
+        cellProperties.RemoveAllChildren<TableCellWidth>();
         cellProperties.RemoveAllChildren<TableCellVerticalAlignment>();
         cellProperties.RemoveAllChildren<TableCellBorders>();
+        cellProperties.AppendChild(new TableCellWidth { Width = cellWidth.ToString(), Type = TableWidthUnitValues.Dxa });
         cellProperties.AppendChild(new TableCellVerticalAlignment { Val = TableVerticalAlignmentValues.Center });
         if (isHeaderRow)
         {
@@ -275,6 +333,7 @@ public static class OpenXmlStyleCorrector
 
             paragraphProperties.RemoveAllChildren<Indentation>();
             paragraphProperties.RemoveAllChildren<Justification>();
+            paragraphProperties.RemoveAllChildren<ParagraphStyleId>();
             paragraphProperties.RemoveAllChildren<SpacingBetweenLines>();
             paragraphProperties.AppendChild(new Indentation { FirstLine = "0", Left = "0", Right = "0" });
             paragraphProperties.AppendChild(new Justification { Val = JustificationValues.Center });
