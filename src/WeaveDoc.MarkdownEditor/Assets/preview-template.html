@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html data-weavedoc-theme="auto">
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
@@ -11,6 +11,8 @@
         :root {
             --text-color: #333;
             --bg-color: #ffffff;
+            --heading-color: #24292e;
+            --border-color: #eaecef;
             --link-color: #4285f4;
             --code-bg-color: #f6f8fa;
             --code-color: #e63946;
@@ -18,10 +20,53 @@
             --blockquote-border-color: #dfe2e5;
             --table-border-color: #dfe2e5;
             --table-header-bg: #f6f8fa;
+            --table-alt-bg: #fafbfc;
             --highlight-color: rgba(255, 193, 7, 0.4);
             --hover-color: rgba(66, 133, 244, 0.1);
             --font-size: 16px;
             --line-height: 1.8;
+            color-scheme: light;
+        }
+
+        :root[data-weavedoc-theme="dark"] {
+            --text-color: #d4d4d4;
+            --bg-color: #1e1e1e;
+            --heading-color: #f0f0f0;
+            --border-color: #3a3a3a;
+            --link-color: #58a6ff;
+            --code-bg-color: #2d2d2d;
+            --code-color: #ff7b72;
+            --blockquote-color: #b7bec8;
+            --blockquote-border-color: #444c56;
+            --table-border-color: #444c56;
+            --table-header-bg: #2d2d2d;
+            --table-alt-bg: #252525;
+            --highlight-color: rgba(255, 193, 7, 0.34);
+            --hover-color: rgba(88, 166, 255, 0.16);
+            color-scheme: dark;
+        }
+
+        :root[data-weavedoc-theme="auto"] {
+            color-scheme: light dark;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root[data-weavedoc-theme="auto"] {
+                --text-color: #d4d4d4;
+                --bg-color: #1e1e1e;
+                --heading-color: #f0f0f0;
+                --border-color: #3a3a3a;
+                --link-color: #58a6ff;
+                --code-bg-color: #2d2d2d;
+                --code-color: #ff7b72;
+                --blockquote-color: #b7bec8;
+                --blockquote-border-color: #444c56;
+                --table-border-color: #444c56;
+                --table-header-bg: #2d2d2d;
+                --table-alt-bg: #252525;
+                --highlight-color: rgba(255, 193, 7, 0.34);
+                --hover-color: rgba(88, 166, 255, 0.16);
+            }
         }
         
         * { box-sizing: border-box; }
@@ -49,23 +94,23 @@
             margin-top: 1.5em; 
             margin-bottom: 0.75em; 
             line-height: 1.4; 
-            color: #24292e;
+            color: var(--heading-color);
         }
         h1 { 
             font-size: 2em; 
-            border-bottom: 1px solid #eaecef; 
+            border-bottom: 1px solid var(--border-color); 
             padding-bottom: 0.3em; 
             margin-top: 0;
         }
         h2 { 
             font-size: 1.5em; 
-            border-bottom: 1px solid #eaecef; 
+            border-bottom: 1px solid var(--border-color); 
             padding-bottom: 0.3em; 
         }
         h3 { font-size: 1.25em; }
         h4 { font-size: 1em; }
         h5 { font-size: 0.875em; }
-        h6 { font-size: 0.85em; color: #6a737d; }
+        h6 { font-size: 0.85em; color: var(--blockquote-color); }
         
         p { 
             margin-top: 0; 
@@ -89,9 +134,9 @@
             font-family: 'Fira Code', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace; 
             font-size: 0.85em; 
             padding: 0.2em 0.4em; 
-            background-color: rgba(27, 31, 35, 0.05); 
+            background-color: var(--code-bg-color); 
             border-radius: 3px; 
-            color: #e63946;
+            color: var(--code-color);
             word-break: break-all;
         }
         
@@ -100,10 +145,10 @@
             overflow: auto; 
             font-size: 0.85em; 
             line-height: 1.6; 
-            background-color: #f6f8fa; 
+            background-color: var(--code-bg-color); 
             border-radius: 6px; 
             margin-bottom: 1em; 
-            border: 1px solid #eaecef;
+            border: 1px solid var(--border-color);
         }
         pre code { 
             padding: 0; 
@@ -116,8 +161,8 @@
         blockquote { 
             margin: 0 0 1em 0; 
             padding: 0 1em; 
-            color: #6a737d; 
-            border-left: 0.25em solid #dfe2e5; 
+            color: var(--blockquote-color); 
+            border-left: 0.25em solid var(--blockquote-border-color); 
             background-color: transparent;
         }
         blockquote > :first-child {
@@ -128,7 +173,7 @@
         }
         
         a { 
-            color: #4285f4; 
+            color: var(--link-color); 
             text-decoration: none; 
             background-color: transparent;
         }
@@ -145,7 +190,7 @@
             margin: 24px 0; 
             background-color: transparent; 
             border: 0;
-            border-top: 1px solid #eaecef;
+            border-top: 1px solid var(--border-color);
         }
         
         table { 
@@ -157,18 +202,18 @@
         }
         table th, table td { 
             padding: 6px 13px; 
-            border: 1px solid #dfe2e5; 
+            border: 1px solid var(--table-border-color); 
         }
         table th { 
             font-weight: 600; 
-            background-color: #f6f8fa; 
+            background-color: var(--table-header-bg); 
             text-align: left;
         }
         table tr:nth-child(2n) { 
-            background-color: #fafbfc; 
+            background-color: var(--table-alt-bg); 
         }
         table tr:hover {
-            background-color: #f6f8fa;
+            background-color: var(--table-header-bg);
         }
         
         img { 
@@ -187,7 +232,7 @@
             cursor: pointer; 
         }
         [data-line]:hover { 
-            background-color: rgba(66, 133, 244, 0.08); 
+            background-color: var(--hover-color); 
         }
         
         [data-pos] {

@@ -11,12 +11,12 @@
             Background="{DynamicResource ShellChromeBrush}"
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,0,0,1"
-            Padding="10,5">
+            Padding="12,7">
       <StackPanel Spacing="2">
         <TextBlock Text="检索快照"
-                   FontSize="10"
+                   FontSize="12"
                    FontWeight="Medium"
-                   Foreground="{DynamicResource ShellMutedTextBrush}" />
+                   Foreground="{DynamicResource ShellTextBrush}" />
         <TextBlock FontSize="10"
                    Foreground="{DynamicResource ShellDisabledTextBrush}">
           <Run Text="命中 " />
@@ -31,22 +31,22 @@
       <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                     VerticalScrollBarVisibility="Auto">
         <ItemsControl ItemsSource="{Binding LastRankedChunks}"
-                      Padding="4">
+                      Padding="8">
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="vm:RetrievalChunkItem">
               <Border Margin="0,0,0,5"
                       Background="{DynamicResource ShellCardBrush}"
                       BorderBrush="{DynamicResource ShellBorderBrush}"
                       BorderThickness="1"
-                      CornerRadius="4"
-                      Padding="8,6">
+                      CornerRadius="6"
+                      Padding="10,8">
                 <StackPanel Spacing="3">
                   <Grid ColumnDefinitions="Auto,*">
                     <Border Grid.Column="0"
                             Classes="rag-badge"
                             Background="{DynamicResource ShellSelectedBrush}">
                       <TextBlock Text="{Binding Citation}"
-                                 FontSize="9"
+                                 FontSize="10"
                                  Foreground="{DynamicResource ShellAccentBrush}" />
                     </Border>
                   </Grid>
@@ -57,14 +57,14 @@
                     <Run Text="{Binding FilePath}" />
                   </TextBlock>
                   <TextBlock Text="{Binding SectionTitle}"
-                             FontSize="10"
+                             FontSize="11"
                              TextTrimming="CharacterEllipsis"
                              Foreground="{DynamicResource ShellMutedTextBrush}" />
                   <TextBlock Text="{Binding ContentKind}"
-                             FontSize="9"
+                             FontSize="10"
                              Foreground="{DynamicResource ShellDisabledTextBrush}" />
                   <TextBlock Text="{Binding Text}"
-                             FontSize="10"
+                             FontSize="11"
                              TextWrapping="Wrap"
                              MaxLines="4"
                              TextTrimming="CharacterEllipsis"
@@ -83,7 +83,7 @@
                  MaxWidth="220"
                  TextWrapping="Wrap"
                  TextAlignment="Center"
-                 FontSize="11"
+                 FontSize="12"
                  IsVisible="{Binding !HasRankedChunks}"
                  Foreground="{DynamicResource ShellMutedTextBrush}" />
     </Grid>

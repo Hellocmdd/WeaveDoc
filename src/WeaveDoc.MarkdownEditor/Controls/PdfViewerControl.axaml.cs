@@ -39,6 +39,9 @@ namespace WeaveDoc.MarkdownEditor.Controls
         public static readonly StyledProperty<string> PdfFilePathProperty =
             AvaloniaProperty.Register<PdfViewerControl, string>(nameof(PdfFilePath));
 
+        public static readonly StyledProperty<string> ViewerCssThemeProperty =
+            AvaloniaProperty.Register<PdfViewerControl, string>(nameof(ViewerCssTheme), "Auto");
+
         public static readonly StyledProperty<bool> IsUsingFallbackProperty =
             AvaloniaProperty.Register<PdfViewerControl, bool>(nameof(IsUsingFallback), false);
 
@@ -46,6 +49,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
             AvaloniaProperty.Register<PdfViewerControl, string>(
                 nameof(FallbackStatusText),
                 DefaultFallbackStatusText);
+
+        static PdfViewerControl()
+        {
+            ViewerCssThemeProperty.Changed.AddClassHandler<PdfViewerControl>(
+                (control, _) => control.OnViewerCssThemeChanged());
+        }
 
         public PdfViewerControl()
         {
@@ -69,6 +78,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     _ = LoadPdfAsync(value);
                 }
             }
+        }
+
+        public string ViewerCssTheme
+        {
+            get => GetValue(ViewerCssThemeProperty);
+            set => SetValue(ViewerCssThemeProperty, value);
         }
 
         public bool IsUsingFallback
@@ -154,6 +169,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 try
                 {
                     await _webViewHost.InvokeScriptAsync(BuildPdfOpenScript());
+                    await ApplyPdfViewerThemeAsync();
                     _webViewHost.View.IsVisible = _isActive;
                     ClearFallback();
                     ApplyMarginTweak();
@@ -166,7 +182,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
 
             // viewer.html 未加载：完整 Navigate
-            var viewerUrl = BuildViewerUrl(_serverPort);
+            var viewerUrl = BuildViewerUrl(_serverPort, GetNormalizedViewerCssTheme());
             try
             {
                 _isNavigationCompleted = false;
@@ -206,6 +222,75 @@ namespace WeaveDoc.MarkdownEditor.Controls
             return $"http://localhost:{serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=/pdf/current";
         }
 
+        public static string BuildViewerUrl(int serverPort, string viewerCssTheme)
+        {
+            var normalizedTheme = NormalizeViewerCssTheme(viewerCssTheme);
+            return $"http://localhost:{serverPort}/pdfjs-5.7.284-dist/web/viewer.html?file=/pdf/current&weavedocTheme={normalizedTheme}";
+        }
+
+        private static string NormalizeViewerCssTheme(string? viewerCssTheme)
+        {
+            return viewerCssTheme?.Trim().ToLowerInvariant() switch
+            {
+                "dark" => "dark",
+                "light" => "light",
+                _ => "auto"
+            };
+        }
+
+        private string GetNormalizedViewerCssTheme()
+        {
+            return NormalizeViewerCssTheme(ViewerCssTheme);
+        }
+
+        private void OnViewerCssThemeChanged()
+        {
+            if (_webViewHost == null || !_isViewerReady)
+            {
+                return;
+            }
+
+            _ = ApplyPdfViewerThemeAsync();
+        }
+
+        private async Task ApplyPdfViewerThemeAsync()
+        {
+            if (_webViewHost == null)
+            {
+                return;
+            }
+
+            var theme = GetNormalizedViewerCssTheme();
+            var script = $$"""
+                (() => {
+                    const theme = "{{theme}}";
+                    const prefValue = theme === "light" ? 1 : theme === "dark" ? 2 : 0;
+                    try {
+                        const existing = JSON.parse(localStorage.getItem("pdfjs.preferences") || "{}");
+                        const prefs = existing && typeof existing === "object" ? existing : {};
+                        prefs.viewerCssTheme = prefValue;
+                        localStorage.setItem("pdfjs.preferences", JSON.stringify(prefs));
+                    } catch {
+                    }
+                    if (theme === "light" || theme === "dark") {
+                        document.documentElement.style.colorScheme = theme;
+                    } else {
+                        document.documentElement.style.removeProperty("color-scheme");
+                    }
+                    return theme;
+                })();
+                """;
+
+            try
+            {
+                await _webViewHost.InvokeScriptAsync(script);
+            }
+            catch
+            {
+                // Theme synchronization is visual-only; keep the loaded PDF usable.
+            }
+        }
+
         public static string BuildPdfJsCompatibilityScript()
         {
             return """
@@ -216,6 +301,33 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         } catch {
                         }
                     };
+
+                    const normalizeWeaveDocTheme = value => {
+                        value = String(value || "").toLowerCase();
+                        if (value === "light") return "light";
+                        if (value === "dark") return "dark";
+                        return "auto";
+                    };
+
+                    const applyWeaveDocThemePreference = () => {
+                        const params = new URLSearchParams(globalThis.location.search);
+                        const theme = normalizeWeaveDocTheme(params.get("weavedocTheme"));
+                        const prefValue = theme === "light" ? 1 : theme === "dark" ? 2 : 0;
+                        try {
+                            const existing = JSON.parse(localStorage.getItem("pdfjs.preferences") || "{}");
+                            const prefs = existing && typeof existing === "object" ? existing : {};
+                            prefs.viewerCssTheme = prefValue;
+                            localStorage.setItem("pdfjs.preferences", JSON.stringify(prefs));
+                        } catch {
+                        }
+                        if (theme === "light" || theme === "dark") {
+                            document.documentElement.style.colorScheme = theme;
+                        } else {
+                            document.documentElement.style.removeProperty("color-scheme");
+                        }
+                    };
+
+                    applyWeaveDocThemePreference();
 
                     if (!globalThis.__weaveDocConsoleBridgeAttached) {
                         globalThis.__weaveDocConsoleBridgeAttached = true;
@@ -588,6 +700,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             try
             {
                 await _webViewHost.InvokeScriptAsync(BuildPdfOpenScript());
+                await ApplyPdfViewerThemeAsync();
                 // viewer.html 已就绪，后续切换 Tab 可直接复用，无需重新 Navigate
                 _isViewerReady = true;
                 ClearFallback();

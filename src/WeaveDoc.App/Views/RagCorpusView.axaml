@@ -11,11 +11,11 @@
             Background="{DynamicResource ShellChromeBrush}"
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,0,0,1"
-            Padding="10,5">
+            Padding="12,7">
       <TextBlock Text="文献库（语料知识库）"
-                 FontSize="10"
+                 FontSize="12"
                  FontWeight="Medium"
-                 Foreground="{DynamicResource ShellMutedTextBrush}" />
+                 Foreground="{DynamicResource ShellTextBrush}" />
     </Border>
 
     <!-- count + search -->
@@ -23,12 +23,12 @@
             Background="{DynamicResource ShellChromeBrush}"
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,0,0,1"
-            Padding="8,5">
+            Padding="10,7">
       <Grid ColumnDefinitions="*,Auto"
             ColumnSpacing="8">
         <TextBlock Grid.Column="0"
                    VerticalAlignment="Center"
-                   FontSize="10"
+                   FontSize="11"
                    Foreground="{DynamicResource ShellMutedTextBrush}">
           <Run Text="{Binding CorpusFiles.Count}" />
           <Run Text=" 个文件 · " />
@@ -38,14 +38,12 @@
         <TextBox x:Name="SearchBox"
                  Grid.Column="1"
                  Width="130"
+                 Classes="shell-field"
                  PlaceholderText="搜索…"
                  TextChanged="OnSearchTextChanged"
-                 BorderThickness="1"
-                 BorderBrush="{DynamicResource ShellBorderBrush}"
-                 Background="{DynamicResource ShellInputBrush}"
-                 Foreground="{DynamicResource ShellTextBrush}"
-                 Padding="6,3"
-                 FontSize="10" />
+                 MinHeight="28"
+                 Padding="8,4"
+                 FontSize="11" />
       </Grid>
     </Border>
 
@@ -59,25 +57,25 @@
             <DataTemplate DataType="x:String">
               <Border BorderBrush="{DynamicResource ShellBorderBrush}"
                       BorderThickness="0,0,0,1"
-                      Padding="8,5">
+                      Padding="10,7">
                 <Grid ColumnDefinitions="*,Auto"
                       ColumnSpacing="6">
                   <StackPanel Grid.Column="0"
                               Spacing="2">
                     <TextBlock Text="{Binding}"
-                               FontSize="11"
+                               FontSize="12"
                                TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource ShellTextBrush}" />
                     <Border Classes="rag-badge"
                             Background="{DynamicResource ShellCardBrush}"
                             HorizontalAlignment="Left">
                       <TextBlock Text="已索引"
-                                 FontSize="9"
+                                 FontSize="10"
                                  Foreground="{DynamicResource ShellSuccessBrush}" />
                     </Border>
                   </StackPanel>
                   <Button Grid.Column="1"
-                          Classes="rag-chip"
+                          Classes="command-button"
                           Content="删除"
                           Click="OnDeleteClick" />
                 </Grid>
@@ -94,7 +92,7 @@
                   Spacing="4">
         <TextBlock x:Name="EmptyStateText"
                    Text="暂无语料文件"
-                   FontSize="12"
+                   FontSize="13"
                    Foreground="{DynamicResource ShellMutedTextBrush}"
                    HorizontalAlignment="Center" />
         <TextBlock Text="点击下方「添加文献」导入 .md / .txt / .json"
@@ -113,6 +111,7 @@
       <StackPanel Orientation="Vertical"
                   Spacing="5">
         <Button Classes="panel-action"
+                MinHeight="32"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Center"
                 Content="+ 添加文献"
@@ -122,11 +121,11 @@
           <TextBlock Grid.Column="0"
                      Text="{Binding StatusText}"
                      VerticalAlignment="Center"
-                     FontSize="10"
+                     FontSize="11"
                      TextTrimming="CharacterEllipsis"
                      Foreground="{DynamicResource ShellMutedTextBrush}" />
           <Button Grid.Column="1"
-                  Classes="rag-chip"
+                  Classes="command-button"
                   Content="刷新"
                   Click="OnRefreshClick" />
         </Grid>

@@ -2,17 +2,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="WeaveDoc.MarkdownEditor.Controls.PreviewWebViewControl"
              x:Name="Root">
-  <Grid Name="WebViewContainer" Background="White">
+  <Grid Name="WebViewContainer" Background="{DynamicResource ShellInputBrush}">
     <Border x:Name="PreviewFallbackState"
             ZIndex="1"
             IsVisible="{Binding IsUsingFallback, ElementName=Root}"
-            Background="#FFF7F7F7">
+            Background="{DynamicResource ShellEditorBackgroundBrush}">
       <Grid RowDefinitions="Auto,*" Margin="12">
         <TextBlock x:Name="PreviewFallbackStatusText"
                    Text="{Binding FallbackStatusText, ElementName=Root}"
                    Margin="0,0,0,10"
                    FontSize="13"
-                   Foreground="#475569"
+                   Foreground="{DynamicResource ShellMutedTextBrush}"
                    TextAlignment="Center"
                    TextWrapping="Wrap" />
 
@@ -24,9 +24,9 @@
                  TextWrapping="Wrap"
                  FontFamily="Inter, Segoe UI, sans-serif"
                  FontSize="14"
-                 Foreground="#111827"
-                 Background="White"
-                 BorderBrush="#CBD5E1"
+                 Foreground="{DynamicResource ShellTextBrush}"
+                 Background="{DynamicResource ShellInputBrush}"
+                 BorderBrush="{DynamicResource ShellBorderBrush}"
                  BorderThickness="1"
                  Padding="12"
                  HorizontalAlignment="Stretch"

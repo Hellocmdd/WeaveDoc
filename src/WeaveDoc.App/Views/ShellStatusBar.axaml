@@ -4,7 +4,7 @@
              x:Class="WeaveDoc.App.Views.ShellStatusBar"
              x:DataType="vm:AppShellViewModel">
   <Border x:Name="ShellStatusBarRoot"
-          Height="22"
+          Height="24"
           Background="{DynamicResource ShellChromeBrush}"
           BorderBrush="{DynamicResource ShellBorderBrush}"
           BorderThickness="0,1,0,0"
@@ -14,30 +14,30 @@
       <TextBlock Grid.Column="0"
                  Text="WeaveDoc"
                  VerticalAlignment="Center"
-                 FontSize="10"
+                 FontSize="11"
                  Foreground="{DynamicResource ShellTextBrush}"
                  FontWeight="SemiBold" />
       <TextBlock Grid.Column="1"
                  Text="|"
                  VerticalAlignment="Center"
-                 FontSize="10"
+                 FontSize="11"
                  Foreground="{DynamicResource ShellBorderBrush}" />
       <TextBlock Grid.Column="2"
                  Text="{Binding ModeStatusText}"
                  VerticalAlignment="Center"
-                 FontSize="10"
+                 FontSize="11"
                  Foreground="{DynamicResource ShellMutedTextBrush}"
                  TextTrimming="CharacterEllipsis" />
       <TextBlock Grid.Column="4"
                  Text="{Binding StatusText}"
                  VerticalAlignment="Center"
-                 FontSize="10"
+                 FontSize="11"
                  Foreground="{DynamicResource ShellMutedTextBrush}"
                  TextTrimming="CharacterEllipsis" />
       <TextBlock Grid.Column="5"
                  Text="{Binding CurrentDocumentTitle}"
                  VerticalAlignment="Center"
-                 FontSize="10"
+                 FontSize="11"
                  Foreground="{DynamicResource ShellMutedTextBrush}"
                  TextTrimming="CharacterEllipsis"
                  MaxWidth="160" />
@@ -50,9 +50,9 @@
               BorderBrush="{DynamicResource ShellBorderBrush}"
               BorderThickness="1"
               CornerRadius="4"
-              Height="18"
+              Height="20"
               Padding="8,0"
-              FontSize="10" />
+              FontSize="11" />
     </Grid>
   </Border>
 </UserControl>

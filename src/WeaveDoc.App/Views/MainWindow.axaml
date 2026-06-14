@@ -13,7 +13,7 @@
     <Style Selector="Button.shell-tool">
       <Setter Property="MinWidth" Value="34" />
       <Setter Property="Height" Value="28" />
-      <Setter Property="Padding" Value="9,0" />
+      <Setter Property="Padding" Value="9,1,9,0" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
@@ -76,19 +76,19 @@
 
   <Grid x:Name="ShellRoot"
         x:DataType="vm:AppShellViewModel"
-        RowDefinitions="32,36,*,22"
+        RowDefinitions="36,44,*,24"
         Background="{DynamicResource ShellBackgroundBrush}"
         ClipToBounds="True">
     <Border x:Name="ShellTitleBar"
             Background="{DynamicResource ShellTitleBarBrush}"
             BorderBrush="{DynamicResource ShellSubtleBorderBrush}"
             BorderThickness="0,0,0,1"
-            Padding="10,0">
+            Padding="14,0">
       <Grid ColumnDefinitions="Auto,*,Auto"
             ColumnSpacing="10">
         <Grid Grid.Column="0"
-              Width="16"
-              Height="16"
+              Width="18"
+              Height="18"
               VerticalAlignment="Center"
               RowDefinitions="*,*"
               ColumnDefinitions="*,*"
@@ -103,15 +103,16 @@
         <TextBlock Grid.Column="1"
                    Text="WeaveDoc - 未打开文档"
                    VerticalAlignment="Center"
-                   FontSize="11"
-                   Foreground="{DynamicResource ShellOnDarkTextBrush}"
+                   FontSize="12"
+                   FontWeight="SemiBold"
+                   Foreground="{DynamicResource ShellTextBrush}"
                    TextTrimming="CharacterEllipsis" />
 
         <TextBlock Grid.Column="2"
                    Text="{Binding StatusText}"
                    VerticalAlignment="Center"
-                   FontSize="11"
-                   Foreground="{DynamicResource ShellOnDarkMutedTextBrush}"
+                   FontSize="12"
+                   Foreground="{DynamicResource ShellMutedTextBrush}"
                    TextTrimming="CharacterEllipsis" />
       </Grid>
     </Border>
@@ -121,57 +122,59 @@
             Background="{DynamicResource ShellChromeBrush}"
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,0,0,1"
-            Padding="8,0">
+            Padding="12,0">
       <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,220,Auto"
-            ColumnSpacing="4">
+            ColumnSpacing="6">
         <TextBlock Grid.Column="0"
                    Text="文件"
                    VerticalAlignment="Center"
-                   FontSize="11"
+                   FontSize="12"
+                   FontWeight="SemiBold"
                    Foreground="{DynamicResource ShellMutedTextBrush}" />
-        <Button x:Name="NewShellDocumentButton" Grid.Column="1" Classes="shell-tool" Content="新建" Click="OnNewDocumentClick" />
-        <Button x:Name="OpenShellDocumentButton" Grid.Column="2" Classes="shell-tool" Content="打开" Click="OnOpenDocumentClick" />
-        <Button x:Name="SaveShellDocumentButton" Grid.Column="3" Classes="shell-tool" Content="保存" Click="OnSaveDocumentClick" />
-        <Button x:Name="SetupShellCommandButton" Grid.Column="4" Classes="shell-tool" Content="设置" Click="OnOpenSettingsClick" />
-        <Border Grid.Column="5" Width="1" Height="18" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
-        <Button x:Name="ExportShellDocumentButton" Grid.Column="6" Classes="shell-tool" Content="导出" Click="OnExportDocumentClick" />
-        <Border Grid.Column="7" Width="1" Height="18" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
+        <Button x:Name="NewShellDocumentButton" Grid.Column="1" Classes="command-button" Content="新建" Click="OnNewDocumentClick" />
+        <Button x:Name="OpenShellDocumentButton" Grid.Column="2" Classes="command-button" Content="打开" Click="OnOpenDocumentClick" />
+        <Button x:Name="SaveShellDocumentButton" Grid.Column="3" Classes="command-button" Content="保存" Click="OnSaveDocumentClick" />
+        <Button x:Name="SetupShellCommandButton" Grid.Column="4" Classes="command-button" Content="设置" Click="OnOpenSettingsClick" />
+        <Border Grid.Column="5" Classes="panel-divider" />
+        <Button x:Name="ExportShellDocumentButton" Grid.Column="6" Classes="command-button primary" Content="导出" Click="OnExportDocumentClick" />
+        <Border Grid.Column="7" Classes="panel-divider" />
         <TextBlock Grid.Column="8"
                    Text="辅助"
                    VerticalAlignment="Center"
-                   FontSize="11"
+                   FontSize="12"
+                   FontWeight="SemiBold"
                    Foreground="{DynamicResource ShellMutedTextBrush}" />
         <Button x:Name="AiChatCommandButton"
                 Grid.Column="9"
-                Classes="shell-tool active"
+                Classes="command-button active"
                 Content="问答"
                 Click="OnSelectAiChatTabClick" />
         <Button x:Name="AiLiteratureCommandButton"
                 Grid.Column="10"
-                Classes="shell-tool"
+                Classes="command-button"
                 Content="文献"
                 Click="OnSelectAiLiteratureTabClick" />
         <Button x:Name="AiSnapshotCommandButton"
                 Grid.Column="11"
-                Classes="shell-tool"
+                Classes="command-button"
                 Content="快照"
                 Click="OnSelectAiSnapshotTabClick" />
         <Button x:Name="AiShellCommandButton"
                 Grid.Column="12"
-                Classes="shell-tool active"
+                Classes="command-button active"
                 Content="{Binding AiPanelToggleText}"
                 Click="OnToggleAiPanelClick" />
-        <Border Grid.Column="13" Width="1" Height="18" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
+        <Border Grid.Column="13" Classes="panel-divider" />
         <TextBox x:Name="ShellSearchBox"
                  Grid.Column="15"
-                 Classes="shell-search"
+                 Classes="shell-field"
                  Text=""
                  PlaceholderText="搜索待接入"
                  IsEnabled="False"
                  VerticalAlignment="Center" />
         <Button x:Name="ThemeMenuButton"
                 Grid.Column="16"
-                Classes="shell-tool active"
+                Classes="command-button active"
                 Content="{Binding ThemeToggleText}"
                 Click="OnToggleThemeClick" />
       </Grid>
@@ -205,19 +208,10 @@
                     ShowsPreview="False"
                     Background="{DynamicResource ShellBorderBrush}" />
 
-      <!-- Editor column is always-dark by design. Pin it to the Dark variant so Fluent's
-           disabled-control brushes render for a dark surface: without this, the inner TextBlock
-           of a disabled button (the always-disabled editor-tab, and editor-tool when no document)
-           is rendered by the Fluent button template with the light-variant disabled brush
-           (#66000000 ≈ black @40%), which is invisible on the dark editor panels. Under the Dark
-           variant that brush resolves to white @40% (light grey) — legible. The editor's Shell
-           palette brushes are mutated directly by ApplyShellPalette, so they remain correct. -->
-      <ThemeVariantScope RequestedThemeVariant="Dark"
-                         Grid.Column="2"
-                         HorizontalAlignment="Stretch"
-                         VerticalAlignment="Stretch">
-        <views:EditorWorkspace x:Name="EditorWorkspaceControl" />
-      </ThemeVariantScope>
+      <views:EditorWorkspace x:Name="EditorWorkspaceControl"
+                             Grid.Column="2"
+                             HorizontalAlignment="Stretch"
+                             VerticalAlignment="Stretch" />
 
       <GridSplitter x:Name="RightWorkspaceSplitter"
                     Grid.Column="3"

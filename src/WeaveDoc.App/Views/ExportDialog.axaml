@@ -23,7 +23,7 @@
     <!-- Dialog buttons -->
     <Style Selector="Button.dlg">
       <Setter Property="Height" Value="32" />
-      <Setter Property="Padding" Value="16,0" />
+      <Setter Property="Padding" Value="16,1,16,0" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
@@ -44,7 +44,7 @@
     <!-- Format toggle / small action buttons -->
     <Style Selector="Button.dlg-chip">
       <Setter Property="Height" Value="28" />
-      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="Padding" Value="12,1,12,0" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />

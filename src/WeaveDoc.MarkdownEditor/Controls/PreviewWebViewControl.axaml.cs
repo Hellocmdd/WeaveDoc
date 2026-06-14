@@ -51,10 +51,22 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 string.Empty,
                 defaultBindingMode: BindingMode.OneWay);
 
+        public static readonly StyledProperty<string> ViewerCssThemeProperty =
+            AvaloniaProperty.Register<PreviewWebViewControl, string>(
+                nameof(ViewerCssTheme),
+                "Auto",
+                defaultBindingMode: BindingMode.OneWay);
+
         public string HtmlContent
         {
             get => GetValue(HtmlContentProperty);
             set => SetValue(HtmlContentProperty, value ?? string.Empty);
+        }
+
+        public string ViewerCssTheme
+        {
+            get => GetValue(ViewerCssThemeProperty);
+            set => SetValue(ViewerCssThemeProperty, value ?? "Auto");
         }
 
         public static readonly StyledProperty<bool> IsUsingFallbackProperty =
@@ -106,6 +118,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var content = change.NewValue as string ?? string.Empty;
                 UpdateFallbackContent(content);
                 UpdatePreview(content);
+            }
+            else if (change.Property == ViewerCssThemeProperty)
+            {
+                _ = ApplyPreviewThemeAsync();
             }
             else if (change.Property == IsVisibleProperty)
             {
@@ -297,6 +313,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 tplHtml = tplHtml.Replace("<script src=\"katex/contrib/mhchem.min.js\"></script>", $"<script>{mhchemJs}</script>");
 
                 var baseUri = new Uri(baseDir + System.IO.Path.DirectorySeparatorChar);
+                tplHtml = ApplyInitialPreviewTheme(tplHtml);
                 _ = RobustLoadHtmlAsync(tplHtml, baseUri);
             }
             catch (Exception ex)
@@ -362,6 +379,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
             ClearFallback();
             _needsRepaintTweak = true;
+            await ApplyPreviewThemeAsync();
             await UpdatePreviewAsync(contentToApply);
         }
 
@@ -433,6 +451,80 @@ namespace WeaveDoc.MarkdownEditor.Controls
             _ = UpdatePreviewAsync(content);
         }
 
+        private static string NormalizeViewerCssTheme(string? viewerCssTheme)
+        {
+            return viewerCssTheme?.Trim().ToLowerInvariant() switch
+            {
+                "dark" => "dark",
+                "light" => "light",
+                _ => "auto"
+            };
+        }
+
+        private string GetNormalizedViewerCssTheme()
+        {
+            return NormalizeViewerCssTheme(ViewerCssTheme);
+        }
+
+        private string ApplyInitialPreviewTheme(string html)
+        {
+            var theme = GetNormalizedViewerCssTheme();
+            var marker = "<html";
+            var index = html.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+            {
+                return html;
+            }
+
+            var closeIndex = html.IndexOf('>', index);
+            if (closeIndex < 0)
+            {
+                return html;
+            }
+
+            var openTag = html.Substring(index, closeIndex - index + 1);
+            var updatedTag = Regex.Replace(
+                openTag,
+                @"\sdata-weavedoc-theme\s*=\s*[""'][^""']*[""']",
+                string.Empty,
+                RegexOptions.IgnoreCase);
+            updatedTag = updatedTag.Insert(updatedTag.Length - 1, $" data-weavedoc-theme=\"{theme}\"");
+
+            return html.Substring(0, index) + updatedTag + html.Substring(closeIndex + 1);
+        }
+
+        private async Task ApplyPreviewThemeAsync()
+        {
+            if (_webViewHost == null || !_isInitialized || IsUsingFallback)
+            {
+                return;
+            }
+
+            var theme = GetNormalizedViewerCssTheme();
+            var script = $$"""
+                (() => {
+                    const theme = "{{theme}}";
+                    document.documentElement.dataset.weavedocTheme = theme;
+                    if (theme === "light" || theme === "dark") {
+                        document.documentElement.style.colorScheme = theme;
+                    } else {
+                        document.documentElement.style.removeProperty("color-scheme");
+                    }
+                    window.dispatchEvent(new Event('resize'));
+                    return theme;
+                })();
+                """;
+
+            try
+            {
+                await _webViewHost.InvokeScriptAsync(script);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[PREVIEW] Apply theme failed: {ex.Message}");
+            }
+        }
+
         private async Task UpdatePreviewAsync(string content)
         {
             try
@@ -451,6 +543,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 _pendingContent = content ?? string.Empty;
                 await WaitForJavaScriptReadyAsync();
+                await ApplyPreviewThemeAsync();
                 var script = $"window.updateContent({JsonSerializer.Serialize(_pendingContent)}); window.dispatchEvent(new Event('resize'));";
                 await _webViewHost.InvokeScriptAsync(script);
                 

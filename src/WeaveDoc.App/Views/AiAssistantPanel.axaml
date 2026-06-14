@@ -7,7 +7,7 @@
   <UserControl.Styles>
     <Style Selector="Button.ai-tab">
       <Setter Property="Height" Value="30" />
-      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="Padding" Value="10,1,10,0" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
@@ -24,7 +24,7 @@
   </UserControl.Styles>
 
   <Grid x:Name="AiAssistantPanelRoot"
-        RowDefinitions="30,*"
+        RowDefinitions="36,*"
         Background="{DynamicResource ShellPanelBrush}"
         IsVisible="{Binding IsAiPanelExpanded}"
         ClipToBounds="True">
@@ -35,17 +35,17 @@
       <Grid ColumnDefinitions="Auto,Auto,Auto,*">
         <Button x:Name="AiChatTabButton"
                 Grid.Column="0"
-                Classes="ai-tab active"
+                Classes="panel-tab active"
                 Content="问答"
                 Click="OnSelectAiChatTabClick" />
         <Button x:Name="AiLiteratureTabButton"
                 Grid.Column="1"
-                Classes="ai-tab"
+                Classes="panel-tab"
                 Content="文献"
                 Click="OnSelectAiLiteratureTabClick" />
         <Button x:Name="AiSnapshotTabButton"
                 Grid.Column="2"
-                Classes="ai-tab"
+                Classes="panel-tab"
                 Content="快照"
                 Click="OnSelectAiSnapshotTabClick" />
       </Grid>

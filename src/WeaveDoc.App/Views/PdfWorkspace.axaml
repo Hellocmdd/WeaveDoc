@@ -9,7 +9,7 @@
        to this view — if it were always-dark, the column would flip light→dark on open (and the
        toolbar's ShellTextBrush text would become invisible under a light app theme). Mirror
        WorkspaceSidebar's brushes so the column stays consistent in both states. -->
-  <Grid RowDefinitions="30,*"
+  <Grid RowDefinitions="38,*"
         Background="{DynamicResource ShellPanelBrush}">
 
     <!-- PDF Toolbar -->
@@ -17,36 +17,32 @@
             Background="{DynamicResource ShellChromeBrush}"
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,0,0,1"
-            Padding="8,0">
+            Padding="10,0">
       <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
-            ColumnSpacing="4">
+            ColumnSpacing="8">
         <Button x:Name="ClosePdfButton"
                 Grid.Column="0"
-                Classes="pdf-tool"
+                Classes="command-button"
                 Content="← 返回"
                 Click="OnClosePdfClick" />
-        <Border Grid.Column="1"
-                Width="1"
-                Height="14"
-                Background="{DynamicResource ShellBorderBrush}"
-                VerticalAlignment="Center" />
+        <Border Grid.Column="1" Classes="panel-divider" />
         <TextBlock Grid.Column="2"
                    x:Name="PdfFileNameText"
                    Text="{Binding CurrentPdfDisplayName}"
                    VerticalAlignment="Center"
-                   FontSize="11"
+                   FontSize="12"
                    FontWeight="SemiBold"
                    Foreground="{DynamicResource ShellTextBrush}"
                    TextTrimming="CharacterEllipsis"
                    Margin="4,0" />
         <Button x:Name="FullScreenPdfButton"
                 Grid.Column="4"
-                Classes="pdf-tool"
+                Classes="command-button"
                 Content="全屏"
                 Click="OnFullScreenPdfClick" />
         <Button x:Name="OpenAnotherPdfButton"
                 Grid.Column="5"
-                Classes="pdf-tool"
+                Classes="command-button"
                 Content="打开"
                 Click="OnOpenAnotherPdfClick" />
       </Grid>
@@ -54,13 +50,14 @@
 
     <!-- PDF Viewer -->
     <controls:PdfViewerControl Grid.Row="1"
-                               x:Name="PdfViewerControl" />
+                               x:Name="PdfViewerControl"
+                               ViewerCssTheme="{Binding Theme}" />
   </Grid>
 
   <UserControl.Styles>
     <Style Selector="Button.pdf-tool">
       <Setter Property="Height" Value="26" />
-      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="Padding" Value="10,1,10,0" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />

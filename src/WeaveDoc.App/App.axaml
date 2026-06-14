@@ -35,11 +35,12 @@
     <FluentTheme />
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+    <StyleInclude Source="avares://WeaveDoc.App/Styles/ShellControls.axaml" />
 
     <!-- shared small command button used across AI panel views -->
     <Style Selector="Button.ai-command">
       <Setter Property="Height" Value="30" />
-      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="Padding" Value="12,1,12,0" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
@@ -67,7 +68,7 @@
     <!-- small inline chip button -->
     <Style Selector="Button.rag-chip">
       <Setter Property="Height" Value="26" />
-      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="Padding" Value="10,1,10,0" />
       <Setter Property="FontSize" Value="10" />
       <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />

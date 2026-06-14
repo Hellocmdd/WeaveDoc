@@ -364,14 +364,14 @@ public partial class MainWindow : Window
     {
         ["ShellBackgroundBrush"] = "#FFFFFF",
         ["ShellChromeBrush"] = "#F8F9FA",
-        ["ShellTitleBarBrush"] = "#161B22",
+        ["ShellTitleBarBrush"] = "#F8F9FA",
         ["ShellPanelBrush"] = "#F8F9FA",
         ["ShellCardBrush"] = "#FFFFFF",
-        ["ShellRaisedBrush"] = "#EAEEF2",
-        ["ShellInputBrush"] = "#EAEEF2",
-        ["ShellHoverBrush"] = "#D8DEE4",
+        ["ShellRaisedBrush"] = "#F6F8FA",
+        ["ShellInputBrush"] = "#FFFFFF",
+        ["ShellHoverBrush"] = "#EFF3F6",
         ["ShellSelectedBrush"] = "#DDF4FF",
-        ["ShellBorderBrush"] = "#D8DEE4",
+        ["ShellBorderBrush"] = "#D0D7DE",
         ["ShellSubtleBorderBrush"] = "#EAEEF2",
         ["ShellTextBrush"] = "#1C2128",
         ["ShellMutedTextBrush"] = "#57606A",
@@ -380,12 +380,12 @@ public partial class MainWindow : Window
         ["ShellAccentStrongBrush"] = "#0550AE",
         ["ShellSuccessBrush"] = "#1A7F37",
         ["ShellWarningBrush"] = "#9A6700",
-        ["ShellEditorBackgroundBrush"] = "#0D1117",
-        ["ShellEditorPanelBrush"] = "#161B22",
-        ["ShellPaperWorkspaceBrush"] = "#EAEEF2",
-        // Constant-light foregrounds for dark-always zones (same as dark theme — do not flip).
-        ["ShellOnDarkTextBrush"] = "#E6EDF3",
-        ["ShellOnDarkMutedTextBrush"] = "#8B949E",
-        ["ShellOnDarkDisabledTextBrush"] = "#6E7681"
+        ["ShellEditorBackgroundBrush"] = "#F6F8FA",
+        ["ShellEditorPanelBrush"] = "#FFFFFF",
+        ["ShellPaperWorkspaceBrush"] = "#F6F8FA",
+        // Compatibility aliases for views that still reference the old dark-surface names.
+        ["ShellOnDarkTextBrush"] = "#1C2128",
+        ["ShellOnDarkMutedTextBrush"] = "#57606A",
+        ["ShellOnDarkDisabledTextBrush"] = "#8B949E"
     };
 }
