@@ -1,0 +1,225 @@
+{
+  "$schema": "https://weavedoc.dev/schemas/afd-template-v1.json",
+  "meta": {
+    "templateId": "software-plan-report",
+    "templateName": "软件计划项目书",
+    "version": "1.1.0",
+    "author": "WeaveDoc",
+    "description": "贴近《软件计划项目书》参考模板的课程项目文档模板"
+  },
+  "defaults": {
+    "fontFamily": "宋体",
+    "fontSize": 11,
+    "lineSpacing": 1.2,
+    "pageSize": { "width": 210, "height": 297 },
+    "margins": { "top": 25.4, "bottom": 25.4, "left": 31.75, "right": 31.75 },
+    "pageLayout": {
+      "headerDistance": 12.7,
+      "footerDistance": 12.7,
+      "differentOddEven": true
+    }
+  },
+  "styles": {
+    "heading1": {
+      "displayName": "一级标题",
+      "fontFamily": "宋体",
+      "fontSize": 18,
+      "bold": true,
+      "alignment": "center",
+      "spaceBefore": 19,
+      "spaceAfter": 7,
+      "lineSpacing": 1.2,
+      "outlineLevel": 0,
+      "keepWithNext": true,
+      "keepLines": true
+    },
+    "heading2": {
+      "displayName": "二级标题",
+      "fontFamily": "宋体",
+      "fontSize": 16,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 16,
+      "spaceAfter": 6,
+      "lineSpacing": 1.2,
+      "outlineLevel": 1,
+      "keepWithNext": true,
+      "keepLines": true
+    },
+    "heading3": {
+      "displayName": "三级标题",
+      "fontFamily": "宋体",
+      "fontSize": 15,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 15,
+      "spaceAfter": 6,
+      "lineSpacing": 1.2,
+      "outlineLevel": 2,
+      "keepWithNext": true,
+      "keepLines": true
+    },
+    "heading4": {
+      "displayName": "四级标题",
+      "fontFamily": "宋体",
+      "fontSize": 15,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 15,
+      "spaceAfter": 6,
+      "lineSpacing": 1.2,
+      "outlineLevel": 2,
+      "keepWithNext": true,
+      "keepLines": true
+    },
+    "heading5": {
+      "displayName": "五级标题",
+      "fontFamily": "宋体",
+      "fontSize": 15,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 15,
+      "spaceAfter": 6,
+      "lineSpacing": 1.2,
+      "outlineLevel": 2,
+      "keepWithNext": true,
+      "keepLines": true
+    },
+    "heading6": {
+      "displayName": "六级标题",
+      "fontFamily": "宋体",
+      "fontSize": 15,
+      "bold": true,
+      "alignment": "left",
+      "spaceBefore": 15,
+      "spaceAfter": 6,
+      "lineSpacing": 1.2,
+      "outlineLevel": 2,
+      "keepWithNext": true,
+      "keepLines": true
+    },
+    "body": {
+      "displayName": "正文",
+      "fontFamily": "宋体",
+      "fontSize": 11,
+      "alignment": "left",
+      "spaceBefore": 6,
+      "spaceAfter": 6,
+      "lineSpacing": 1.2
+    },
+    "abstract": {
+      "displayName": "摘要",
+      "fontFamily": "宋体",
+      "fontSize": 11,
+      "alignment": "left",
+      "spaceBefore": 6,
+      "spaceAfter": 6,
+      "lineSpacing": 1.2
+    },
+    "caption": {
+      "displayName": "题注",
+      "fontFamily": "宋体",
+      "fontSize": 9,
+      "alignment": "center",
+      "spaceBefore": 6,
+      "spaceAfter": 6,
+      "lineSpacing": 1.0
+    },
+    "footnote": {
+      "displayName": "脚注文本",
+      "fontFamily": "宋体",
+      "fontSize": 9,
+      "lineSpacing": 1.0
+    },
+    "reference": {
+      "displayName": "参考文献",
+      "fontFamily": "宋体",
+      "fontSize": 10,
+      "lineSpacing": 1.2,
+      "hangingIndent": 18
+    },
+    "blockquote": {
+      "displayName": "引用块",
+      "fontFamily": "宋体",
+      "fontSize": 11,
+      "alignment": "left",
+      "spaceBefore": 6,
+      "spaceAfter": 6,
+      "lineSpacing": 1.2
+    },
+    "list": {
+      "displayName": "列表段落",
+      "fontFamily": "宋体",
+      "fontSize": 11,
+      "alignment": "left",
+      "spaceBefore": 6,
+      "spaceAfter": 6,
+      "lineSpacing": 1.2,
+      "hangingIndent": 14.2,
+      "numbering": {
+        "numId": 42,
+        "level": 0
+      }
+    },
+    "codeblock": {
+      "displayName": "代码块",
+      "fontFamily": "Consolas",
+      "fontSize": 10,
+      "lineSpacing": 1.0
+    }
+  },
+  "headerFooter": {
+    "header": {
+      "text": "",
+      "fontFamily": "宋体",
+      "fontSize": 9,
+      "alignment": "left"
+    },
+    "footer": {
+      "pageNumbering": true,
+      "format": "arabic",
+      "alignment": "center",
+      "startPage": 1,
+      "fontFamily": "宋体",
+      "fontSize": 9
+    },
+    "evenPageFooter": {
+      "pageNumbering": true,
+      "format": "arabic",
+      "alignment": "center",
+      "startPage": 1,
+      "fontFamily": "宋体",
+      "fontSize": 9
+    }
+  },
+  "numbering": {
+    "headingNumbering": {
+      "startNumId": 41,
+      "format": "decimal",
+      "separator": ".",
+      "levels": [
+        { "level": 0, "start": 1, "format": "decimal", "text": "%1.", "suffix": "tab", "leftIndent": 12.7, "hangingIndent": 6.35 },
+        { "level": 1, "start": 1, "format": "decimal", "text": "%1.%2", "suffix": "tab", "leftIndent": 19.05, "hangingIndent": 6.35 },
+        { "level": 2, "start": 1, "format": "decimal", "text": "%1.%2.%3", "suffix": "tab", "leftIndent": 25.4, "hangingIndent": 6.35 },
+        { "level": 3, "start": 1, "format": "decimal", "text": "%1.%2.%3.%4", "suffix": "tab", "leftIndent": 31.75, "hangingIndent": 6.35 }
+      ]
+    },
+    "instances": {
+      "heading": {
+        "numId": 41,
+        "kind": "heading"
+      },
+      "list": {
+        "numId": 42,
+        "kind": "list"
+      }
+    }
+  },
+  "table": {
+    "borderColor": "808080",
+    "borderSize": 4,
+    "headerFill": "EDEDED",
+    "headerBold": true,
+    "cellMargin": 1.5
+  }
+}

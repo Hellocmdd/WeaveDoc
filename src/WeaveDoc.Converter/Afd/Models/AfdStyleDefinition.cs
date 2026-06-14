@@ -14,4 +14,5 @@ public record AfdStyleDefinition
     public double? LineSpacing { get; init; }
     public double? FirstLineIndent { get; init; }
     public double? HangingIndent { get; init; }
+    public AfdParagraphNumbering? Numbering { get; init; }
 }

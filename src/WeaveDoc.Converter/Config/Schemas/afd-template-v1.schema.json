@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weavedoc.dev/schemas/afd-template-v1.json",
+  "title": "WeaveDoc AFD Template",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["meta", "defaults", "styles"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["templateName"],
+      "properties": {
+        "templateId": { "type": "string" },
+        "templateName": { "type": "string", "minLength": 1 },
+        "version": { "type": "string" },
+        "author": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fontFamily": { "type": "string" },
+        "fontSize": { "type": "number", "exclusiveMinimum": 0 },
+        "lineSpacing": { "type": "number", "exclusiveMinimum": 0 },
+        "pageSize": { "$ref": "#/$defs/pageSize" },
+        "margins": { "$ref": "#/$defs/margins" },
+        "pageLayout": { "$ref": "#/$defs/pageLayout" }
+      }
+    },
+    "styles": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/styleDefinition" },
+      "propertyNames": {
+        "enum": [
+          "heading1",
+          "heading2",
+          "heading3",
+          "heading4",
+          "heading5",
+          "heading6",
+          "body",
+          "caption",
+          "footnote",
+          "reference",
+          "abstract",
+          "blockquote",
+          "list",
+          "codeblock"
+        ]
+      }
+    },
+    "headerFooter": { "$ref": "#/$defs/headerFooter" },
+    "numbering": { "$ref": "#/$defs/numbering" },
+    "table": { "$ref": "#/$defs/table" }
+  },
+  "$defs": {
+    "pageSize": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "margins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["top", "bottom", "left", "right"],
+      "properties": {
+        "top": { "type": "number", "minimum": 0 },
+        "bottom": { "type": "number", "minimum": 0 },
+        "left": { "type": "number", "minimum": 0 },
+        "right": { "type": "number", "minimum": 0 }
+      }
+    },
+    "pageLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "headerDistance": { "type": "number", "minimum": 0 },
+        "footerDistance": { "type": "number", "minimum": 0 },
+        "differentOddEven": { "type": "boolean" },
+        "differentFirstPage": { "type": "boolean" }
+      }
+    },
+    "styleDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "displayName": { "type": "string" },
+        "fontFamily": { "type": "string" },
+        "fontSize": { "type": "number", "exclusiveMinimum": 0 },
+        "bold": { "type": "boolean" },
+        "italic": { "type": "boolean" },
+        "alignment": { "enum": ["left", "center", "right", "both"] },
+        "spaceBefore": { "type": "number", "minimum": 0 },
+        "spaceAfter": { "type": "number", "minimum": 0 },
+        "lineSpacing": { "type": "number", "exclusiveMinimum": 0 },
+        "firstLineIndent": { "type": "number", "minimum": 0 },
+        "hangingIndent": { "type": "number", "minimum": 0 },
+        "outlineLevel": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "keepWithNext": { "type": "boolean" },
+        "keepLines": { "type": "boolean" },
+        "pageBreakBefore": { "type": "boolean" },
+        "numbering": { "$ref": "#/$defs/paragraphNumbering" }
+      }
+    },
+    "paragraphNumbering": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "numId": { "type": "integer", "exclusiveMinimum": 0 },
+        "level": { "type": "integer", "minimum": 0, "maximum": 8 }
+      }
+    },
+    "headerFooter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "header": { "$ref": "#/$defs/headerContent" },
+        "firstPageHeader": { "$ref": "#/$defs/headerContent" },
+        "evenPageHeader": { "$ref": "#/$defs/headerContent" },
+        "footer": { "$ref": "#/$defs/footerContent" },
+        "firstPageFooter": { "$ref": "#/$defs/footerContent" },
+        "evenPageFooter": { "$ref": "#/$defs/footerContent" }
+      }
+    },
+    "headerContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string" },
+        "fontFamily": { "type": "string" },
+        "fontSize": { "type": "number", "exclusiveMinimum": 0 },
+        "alignment": { "enum": ["left", "center", "right", "both"] }
+      }
+    },
+    "footerContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pageNumbering": { "type": "boolean" },
+        "format": { "type": "string" },
+        "alignment": { "enum": ["left", "center", "right", "both"] },
+        "startPage": { "type": "integer", "exclusiveMinimum": 0 },
+        "prefixText": { "type": "string" },
+        "suffixText": { "type": "string" },
+        "fontFamily": { "type": "string" },
+        "fontSize": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "numbering": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "headingNumbering": { "$ref": "#/$defs/headingNumbering" },
+        "listStyle": { "$ref": "#/$defs/listStyle" },
+        "instances": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/numberingInstance" }
+        }
+      }
+    },
+    "headingNumbering": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "startNumId": { "type": "integer", "exclusiveMinimum": 0 },
+        "format": { "$ref": "#/$defs/numberFormat" },
+        "separator": { "type": "string" },
+        "levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/numberLevel" }
+        }
+      }
+    },
+    "numberLevel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level"],
+      "properties": {
+        "level": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "start": { "type": "integer", "exclusiveMinimum": 0 },
+        "format": { "$ref": "#/$defs/numberFormat" },
+        "text": { "type": "string" },
+        "suffix": { "enum": ["", "tab", "space", "nothing"] },
+        "leftIndent": { "type": "number", "minimum": 0 },
+        "hangingIndent": { "type": "number", "minimum": 0 }
+      }
+    },
+    "numberFormat": {
+      "enum": ["decimal", "lowerletter", "upperletter", "lowerroman", "upperroman", "bullet"]
+    },
+    "listStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bullet": { "type": "string" },
+        "orderedFormat": {
+          "enum": [
+            "bullet",
+            "bullets",
+            "unordered",
+            "decimal",
+            "1",
+            "1.",
+            "1,2,3",
+            "lowerletter",
+            "upperletter",
+            "a",
+            "a.",
+            "a,b,c",
+            "A",
+            "A.",
+            "A,B,C",
+            "lowerroman",
+            "upperroman",
+            "i",
+            "i.",
+            "i,ii,iii",
+            "I",
+            "I.",
+            "I,II,III"
+          ]
+        }
+      }
+    },
+    "numberingInstance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numId"],
+      "properties": {
+        "numId": { "type": "integer", "exclusiveMinimum": 0 },
+        "kind": { "enum": ["heading", "list"] },
+        "abstractNumId": { "type": "integer", "exclusiveMinimum": 0 },
+        "startOverrides": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "borderColor": { "type": "string", "pattern": "^#?[0-9a-fA-F]{6}$" },
+        "borderSize": { "type": "number", "exclusiveMinimum": 0 },
+        "headerFill": { "type": "string", "pattern": "^#?[0-9a-fA-F]{6}$" },
+        "headerBold": { "type": "boolean" },
+        "cellMargin": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}
