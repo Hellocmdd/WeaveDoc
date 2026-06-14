@@ -15,18 +15,14 @@ namespace WeaveDoc.App.Tests;
 /// <summary>
 /// Regression coverage for the light-theme editor-chrome invisibility bug.
 ///
-/// The editor column is always-dark by design and is pinned to the Dark variant from
-/// MainWindow.axaml (via ThemeVariantScope). The bug: Fluent's Button template renders the
-/// auto-generated TextBlock inside a *disabled* button with a variant-dependent disabled brush.
-/// Without the Dark-variant pin, the Light app theme makes that brush #66000000 (black @40%),
-/// which is invisible on the dark editor panels — so the always-disabled editor-tab and the
-/// no-document editor-tool buttons vanished in light theme even though the Button.Foreground
-/// itself was set correctly. These tests lock in the fix.
+/// The editor column now follows the shell theme instead of pinning itself to an
+/// always-dark variant. These tests make sure disabled toolbar text and direct
+/// editor chrome text resolve to the light-theme shell brushes.
 /// </summary>
 public class EditorChromeThemeTests
 {
     [AvaloniaFact]
-    public async Task EditorChrome_DisabledButtons_RenderLightText_InLightTheme()
+    public async Task EditorChrome_DisabledButtons_RenderReadableText_InLightTheme()
     {
         var window = new MainWindow();
         window.Show();
@@ -38,10 +34,9 @@ public class EditorChromeThemeTests
         var editor = window.FindControl<EditorWorkspace>("EditorWorkspaceControl");
         Assert.NotNull(editor);
 
-        // The always-disabled editor-tab plus the (empty-state) disabled editor-tool buttons.
         var disabledButtons = editor!
             .GetVisualDescendants().OfType<Button>()
-            .Where(b => b.Classes.Contains("editor-tab") || b.Classes.Contains("editor-tool"))
+            .Where(b => b.Classes.Contains("icon-button"))
             .Where(b => !b.IsEnabled)
             .ToList();
         Assert.NotEmpty(disabledButtons);
@@ -51,16 +46,14 @@ public class EditorChromeThemeTests
             var inner = button.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault();
             Assert.NotNull(inner);
             var color = Assert.IsType<SolidColorBrush>(inner!.Foreground).Color;
-            // Under the pinned Dark variant the disabled brush resolves to white @40% (#66ffffff),
-            // i.e. an effectively light colour. The buggy light-variant value is black @40% (#66000000).
             Assert.True(
-                color.R > 200 && color.G > 200 && color.B > 200,
-                $"disabled button '{button.Content}' inner TextBlock foreground {color} is dark and would be invisible on the editor panel in light theme.");
+                color.R < 190 && color.G < 190 && color.B < 190,
+                $"disabled button '{button.Content}' inner TextBlock foreground {color} is too light for the light editor chrome.");
         }
     }
 
     [AvaloniaFact]
-    public async Task EditorChrome_DirectTextStaysOnDark_InLightTheme()
+    public async Task EditorChrome_DirectTextFollowsLightTheme_InLightTheme()
     {
         var window = new MainWindow();
         window.Show();
@@ -70,16 +63,14 @@ public class EditorChromeThemeTests
         var editor = window.FindControl<EditorWorkspace>("EditorWorkspaceControl");
         Assert.NotNull(editor);
 
-        // The subtitle (CurrentDocumentSubtitle) is a direct TextBlock bound to the constant-light
-        // ShellOnDarkMutedTextBrush — it must resolve to the light value (#8b949e), not flip dark.
         var subtitle = editor!
             .GetVisualDescendants().OfType<TextBlock>()
             .FirstOrDefault(t => t.Text == "本地文档打开、保存和渲染能力待接入。");
         Assert.NotNull(subtitle);
         var color = Assert.IsType<SolidColorBrush>(subtitle!.Foreground).Color;
-        Assert.Equal((byte)0x8b, color.R);
-        Assert.Equal((byte)0x94, color.G);
-        Assert.Equal((byte)0x9e, color.B);
+        Assert.Equal((byte)0x57, color.R);
+        Assert.Equal((byte)0x60, color.G);
+        Assert.Equal((byte)0x6a, color.B);
     }
 
     [AvaloniaFact]
@@ -93,7 +84,7 @@ public class EditorChromeThemeTests
 
         Button FindTab() => editor!
             .GetVisualDescendants().OfType<Button>()
-            .First(b => b.Classes.Contains("editor-tab"));
+            .First(b => b.Classes.Contains("panel-tab") && b.Content?.ToString() == "未打开文档");
 
         // No document open: the placeholder tab is visible ("未打开文档").
         Assert.True(vm.HasNoDocument);
