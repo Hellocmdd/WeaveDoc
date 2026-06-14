@@ -37,6 +37,36 @@ namespace WeaveDoc.MarkdownEditor.Tests
             Assert.That(host.InvokedScripts.Last(script => script.Contains("Changed", StringComparison.Ordinal)), Does.Contain("window.updateContent"));
         }
 
+        [Test]
+        public void PreviewWebViewControl_ResolvesRelativeImageSourcesAgainstMarkdownFile()
+        {
+            var root = Path.Combine(Path.GetTempPath(), $"weavedoc-preview-{Guid.NewGuid():N}");
+            var docsDir = Path.Combine(root, "docs");
+            var imageDir = Path.Combine(docsDir, "images");
+            Directory.CreateDirectory(imageDir);
+            var markdownPath = Path.Combine(docsDir, "paper.md");
+            var imagePath = Path.Combine(imageDir, "chart one.png");
+            File.WriteAllBytes(imagePath, [0x89, 0x50, 0x4e, 0x47]);
+            var html = """
+                <p><img src="images/chart%20one.png" alt="chart" /></p>
+                <p><img src="https://example.com/remote.png" alt="remote" /></p>
+                <p><img src="data:image/png;base64,AAAA" alt="inline" /></p>
+                """;
+
+            try
+            {
+                var resolved = PreviewWebViewControl.ResolvePreviewImageSources(html, markdownPath);
+
+                Assert.That(resolved, Does.Contain("src=\"data:image/png;base64,iVBORw==\""));
+                Assert.That(resolved, Does.Contain("src=\"https://example.com/remote.png\""));
+                Assert.That(resolved, Does.Contain("src=\"data:image/png;base64,AAAA\""));
+            }
+            finally
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+
         [AvaloniaTest]
         public async Task PreviewWebViewControl_ShowsFallbackWhenHostFactoryFails()
         {

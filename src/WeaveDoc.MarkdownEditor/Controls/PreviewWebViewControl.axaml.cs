@@ -57,6 +57,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 "Auto",
                 defaultBindingMode: BindingMode.OneWay);
 
+        public static readonly StyledProperty<string?> SourceFilePathProperty =
+            AvaloniaProperty.Register<PreviewWebViewControl, string?>(
+                nameof(SourceFilePath),
+                defaultBindingMode: BindingMode.OneWay);
+
         public string HtmlContent
         {
             get => GetValue(HtmlContentProperty);
@@ -67,6 +72,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
         {
             get => GetValue(ViewerCssThemeProperty);
             set => SetValue(ViewerCssThemeProperty, value ?? "Auto");
+        }
+
+        public string? SourceFilePath
+        {
+            get => GetValue(SourceFilePathProperty);
+            set => SetValue(SourceFilePathProperty, value);
         }
 
         public static readonly StyledProperty<bool> IsUsingFallbackProperty =
@@ -122,6 +133,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
             else if (change.Property == ViewerCssThemeProperty)
             {
                 _ = ApplyPreviewThemeAsync();
+            }
+            else if (change.Property == SourceFilePathProperty)
+            {
+                UpdatePreview(HtmlContent);
             }
             else if (change.Property == IsVisibleProperty)
             {
@@ -544,7 +559,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _pendingContent = content ?? string.Empty;
                 await WaitForJavaScriptReadyAsync();
                 await ApplyPreviewThemeAsync();
-                var script = $"window.updateContent({JsonSerializer.Serialize(_pendingContent)}); window.dispatchEvent(new Event('resize'));";
+                var previewHtml = ResolvePreviewImageSources(_pendingContent, SourceFilePath);
+                var script = $"window.updateContent({JsonSerializer.Serialize(previewHtml)}); window.dispatchEvent(new Event('resize'));";
                 await _webViewHost.InvokeScriptAsync(script);
                 
                 if (_needsRepaintTweak)
@@ -560,6 +576,134 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 Logger.LogException(ex);
                 ShowFallback($"HTML 预览不可用：{ex.Message}");
             }
+        }
+
+        public static string ResolvePreviewImageSources(string html, string? sourceFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(html) || string.IsNullOrWhiteSpace(sourceFilePath))
+            {
+                return html ?? string.Empty;
+            }
+
+            var sourceDirectory = System.IO.Path.GetDirectoryName(sourceFilePath);
+            if (string.IsNullOrWhiteSpace(sourceDirectory))
+            {
+                return html;
+            }
+
+            return Regex.Replace(
+                html,
+                "(<img\\b[^>]*?\\bsrc\\s*=\\s*)([\"'])(.*?)(\\2)",
+                match =>
+                {
+                    var src = WebUtility.HtmlDecode(match.Groups[3].Value) ?? string.Empty;
+                    var resolved = ResolveImageSource(src, sourceDirectory);
+                    if (string.Equals(src, resolved, StringComparison.Ordinal))
+                    {
+                        return match.Value;
+                    }
+
+                    return match.Groups[1].Value
+                        + match.Groups[2].Value
+                        + WebUtility.HtmlEncode(resolved)
+                        + match.Groups[4].Value;
+                },
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        }
+
+        private static string ResolveImageSource(string src, string sourceDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(src))
+            {
+                return src;
+            }
+
+            var trimmed = src.Trim();
+            if (trimmed.StartsWith("#", StringComparison.Ordinal))
+            {
+                return src;
+            }
+
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absoluteUri)
+                && !absoluteUri.IsFile)
+            {
+                return src;
+            }
+
+            var pathPart = trimmed;
+            var suffix = string.Empty;
+            var suffixIndex = pathPart.IndexOfAny(['?', '#']);
+            if (suffixIndex >= 0)
+            {
+                suffix = pathPart[suffixIndex..];
+                pathPart = pathPart[..suffixIndex];
+            }
+
+            var localPath = Uri.UnescapeDataString(pathPart).Replace('/', System.IO.Path.DirectorySeparatorChar);
+            string resolvedPath;
+
+            if (System.IO.Path.IsPathFullyQualified(localPath))
+            {
+                resolvedPath = localPath;
+            }
+            else if (Uri.TryCreate(pathPart, UriKind.Absolute, out var fileUri) && fileUri.IsFile)
+            {
+                resolvedPath = fileUri.LocalPath;
+            }
+            else
+            {
+                resolvedPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(sourceDirectory, localPath));
+            }
+
+            if (TryReadImageAsDataUri(resolvedPath, out var dataUri))
+            {
+                return dataUri;
+            }
+
+            return new Uri(resolvedPath).AbsoluteUri + suffix;
+        }
+
+        private static bool TryReadImageAsDataUri(string filePath, out string dataUri)
+        {
+            dataUri = string.Empty;
+
+            try
+            {
+                if (!System.IO.File.Exists(filePath))
+                {
+                    return false;
+                }
+
+                var mimeType = GetImageMimeType(System.IO.Path.GetExtension(filePath));
+                if (mimeType is null)
+                {
+                    return false;
+                }
+
+                var bytes = System.IO.File.ReadAllBytes(filePath);
+                dataUri = $"data:{mimeType};base64,{Convert.ToBase64String(bytes)}";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"[PREVIEW] Failed to inline preview image '{filePath}': {ex.Message}");
+                return false;
+            }
+        }
+
+        private static string? GetImageMimeType(string extension)
+        {
+            return extension.ToLowerInvariant() switch
+            {
+                ".png" => "image/png",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                ".svg" => "image/svg+xml",
+                ".bmp" => "image/bmp",
+                ".ico" => "image/x-icon",
+                _ => null
+            };
         }
 
         private void ShowFallback(string? statusText = null)

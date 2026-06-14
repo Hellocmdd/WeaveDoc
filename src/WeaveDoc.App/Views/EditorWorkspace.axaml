@@ -195,6 +195,7 @@
           <controls:PreviewWebViewControl x:Name="MarkdownPreviewControl"
                                           IsVisible="{Binding IsMarkdownPreviewVisible}"
                                           HtmlContent="{Binding DocumentWorkspace.PreviewHtml}"
+                                          SourceFilePath="{Binding DocumentWorkspace.CurrentFilePath}"
                                           ViewerCssTheme="{Binding Theme}" />
 
           <Grid x:Name="PreviewEmptyState"
