@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Markdig;
 using Markdig.Extensions.Mathematics;
+using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 
@@ -96,6 +97,9 @@ public sealed class MarkdigMarkdownRenderService : IMarkdownRenderService
             case ListBlock list:
                 RenderList(list);
                 break;
+            case Table table:
+                RenderTable(table);
+                break;
             case ThematicBreakBlock:
                 _html.Append($"<hr data-line=\"{block.Line + 1}\">\n");
                 break;
@@ -172,6 +176,105 @@ public sealed class MarkdigMarkdownRenderService : IMarkdownRenderService
             RenderBlock(subBlock);
         }
         _html.Append("</li>\n");
+    }
+
+    private void RenderTable(Table table)
+    {
+        _html.Append($"<table data-line=\"{table.Line + 1}\">\n");
+
+        // Group consecutive header rows under <thead> and body rows under <tbody>.
+        var inHead = false;
+        var inBody = false;
+        foreach (var row in table)
+        {
+            if (row is not TableRow tableRow)
+                continue;
+
+            if (tableRow.IsHeader)
+            {
+                if (inBody)
+                {
+                    _html.Append("</tbody>\n");
+                    inBody = false;
+                }
+                if (!inHead)
+                {
+                    _html.Append("<thead>\n");
+                    inHead = true;
+                }
+                RenderTableRow(tableRow, "th", table);
+            }
+            else
+            {
+                if (inHead)
+                {
+                    _html.Append("</thead>\n");
+                    inHead = false;
+                }
+                if (!inBody)
+                {
+                    _html.Append("<tbody>\n");
+                    inBody = true;
+                }
+                RenderTableRow(tableRow, "td", table);
+            }
+        }
+
+        if (inHead)
+            _html.Append("</thead>\n");
+        if (inBody)
+            _html.Append("</tbody>\n");
+        _html.Append("</table>\n");
+    }
+
+    private void RenderTableRow(TableRow row, string cellTag, Table table)
+    {
+        _html.Append("<tr>\n");
+        var columnIndex = 0;
+        foreach (var cell in row)
+        {
+            if (cell is not TableCell tableCell)
+                continue;
+
+            var alignment = GetColumnAlignment(table, columnIndex);
+            var style = string.IsNullOrEmpty(alignment)
+                ? string.Empty
+                : $" style=\"text-align:{alignment}\"";
+
+            _html.Append($"<{cellTag}{style} data-line=\"{tableCell.Line + 1}\">");
+            RenderTableCellContent(tableCell);
+            _html.Append($"</{cellTag}>\n");
+
+            columnIndex++;
+        }
+        _html.Append("</tr>\n");
+    }
+
+    private void RenderTableCellContent(TableCell cell)
+    {
+        // Markdig wraps each cell's content in a ParagraphBlock; render its inlines
+        // directly (no <p> wrapper) to keep the table compact and the HTML valid.
+        foreach (var block in cell)
+        {
+            if (block is ParagraphBlock paragraph)
+                RenderInlines(paragraph.Inline);
+            else
+                RenderBlock(block);
+        }
+    }
+
+    private static string GetColumnAlignment(Table table, int columnIndex)
+    {
+        if (columnIndex < 0 || columnIndex >= table.ColumnDefinitions.Count)
+            return string.Empty;
+
+        return table.ColumnDefinitions[columnIndex].Alignment switch
+        {
+            TableColumnAlign.Left => "left",
+            TableColumnAlign.Center => "center",
+            TableColumnAlign.Right => "right",
+            _ => string.Empty
+        };
     }
 
     private void RenderMathBlock(MathBlock mathBlock)
@@ -292,9 +395,12 @@ public sealed class MarkdigMarkdownRenderService : IMarkdownRenderService
     {
         var content = mathInline.Content.ToString();
         var (line, col) = mathInline.Span.IsEmpty ? (mathInline.Line + 1, 1) : OffsetToLineCol(mathInline.Span.Start);
+        // A single-line "$$...$$" carries DelimiterCount == 2 and should render as display math,
+        // matching the multi-line block form. Inline "$...$" stays inline.
+        var cls = mathInline.DelimiterCount >= 2 ? "math-display" : "math-inline";
         // HTML-escape the LaTeX content so that < > & in formulas do not break the HTML wrapper.
         // KaTeX reads via el.textContent which automatically decodes HTML entities.
-        _html.Append($"<span class=\"math-inline\" data-pos=\"{line}-{col}\">{EscapeHtml(content)}</span>");
+        _html.Append($"<span class=\"{cls}\" data-pos=\"{line}-{col}\">{EscapeHtml(content)}</span>");
     }
 
     private (int line, int col) OffsetToLineCol(int offset)

@@ -27,6 +27,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private bool _isFullScreen;
         private bool _isInitializing;
         private bool _isNavigationCompleted;
+        // True once viewer.html has loaded and PDF.js is ready; avoids re-navigating on every tab switch.
+        private bool _isViewerReady;
         private Window? _fullScreenWindow;
         private static HttpListener? _httpListener;
         private static int _serverPort;
@@ -146,6 +148,24 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 return;
             }
 
+            // 主犯1修复：viewer.html 已经加载过，直接用 JS 打开新 PDF，不重新 Navigate
+            if (_isViewerReady)
+            {
+                try
+                {
+                    await _webViewHost.InvokeScriptAsync(BuildPdfOpenScript());
+                    _webViewHost.View.IsVisible = _isActive;
+                    ClearFallback();
+                    ApplyMarginTweak();
+                }
+                catch (Exception ex)
+                {
+                    ShowFallback($"PDF Reader 不可用：{ex.Message}");
+                }
+                return;
+            }
+
+            // viewer.html 未加载：完整 Navigate
             var viewerUrl = BuildViewerUrl(_serverPort);
             try
             {
@@ -398,40 +418,96 @@ namespace WeaveDoc.MarkdownEditor.Controls
                         }
 
                         enableTextSelection("before open");
+                        // 主犯2修复：用 URL 模式让 PDF.js 自行流式加载（支持 Range 请求按需取页），
+                        // 不再把整个文件 fetch 成 ArrayBuffer 再传入。
                         const url = new URL("/pdf/current", globalThis.location.href).href;
-                        post(`fetching ${url}`);
-                        fetch(url, { cache: "no-store" })
-                            .then(response => {
-                                post(`fetch status ${response.status}`);
-                                if (!response.ok) {
-                                    throw new Error(`HTTP ${response.status}`);
-                                }
-                                return response.arrayBuffer();
-                            })
-                            .then(buffer => {
-                                post(`opening PDF bytes ${buffer.byteLength}`);
-                                return app.open({
-                                    data: new Uint8Array(buffer),
-                                    filename: "current.pdf",
-                                    cMapUrl: "./cmaps/",
-                                    cMapPacked: true,
-                                    enableXfa: false,
-                                    verbosity: 0
-                                });
-                            })
-                            .then(() => {
-                                post("open completed");
-                                setTimeout(() => window.dispatchEvent(new Event('resize')), 150);
-                                setTimeout(() => enableTextSelection("open completed"), 0);
-                                setTimeout(() => enableTextSelection("open completed delayed"), 500);
-                            })
-                            .catch(error => post(`open failed: ${error?.message ?? error}`));
+                        post(`opening via url: ${url}`);
+                        app.open({
+                            url: url,
+                            cMapUrl: "./cmaps/",
+                            cMapPacked: true,
+                            enableXfa: false,
+                            verbosity: 0
+                        })
+                        .then(() => {
+                            post("open completed");
+                            setTimeout(() => window.dispatchEvent(new Event('resize')), 150);
+                            setTimeout(() => enableTextSelection("open completed"), 0);
+                            setTimeout(() => enableTextSelection("open completed delayed"), 500);
+                        })
+                        .catch(error => post(`open failed: ${error?.message ?? error}`));
                     };
 
                     openWhenReady();
                     return "PDF open polling started";
                 })();
                 """;
+        }
+
+        private bool _isWindowOpened = false;
+        private Window? _attachedWindow;
+        private bool _pendingMarginTweak = false;
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel is Window window)
+            {
+                _attachedWindow = window;
+                _isWindowOpened = window.IsVisible;
+                window.Opened += Window_Opened;
+            }
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            if (_attachedWindow != null)
+            {
+                _attachedWindow.Opened -= Window_Opened;
+                _attachedWindow = null;
+            }
+            base.OnDetachedFromVisualTree(e);
+        }
+
+        private void Window_Opened(object? sender, EventArgs e)
+        {
+            _isWindowOpened = true;
+            if (_pendingMarginTweak)
+            {
+                _pendingMarginTweak = false;
+                ApplyMarginTweakCore();
+            }
+        }
+
+        private void ApplyMarginTweak()
+        {
+            if (!_isWindowOpened)
+            {
+                _pendingMarginTweak = true;
+                return;
+            }
+            ApplyMarginTweakCore();
+        }
+
+        private void ApplyMarginTweakCore()
+        {
+            Dispatcher.UIThread.Post(async () =>
+            {
+                if (_webViewHost == null) return;
+                var originalMargin = _webViewHost.View.Margin;
+                _webViewHost.View.Margin = new Avalonia.Thickness(
+                    originalMargin.Left, originalMargin.Top, originalMargin.Right, originalMargin.Bottom + 1.0);
+                _webViewHost.View.InvalidateMeasure();
+                _webViewHost.View.InvalidateArrange();
+                await Task.Delay(150);
+                if (_webViewHost != null)
+                {
+                    _webViewHost.View.Margin = originalMargin;
+                    _webViewHost.View.InvalidateMeasure();
+                    _webViewHost.View.InvalidateArrange();
+                }
+            });
         }
 
         private async Task<bool> EnsureWebViewAsync()
@@ -460,6 +536,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _webViewHost.MessageReceived += PdfWebView_WebMessageReceived;
                 GetMainGrid().Children.Add(_webViewHost.View);
                 _webViewHost.View.IsVisible = _isActive;
+
+                // Wait for Avalonia to complete a layout pass and for the GTK native
+                // handle to be fully realized before any navigation attempt.
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Loaded);
+
                 ClearFallback();
                 return true;
             }
@@ -507,7 +588,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
             try
             {
                 await _webViewHost.InvokeScriptAsync(BuildPdfOpenScript());
+                // viewer.html 已就绪，后续切换 Tab 可直接复用，无需重新 Navigate
+                _isViewerReady = true;
                 ClearFallback();
+                ApplyMarginTweak();
             }
             catch (Exception ex)
             {
@@ -657,6 +741,22 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     fileBytes = patchedBytes;
                 }
 
+                // 主犯2修复：对 PDF 文件支持 Range 请求，让 PDF.js 可以按需懒加载页面
+                var isPdfContent = requestPath == "/pdf/current"
+                    || requestPath.StartsWith("/pdf/", StringComparison.Ordinal);
+                if (isPdfContent)
+                {
+                    context.Response.AddHeader("Accept-Ranges", "bytes");
+                    var rangeHeader = context.Request.Headers["Range"];
+                    if (!string.IsNullOrEmpty(rangeHeader))
+                    {
+                        await ServeRangeResponseAsync(context, fileBytes, rangeHeader);
+                        return;
+                    }
+                    // 全量响应时也给出 Content-Length，PDF.js 需要它来计算文件大小
+                    context.Response.ContentLength64 = fileBytes.Length;
+                }
+
                 await context.Response.OutputStream.WriteAsync(fileBytes);
                 context.Response.Close();
             }
@@ -669,7 +769,48 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
         }
 
+        /// <summary>
+        /// 处理 Range 请求（HTTP 206 Partial Content），使 PDF.js 可按需拉取当前页的字节范围。
+        /// </summary>
+        private static async Task ServeRangeResponseAsync(HttpListenerContext context, byte[] data, string rangeHeader)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(
+                rangeHeader, @"bytes=(\d+)-(\d*)");
+
+            if (!match.Success)
+            {
+                context.Response.StatusCode = 416; // Range Not Satisfiable
+                context.Response.AddHeader("Content-Range", $"bytes */{data.Length}");
+                context.Response.Close();
+                return;
+            }
+
+            long start = long.Parse(match.Groups[1].Value);
+            long end = string.IsNullOrEmpty(match.Groups[2].Value)
+                ? data.Length - 1
+                : Math.Min(long.Parse(match.Groups[2].Value), data.Length - 1);
+
+            if (start > end || start >= data.Length)
+            {
+                context.Response.StatusCode = 416;
+                context.Response.AddHeader("Content-Range", $"bytes */{data.Length}");
+                context.Response.Close();
+                return;
+            }
+
+            long length = end - start + 1;
+            context.Response.StatusCode = 206;
+            context.Response.ContentType = "application/pdf";
+            context.Response.AddHeader("Access-Control-Allow-Origin", "*");
+            context.Response.AddHeader("Accept-Ranges", "bytes");
+            context.Response.AddHeader("Content-Range", $"bytes {start}-{end}/{data.Length}");
+            context.Response.ContentLength64 = length;
+            await context.Response.OutputStream.WriteAsync(data, (int)start, (int)length);
+            context.Response.Close();
+        }
+
         private static byte[] InjectPdfViewerCompatibility(byte[] fileBytes)
+
         {
             var html = Encoding.UTF8.GetString(fileBytes);
             if (html.Contains("__weaveDocPdfViewerCompatibilityInjected", StringComparison.Ordinal))
@@ -710,10 +851,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             {
                 _webViewHost.View.IsVisible = true;
 
-                // Yield to the Avalonia dispatcher at Render priority so that any
-                // pending Layout-priority work (which commits the new control bounds
-                // to WebKitGTK's offscreen renderer) completes before we run scripts.
-                // This ensures PDF.js has a non-zero viewport to render into.
+                // 等 Avalonia Render 优先级的布局传递完成，确保 GTK offscreen 拿到正确 viewport
                 await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
 
                 if (ShowFallbackIfNativeRenderingUnavailable())
@@ -721,28 +859,16 @@ namespace WeaveDoc.MarkdownEditor.Controls
                     return;
                 }
 
-                try
+                // 主犯1修复：viewer.html 已就绪，切回 Tab 只需触发 resize，不重新加载
+                if (_isViewerReady)
                 {
-                    // Delay the JS injection to ensure the underlying X11/GTK widget is fully realized and mapped.
-                    // This fixes the issue where the PDF view remains white when switching
-                    // back to the tab because the control bounds didn't change.
-                    _ = Task.Run(async () =>
+                    try
                     {
-                        await Task.Delay(150);
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
-                        {
-                            try
-                            {
-                                if (_webViewHost != null && _webViewHost.View.IsVisible)
-                                {
-                                    await _webViewHost.InvokeScriptAsync("window.dispatchEvent(new Event('resize'));");
-                                }
-                            }
-                            catch { }
-                        });
-                    });
+                        await _webViewHost.InvokeScriptAsync("window.dispatchEvent(new Event('resize'));");
+                    }
+                    catch { }
+                    return;
                 }
-                catch { }
             }
 
             if (_pendingFilePath != null)
@@ -882,6 +1008,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             await _webViewHost.DisposeAsync();
             _webViewHost = null;
             _isNavigationCompleted = false;
+            _isViewerReady = false;
         }
 
         private Grid GetMainGrid()

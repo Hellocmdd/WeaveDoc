@@ -93,11 +93,80 @@ namespace WeaveDoc.MarkdownEditor.Tests
         }
 
         [Test]
+        public void RenderPreviewHtml_InlineMath_ContentNotTruncated()
+        {
+            // Regression: the content slice used to drop its last char, so "$x^2$" yielded "x^".
+            var result = _service.RenderPreviewHtml("$x^2$");
+            Assert.That(result, Does.Contain(">x^2<"));
+            Assert.That(result, Does.Not.Contain(">x^<"));
+        }
+
+        [Test]
+        public void RenderPreviewHtml_AdjacentInlineMath_NoSpaceRequired()
+        {
+            // Regression: a '$' directly preceded by '$' was rejected as an opener,
+            // so "$a$$b$" rendered the second formula as literal text.
+            var result = _service.RenderPreviewHtml("$a$$b$");
+            Assert.That(result, Does.Contain(">a<"));
+            Assert.That(result, Does.Contain(">b<"));
+            Assert.That(result, Does.Not.Contain("$b$"));
+        }
+
+        [Test]
+        public void RenderPreviewHtml_SingleLineDisplayMath_RendersAsDisplay()
+        {
+            var result = _service.RenderPreviewHtml("$$x^2$$");
+            Assert.That(result, Does.Contain("class=\"math-display\""));
+            Assert.That(result, Does.Contain(">x^2<"));
+        }
+
+        [Test]
+        public void RenderPreviewHtml_AdjacentDisplayMath_NoSpaceRequired()
+        {
+            var result = _service.RenderPreviewHtml("$$a$$$$b$$");
+            Assert.That(result, Does.Contain(">a<"));
+            Assert.That(result, Does.Contain(">b<"));
+            Assert.That(Occurrences(result, "math-display"), Is.EqualTo(2));
+        }
+
+        private static int Occurrences(string haystack, string needle)
+        {
+            var count = 0;
+            var i = 0;
+            while ((i = haystack.IndexOf(needle, i, StringComparison.Ordinal)) >= 0)
+            {
+                count++;
+                i += needle.Length;
+            }
+            return count;
+        }
+
+        [Test]
         public void RenderPreviewHtml_TaskList_RendersCheckboxItem()
         {
             var result = _service.RenderPreviewHtml("- [ ] task\n- [x] done");
             Assert.That(result, Does.Contain("<ul>"));
             Assert.That(result, Does.Contain("<li"));
+        }
+
+        [Test]
+        public void RenderPreviewHtml_PipeTable_RendersTableHtml()
+        {
+            var markdown = "| 名称 | 数量 |\n| --- | ---: |\n| 苹果 | 3 |\n| 香蕉 | 12 |";
+            var result = _service.RenderPreviewHtml(markdown);
+
+            Assert.That(result, Does.Contain("<table"));
+            Assert.That(result, Does.Contain("<thead>"));
+            Assert.That(result, Does.Contain("<tbody>"));
+            // Header cells use <th>, body cells use <td>
+            Assert.That(result, Does.Contain("<th"));
+            Assert.That(result, Does.Contain("<td"));
+            Assert.That(result, Does.Contain("苹果"));
+            Assert.That(result, Does.Contain("香蕉"));
+            // Right-aligned column carries the alignment style
+            Assert.That(result, Does.Contain("text-align:right"));
+            // Cell contents must not leak as standalone <p> paragraphs
+            Assert.That(result, Does.Not.Contain("<p"));
         }
 
         [Test]

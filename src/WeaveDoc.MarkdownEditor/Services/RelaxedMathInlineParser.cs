@@ -15,7 +15,9 @@ public class RelaxedMathInlineParser : InlineParser
     {
         var match = slice.CurrentChar;
         var pc = slice.PeekCharExtra(-1);
-        if (pc == match || pc == '\\')
+        // Allow a '$' that directly follows another '$' so adjacent math spans on the
+        // same line work (e.g. "$a$$b$", "$$a$$$$b$$"). Only reject an escaped dollar (\$).
+        if (pc == '\\')
         {
             return false;
         }
@@ -63,7 +65,7 @@ public class RelaxedMathInlineParser : InlineParser
                 Column = column,
                 Delimiter = match,
                 DelimiterCount = openDollars,
-                Content = new Markdig.Helpers.StringSlice(slice.Text, start, end - openDollars)
+                Content = new Markdig.Helpers.StringSlice(slice.Text, start, end - openDollars + 1)
             };
             processor.Inline = inline;
             return true;

@@ -1,106 +1,121 @@
 # WeaveDoc.MarkdownEditor
 
-`WeaveDoc.MarkdownEditor` 是 WeaveDoc 的 Markdown 编辑、预览和 PDF 阅读模块。它可以作为独立 Avalonia 程序运行，也会被 `WeaveDoc.App` 作为 `Markdown 编辑` 页签集成。
+`WeaveDoc.MarkdownEditor` provides WeaveDoc's Markdown editing, preview, and PDF reading surfaces. It can run as a standalone Avalonia application and is also embedded by `WeaveDoc.App`.
 
-## 功能范围
+## Current Shape
 
-| 功能 | 对应代码 | 说明 |
+| Capability | Main files | Notes |
 | --- | --- | --- |
-| Monaco 编辑器 | `Controls/MonacoEditorControl.*`、`ViewModels/MonacoEditorViewModel.cs` | 承载本地 Monaco 资源，维护编辑器内容状态 |
-| Markdown 预览 | `Services/MarkdownService.cs`、`Controls/PreviewWebViewControl.*` | 将 Markdown 转成带行号定位信息的 HTML，并通过跨平台 Web 宿主展示 |
-| 数学公式渲染 | `Assets/katex/`、`Assets/preview-template.html` | 支持行内公式、块级公式和常见 LaTeX 环境 |
-| PDF 阅读 | `Controls/PdfViewerControl.*`、`Assets/pdfjs-5.7.284-dist/` | 基于 PDF.js 加载 PDF，补齐新版 PDF.js 需要的浏览器兼容脚本 |
-| App 集成 | `Views/MarkdownEditorTab.*`、`Views/IMarkdownEditorHost.cs` | 作为统一桌面应用的可嵌入页签 |
+| Native Markdown editing | `Controls/NativeMarkdownEditorControl.*` | AvaloniaEdit editor with TextMate Markdown grammar, selection helpers, formatting wrappers, and plain-text fallback mode |
+| Markdown preview | `Services/MarkdigMarkdownRenderService.cs`, `Controls/PreviewWebViewControl.*`, `Assets/preview-template.html` | Markdig AST-to-HTML rendering with line metadata, KaTeX assets, and a WebView host |
+| PDF reading | `Controls/PdfViewerControl.*`, `Assets/pdfjs-5.7.284-dist/`, `Assets/pdf-viewer-template.html` | PDF.js viewer with compatibility scripts and full-screen support |
+| Web host abstraction | `Controls/Web/` | `IWebViewHost` abstraction over Avalonia `NativeWebView`, with fallback policy for unavailable hosts |
+| Standalone app | `Program.cs`, `Views/MainWindow.*`, `Views/MarkdownEditorTab.*` | File menu, open/save, preview, and PDF tab |
+| App integration | `Views/MarkdownEditorTab.*`, `Views/IMarkdownEditorHost.cs` | Reusable view surface for the unified desktop app |
 
-## 目录结构
+`MonacoEditorControl` and `MonacoEditorViewModel` still exist in the source tree for compatibility/history, but the active editor path is the native AvaloniaEdit-based `NativeMarkdownEditorControl`.
+
+## Directory Map
 
 ```text
 WeaveDoc.MarkdownEditor/
-├── App.axaml / App.axaml.cs
-├── Program.cs
-├── WeaveDoc.MarkdownEditor.csproj
 ├── Controls/
-│   ├── MonacoEditorControl.*
+│   ├── NativeMarkdownEditorControl.*
 │   ├── PreviewWebViewControl.*
 │   ├── PdfViewerControl.*
+│   ├── MonacoEditorControl.*
 │   └── Web/
-│       ├── IWebViewHost.cs
-│       ├── IWebViewHostFactory.cs
-│       ├── NativeWebViewHost.cs
-│       ├── NativeWebViewHostFactory.cs
-│       ├── WebViewBridge.cs
-│       └── WebViewHostFactoryProvider.cs
+├── Services/
+│   ├── IMarkdownRenderService.cs
+│   ├── MarkdigMarkdownRenderService.cs
+│   ├── MarkdownService.cs
+│   ├── RelaxedMathInlineParser.cs
+│   ├── StorageFileOpenService.cs
+│   └── Interop/
 ├── Views/
 │   ├── MainWindow.*
 │   ├── MarkdownEditorTab.*
 │   └── IMarkdownEditorHost.cs
 ├── ViewModels/
-│   ├── MainWindowViewModel.cs
-│   └── MonacoEditorViewModel.cs
-├── Services/
-│   ├── MarkdownService.cs
-│   └── Interop/WebViewInterop.cs
 ├── Helpers/
-│   ├── Logger.cs
-│   └── MarkdownHelper.cs
 └── Assets/
-    ├── monaco-editor/
     ├── katex/
+    ├── monaco-editor/
     ├── pdfjs-5.7.284-dist/
     ├── preview-template.html
     └── pdf-viewer-template.html
 ```
 
-## 技术栈
+## Native Editor
 
-| 依赖 | 版本 | 用途 |
-| --- | --- | --- |
-| .NET / C# | `net10.0` | 运行时与语言 |
-| Avalonia | 12.0.4 | 桌面 UI |
-| Avalonia.Native | 12.0.4 | 原生平台支持 |
-| Avalonia.Controls.WebView | 12.0.1 | Monaco、HTML 预览和 PDF.js 的跨平台 `NativeWebView` 宿主 |
-| Monaco Editor | 本地静态资源 | Markdown 编辑器前端 |
-| KaTeX | 本地静态资源 | 数学公式渲染 |
-| PDF.js | 5.7.284 | PDF 阅读与文本选择 |
+`NativeMarkdownEditorControl` wraps `AvaloniaEdit.TextEditor` and exposes a small control-level API used by the app shell:
 
-## 构建与运行
+- `SetContent` / `GetContent`
+- `WrapSelection`
+- `GetSelection` / `SetSelection`
+- `ContentEdited`
+- `HasUnsyncedContent`
 
-独立运行 MarkdownEditor：
+TextMate grammar loading is attempted for Markdown syntax highlighting. When content patterns are known to trigger expensive AvaloniaEdit behavior, the control can switch to a plain `TextBox` fallback while preserving content, selection-style operations, and horizontal scrolling.
+
+Diagnostic flags:
+
+```bash
+WEAVEDOC_DEBUG_AVEDIT_SELECTION=1 dotnet run --project src/WeaveDoc.MarkdownEditor/WeaveDoc.MarkdownEditor.csproj
+WEAVEDOC_DEBUG_FORCE_AVALONIAEDIT=1 dotnet run --project src/WeaveDoc.MarkdownEditor/WeaveDoc.MarkdownEditor.csproj
+```
+
+The first flag logs selection/pointer/layout sampling. The second suppresses fallback so AvaloniaEdit behavior can be compared during diagnostics.
+
+## Preview Rendering
+
+`MarkdigMarkdownRenderService` parses Markdown through Markdig with advanced extensions, pipe tables, task lists, auto links, emphasis extras, generic attributes, and a custom math extension.
+
+The renderer emits HTML manually from the Markdig AST so WeaveDoc can preserve `data-line` metadata and control preview structure. It handles headings, paragraphs, lists, block quotes, code blocks, tables, raw HTML blocks, inline formatting, and math inlines/blocks.
+
+`PreviewWebViewControl` injects the rendered body into `Assets/preview-template.html`, which carries the CSS/KaTeX/browser-side behavior for the preview surface.
+
+## PDF Viewer
+
+`PdfViewerControl` hosts PDF.js from `Assets/pdfjs-5.7.284-dist/`. It can initialize/deactivate the WebView host, load a PDF path, apply compatibility scripts required by newer PDF.js builds, and toggle full-screen mode. The unified app wraps it in `PdfWorkspace`; the standalone editor exposes it as the PDF tab.
+
+## WebView Host
+
+Preview and PDF surfaces do not call platform-specific WebView APIs directly. They use:
+
+- `IWebViewHost`
+- `IWebViewHostFactory`
+- `NativeWebViewHost`
+- `WebViewBridge`
+- `WebViewRenderPolicy`
+
+`WebViewRenderPolicy` only falls back when the host reports unsupported or uninstalled WebView capability. A host that renders in a separate native dialog is still treated as usable.
+
+## Build And Run
+
+Standalone editor:
 
 ```bash
 dotnet build src/WeaveDoc.MarkdownEditor/WeaveDoc.MarkdownEditor.csproj
 dotnet run --project src/WeaveDoc.MarkdownEditor/WeaveDoc.MarkdownEditor.csproj
 ```
 
-在统一桌面应用中运行：
+Open a sample file at startup:
+
+```bash
+dotnet run --project src/WeaveDoc.MarkdownEditor/WeaveDoc.MarkdownEditor.csproj -- tests/test_doc/markdown/test-simple.md
+```
+
+Unified desktop app:
 
 ```bash
 dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj
 ```
 
-`WeaveDoc.App` 会通过项目引用加载 `MarkdownEditorTab`，并把 MarkdownEditor 的 `Assets/` 复制到 App 输出目录。
-
-## 测试
+## Tests
 
 ```bash
 dotnet test tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj -nologo
 ```
 
-当前测试覆盖：
-
-- `MarkdownServiceTests`：标题、段落、空输入和 null 输入行为
-- `PdfViewerControlTests`：PDF.js URL、兼容脚本、worker 前缀、打开脚本和文本选择样式
-
-## Web 宿主
-
-`MonacoEditorControl`、`PreviewWebViewControl` 和 `PdfViewerControl` 不直接依赖 Windows-only WebView2 API，而是通过 `Controls/Web/IWebViewHost` 使用 Avalonia `NativeWebView`。
-
-- Windows：`NativeWebView` 使用 WebView2 后端。
-- Linux：`NativeWebView` 使用 WebKit/WPE 后端；系统缺少对应运行库时，控件显示明确不可用状态并保留文档数据。
-- 页面脚本统一通过 `weaveDocBridge` 发送 `{ Type, Data }` 消息，C# 侧由宿主抽象接收并分发。
-
-## 维护说明
-
-- Web 宿主相关代码集中在 `Controls/Web/`，控件层只依赖 `IWebViewHost` / `IWebViewHostFactory`。
-- 前端静态资源统一放在 `Assets/`，由项目文件复制到输出目录。
-- 嵌入 App 的行为优先放在 `MarkdownEditorTab`，独立窗口行为保留在 `MainWindow`。
+The test README at [../../tests/WeaveDoc.MarkdownEditor.Tests/README.md](../../tests/WeaveDoc.MarkdownEditor.Tests/README.md) describes the current NUnit/Avalonia headless coverage for rendering, file-open flows, native editor behavior, WebView hosts, PDF viewer helpers, and regression probes.
