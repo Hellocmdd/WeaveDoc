@@ -17,6 +17,11 @@
     <SolidColorBrush x:Key="ShellTextBrush" Color="#E6EDF3" />
     <SolidColorBrush x:Key="ShellMutedTextBrush" Color="#8B949E" />
     <SolidColorBrush x:Key="ShellDisabledTextBrush" Color="#6E7681" />
+    <!-- Constant-light foregrounds for zones that stay dark in both themes (title bar + editor zone).
+         They are NOT flipped by ApplyShellPalette, so text stays readable when the background is dark. -->
+    <SolidColorBrush x:Key="ShellOnDarkTextBrush" Color="#E6EDF3" />
+    <SolidColorBrush x:Key="ShellOnDarkMutedTextBrush" Color="#8B949E" />
+    <SolidColorBrush x:Key="ShellOnDarkDisabledTextBrush" Color="#6E7681" />
     <SolidColorBrush x:Key="ShellAccentBrush" Color="#58A6FF" />
     <SolidColorBrush x:Key="ShellAccentStrongBrush" Color="#1F6FEB" />
     <SolidColorBrush x:Key="ShellSuccessBrush" Color="#3FB950" />
@@ -30,5 +35,52 @@
     <FluentTheme />
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+
+    <!-- shared small command button used across AI panel views -->
+    <Style Selector="Button.ai-command">
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.ai-command.primary">
+      <Setter Property="Background" Value="{DynamicResource ShellAccentStrongBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentStrongBrush}" />
+    </Style>
+
+    <!-- dashed full-width panel action button (demo PanelAction) -->
+    <Style Selector="Button.panel-action">
+      <Setter Property="Height" Value="30" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellAccentBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <!-- small inline chip button -->
+    <Style Selector="Button.rag-chip">
+      <Setter Property="Height" Value="26" />
+      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <!-- status badge -->
+    <Style Selector="Border.rag-badge">
+      <Setter Property="Padding" Value="4,1" />
+      <Setter Property="CornerRadius" Value="2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
   </Application.Styles>
 </Application>

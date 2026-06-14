@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WeaveDoc.App.ViewModels"
+             x:Class="WeaveDoc.App.Views.RagSnapshotView"
+             x:DataType="vm:RagTabViewModel">
+  <Grid RowDefinitions="Auto,*,Auto"
+        Background="{DynamicResource ShellPanelBrush}">
+
+    <!-- header -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource ShellChromeBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="10,5">
+      <StackPanel Spacing="2">
+        <TextBlock Text="检索快照"
+                   FontSize="10"
+                   FontWeight="Medium"
+                   Foreground="{DynamicResource ShellMutedTextBrush}" />
+        <TextBlock FontSize="10"
+                   Foreground="{DynamicResource ShellDisabledTextBrush}">
+          <Run Text="命中 " />
+          <Run Text="{Binding LastRankedChunks.Count}" />
+          <Run Text=" 个检索块" />
+        </TextBlock>
+      </StackPanel>
+    </Border>
+
+    <!-- chunk cards -->
+    <Grid Grid.Row="1">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding LastRankedChunks}"
+                      Padding="4">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:RetrievalChunkItem">
+              <Border Margin="0,0,0,5"
+                      Background="{DynamicResource ShellCardBrush}"
+                      BorderBrush="{DynamicResource ShellBorderBrush}"
+                      BorderThickness="1"
+                      CornerRadius="4"
+                      Padding="8,6">
+                <StackPanel Spacing="3">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Border Grid.Column="0"
+                            Classes="rag-badge"
+                            Background="{DynamicResource ShellSelectedBrush}">
+                      <TextBlock Text="{Binding Citation}"
+                                 FontSize="9"
+                                 Foreground="{DynamicResource ShellAccentBrush}" />
+                    </Border>
+                  </Grid>
+                  <TextBlock FontSize="11"
+                             FontWeight="Medium"
+                             TextTrimming="CharacterEllipsis"
+                             Foreground="{DynamicResource ShellTextBrush}">
+                    <Run Text="{Binding FilePath}" />
+                  </TextBlock>
+                  <TextBlock Text="{Binding SectionTitle}"
+                             FontSize="10"
+                             TextTrimming="CharacterEllipsis"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                  <TextBlock Text="{Binding ContentKind}"
+                             FontSize="9"
+                             Foreground="{DynamicResource ShellDisabledTextBrush}" />
+                  <TextBlock Text="{Binding Text}"
+                             FontSize="10"
+                             TextWrapping="Wrap"
+                             MaxLines="4"
+                             TextTrimming="CharacterEllipsis"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <!-- empty state -->
+      <TextBlock Text="执行一次问答后，这里展示检索到的文档片段。"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Center"
+                 MaxWidth="220"
+                 TextWrapping="Wrap"
+                 TextAlignment="Center"
+                 FontSize="11"
+                 IsVisible="{Binding !HasRankedChunks}"
+                 Foreground="{DynamicResource ShellMutedTextBrush}" />
+    </Grid>
+
+    <!-- debug log -->
+    <Expander Grid.Row="2"
+              Header="检索调试原文"
+              Background="{DynamicResource ShellChromeBrush}"
+              BorderBrush="{DynamicResource ShellBorderBrush}"
+              BorderThickness="0,1,0,0">
+      <ScrollViewer MaxHeight="120"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Auto">
+        <TextBlock Text="{Binding RetrievalDebugText}"
+                   FontFamily="monospace"
+                   FontSize="10"
+                   TextWrapping="Wrap"
+                   Padding="8"
+                   Foreground="{DynamicResource ShellMutedTextBrush}" />
+      </ScrollViewer>
+    </Expander>
+  </Grid>
+</UserControl>

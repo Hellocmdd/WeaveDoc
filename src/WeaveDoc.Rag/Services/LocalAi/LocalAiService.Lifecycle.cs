@@ -61,6 +61,30 @@ public sealed partial class LocalAiService
         }
     }
 
+    private async Task StartChatServerIfNeededAsync(CancellationToken cancellationToken)
+    {
+        if (_cloudSettings.ChatProvider == "cloud")
+        {
+            return;
+        }
+
+        if (!TryGetLocalServerPort(_options.LlamaServerBaseUrl, 8080, out var chatPort))
+        {
+            return;
+        }
+
+        var modelPath = ResolveChatModelPath();
+        _chatProcess = new LlamaServerProcess("server");
+        var gpuLayers = Environment.GetEnvironmentVariable("LLAMA_SERVER_GPU_LAYERS");
+        if (string.IsNullOrWhiteSpace(gpuLayers))
+        {
+            gpuLayers = "auto";
+        }
+
+        var extraArgs = $"--alias {_options.ChatModel} --gpu-layers {gpuLayers.Trim()}";
+        await _chatProcess.StartIfNeededAsync(modelPath, chatPort, extraArgs, cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task LoadEmbeddingModelAsync(CancellationToken cancellationToken)
     {
         var parameters = new ModelParams(EmbeddingModelPath)
@@ -90,6 +114,46 @@ public sealed partial class LocalAiService
         _embedder = new LLamaEmbedder(_embeddingWeights, parameters);
     }
 
+    private string ResolveChatModelPath()
+    {
+        var explicitModelPath = Environment.GetEnvironmentVariable("LLAMA_SERVER_MODEL");
+        if (!string.IsNullOrWhiteSpace(explicitModelPath))
+        {
+            var fullPath = Path.GetFullPath(explicitModelPath.Trim());
+            if (File.Exists(fullPath))
+            {
+                return fullPath;
+            }
+
+            throw new FileNotFoundException($"Chat model file not found: {fullPath}", fullPath);
+        }
+
+        var modelsRoot = Path.Combine(WorkspaceRoot, "models");
+        var preferredPath = Path.Combine(modelsRoot, "Qwen3.5-4B-Q4_K_M.gguf");
+        if (File.Exists(preferredPath))
+        {
+            return preferredPath;
+        }
+
+        var excludedModelNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            Path.GetFileName(EmbeddingModelPath),
+            "bge-reranker-v2-m3.gguf"
+        };
+
+        var fallbackPath = Directory.EnumerateFiles(modelsRoot, "*.gguf", SearchOption.TopDirectoryOnly)
+            .Where(path => !excludedModelNames.Contains(Path.GetFileName(path)))
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        if (fallbackPath is not null)
+        {
+            return fallbackPath;
+        }
+
+        throw new FileNotFoundException($"No chat GGUF model found in: {modelsRoot}", modelsRoot);
+    }
+
     private async Task LoadCorpusAsync(CancellationToken cancellationToken)
     {
         if (_embedder is null || _workspaceRoot is null)
@@ -105,8 +169,8 @@ public sealed partial class LocalAiService
         var docRoot = Path.Combine(_workspaceRoot, "doc");
         Directory.CreateDirectory(docRoot);
 
-        var embeddingCache = await EmbeddingCache.LoadAsync(CachePath, cancellationToken).ConfigureAwait(false);
-        var cacheChanged = false;
+        _embeddingCache = await EmbeddingCache.LoadAsync(CachePath, cancellationToken).ConfigureAwait(false);
+        _embeddingCacheChanged = false;
         var activeCacheKeys = new HashSet<string>(StringComparer.Ordinal);
 
         var corpusFiles = Directory.EnumerateFiles(docRoot, "*.*", SearchOption.AllDirectories)
@@ -138,12 +202,9 @@ public sealed partial class LocalAiService
             var cacheKey = BuildChunkCacheKey(chunk);
             activeCacheKeys.Add(cacheKey);
 
-            if (!embeddingCache.TryGet(cacheKey, out var embedding))
-            {
-                embedding = await GetEmbeddingVectorAsync(retrievalText, cancellationToken).ConfigureAwait(false);
-                embeddingCache.Set(cacheKey, embedding);
-                cacheChanged = true;
-            }
+            var embedding = _embeddingCache.TryGet(cacheKey, out var cachedEmbedding)
+                ? cachedEmbedding
+                : null;
 
             var tokenFrequency = BuildTokenFrequency(retrievalText);
             _indexedChunks.Add(new IndexedChunk(chunk, embedding, tokenFrequency, tokenFrequency.Values.Sum()));
@@ -158,15 +219,12 @@ public sealed partial class LocalAiService
             ? 0f
             : (float)_indexedChunks.Average(item => item.TokenCount);
 
-        if (embeddingCache.PruneExcept(activeCacheKeys))
+        if (_embeddingCache.PruneExcept(activeCacheKeys))
         {
-            cacheChanged = true;
+            _embeddingCacheChanged = true;
         }
 
-        if (cacheChanged)
-        {
-            await embeddingCache.SaveAsync(CachePath, cancellationToken).ConfigureAwait(false);
-        }
+        await SaveEmbeddingCacheIfChangedAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private string BuildChunkCacheKey(DocumentChunk chunk)
@@ -174,6 +232,29 @@ public sealed partial class LocalAiService
         var payload = $"structured-retrieval-v2|{Path.GetFileName(EmbeddingModelPath)}|{_options.ChunkSize}|{_options.ChunkOverlap}|{chunk.FilePath}|{chunk.Index}|{chunk.StructurePath}|{chunk.ContentKind}|{BuildChunkRetrievalText(chunk)}";
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
         return Convert.ToHexString(bytes);
+    }
+
+    private static bool TryGetLocalServerPort(string baseUrl, int fallbackPort, out int port)
+    {
+        port = fallbackPort;
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (!uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            && !uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            && !uri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!uri.IsDefaultPort)
+        {
+            port = uri.Port;
+        }
+
+        return true;
     }
 
     private string GetModelPath(string fileName)

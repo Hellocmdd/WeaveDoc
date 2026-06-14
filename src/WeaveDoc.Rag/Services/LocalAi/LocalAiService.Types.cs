@@ -6,7 +6,28 @@ namespace WeaveDoc.Rag.Services;
 
 public sealed partial class LocalAiService
 {
-    private sealed record IndexedChunk(DocumentChunk Chunk, float[] Embedding, IReadOnlyDictionary<string, int> TokenFrequency, int TokenCount);
+    private sealed class IndexedChunk
+    {
+        public IndexedChunk(
+            DocumentChunk chunk,
+            float[]? embedding,
+            IReadOnlyDictionary<string, int> tokenFrequency,
+            int tokenCount)
+        {
+            Chunk = chunk;
+            Embedding = embedding;
+            TokenFrequency = tokenFrequency;
+            TokenCount = tokenCount;
+        }
+
+        public DocumentChunk Chunk { get; }
+
+        public float[]? Embedding { get; set; }
+
+        public IReadOnlyDictionary<string, int> TokenFrequency { get; }
+
+        public int TokenCount { get; }
+    }
 
     private sealed record SparseRetrievalComponent(
         IndexedChunk Indexed,

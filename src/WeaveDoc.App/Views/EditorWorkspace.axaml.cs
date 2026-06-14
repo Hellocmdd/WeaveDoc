@@ -87,7 +87,11 @@ public partial class EditorWorkspace : UserControl
         MarkdownEditor?.SetContent(documentWorkspace.Content);
     }
 
-    private void SyncEditorContentToWorkspace()
+    /// <summary>
+    /// Pushes the current editor text into <see cref="DocumentWorkspaceViewModel.Content"/>.
+    /// Call before any save/export operation so the ViewModel has the latest text.
+    /// </summary>
+    public void SyncEditorContentToWorkspace()
     {
         var documentWorkspace = _subscribedViewModel?.DocumentWorkspace;
         var markdownEditor = MarkdownEditor;

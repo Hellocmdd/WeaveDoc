@@ -1,0 +1,136 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WeaveDoc.App.ViewModels"
+             x:Class="WeaveDoc.App.Views.RagCorpusView"
+             x:DataType="vm:RagTabViewModel">
+  <Grid RowDefinitions="Auto,Auto,*,Auto"
+        Background="{DynamicResource ShellPanelBrush}">
+
+    <!-- header -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource ShellChromeBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="10,5">
+      <TextBlock Text="文献库（语料知识库）"
+                 FontSize="10"
+                 FontWeight="Medium"
+                 Foreground="{DynamicResource ShellMutedTextBrush}" />
+    </Border>
+
+    <!-- count + search -->
+    <Border Grid.Row="1"
+            Background="{DynamicResource ShellChromeBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="8,5">
+      <Grid ColumnDefinitions="*,Auto"
+            ColumnSpacing="8">
+        <TextBlock Grid.Column="0"
+                   VerticalAlignment="Center"
+                   FontSize="10"
+                   Foreground="{DynamicResource ShellMutedTextBrush}">
+          <Run Text="{Binding CorpusFiles.Count}" />
+          <Run Text=" 个文件 · " />
+          <Run Text="{Binding CorpusChunkCount}" />
+          <Run Text=" 个知识块" />
+        </TextBlock>
+        <TextBox x:Name="SearchBox"
+                 Grid.Column="1"
+                 Width="130"
+                 PlaceholderText="搜索…"
+                 TextChanged="OnSearchTextChanged"
+                 BorderThickness="1"
+                 BorderBrush="{DynamicResource ShellBorderBrush}"
+                 Background="{DynamicResource ShellInputBrush}"
+                 Foreground="{DynamicResource ShellTextBrush}"
+                 Padding="6,3"
+                 FontSize="10" />
+      </Grid>
+    </Border>
+
+    <!-- list -->
+    <Grid Grid.Row="2">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <ItemsControl x:Name="CorpusList"
+                      Padding="2">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="x:String">
+              <Border BorderBrush="{DynamicResource ShellBorderBrush}"
+                      BorderThickness="0,0,0,1"
+                      Padding="8,5">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="6">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2">
+                    <TextBlock Text="{Binding}"
+                               FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource ShellTextBrush}" />
+                    <Border Classes="rag-badge"
+                            Background="{DynamicResource ShellCardBrush}"
+                            HorizontalAlignment="Left">
+                      <TextBlock Text="已索引"
+                                 FontSize="9"
+                                 Foreground="{DynamicResource ShellSuccessBrush}" />
+                    </Border>
+                  </StackPanel>
+                  <Button Grid.Column="1"
+                          Classes="rag-chip"
+                          Content="删除"
+                          Click="OnDeleteClick" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <!-- empty state -->
+      <StackPanel x:Name="EmptyState"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  Spacing="4">
+        <TextBlock x:Name="EmptyStateText"
+                   Text="暂无语料文件"
+                   FontSize="12"
+                   Foreground="{DynamicResource ShellMutedTextBrush}"
+                   HorizontalAlignment="Center" />
+        <TextBlock Text="点击下方「添加文献」导入 .md / .txt / .json"
+                   FontSize="10"
+                   Foreground="{DynamicResource ShellDisabledTextBrush}"
+                   HorizontalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+
+    <!-- actions -->
+    <Border Grid.Row="3"
+            Background="{DynamicResource ShellChromeBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="8,6">
+      <StackPanel Orientation="Vertical"
+                  Spacing="5">
+        <Button Classes="panel-action"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Content="+ 添加文献"
+                Click="OnAddClick" />
+        <Grid ColumnDefinitions="*,Auto"
+              ColumnSpacing="6">
+          <TextBlock Grid.Column="0"
+                     Text="{Binding StatusText}"
+                     VerticalAlignment="Center"
+                     FontSize="10"
+                     TextTrimming="CharacterEllipsis"
+                     Foreground="{DynamicResource ShellMutedTextBrush}" />
+          <Button Grid.Column="1"
+                  Classes="rag-chip"
+                  Content="刷新"
+                  Click="OnRefreshClick" />
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

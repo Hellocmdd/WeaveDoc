@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using LLama;
@@ -17,7 +18,25 @@ public sealed partial class LocalAiService : IDisposable
     private const int EmbeddingSafetyMargin = 256;
     private const int MaxEmbeddingTokens = EmbeddingContextSize - EmbeddingSafetyMargin;
     private static readonly string[] SupportedDocumentExtensions = [".md", ".txt", ".json"];
-    private static readonly string[] IgnoredCorpusRelativePrefixes = ["QA/"];
+    private static readonly string[] IgnoredCorpusRelativePrefixes = ["QA/", "dev/", "logs/", "task_doc/"];
+    private static readonly HashSet<string> IgnoredCorpusPathSegments = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".cache",
+        ".git",
+        ".next",
+        ".nuxt",
+        ".pnpm-store",
+        ".turbo",
+        ".vite",
+        "bin",
+        "build",
+        "coverage",
+        "dist",
+        "node_modules",
+        "obj",
+        "out",
+        "target"
+    };
 
     private static readonly Regex CitationRegex = new("\\[(?:\\d+|[^\\[\\]\\r\\n|]{1,160}\\s\\|\\s[^\\[\\]\\r\\n|]{1,160}\\s\\|\\sc\\d+)\\]", RegexOptions.Compiled);
     private static readonly Regex BareChunkCitationRegex = new("\\[c(?<index>\\d+)\\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -64,6 +83,7 @@ public sealed partial class LocalAiService : IDisposable
     private CloudApiSettings _cloudSettings = CloudApiSettings.Load();
     private readonly HttpClient _httpClient = new();
     private readonly SemaphoreSlim _corpusLock = new(1, 1);
+    private LlamaServerProcess? _chatProcess;
     private LlamaServerProcess? _rerankerProcess;
 
     public CloudApiSettings CloudSettings
@@ -76,6 +96,8 @@ public sealed partial class LocalAiService : IDisposable
     private string? _workspaceRoot;
     private LLamaWeights? _embeddingWeights;
     private LLamaEmbedder? _embedder;
+    private EmbeddingCache? _embeddingCache;
+    private bool _embeddingCacheChanged;
     private float _avgDocumentLength;
     private IReadOnlyList<string> _activeDocumentFilePaths = [];
 
@@ -127,6 +149,8 @@ public sealed partial class LocalAiService : IDisposable
 
             await LoadEmbeddingModelAsync(cancellationToken).ConfigureAwait(false);
             await ReloadCorpusInternalAsync(cancellationToken).ConfigureAwait(false);
+
+            await StartChatServerIfNeededAsync(cancellationToken).ConfigureAwait(false);
 
             var chatClient = new LlamaServerChatClient(_httpClient, _options, _cloudSettings);
             await chatClient.EnsureServerAvailableAsync(cancellationToken).ConfigureAwait(false);
@@ -239,6 +263,128 @@ public sealed partial class LocalAiService : IDisposable
         return answer;
     }
 
+    /// <summary>
+    /// Streaming variant of <see cref="AskAsync"/>. Runs the same retrieval pipeline (so
+    /// <see cref="LastRetrievalDebug"/> / <see cref="LastRankedChunkSnapshots"/> /
+    /// <see cref="LastContextChunkSnapshots"/> are populated before the first token), then
+    /// yields generation deltas. After the stream ends it applies citation normalization and,
+    /// if the answer is off-topic/malformed, runs the repair pipeline and emits a final
+    /// replacement chunk so the displayed bubble settles to the canonical text.
+    /// </summary>
+    public async IAsyncEnumerable<RagStreamChunk> AskStreamAsync(
+        string question,
+        IReadOnlyList<ChatTurn> history,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await InitializeAsync(cancellationToken).ConfigureAwait(false);
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(question);
+        var retrievalQuestion = NormalizeQuestionForRetrieval(question, history);
+        if (string.IsNullOrWhiteSpace(retrievalQuestion))
+        {
+            LastRetrievalDebug = "当前输入被识别为寒暄语，未执行文档检索。";
+            ClearLastRetrievalSnapshots();
+            yield return new RagStreamChunk("你好，我是本地文档问答助手。你可以直接提问文档内容，或先导入/刷新文档后再问。", Replace: true);
+            yield break;
+        }
+
+        if (_embedder is null)
+        {
+            throw new InvalidOperationException("Embedding model is not ready.");
+        }
+
+        RetrievalResult retrieval;
+        await _corpusLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            retrieval = await FindRelevantChunksAsync(retrievalQuestion, _options.TopK, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _corpusLock.Release();
+        }
+
+        LastRetrievalDebug = BuildRetrievalDebugText(question, retrievalQuestion, retrieval);
+        LastRankedChunkSnapshots = retrieval.RankedChunks.Select(CreateRetrievalChunkSnapshot).ToArray();
+        LastContextChunkSnapshots = retrieval.ContextChunks.Select(CreateRetrievalChunkSnapshot).ToArray();
+        LastUsedSparsePrefilter = retrieval.UsedSparsePrefilter;
+
+        const string noHit = "未检索到足够相关的本地文档内容。请补充更具体的问题，或确认文档来源中包含该主题。";
+        if (retrieval.RankedChunks.Count == 0 || retrieval.ContextChunks.Count == 0)
+        {
+            yield return new RagStreamChunk(noHit, Replace: true);
+            yield break;
+        }
+
+        if (retrieval.RankedChunks[0].Score < _options.MinCombinedThreshold)
+        {
+            yield return new RagStreamChunk(noHit, Replace: true);
+            yield break;
+        }
+
+        var queryProfile = BuildQueryProfile(retrievalQuestion);
+        var topChunks = retrieval.ContextChunks;
+
+        RememberActiveDocumentScope(topChunks);
+
+        if (!queryProfile.PreferFallbackOverUnknown
+            && ShouldReturnUnknownForUnsupportedRequestedDocumentTopic(queryProfile, topChunks, retrieval.TargetFilePaths))
+        {
+            yield return new RagStreamChunk(BuildUnknownAnswer(queryProfile, topChunks, retrieval.TargetFilePaths), Replace: true);
+            yield break;
+        }
+
+        var prompt = BuildPrompt(retrievalQuestion, history, queryProfile, retrieval.RankedChunks, topChunks, retrieval.TargetFilePaths);
+        var client = new LlamaServerChatClient(_httpClient, _options, _cloudSettings);
+
+        var accumulated = new StringBuilder();
+        await foreach (var delta in client.StreamCompletionAsync(prompt, cancellationToken, RagSystemPrompt).ConfigureAwait(false))
+        {
+            accumulated.Append(delta);
+            yield return new RagStreamChunk(delta, Replace: false);
+        }
+
+        var raw = accumulated.ToString();
+        var normalized = NormalizeGeneratedAnswerCitations(raw, topChunks, retrieval.TargetFilePaths, queryProfile);
+
+        if (!IsOffTopicOrMalformedAnswer(normalized, retrievalQuestion, topChunks, retrieval.TargetFilePaths))
+        {
+            Console.Error.WriteLine("[QA-Flow] LLM-stream-answer-accepted");
+            // Citation normalization may have reshaped the tail; settle the bubble to canonical text.
+            if (!string.Equals(raw, normalized, StringComparison.Ordinal))
+            {
+                yield return new RagStreamChunk(normalized, Replace: true);
+            }
+            yield break;
+        }
+
+        Console.Error.WriteLine($"[QA-Flow] LLM-stream-answer-rejected, attempting repair... q='{TruncateForLog(retrievalQuestion)}'");
+        var repaired = NormalizeGeneratedAnswerCitations(
+            await client.CompleteAsync(BuildRepairPrompt(retrievalQuestion, queryProfile, retrieval.RankedChunks, topChunks, retrieval.TargetFilePaths), cancellationToken, RagSystemPrompt).ConfigureAwait(false),
+            topChunks,
+            retrieval.TargetFilePaths,
+            queryProfile);
+
+        string finalText;
+        if (!IsOffTopicOrMalformedAnswer(repaired, retrievalQuestion, topChunks, retrieval.TargetFilePaths))
+        {
+            Console.Error.WriteLine("[QA-Flow] Repair-accepted");
+            finalText = repaired;
+        }
+        else if (TryBuildLocalFallbackAnswer(queryProfile, topChunks, retrieval.TargetFilePaths, out var fallbackAnswer))
+        {
+            Console.Error.WriteLine("[QA-Flow] Fallback-accepted");
+            finalText = fallbackAnswer;
+        }
+        else
+        {
+            Console.Error.WriteLine("[QA-Flow] Fallback-empty, returning unknown...");
+            finalText = BuildUnknownAnswer(queryProfile, topChunks, retrieval.TargetFilePaths);
+        }
+
+        yield return new RagStreamChunk(finalText, Replace: true);
+    }
+
     public async Task<AddDocumentResult> AddDocumentAsync(string sourceFilePath, CancellationToken cancellationToken = default)
     {
         await InitializeAsync(cancellationToken).ConfigureAwait(false);
@@ -328,6 +474,7 @@ public sealed partial class LocalAiService : IDisposable
 
     public void Dispose()
     {
+        _chatProcess?.Dispose();
         _rerankerProcess?.Dispose();
         _embedder?.Dispose();
         _embeddingWeights?.Dispose();

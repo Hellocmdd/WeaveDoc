@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 using WeaveDoc.App.Views;
 using WeaveDoc.Converter;
 using WeaveDoc.Converter.Config;
+using WeaveDoc.Rag.Services;
 
 namespace WeaveDoc.App;
 
@@ -11,13 +12,15 @@ public partial class App : Application
 {
     private readonly ConfigManager _configManager;
     private readonly DocumentConversionEngine _engine;
+    private readonly LocalAiService _aiService;
 
-    public App() : this(null!, null!) { }
+    public App() : this(null!, null!, null!) { }
 
-    public App(ConfigManager configManager, DocumentConversionEngine engine)
+    public App(ConfigManager configManager, DocumentConversionEngine engine, LocalAiService aiService)
     {
         _configManager = configManager;
         _engine = engine;
+        _aiService = aiService;
     }
 
     public override void Initialize()
@@ -29,7 +32,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow(_configManager, _engine);
+            desktop.MainWindow = new MainWindow(_configManager, _engine, _aiService);
         }
 
         base.OnFrameworkInitializationCompleted();

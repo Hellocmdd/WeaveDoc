@@ -6,6 +6,7 @@ namespace WeaveDoc.App.ViewModels;
 public sealed class DocumentWorkspaceViewModel : ObservableObject
 {
     private const string EmptyDisplayName = "未打开 Markdown 文档";
+    private const string NewDisplayName = "未命名文档";
     private const string EmptyStatusText = "未打开文档";
 
     private readonly IMarkdownDocumentService _documentService;
@@ -93,6 +94,19 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
+    public Task<bool> NewAsync(CancellationToken cancellationToken = default)
+    {
+        CurrentFilePath = null;
+        DisplayName = NewDisplayName;
+        SetProperty(ref _content, string.Empty, nameof(Content));
+        PreviewHtml = string.Empty;
+        HasDocument = true;
+        IsDirty = false;
+        ClearError();
+        StatusText = "新建文档";
+        return Task.FromResult(true);
+    }
+
     public async Task<bool> OpenAsync(string filePath, CancellationToken cancellationToken = default)
     {
         var result = await _documentService.ReadAsync(filePath, cancellationToken);
@@ -164,12 +178,32 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
 
     public async Task<bool> SaveAsync(CancellationToken cancellationToken = default)
     {
-        if (!CanSave || string.IsNullOrWhiteSpace(CurrentFilePath))
+        if (!CanSave)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(CurrentFilePath))
         {
             return false;
         }
 
         var result = await _documentService.SaveAsync(CurrentFilePath, Content, cancellationToken);
+        if (!result.Succeeded)
+        {
+            SetFailure(result.ErrorMessage);
+            return false;
+        }
+
+        ApplyDocument(result, isDirty: false);
+        ClearError();
+        StatusText = $"已保存 {DisplayName}";
+        return true;
+    }
+
+    public async Task<bool> SaveAsAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        var result = await _documentService.SaveAsync(filePath, Content, cancellationToken);
         if (!result.Succeeded)
         {
             SetFailure(result.ErrorMessage);

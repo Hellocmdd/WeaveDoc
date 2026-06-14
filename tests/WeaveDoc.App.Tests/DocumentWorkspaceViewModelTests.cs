@@ -222,7 +222,7 @@ public sealed class DocumentWorkspaceViewModelTests
         var service = new FakeMarkdownDocumentService();
         service.QueueRead(MarkdownDocumentResult.Success("# 标题", "/workspace/demo.md", "<h1>标题</h1>"));
         var workspace = new DocumentWorkspaceViewModel(service);
-        var shell = new AppShellViewModel(workspace);
+        var shell = new AppShellViewModel(workspace, null, null, null);
         var changedProperties = new List<string?>();
         shell.PropertyChanged += (_, e) => changedProperties.Add(e.PropertyName);
 

@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WeaveDoc.MarkdownEditor.Controls;assembly=WeaveDoc.MarkdownEditor"
+             xmlns:vm="using:WeaveDoc.App.ViewModels"
+             x:Class="WeaveDoc.App.Views.PdfWorkspace"
+             x:DataType="vm:AppShellViewModel">
+  <!-- Theme-following (NOT always-dark): this view shares the left workspace column slot with
+       WorkspaceSidebar. When a PDF is opened the slot swaps from WorkspaceSidebar (theme-following)
+       to this view — if it were always-dark, the column would flip light→dark on open (and the
+       toolbar's ShellTextBrush text would become invisible under a light app theme). Mirror
+       WorkspaceSidebar's brushes so the column stays consistent in both states. -->
+  <Grid RowDefinitions="30,*"
+        Background="{DynamicResource ShellPanelBrush}">
+
+    <!-- PDF Toolbar -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource ShellChromeBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="8,0">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
+            ColumnSpacing="4">
+        <Button x:Name="ClosePdfButton"
+                Grid.Column="0"
+                Classes="pdf-tool"
+                Content="← 返回"
+                Click="OnClosePdfClick" />
+        <Border Grid.Column="1"
+                Width="1"
+                Height="14"
+                Background="{DynamicResource ShellBorderBrush}"
+                VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2"
+                   x:Name="PdfFileNameText"
+                   Text="{Binding CurrentPdfDisplayName}"
+                   VerticalAlignment="Center"
+                   FontSize="11"
+                   FontWeight="SemiBold"
+                   Foreground="{DynamicResource ShellTextBrush}"
+                   TextTrimming="CharacterEllipsis"
+                   Margin="4,0" />
+        <Button x:Name="FullScreenPdfButton"
+                Grid.Column="4"
+                Classes="pdf-tool"
+                Content="全屏"
+                Click="OnFullScreenPdfClick" />
+        <Button x:Name="OpenAnotherPdfButton"
+                Grid.Column="5"
+                Classes="pdf-tool"
+                Content="打开"
+                Click="OnOpenAnotherPdfClick" />
+      </Grid>
+    </Border>
+
+    <!-- PDF Viewer -->
+    <controls:PdfViewerControl Grid.Row="1"
+                               x:Name="PdfViewerControl" />
+  </Grid>
+
+  <UserControl.Styles>
+    <Style Selector="Button.pdf-tool">
+      <Setter Property="Height" Value="26" />
+      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.pdf-tool:pointerover">
+      <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    </Style>
+  </UserControl.Styles>
+</UserControl>

@@ -1,0 +1,395 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:CompileBindings="False"
+        x:Class="WeaveDoc.App.Views.SettingsDialog"
+        Width="640"
+        Height="520"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        SystemDecorations="None"
+        Background="{DynamicResource ShellCardBrush}">
+  <Window.Styles>
+    <Style Selector="Button.settings-tab">
+      <Setter Property="Height" Value="32" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,2" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.settings-tab.active">
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentBrush}" />
+    </Style>
+    <Style Selector="Button.settings-tab:pointerover">
+      <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
+    </Style>
+
+    <Style Selector="Button.dlg">
+      <Setter Property="Height" Value="32" />
+      <Setter Property="Padding" Value="16,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.dlg.primary">
+      <Setter Property="Background" Value="{DynamicResource ShellAccentStrongBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentStrongBrush}" />
+    </Style>
+    <Style Selector="Button.dlg-chip">
+      <Setter Property="Height" Value="28" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.dlg.danger">
+      <Setter Property="Foreground" Value="{DynamicResource ShellWarningBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellWarningBrush}" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="DataGrid">
+      <Setter Property="Background" Value="{DynamicResource ShellCardBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    </Style>
+  </Window.Styles>
+
+  <Border BorderBrush="{DynamicResource ShellBorderBrush}"
+          BorderThickness="1">
+    <DockPanel LastChildFill="True">
+
+      <!-- Title bar -->
+      <Border DockPanel.Dock="Top"
+              Height="36"
+              Background="{DynamicResource ShellChromeBrush}"
+              BorderBrush="{DynamicResource ShellBorderBrush}"
+              BorderThickness="0,0,0,1"
+              Padding="14,0">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0"
+                     Text="设置"
+                     VerticalAlignment="Center"
+                     FontSize="12"
+                     FontWeight="Medium"
+                     Foreground="{DynamicResource ShellTextBrush}" />
+          <Button Grid.Column="1"
+                  x:Name="CloseButton"
+                  VerticalAlignment="Center"
+                  Width="24" Height="24"
+                  Padding="0"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  Foreground="{DynamicResource ShellMutedTextBrush}"
+                  Content="✕"
+                  Click="OnCloseClick" />
+        </Grid>
+      </Border>
+
+      <!-- Footer -->
+      <Border DockPanel.Dock="Bottom"
+              Height="44"
+              Background="{DynamicResource ShellChromeBrush}"
+              BorderBrush="{DynamicResource ShellBorderBrush}"
+              BorderThickness="0,1,0,0"
+              Padding="14,0">
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8"
+                    VerticalAlignment="Center">
+          <Button Classes="dlg" Content="恢复默认" Click="OnCloseClick" />
+          <Button Classes="dlg primary" Content="应用" Click="OnCloseClick" />
+        </StackPanel>
+      </Border>
+
+      <!-- Tab strip -->
+      <Border DockPanel.Dock="Top"
+              Height="36"
+              Background="{DynamicResource ShellChromeBrush}"
+              BorderBrush="{DynamicResource ShellBorderBrush}"
+              BorderThickness="0,0,0,1"
+              Padding="12,0">
+        <StackPanel x:Name="TabStrip"
+                    Orientation="Horizontal" />
+      </Border>
+
+      <!-- Body -->
+      <Grid Background="{DynamicResource ShellCardBrush}">
+
+        <!-- 通用 (placeholder) -->
+        <StackPanel x:Name="GeneralPanel"
+                    IsVisible="True"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="6">
+          <TextBlock Text="通用设置" FontSize="13" FontWeight="SemiBold"
+                     Foreground="{DynamicResource ShellTextBrush}"
+                     HorizontalAlignment="Center" />
+          <TextBlock Text="该功能待接入" FontSize="11"
+                     Foreground="{DynamicResource ShellMutedTextBrush}"
+                     HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <!-- 模型管理：本地模型占位 + 云 API 栏目 -->
+        <Grid x:Name="ModelsPanel"
+              IsVisible="False">
+
+          <!-- 无 RAG 服务时降级占位 -->
+          <StackPanel x:Name="ModelsPlaceholder"
+                      IsVisible="False"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      Spacing="6">
+            <TextBlock Text="模型管理" FontSize="13" FontWeight="SemiBold"
+                       Foreground="{DynamicResource ShellTextBrush}"
+                       HorizontalAlignment="Center" />
+            <TextBlock Text="AI 服务未启用，云 API 配置不可用" FontSize="11"
+                       Foreground="{DynamicResource ShellMutedTextBrush}"
+                       HorizontalAlignment="Center" />
+          </StackPanel>
+
+          <ScrollViewer x:Name="ModelsContent"
+                        IsVisible="False"
+                        Padding="16">
+            <StackPanel Spacing="14">
+
+              <!-- 当前生效配置：一眼看出在用本地还是云 API -->
+              <Border Background="{DynamicResource ShellInputBrush}"
+                      BorderBrush="{DynamicResource ShellAccentBrush}"
+                      BorderThickness="3,0,0,0"
+                      CornerRadius="4"
+                      Padding="12,8">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="当前生效配置"
+                             FontSize="10"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Ellipse Width="8" Height="8"
+                             Fill="{DynamicResource ShellSuccessBrush}"
+                             IsVisible="{Binding IsLocalProviderSelected}"
+                             VerticalAlignment="Center" />
+                    <Ellipse Width="8" Height="8"
+                             Fill="{DynamicResource ShellAccentBrush}"
+                             IsVisible="{Binding IsCloudProviderSelected}"
+                             VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ActiveProviderSummary}"
+                               FontSize="12" FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource ShellTextBrush}" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <!-- 推理后端选择（顶层，不再埋在「云 API」栏目下） -->
+              <StackPanel Spacing="6">
+                <TextBlock Text="推理后端"
+                           FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource ShellTextBrush}" />
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                  <RadioButton Content="本地 llama-server"
+                               IsChecked="{Binding IsLocalProviderSelected, Mode=OneWay}"
+                               Click="OnSelectLocalProvider" />
+                  <RadioButton Content="云 API（OpenAI 兼容）"
+                               IsChecked="{Binding IsCloudProviderSelected, Mode=OneWay}"
+                               Click="OnSelectCloudProvider" />
+                </StackPanel>
+              </StackPanel>
+
+              <!-- 栏目① 本地模型（仅本地后端时显示；GGUF 加载/卸载为后端缺口，占位） -->
+              <StackPanel Spacing="6"
+                          IsVisible="{Binding IsLocalProviderSelected}">
+                <TextBlock Text="本地模型" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource ShellTextBrush}" />
+                <Border Background="{DynamicResource ShellInputBrush}"
+                        BorderBrush="{DynamicResource ShellBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="12,10">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="该功能待接入" FontSize="11"
+                               Foreground="{DynamicResource ShellTextBrush}" />
+                    <TextBlock Text="本地 GGUF 模型的加载/卸载与内存监控暂未实现；当前可使用云 API 或本地 llama-server。"
+                               FontSize="10" TextWrapping="Wrap"
+                               Foreground="{DynamicResource ShellMutedTextBrush}" />
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+
+              <!-- 栏目② 云 API（仅云后端时显示） -->
+              <StackPanel Spacing="8"
+                          IsVisible="{Binding IsCloudProviderSelected}">
+                <TextBlock Text="云 API" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource ShellTextBrush}" />
+
+                <StackPanel Spacing="6">
+                  <Grid ColumnDefinitions="92,*"
+                        RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                        RowSpacing="6" ColumnSpacing="8">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Base URL"
+                               FontSize="11" VerticalAlignment="Center"
+                               Foreground="{DynamicResource ShellMutedTextBrush}" />
+                    <TextBox Grid.Row="0" Grid.Column="1"
+                             Text="{Binding CloudBaseUrl}"
+                             FontSize="11" BorderThickness="1"
+                             BorderBrush="{DynamicResource ShellBorderBrush}"
+                             Background="{DynamicResource ShellInputBrush}"
+                             Foreground="{DynamicResource ShellTextBrush}"
+                             Padding="6,4" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="API Key"
+                               FontSize="11" VerticalAlignment="Center"
+                               Foreground="{DynamicResource ShellMutedTextBrush}" />
+                    <TextBox Grid.Row="1" Grid.Column="1"
+                             Text="{Binding CloudApiKey}"
+                             PasswordChar="●"
+                             FontSize="11" BorderThickness="1"
+                             BorderBrush="{DynamicResource ShellBorderBrush}"
+                             Background="{DynamicResource ShellInputBrush}"
+                             Foreground="{DynamicResource ShellTextBrush}"
+                             Padding="6,4" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="模型"
+                               FontSize="11" VerticalAlignment="Center"
+                               Foreground="{DynamicResource ShellMutedTextBrush}" />
+                    <TextBox Grid.Row="2" Grid.Column="1"
+                             Text="{Binding CloudModel}"
+                             FontSize="11" BorderThickness="1"
+                             BorderBrush="{DynamicResource ShellBorderBrush}"
+                             Background="{DynamicResource ShellInputBrush}"
+                             Foreground="{DynamicResource ShellTextBrush}"
+                             Padding="6,4" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="思考强度"
+                               FontSize="11" VerticalAlignment="Center"
+                               Foreground="{DynamicResource ShellMutedTextBrush}" />
+                    <ComboBox Grid.Row="3" Grid.Column="1"
+                              ItemsSource="{Binding ReasoningEffortOptions}"
+                              SelectedItem="{Binding CloudReasoningEffort}"
+                              FontSize="11"
+                              Background="{DynamicResource ShellInputBrush}"
+                              Foreground="{DynamicResource ShellTextBrush}" />
+
+                    <CheckBox Grid.Row="4" Grid.Column="1"
+                              Content="启用思考（thinking）"
+                              IsChecked="{Binding CloudEnableThinking}"
+                              FontSize="11"
+                              Foreground="{DynamicResource ShellTextBrush}" />
+                  </Grid>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button Classes="dlg primary" Content="保存"
+                          Click="OnSaveCloudClick" />
+                  <TextBlock Text="{Binding StatusText}"
+                             VerticalAlignment="Center" FontSize="10"
+                             TextTrimming="CharacterEllipsis"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                </StackPanel>
+              </StackPanel>
+
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+
+        <!-- Zotero (placeholder) -->
+        <StackPanel x:Name="ZoteroPanel"
+                    IsVisible="False"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="6">
+          <TextBlock Text="Zotero 集成" FontSize="13" FontWeight="SemiBold"
+                     Foreground="{DynamicResource ShellTextBrush}"
+                     HorizontalAlignment="Center" />
+          <TextBlock Text="该功能待接入" FontSize="11"
+                     Foreground="{DynamicResource ShellMutedTextBrush}"
+                     HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <!-- 模板库 (functional) -->
+        <DockPanel x:Name="TemplatePanel"
+                   IsVisible="False"
+                   Margin="16,14"
+                   LastChildFill="True">
+
+          <Grid DockPanel.Dock="Top"
+                ColumnDefinitions="*,Auto"
+                Margin="0,0,0,12">
+            <StackPanel Grid.Column="0" Spacing="2">
+              <TextBlock Text="模板管理" FontSize="14" FontWeight="SemiBold"
+                         Foreground="{DynamicResource ShellTextBrush}" />
+              <TextBlock Text="管理和导入 AFD 样式模板" FontSize="11"
+                         Foreground="{DynamicResource ShellMutedTextBrush}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        VerticalAlignment="Center">
+              <Button Classes="dlg-chip" Content="刷新" Click="OnRefreshClick" />
+              <Button Classes="dlg-chip" Content="导入" Click="OnImportClick" />
+              <Button Classes="dlg-chip primary" Content="+ 种子模板" Click="OnSeedClick" />
+            </StackPanel>
+          </Grid>
+
+          <StackPanel DockPanel.Dock="Bottom"
+                      Orientation="Horizontal"
+                      Spacing="12"
+                      Margin="0,10,0,0">
+            <TextBlock x:Name="StatusBar" FontSize="11"
+                       Foreground="{DynamicResource ShellMutedTextBrush}"
+                       VerticalAlignment="Center" />
+            <Button x:Name="DeleteButton"
+                    Classes="dlg danger"
+                    Content="删除选中模板"
+                    Click="OnDeleteClick"
+                    IsVisible="False" />
+          </StackPanel>
+
+          <Border CornerRadius="6"
+                  BorderBrush="{DynamicResource ShellBorderBrush}"
+                  BorderThickness="1"
+                  ClipToBounds="True">
+            <DataGrid x:Name="TemplateGrid"
+                      IsReadOnly="True"
+                      AutoGenerateColumns="False"
+                      SelectionMode="Single"
+                      GridLinesVisibility="Horizontal"
+                      BorderThickness="0"
+                      SelectionChanged="OnSelectionChanged">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" Binding="{Binding TemplateId}" Width="*" />
+                <DataGridTextColumn Header="名称" Binding="{Binding TemplateName}" Width="*" />
+                <DataGridTextColumn Header="版本" Binding="{Binding Version}" Width="80" />
+                <DataGridTextColumn Header="作者" Binding="{Binding Author}" Width="100" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </Border>
+        </DockPanel>
+
+        <!-- 快照策略 (placeholder) -->
+        <StackPanel x:Name="SnapshotPanel"
+                    IsVisible="False"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="6">
+          <TextBlock Text="快照策略" FontSize="13" FontWeight="SemiBold"
+                     Foreground="{DynamicResource ShellTextBrush}"
+                     HorizontalAlignment="Center" />
+          <TextBlock Text="该功能待接入" FontSize="11"
+                     Foreground="{DynamicResource ShellMutedTextBrush}"
+                     HorizontalAlignment="Center" />
+        </StackPanel>
+
+      </Grid>
+    </DockPanel>
+  </Border>
+</Window>

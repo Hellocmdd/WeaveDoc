@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using WeaveDoc.App.ViewModels;
@@ -13,9 +14,55 @@ public partial class AiAssistantPanel : UserControl
 
     private AppShellViewModel? ViewModel => DataContext as AppShellViewModel;
 
-    private void OnToggleAiPanelClick(object? sender, RoutedEventArgs e)
+    /// <summary>
+    /// Routes the <see cref="RagTabViewModel"/> (created by the shell when an AI service is present)
+    /// to the three child views as their DataContext, and drives their visibility from code-behind.
+    /// Visibility is managed here (not via XAML binding) because each child view's DataContext is the
+    /// RagTabViewModel, so a <c>{Binding IsAiXxxTabSelected}</c> on the view itself would resolve against
+    /// the wrong context and leave all three views stacked/overlapping.
+    /// </summary>
+    protected override void OnLoaded(RoutedEventArgs e)
     {
-        ViewModel?.ToggleAiPanel();
+        base.OnLoaded(e);
+
+        var shell = ViewModel;
+        if (shell is null)
+        {
+            return;
+        }
+
+        var rag = shell.RagTabViewModel;
+        if (rag is not null)
+        {
+            ChatView.DataContext = rag;
+            CorpusView.DataContext = rag;
+            SnapshotView.DataContext = rag;
+        }
+
+        shell.PropertyChanged -= OnShellPropertyChanged;
+        shell.PropertyChanged += OnShellPropertyChanged;
+        UpdateSubViewVisibility();
+    }
+
+    private void OnShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AppShellViewModel.SelectedAiPanelTab))
+        {
+            UpdateSubViewVisibility();
+        }
+    }
+
+    private void UpdateSubViewVisibility()
+    {
+        var shell = ViewModel;
+        if (shell is null)
+        {
+            return;
+        }
+
+        ChatView.IsVisible = shell.IsAiChatTabSelected;
+        CorpusView.IsVisible = shell.IsAiLiteratureTabSelected;
+        SnapshotView.IsVisible = shell.IsAiSnapshotTabSelected;
     }
 
     private void OnSelectAiChatTabClick(object? sender, RoutedEventArgs e)

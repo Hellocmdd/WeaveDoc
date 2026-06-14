@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using WeaveDoc.Rag.Models;
@@ -7,14 +8,17 @@ using WeaveDoc.Rag.Services;
 
 namespace WeaveDoc.App.ViewModels;
 
+/// <summary>UI-facing projection of a retrieved chunk — decouples views from RAG service internals.</summary>
+public sealed record RetrievalChunkItem(string Citation, string FilePath, string SectionTitle, string ContentKind, string Text);
+
 public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
 {
-    private readonly LocalAiService _service = new();
+    /// <summary>Minimum time between streamed UI flushes, to avoid per-token re-render cost.</summary>
+    private static readonly long StreamFlushIntervalTicks = TimeSpan.FromMilliseconds(40).Ticks;
+
+    private readonly LocalAiService _service;
     private readonly CloudApiSettings _cloudSettings = CloudApiSettings.Load();
-    private readonly List<ChatTurn> _history = [];
     private readonly SemaphoreSlim _sendLock = new(1, 1);
-    private string _conversationText = string.Empty;
-    private int _selectedPanelTab;
     private string _sourceText = string.Empty;
     private string _retrievalDebugText = "尚未执行检索。";
     private string _inputText = string.Empty;
@@ -24,16 +28,41 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
     private bool _isBusy;
     private bool _isInitialized;
     private bool _isDocumentPanelExpanded = true;
+    private IReadOnlyList<RetrievalChunkItem> _lastRankedChunks = [];
+    private IReadOnlyList<RetrievalChunkItem> _lastContextChunks = [];
+    private bool _lastUsedSparsePrefilter;
+    private CancellationTokenSource? _sendCts;
+
+    public RagTabViewModel(LocalAiService service)
+    {
+        _service = service ?? throw new ArgumentNullException(nameof(service));
+        Turns.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasTurns));
+            OnPropertyChanged(nameof(HasNoTurns));
+        };
+        CorpusFiles.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasCorpus));
+            OnPropertyChanged(nameof(HasNoCorpus));
+            OnPropertyChanged(nameof(CorpusChunkCount));
+        };
+    }
 
     public ObservableCollection<string> CorpusFiles { get; } = [];
 
-    public event PropertyChangedEventHandler? PropertyChanged;
+    /// <summary>Conversation turns, displayed as chat bubbles and snapshotted as RAG history.</summary>
+    public ObservableCollection<ChatTurn> Turns { get; } = [];
 
-    public string ConversationText
-    {
-        get => _conversationText;
-        private set => SetProperty(ref _conversationText, value);
-    }
+    public bool HasTurns => Turns.Count > 0;
+
+    public bool HasNoTurns => Turns.Count == 0;
+
+    public bool HasCorpus => CorpusFiles.Count > 0;
+
+    public bool HasNoCorpus => CorpusFiles.Count == 0;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public string SourceText
     {
@@ -50,7 +79,14 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
     public string InputText
     {
         get => _inputText;
-        set => SetProperty(ref _inputText, value);
+        set
+        {
+            if (SetProperty(ref _inputText, value))
+            {
+                OnPropertyChanged(nameof(IsSendEnabled));
+                OnPropertyChanged(nameof(IsActionButtonEnabled));
+            }
+        }
     }
 
     public string NewDocumentPath
@@ -74,7 +110,15 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
     public bool IsBusy
     {
         get => _isBusy;
-        private set => SetProperty(ref _isBusy, value);
+        private set
+        {
+            if (SetProperty(ref _isBusy, value))
+            {
+                OnPropertyChanged(nameof(IsSendEnabled));
+                OnPropertyChanged(nameof(IsActionButtonEnabled));
+                OnPropertyChanged(nameof(SendButtonText));
+            }
+        }
     }
 
     public bool IsDocumentPanelExpanded
@@ -91,6 +135,44 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
 
     public string DocumentPanelToggleText => IsDocumentPanelExpanded ? "收起文档" : "展开文档";
 
+    /// <summary>Ranked retrieval chunks from the last question — drives the 「快照」 tab cards.</summary>
+    public IReadOnlyList<RetrievalChunkItem> LastRankedChunks
+    {
+        get => _lastRankedChunks;
+        private set
+        {
+            if (SetProperty(ref _lastRankedChunks, value))
+            {
+                OnPropertyChanged(nameof(HasRankedChunks));
+            }
+        }
+    }
+
+    /// <summary>Context chunks actually fed to the model from the last question.</summary>
+    public IReadOnlyList<RetrievalChunkItem> LastContextChunks
+    {
+        get => _lastContextChunks;
+        private set => SetProperty(ref _lastContextChunks, value);
+    }
+
+    public bool HasRankedChunks => LastRankedChunks.Count > 0;
+
+    public bool LastUsedSparsePrefilter
+    {
+        get => _lastUsedSparsePrefilter;
+        private set => SetProperty(ref _lastUsedSparsePrefilter, value);
+    }
+
+    public int CorpusChunkCount => _service.CorpusChunkCount;
+
+    /// <summary>True when a question can be sent (not busy, non-empty input).</summary>
+    public bool IsSendEnabled => !IsBusy && !string.IsNullOrWhiteSpace(InputText);
+
+    /// <summary>True when the action button should be clickable — to send, or to stop an in-flight stream.</summary>
+    public bool IsActionButtonEnabled => IsBusy || !string.IsNullOrWhiteSpace(InputText);
+
+    public string SendButtonText => IsBusy ? "停止" : "发送";
+
     public int SelectedPanelTab
     {
         get => _selectedPanelTab;
@@ -103,6 +185,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
             }
         }
     }
+    private int _selectedPanelTab;
 
     public bool IsDocumentsTabSelected => _selectedPanelTab == 0;
     public bool IsSettingsTabSelected => _selectedPanelTab == 1;
@@ -117,6 +200,8 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
                 _cloudSettings.ChatProvider = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChatProvider)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCloudProviderSelected)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsLocalProviderSelected)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveProviderSummary)));
             }
         }
     }
@@ -128,6 +213,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         {
             _cloudSettings.CloudBaseUrl = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudBaseUrl)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveProviderSummary)));
         }
     }
 
@@ -148,6 +234,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         {
             _cloudSettings.CloudModel = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudModel)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveProviderSummary)));
         }
     }
 
@@ -173,6 +260,29 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
 
     public bool IsCloudProviderSelected => _cloudSettings.ChatProvider == "cloud";
 
+    public bool IsLocalProviderSelected => _cloudSettings.ChatProvider != "cloud";
+
+    /// <summary>
+    /// One-line description of the inference backend actually in effect, shown in the model-management
+    /// banner so it is always obvious whether local llama-server or the cloud API is active.
+    /// </summary>
+    public string ActiveProviderSummary
+    {
+        get
+        {
+            if (IsCloudProviderSelected)
+            {
+                var model = string.IsNullOrWhiteSpace(CloudModel) ? "未配置模型" : CloudModel;
+                var url = string.IsNullOrWhiteSpace(CloudBaseUrl) ? "未配置地址" : CloudBaseUrl;
+                return $"云 API（OpenAI 兼容）· {model} · {url}";
+            }
+            return "本地 llama-server（已启动的本地推理进程）";
+        }
+    }
+
+    /// <summary>Allowed values for <see cref="CloudReasoningEffort"/> (cloud thinking models).</summary>
+    public string[] ReasoningEffortOptions { get; } = ["low", "medium", "high"];
+
     public async Task InitializeAsync()
     {
         if (_isInitialized)
@@ -181,20 +291,20 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         }
 
         IsBusy = true;
-        StatusText = "正在加载 embedding 并连接聊天服务...";
+        StatusText = "正在准备 RAG：加载 embedding 模型、扫描语料并连接聊天服务...";
         try
         {
             _service.CloudSettings = _cloudSettings;
             await _service.InitializeAsync();
             RefreshCorpusState();
             StatusText = $"已就绪：{_service.CorpusChunkCount} 个知识块，聊天模型: {_service.LlamaServerModel} ({_service.LlamaServerEndpoint})。";
-            AppendSystemMessage("模型已就绪，可以开始提问。");
+            Turns.Add(new ChatTurn("系统", "模型已就绪，可以开始提问。", false));
             _isInitialized = true;
         }
         catch (Exception exception)
         {
             StatusText = $"加载失败: {exception.Message}";
-            AppendSystemMessage($"初始化失败: {exception.Message}");
+            Turns.Add(new ChatTurn("系统", $"初始化失败: {exception.Message}", false));
         }
         finally
         {
@@ -202,38 +312,102 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    /// <summary>Streams the answer token-by-token into a live assistant bubble.</summary>
     public async Task SendAsync()
     {
-        if (string.IsNullOrWhiteSpace(InputText) || IsBusy)
+        if (IsBusy || string.IsNullOrWhiteSpace(InputText))
         {
             return;
         }
 
-        await _sendLock.WaitAsync().ConfigureAwait(false);
+        await _sendLock.WaitAsync();
         try
         {
+            if (string.IsNullOrWhiteSpace(InputText))
+            {
+                return;
+            }
+
             var question = InputText.Trim();
             InputText = string.Empty;
 
-            AppendTurn(new ChatTurn("用户", question, true));
+            Turns.Add(new ChatTurn("用户", question, true));
+            var history = Turns.ToArray();
+            Turns.Add(new ChatTurn("助手", string.Empty, false));
+            var assistantIndex = Turns.Count - 1;
+
             IsBusy = true;
             StatusText = "正在检索上下文并生成回答...";
+            _sendCts = new CancellationTokenSource();
 
-            var answer = await _service.AskAsync(question, _history);
-            RetrievalDebugText = _service.LastRetrievalDebug;
-            AppendTurn(new ChatTurn("助手", answer, false));
-            StatusText = "回答完成。";
-        }
-        catch (Exception exception)
-        {
-            StatusText = $"生成失败: {exception.Message}";
-            AppendTurn(new ChatTurn("系统", $"生成失败: {exception.Message}", false));
+            var builder = new StringBuilder();
+            var lastFlush = Stopwatch.GetTimestamp();
+            var snapshotsRefreshed = false;
+
+            try
+            {
+                await foreach (var chunk in _service.AskStreamAsync(question, history, _sendCts.Token))
+                {
+                    if (chunk.Replace)
+                    {
+                        builder.Clear();
+                        builder.Append(chunk.Text);
+                        SetAssistantTurn(assistantIndex, chunk.Text);
+                    }
+                    else
+                    {
+                        builder.Append(chunk.Text);
+                        var now = Stopwatch.GetTimestamp();
+                        if (chunk.Text.Contains('\n') || (now - lastFlush) >= StreamFlushIntervalTicks)
+                        {
+                            SetAssistantTurn(assistantIndex, builder.ToString());
+                            lastFlush = now;
+                        }
+                    }
+
+                    if (!snapshotsRefreshed)
+                    {
+                        // Retrieval ran inside AskStreamAsync before the first token — snapshots are ready now.
+                        RefreshRetrievalSnapshots();
+                        RetrievalDebugText = _service.LastRetrievalDebug;
+                        snapshotsRefreshed = true;
+                    }
+                }
+
+                SetAssistantTurn(assistantIndex, builder.ToString().TrimEnd());
+                StatusText = "回答完成。";
+            }
+            catch (OperationCanceledException)
+            {
+                var partial = builder.ToString().TrimEnd();
+                SetAssistantTurn(assistantIndex, string.IsNullOrEmpty(partial) ? "（已停止）" : partial + "\n\n（已停止）");
+                StatusText = "已停止生成。";
+            }
+            catch (Exception exception)
+            {
+                StatusText = $"生成失败: {exception.Message}";
+                var partial = builder.ToString();
+                SetAssistantTurn(assistantIndex, string.IsNullOrEmpty(partial)
+                    ? $"生成失败: {exception.Message}"
+                    : partial + $"\n\n生成失败: {exception.Message}");
+            }
+            finally
+            {
+                IsBusy = false;
+                _sendCts?.Dispose();
+                _sendCts = null;
+            }
         }
         finally
         {
-            IsBusy = false;
             _sendLock.Release();
         }
+    }
+
+    /// <summary>Cancels an in-flight streamed answer (called by the 「停止」 button).</summary>
+    public void StopGenerating()
+    {
+        _sendCts?.Cancel();
     }
 
     public void ToggleDocumentPanel()
@@ -267,7 +441,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception exception)
         {
             StatusText = $"添加文档失败: {exception.Message}";
-            AppendTurn(new ChatTurn("系统", $"添加文档失败: {exception.Message}", false));
+            Turns.Add(new ChatTurn("系统", $"添加文档失败: {exception.Message}", false));
         }
         finally
         {
@@ -299,7 +473,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception exception)
         {
             StatusText = $"刷新索引失败: {exception.Message}";
-            AppendTurn(new ChatTurn("系统", $"刷新索引失败: {exception.Message}", false));
+            Turns.Add(new ChatTurn("系统", $"刷新索引失败: {exception.Message}", false));
         }
         finally
         {
@@ -314,9 +488,10 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
             return;
         }
 
-        _history.Clear();
-        ConversationText = string.Empty;
+        Turns.Clear();
         RetrievalDebugText = "尚未执行检索。";
+        LastRankedChunks = [];
+        LastContextChunks = [];
         StatusText = "会话已清空。";
     }
 
@@ -364,7 +539,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception exception)
         {
             StatusText = $"删除文档失败: {exception.Message}";
-            AppendTurn(new ChatTurn("系统", $"删除文档失败: {exception.Message}", false));
+            Turns.Add(new ChatTurn("系统", $"删除文档失败: {exception.Message}", false));
         }
         finally
         {
@@ -374,33 +549,20 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
 
     public void Dispose()
     {
-        _service.Dispose();
+        // LocalAiService is injected — its lifecycle is owned by the creator (MainWindow/AppShell).
+        _sendCts?.Cancel();
+        _sendCts?.Dispose();
         _sendLock.Dispose();
     }
 
-    private void AppendTurn(ChatTurn turn)
+    private void SetAssistantTurn(int index, string content)
     {
-        _history.Add(turn);
-        RebuildConversationText();
-    }
-
-    private void AppendSystemMessage(string message)
-    {
-        _history.Add(new ChatTurn("系统", message, false));
-        RebuildConversationText();
-    }
-
-    private void RebuildConversationText()
-    {
-        var builder = new StringBuilder();
-        foreach (var turn in _history)
+        if (index < 0 || index >= Turns.Count)
         {
-            builder.AppendLine($"[{turn.Role}]");
-            builder.AppendLine(turn.Content);
-            builder.AppendLine();
+            return;
         }
 
-        ConversationText = builder.ToString().TrimEnd();
+        Turns[index] = new ChatTurn("助手", content, false);
     }
 
     private string BuildSourceText()
@@ -435,7 +597,24 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         {
             SelectedDocument = null;
         }
+
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CorpusChunkCount)));
+        RefreshRetrievalSnapshots();
     }
+
+    private void RefreshRetrievalSnapshots()
+    {
+        LastRankedChunks = _service.LastRankedChunkSnapshots
+            .Select(ToItem)
+            .ToArray();
+        LastContextChunks = _service.LastContextChunkSnapshots
+            .Select(ToItem)
+            .ToArray();
+        LastUsedSparsePrefilter = _service.LastUsedSparsePrefilter;
+    }
+
+    private static RetrievalChunkItem ToItem(LocalAiService.RetrievalChunkSnapshot snapshot)
+        => new(snapshot.Citation, snapshot.FilePath, snapshot.SectionTitle, snapshot.ContentKind, snapshot.Text);
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
@@ -447,5 +626,10 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         return true;
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

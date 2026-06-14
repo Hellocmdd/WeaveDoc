@@ -42,10 +42,17 @@ public sealed partial class LocalAiService
         return SupportedDocumentExtensions.Any(candidate => extension.Equals(candidate, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool ShouldIndexCorpusFile(string docRoot, string filePath)
+    internal static bool ShouldIndexCorpusFile(string docRoot, string filePath)
     {
         var relativePath = Path.GetRelativePath(docRoot, filePath).Replace('\\', '/');
-        return !IgnoredCorpusRelativePrefixes.Any(prefix => relativePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        if (IgnoredCorpusRelativePrefixes.Any(prefix => relativePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        return !relativePath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(segment => IgnoredCorpusPathSegments.Contains(segment));
     }
 
     private static bool FilesHaveSameContent(string leftPath, string rightPath)

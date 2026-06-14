@@ -1,0 +1,281 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WeaveDoc.App.Views.ExportDialog"
+        Width="540"
+        Height="620"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        SystemDecorations="None"
+        Background="{DynamicResource ShellCardBrush}">
+  <Window.Styles>
+    <!-- Section title row -->
+    <Style Selector="TextBlock.section-title">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    </Style>
+    <Style Selector="TextBlock.section-index">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+    </Style>
+
+    <!-- Dialog buttons -->
+    <Style Selector="Button.dlg">
+      <Setter Property="Height" Value="32" />
+      <Setter Property="Padding" Value="16,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.dlg.primary">
+      <Setter Property="Background" Value="{DynamicResource ShellAccentStrongBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentStrongBrush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.dlg:disabled">
+      <Setter Property="Opacity" Value="0.5" />
+    </Style>
+
+    <!-- Format toggle / small action buttons -->
+    <Style Selector="Button.dlg-chip">
+      <Setter Property="Height" Value="28" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.dlg-chip.active">
+      <Setter Property="Background" Value="{DynamicResource ShellAccentStrongBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentStrongBrush}" />
+    </Style>
+
+    <!-- Template radio row -->
+    <Style Selector="Border.tpl-row">
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Border.tpl-row.selected">
+      <Setter Property="Background" Value="{DynamicResource ShellSelectedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentBrush}" />
+    </Style>
+  </Window.Styles>
+
+  <Border BorderBrush="{DynamicResource ShellBorderBrush}"
+          BorderThickness="1">
+    <DockPanel LastChildFill="True">
+
+      <!-- Title bar -->
+      <Border DockPanel.Dock="Top"
+              Height="36"
+              Background="{DynamicResource ShellChromeBrush}"
+              BorderBrush="{DynamicResource ShellBorderBrush}"
+              BorderThickness="0,0,0,1"
+              Padding="14,0">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0"
+                     Text="导出文档"
+                     VerticalAlignment="Center"
+                     FontSize="12"
+                     FontWeight="Medium"
+                     Foreground="{DynamicResource ShellTextBrush}" />
+          <Button Grid.Column="1"
+                  x:Name="CloseButton"
+                  VerticalAlignment="Center"
+                  Width="24" Height="24"
+                  Padding="0"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  Foreground="{DynamicResource ShellMutedTextBrush}"
+                  Content="✕"
+                  Click="OnCloseClick" />
+        </Grid>
+      </Border>
+
+      <!-- Footer -->
+      <Border DockPanel.Dock="Bottom"
+              Height="44"
+              Background="{DynamicResource ShellChromeBrush}"
+              BorderBrush="{DynamicResource ShellBorderBrush}"
+              BorderThickness="0,1,0,0"
+              Padding="14,0">
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8"
+                    VerticalAlignment="Center">
+          <Button Classes="dlg" Content="取消" Click="OnCancelClick" />
+          <Button x:Name="ExportButton"
+                  Classes="dlg primary"
+                  Content="导出"
+                  Click="OnExportClick" />
+        </StackPanel>
+      </Border>
+
+      <!-- Body -->
+      <ScrollViewer Padding="16,14"
+                    Background="{DynamicResource ShellCardBrush}"
+                    HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="14">
+
+          <!-- ① 选择排版模板 -->
+          <StackPanel Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Classes="section-index" Text="1." />
+              <TextBlock Classes="section-title" Text="选择排版模板" />
+            </StackPanel>
+
+            <StackPanel x:Name="TemplateListPanel" Spacing="0" />
+
+            <TextBlock x:Name="TemplateEmptyText"
+                       Text="暂无可用模板，请先在「设置 → 模板库」中导入或添加种子模板。"
+                       IsVisible="False"
+                       FontSize="11"
+                       Foreground="{DynamicResource ShellMutedTextBrush}"
+                       TextWrapping="Wrap" />
+
+            <Grid ColumnDefinitions="*,Auto"
+                  Margin="0,2,0,0">
+              <TextBlock Grid.Column="0"
+                         Text="模板存储路径：~/WeaveDoc/templates/"
+                         FontSize="10"
+                         Foreground="{DynamicResource ShellMutedTextBrush}"
+                         VerticalAlignment="Center" />
+              <Button Grid.Column="1"
+                      Classes="dlg-chip"
+                      Content="管理模板"
+                      Click="OnManageTemplatesClick" />
+            </Grid>
+          </StackPanel>
+
+          <!-- ② 导出配置 -->
+          <StackPanel Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Classes="section-index" Text="2." />
+              <TextBlock Classes="section-title" Text="导出配置" />
+            </StackPanel>
+
+            <Grid ColumnDefinitions="68,*"
+                  Margin="0,2,0,0">
+              <TextBlock Grid.Column="0"
+                         Text="输出格式"
+                         VerticalAlignment="Center"
+                         FontSize="11"
+                         Foreground="{DynamicResource ShellMutedTextBrush}" />
+              <StackPanel Grid.Column="1"
+                          Orientation="Horizontal"
+                          Spacing="8">
+                <Button x:Name="FormatDocxButton"
+                        Classes="dlg-chip active"
+                        Content="Word (.docx)"
+                        Click="OnFormatDocxClick" />
+                <Button x:Name="FormatPdfButton"
+                        Classes="dlg-chip"
+                        Content="PDF"
+                        Click="OnFormatPdfClick" />
+              </StackPanel>
+            </Grid>
+
+            <!-- PDF layout (only when PDF selected) -->
+            <Grid x:Name="PdfLayoutPanel"
+                  IsVisible="False"
+                  ColumnDefinitions="68,*"
+                  Margin="0,2,0,0">
+              <TextBlock Grid.Column="0"
+                         Text="PDF 版式"
+                         VerticalAlignment="Center"
+                         FontSize="11"
+                         Foreground="{DynamicResource ShellMutedTextBrush}" />
+              <StackPanel Grid.Column="1"
+                          Orientation="Horizontal"
+                          Spacing="8">
+                <Button x:Name="PdfSingleButton"
+                        Classes="dlg-chip active"
+                        Content="单栏"
+                        Click="OnPdfSingleClick" />
+                <Button x:Name="PdfTwoButton"
+                        Classes="dlg-chip"
+                        Content="双栏"
+                        Click="OnPdfTwoClick" />
+              </StackPanel>
+            </Grid>
+
+            <Grid ColumnDefinitions="68,*,Auto"
+                  Margin="0,2,0,0">
+              <TextBlock Grid.Column="0"
+                         Text="输出文件"
+                         VerticalAlignment="Center"
+                         FontSize="11"
+                         Foreground="{DynamicResource ShellMutedTextBrush}" />
+              <TextBox Grid.Column="1"
+                       x:Name="OutputPathBox"
+                       Margin="0,0,8,0"
+                       Watermark="选择输出文件路径…"
+                       FontSize="11" />
+              <Button Grid.Column="2"
+                      Classes="dlg-chip"
+                      Content="浏览…"
+                      Click="OnBrowseOutputClick" />
+            </Grid>
+          </StackPanel>
+
+          <!-- ③ 引文校验：后端无此能力，省略（见计划已知缺口） -->
+
+          <!-- ④ 进度 -->
+          <StackPanel Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Classes="section-index" Text="3." />
+              <TextBlock Classes="section-title" Text="进度" />
+            </StackPanel>
+
+            <Border Background="{DynamicResource ShellInputBrush}"
+                    BorderBrush="{DynamicResource ShellBorderBrush}"
+                    BorderThickness="1"
+                    Padding="10,10">
+              <StackPanel Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Border x:Name="StatusDot"
+                          Width="8" Height="8"
+                          CornerRadius="4"
+                          Background="{DynamicResource ShellMutedTextBrush}" />
+                  <TextBlock x:Name="StatusLabel"
+                             Text="待导出"
+                             FontSize="11"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                  <Button x:Name="OpenInViewerButton"
+                          Classes="dlg primary"
+                          Content="在 PDF 查看器中打开"
+                          Click="OnOpenInViewerClick"
+                          IsVisible="False" />
+                </StackPanel>
+                <ProgressBar x:Name="ProgressBar"
+                             IsVisible="False"
+                             IsIndeterminate="True"
+                             Height="3" />
+                <TextBox x:Name="LogBox"
+                         IsVisible="False"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         FontSize="10"
+                         BorderThickness="0"
+                         Height="92"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+        </StackPanel>
+      </ScrollViewer>
+
+    </DockPanel>
+  </Border>
+</Window>

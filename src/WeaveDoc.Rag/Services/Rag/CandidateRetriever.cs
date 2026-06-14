@@ -37,22 +37,49 @@ public sealed partial class LocalAiService
                 targetFilePaths);
         }
 
-        // Task 2.1: Step 1 - Only rely on vector cosine similarity
+        var queryTokens = ExtractQueryTokens(question);
+        var vectorCandidateLimit = Math.Clamp(
+            _options.SparseCandidatePoolSize,
+            _options.CandidatePoolSize,
+            Math.Max(_options.CandidatePoolSize, 80));
+        var sparseCandidates = scopedIndexedChunks
+            .Select(indexed => BuildSparseRetrievalComponent(indexed, queryTokens, queryProfile, targetFilePathSet))
+            .OrderByDescending(item => item.SparseScore)
+            .ThenByDescending(item => item.HasDirectKeywordHit)
+            .ThenBy(item => item.Indexed.Chunk.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Indexed.Chunk.Index)
+            .Take(vectorCandidateLimit)
+            .ToArray();
+
         var questionVector = await GetEmbeddingVectorAsync(question, cancellationToken).ConfigureAwait(false);
-        var vectorCandidateLimit = Math.Clamp(_options.SparseCandidatePoolSize, 50, 100);
-        
-        var candidates = scopedIndexedChunks
-            .Select(indexed =>
-            {
-                var semanticScore = CosineSimilarity(questionVector, indexed.Embedding);
-                return new ScoredChunk(indexed.Chunk, semanticScore, semanticScore, 0f, 0f, 0f, 0f, 0f, 0f, 0f, false, 0f);
-            })
+        var candidates = new List<ScoredChunk>(sparseCandidates.Length);
+        foreach (var sparseCandidate in sparseCandidates)
+        {
+            var embedding = await EnsureIndexedChunkEmbeddingAsync(sparseCandidate.Indexed, cancellationToken).ConfigureAwait(false);
+            var semanticScore = CosineSimilarity(questionVector, embedding);
+            candidates.Add(new ScoredChunk(
+                sparseCandidate.Indexed.Chunk,
+                semanticScore,
+                semanticScore,
+                sparseCandidate.Bm25Score,
+                sparseCandidate.KeywordScore,
+                sparseCandidate.TitleScore,
+                sparseCandidate.JsonStructureScore,
+                0f,
+                0f,
+                0f,
+                sparseCandidate.HasDirectKeywordHit,
+                ComputeRequestedDocumentScore(targetFilePathSet, sparseCandidate.Indexed.Chunk.FilePath)));
+        }
+
+        await SaveEmbeddingCacheIfChangedAsync(cancellationToken).ConfigureAwait(false);
+
+        candidates = candidates
             .OrderByDescending(item => item.Score)
-            .Take(vectorCandidateLimit) // Task 2.1: Step 2 - Extract Top-100
-            .ToArray(); // Task 2.1: Step 3 - Completely remove BM25
+            .ToList();
 
         // Task 3.1: Send Top-100 to Reranker without intervention
-        var ruleRerankCount = candidates.Length;
+        var ruleRerankCount = candidates.Count;
         // Apply simplified metadata policy is deleted (Task 1.2)
         var globalLearnedRerank = await TryRerankWithLearnedModelAsync(question, candidates, queryProfile, ruleRerankCount, cancellationToken).ConfigureAwait(false);
         var ranked = globalLearnedRerank.RankedChunks;
@@ -75,12 +102,46 @@ public sealed partial class LocalAiService
             ranked,
             contextChunks,
             queryProfile,
-            0,
-            candidates.Length,
-            false,
+            sparseCandidates.Length,
+            candidates.Count,
+            true,
             globalLearnedRerank.Used,
             $"global:{globalLearnedRerank.Status}",
             targetFilePaths);
+    }
+
+    private SparseRetrievalComponent BuildSparseRetrievalComponent(
+        IndexedChunk indexed,
+        IReadOnlyList<string> queryTokens,
+        QueryProfile queryProfile,
+        IReadOnlySet<string>? targetFilePathSet)
+    {
+        var retrievalText = BuildChunkRetrievalText(indexed.Chunk);
+        var (keywordScore, hasDirectKeywordHit) = ComputeKeywordScore(queryTokens, retrievalText);
+        var bm25Raw = ComputeBm25(queryTokens, indexed);
+        var bm25Score = bm25Raw <= 0f ? 0f : bm25Raw / (bm25Raw + 1.5f);
+        var titleScore = ComputeTitleScore(queryProfile.FocusTerms, indexed.Chunk);
+        var jsonStructureScore = ComputeJsonStructureScore(queryProfile.FocusTerms, indexed.Chunk);
+        var noisePenalty = ComputeNoisePenalty(indexed.Chunk);
+        var requestedDocumentScore = ComputeRequestedDocumentScore(targetFilePathSet, indexed.Chunk.FilePath);
+        var sparseScore =
+            (bm25Score * _options.Bm25Weight)
+            + (keywordScore * _options.KeywordWeight)
+            + (titleScore * _options.TitleWeight)
+            + (jsonStructureScore * _options.JsonStructureWeight)
+            + requestedDocumentScore
+            - noisePenalty;
+
+        return new SparseRetrievalComponent(
+            indexed,
+            bm25Raw,
+            keywordScore,
+            titleScore,
+            jsonStructureScore,
+            noisePenalty,
+            hasDirectKeywordHit,
+            bm25Score,
+            sparseScore);
     }
 
     private IReadOnlyList<string> ResolveRetrievalScopeFilePaths(string question, QueryProfile queryProfile)
@@ -811,5 +872,38 @@ public sealed partial class LocalAiService
             throw new InvalidOperationException($"Embedder returned no embedding for text (length={text.Length}).");
         }
         return result;
+    }
+
+    private async Task<float[]> EnsureIndexedChunkEmbeddingAsync(IndexedChunk indexed, CancellationToken cancellationToken)
+    {
+        if (indexed.Embedding is { Length: > 0 } embedding)
+        {
+            return embedding;
+        }
+
+        _embeddingCache ??= await EmbeddingCache.LoadAsync(CachePath, cancellationToken).ConfigureAwait(false);
+        var cacheKey = BuildChunkCacheKey(indexed.Chunk);
+        if (_embeddingCache.TryGet(cacheKey, out var cachedEmbedding))
+        {
+            indexed.Embedding = cachedEmbedding;
+            return cachedEmbedding;
+        }
+
+        var generated = await GetEmbeddingVectorAsync(BuildChunkRetrievalText(indexed.Chunk), cancellationToken).ConfigureAwait(false);
+        _embeddingCache.Set(cacheKey, generated);
+        _embeddingCacheChanged = true;
+        indexed.Embedding = generated;
+        return generated;
+    }
+
+    private async Task SaveEmbeddingCacheIfChangedAsync(CancellationToken cancellationToken)
+    {
+        if (_embeddingCache is null || !_embeddingCacheChanged)
+        {
+            return;
+        }
+
+        await _embeddingCache.SaveAsync(CachePath, cancellationToken).ConfigureAwait(false);
+        _embeddingCacheChanged = false;
     }
 }

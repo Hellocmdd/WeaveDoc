@@ -19,6 +19,11 @@ public sealed class LlamaServerProcess : IDisposable
         string extraArgs,
         CancellationToken cancellationToken)
     {
+        if (_process is { HasExited: false })
+        {
+            return;
+        }
+
         var baseUrl = $"http://127.0.0.1:{port}";
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
 
@@ -58,7 +63,7 @@ public sealed class LlamaServerProcess : IDisposable
         _process.Start();
         _startedByUs = true;
 
-        // 将日志写入文件（异步，不阻塞）
+        // 将 stdout/stderr 日志写入文件（异步，不阻塞）
         _ = WriteLogsAsync(_process, logPath);
 
         // 轮询等待服务就绪
@@ -134,7 +139,8 @@ public sealed class LlamaServerProcess : IDisposable
         {
             await using var writer = new StreamWriter(logPath, false);
             var stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(writer.BaseStream);
-            await stdoutTask.ConfigureAwait(false);
+            var stderrTask = process.StandardError.BaseStream.CopyToAsync(writer.BaseStream);
+            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
         }
         catch
         {

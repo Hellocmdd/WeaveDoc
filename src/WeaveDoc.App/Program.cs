@@ -29,15 +29,18 @@ internal static class Program
         var pdfConverter = new CompositePdfConverter(new PdfRendererDetector());
         var engine = new DocumentConversionEngine(pandoc, pdfConverter, configManager);
 
-        BuildAvaloniaApp(configManager, engine)
+        var aiService = new LocalAiService();
+
+        BuildAvaloniaApp(configManager, engine, aiService)
             .StartWithClassicDesktopLifetime(args);
     }
 
     public static AppBuilder BuildAvaloniaApp(
         ConfigManager configManager,
-        DocumentConversionEngine engine)
+        DocumentConversionEngine engine,
+        LocalAiService aiService)
     {
-        return AppBuilder.Configure(() => new App(configManager, engine))
+        return AppBuilder.Configure(() => new App(configManager, engine, aiService))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();

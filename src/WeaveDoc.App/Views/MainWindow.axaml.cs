@@ -1,12 +1,19 @@
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Styling;
+using WeaveDoc.App.Services.Documents;
 using WeaveDoc.App.ViewModels;
 using WeaveDoc.Converter;
 using WeaveDoc.Converter.Config;
+using WeaveDoc.MarkdownEditor.Services;
+using WeaveDoc.Rag.Services;
 
 namespace WeaveDoc.App.Views;
 
@@ -17,25 +24,165 @@ public partial class MainWindow : Window
     private const double SplitterWidth = 4;
 
     private readonly AppShellViewModel _viewModel;
+    private readonly LocalAiService? _aiService;
     private double _lastExpandedAiPanelWidth = DefaultAiPanelWidth;
 
-    public MainWindow() : this(null!, null!) { }
+    public MainWindow() : this(null!, null!, null!) { }
 
-    public MainWindow(ConfigManager? configManager, DocumentConversionEngine? engine)
+    public MainWindow(ConfigManager? configManager, DocumentConversionEngine? engine, LocalAiService? aiService)
     {
         InitializeComponent();
-        _viewModel = new AppShellViewModel();
+
+        _aiService = aiService;
+
+        var documentWorkspace = new DocumentWorkspaceViewModel(new MarkdownDocumentService());
+        _viewModel = new AppShellViewModel(documentWorkspace, configManager, engine, aiService);
         DataContext = _viewModel;
+
         _viewModel.PropertyChanged += OnShellPropertyChanged;
         ApplyShellPalette(_viewModel.Theme);
         ApplyAiPanelLayout();
         UpdateStateClasses();
+        Loaded += OnMainWindowLoaded;
+    }
+
+    private void OnMainWindowLoaded(object? sender, RoutedEventArgs e)
+    {
+        // Subscribe to PDF open request from PdfWorkspace (now hosted in the left sidebar)
+        PdfWorkspaceControl.OpenPdfRequested += async (_, _) => await OpenDocumentAsync();
     }
 
     protected override void OnClosed(EventArgs e)
     {
         _viewModel.PropertyChanged -= OnShellPropertyChanged;
+        _viewModel.Dispose();
+        _aiService?.Dispose();
         base.OnClosed(e);
+    }
+
+    private async void OnOpenDocumentClick(object? sender, RoutedEventArgs e)
+        => await OpenDocumentAsync();
+
+    private async void OnNewDocumentClick(object? sender, RoutedEventArgs e)
+    {
+        await _viewModel.DocumentWorkspace.NewAsync();
+    }
+
+    private async void OnSaveDocumentClick(object? sender, RoutedEventArgs e)
+    {
+        EditorWorkspaceControl.SyncEditorContentToWorkspace();
+        var workspace = _viewModel.DocumentWorkspace;
+        if (!workspace.HasDocument)
+            return; // nothing to save
+
+        // If the document has no file path (new unsaved document), prompt Save As.
+        if (string.IsNullOrWhiteSpace(workspace.CurrentFilePath))
+        {
+            await SaveAsAsync();
+            return;
+        }
+
+        await workspace.SaveAsync();
+    }
+
+    private async void OnExportDocumentClick(object? sender, RoutedEventArgs e)
+    {
+        EditorWorkspaceControl.SyncEditorContentToWorkspace();
+        var workspace = _viewModel.DocumentWorkspace;
+
+        var configManager = _viewModel.ConfigManager;
+        var engine = _viewModel.ConversionEngine;
+        if (configManager is null || engine is null)
+            return;
+
+        // Ensure the source is persisted to disk if a document is open but unsaved.
+        var sourcePath = workspace.CurrentFilePath ?? string.Empty;
+        if (workspace.HasDocument && string.IsNullOrWhiteSpace(sourcePath))
+        {
+            await SaveAsAsync();
+            sourcePath = workspace.CurrentFilePath ?? string.Empty;
+        }
+
+        // Always open the dialog; if no source document is open it guides the user.
+        var dialog = new ExportDialog(configManager, engine, _viewModel.RagTabViewModel, sourcePath);
+        await dialog.ShowDialog(this);
+
+        // If the user chose to open a converted PDF, display it in the workspace viewer.
+        if (!string.IsNullOrWhiteSpace(dialog.PendingOpenPdfPath))
+        {
+            var pdfPath = dialog.PendingOpenPdfPath;
+            var displayName = System.IO.Path.GetFileName(pdfPath);
+            await PdfWorkspaceControl.ShowPdfAsync(pdfPath, displayName, isTemporary: false);
+        }
+    }
+
+    private async void OnOpenSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        var configManager = _viewModel.ConfigManager;
+        if (configManager is null)
+            return;
+
+        var dialog = new SettingsDialog(configManager, _viewModel.RagTabViewModel);
+        await dialog.ShowDialog(this);
+    }
+
+    private async Task SaveAsAsync()
+    {
+        var workspace = _viewModel.DocumentWorkspace;
+        var result = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "保存文档",
+            SuggestedFileName = workspace.DisplayName,
+            FileTypeChoices =
+            [
+                new FilePickerFileType("Markdown 文档") { Patterns = ["*.md"] },
+            ]
+        });
+
+        var file = result;
+        if (file is null)
+            return;
+
+        var localPath = file.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(localPath))
+            return;
+
+        await workspace.SaveAsAsync(localPath);
+    }
+
+    private async Task OpenDocumentAsync()
+    {
+        var selected = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "打开文档",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Markdown 文档") { Patterns = ["*.md"] },
+                new FilePickerFileType("PDF 文件") { Patterns = ["*.pdf"] },
+                FilePickerFileTypes.All
+            ]
+        });
+
+        var file = selected.FirstOrDefault();
+        if (file == null)
+            return;
+
+        var name = file.Name ?? string.Empty;
+        if (name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            var result = await StorageFileOpenService.PreparePdfAsync(file).ConfigureAwait(true);
+            if (!result.Succeeded)
+                return;
+
+            await PdfWorkspaceControl.ShowPdfAsync(result.FilePath, result.DisplayName, result.IsTemporary);
+            return;
+        }
+
+        // Markdown (and any non-pdf document) → middle editor
+        var localPath = file.TryGetLocalPath();
+        if (!string.IsNullOrWhiteSpace(localPath))
+            await _viewModel.DocumentWorkspace.OpenAsync(localPath);
     }
 
     private void OnToggleAiPanelClick(object? sender, RoutedEventArgs e)
@@ -206,7 +353,11 @@ public partial class MainWindow : Window
         ["ShellWarningBrush"] = "#D29922",
         ["ShellEditorBackgroundBrush"] = "#0D1117",
         ["ShellEditorPanelBrush"] = "#161B22",
-        ["ShellPaperWorkspaceBrush"] = "#21262D"
+        ["ShellPaperWorkspaceBrush"] = "#21262D",
+        // Constant-light foregrounds for dark-always zones (do not flip with theme).
+        ["ShellOnDarkTextBrush"] = "#E6EDF3",
+        ["ShellOnDarkMutedTextBrush"] = "#8B949E",
+        ["ShellOnDarkDisabledTextBrush"] = "#6E7681"
     };
 
     private static readonly IReadOnlyDictionary<string, string> LightShellPalette = new Dictionary<string, string>
@@ -231,6 +382,10 @@ public partial class MainWindow : Window
         ["ShellWarningBrush"] = "#9A6700",
         ["ShellEditorBackgroundBrush"] = "#0D1117",
         ["ShellEditorPanelBrush"] = "#161B22",
-        ["ShellPaperWorkspaceBrush"] = "#EAEEF2"
+        ["ShellPaperWorkspaceBrush"] = "#EAEEF2",
+        // Constant-light foregrounds for dark-always zones (same as dark theme — do not flip).
+        ["ShellOnDarkTextBrush"] = "#E6EDF3",
+        ["ShellOnDarkMutedTextBrush"] = "#8B949E",
+        ["ShellOnDarkDisabledTextBrush"] = "#6E7681"
     };
 }

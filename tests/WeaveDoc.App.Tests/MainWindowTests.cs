@@ -321,8 +321,6 @@ public class MainWindowTests
                 var textEditor = Find<TextEditor>(markdownEditor, "Editor");
                 var markdownPreview = Find<PreviewWebViewControl>(editor, "MarkdownPreviewControl");
                 var boldButton = Find<Button>(editor, "BoldButton");
-                var openButton = Find<Button>(editor, "OpenDocumentButton");
-                var saveButton = Find<Button>(editor, "SaveDocumentButton");
                 var editModeButton = Find<Button>(editor, "EditModeButton");
                 var previewModeButton = Find<Button>(editor, "PreviewModeButton");
 
@@ -332,8 +330,6 @@ public class MainWindowTests
                 Assert.False(markdownPreview.IsVisible);
                 Assert.False(previewEmptyState.IsVisible);
                 Assert.False(boldButton.IsEnabled);
-                Assert.False(openButton.IsEnabled);
-                Assert.False(saveButton.IsEnabled);
                 Assert.DoesNotContain(EnumerateControls(editor), control => control is MonacoEditorControl);
                 Assert.DoesNotContain("# Hello WeaveDoc!", CollectText(window));
 
@@ -365,8 +361,6 @@ public class MainWindowTests
                 Assert.Contains("<h1 data-line=\"1\">", viewModel.DocumentWorkspace.PreviewHtml);
                 Assert.Contains("data-pos=", viewModel.DocumentWorkspace.PreviewHtml);
                 Assert.DoesNotContain("新", viewModel.DocumentWorkspace.PreviewHtml);
-                Assert.False(openButton.IsEnabled);
-                Assert.False(saveButton.IsEnabled);
                 AssertDeferredShellEntrypointsUnavailable(window);
 
                 var previewBeforeToolbar = viewModel.DocumentWorkspace.PreviewHtml;
@@ -402,8 +396,6 @@ public class MainWindowTests
                 Assert.True(viewModel.DocumentWorkspace.CanSave);
                 Assert.Equal(viewModel.DocumentWorkspace.PreviewHtml, markdownPreview.HtmlContent);
                 Assert.False(markdownPreview.IsUsingFallback);
-                Assert.False(openButton.IsEnabled);
-                Assert.False(saveButton.IsEnabled);
                 AssertDeferredShellEntrypointsUnavailable(window);
 
                 Click(editModeButton);
@@ -542,34 +534,26 @@ public class MainWindowTests
             var panelChatButton = Find<Button>(aiPanel, "AiChatTabButton");
             var panelLiteratureButton = Find<Button>(aiPanel, "AiLiteratureTabButton");
             var panelSnapshotButton = Find<Button>(aiPanel, "AiSnapshotTabButton");
-            var panelTitle = Find<TextBlock>(aiPanel, "AiPanelTitleText");
-            var emptyStateText = Find<TextBlock>(aiPanel, "AiPanelEmptyStateText");
 
             Assert.Equal(AiPanelTabKind.Chat, viewModel.SelectedAiPanelTab);
-            Assert.Equal("问答辅助", panelTitle.Text);
             Assert.Contains("active", commandChatButton.Classes);
             Assert.Contains("active", panelChatButton.Classes);
             Assert.DoesNotContain("active", commandLiteratureButton.Classes);
             Assert.DoesNotContain("active", panelLiteratureButton.Classes);
-            Assert.Equal("暂无问答记录", emptyStateText.Text);
 
             Click(commandLiteratureButton);
             Assert.Equal(AiPanelTabKind.Literature, viewModel.SelectedAiPanelTab);
-            Assert.Equal("文献辅助", panelTitle.Text);
             Assert.Contains("active", commandLiteratureButton.Classes);
             Assert.Contains("active", panelLiteratureButton.Classes);
             Assert.DoesNotContain("active", commandChatButton.Classes);
             Assert.DoesNotContain("active", panelChatButton.Classes);
-            Assert.Equal("暂无文献信息", emptyStateText.Text);
 
             Click(panelSnapshotButton);
             Assert.Equal(AiPanelTabKind.Snapshot, viewModel.SelectedAiPanelTab);
-            Assert.Equal("快照辅助", panelTitle.Text);
             Assert.Contains("active", commandSnapshotButton.Classes);
             Assert.Contains("active", panelSnapshotButton.Classes);
             Assert.DoesNotContain("active", commandLiteratureButton.Classes);
             Assert.DoesNotContain("active", panelLiteratureButton.Classes);
-            Assert.Equal("暂无快照", emptyStateText.Text);
         });
     }
 
@@ -711,7 +695,6 @@ public class MainWindowTests
     {
         var sidebar = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl");
         var editor = Find<EditorWorkspace>(window, "EditorWorkspaceControl");
-        var aiPanel = Find<AiAssistantPanel>(window, "AiAssistantPanelControl");
 
         Assert.Null(window.FindControl<Control>("FileMenuButton"));
         Assert.Null(window.FindControl<Control>("EditMenuButton"));
@@ -724,13 +707,15 @@ public class MainWindowTests
         Assert.Null(window.FindControl<Control>("TemplateGrid"));
         Assert.DoesNotContain("# Hello WeaveDoc!", CollectText(window));
 
+        // 工作线 4: the AI panel chat input (清空/发送/输入框) moved into RagChatView and is no
+        // longer a "deferred" entrypoint, so they are dropped from this disabled list.
         var disabledButtons = new[]
         {
-            Find<Button>(window, "NewShellDocumentButton"),
-            Find<Button>(window, "OpenShellDocumentButton"),
-            Find<Button>(window, "SaveShellDocumentButton"),
-            Find<Button>(window, "ExportShellDocumentButton"),
-            Find<Button>(window, "SetupShellCommandButton"),
+            // NewShellDocumentButton was enabled in 工作线 2 (task 2.3) — no longer deferred
+            // OpenShellDocumentButton was enabled in 工作线 0 (task 0.2) — no longer deferred
+            // OpenDocumentButton / SaveDocumentButton removed from EditorWorkspace toolbar in 工作线 2 (task 2.4)
+            // SetupShellCommandButton was enabled in 工作线 3 — opens SettingsDialog, no longer deferred
+            Find<Button>(sidebar, "DocumentPreviousPageButton"),
             Find<Button>(sidebar, "DocumentPreviousPageButton"),
             Find<Button>(sidebar, "DocumentNextPageButton"),
             Find<Button>(sidebar, "DocumentZoomOutButton"),
@@ -738,15 +723,10 @@ public class MainWindowTests
             Find<Button>(sidebar, "DocumentPreviewTabButton"),
             Find<Button>(sidebar, "DocumentPreviewCloseTabButton"),
             Find<Button>(sidebar, "DocumentPreviewAddTabButton"),
-            Find<Button>(editor, "OpenDocumentButton"),
-            Find<Button>(editor, "SaveDocumentButton"),
-            Find<Button>(editor, "ExportDocumentButton"),
-            Find<Button>(aiPanel, "ClearAiConversationButton"),
-            Find<Button>(aiPanel, "SendAiPromptButton")
+            Find<Button>(editor, "ExportDocumentButton")
         };
 
         Assert.All(disabledButtons, button => Assert.False(button.IsEnabled));
-        Assert.False(Find<TextBox>(aiPanel, "AiPromptInput").IsEnabled);
         Assert.False(Find<TextBox>(window, "ShellSearchBox").IsEnabled);
     }
 

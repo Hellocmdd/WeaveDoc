@@ -2,15 +2,25 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:WeaveDoc.MarkdownEditor.Controls;assembly=WeaveDoc.MarkdownEditor"
              xmlns:vm="using:WeaveDoc.App.ViewModels"
+             xmlns:views="using:WeaveDoc.App.Views"
              x:Class="WeaveDoc.App.Views.EditorWorkspace"
              x:DataType="vm:AppShellViewModel">
+  <!-- The editor column is always-dark by design: chrome sits on ShellEditorPanelBrush (constant
+       dark in both palettes) with constant-light ShellOnDark* text, so it stays legible regardless
+       of theme. This UserControl is pinned to the Dark variant from MainWindow.axaml (wrapped in a
+       ThemeVariantScope) — that is the actual fix for the light-theme invisibility bug: Fluent's
+       button template paints the inner TextBlock of a DISABLED button with a variant-dependent
+       disabled brush (#66000000 black@40% under Light), which is invisible on these dark panels.
+       Under the Dark pin it resolves to white@40% instead. The :disabled Foreground overrides below
+       only set the Button.Foreground itself (good hygiene) — they do NOT fix that inner TextBlock;
+       the variant pin does. Regression: EditorChromeThemeTests. -->
   <UserControl.Styles>
     <Style Selector="Button.editor-tab">
       <Setter Property="Height" Value="30" />
       <Setter Property="Padding" Value="12,0" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Background" Value="{DynamicResource ShellEditorBackgroundBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellOnDarkTextBrush}" />
       <Setter Property="BorderThickness" Value="0,0,0,2" />
       <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentBrush}" />
       <Setter Property="CornerRadius" Value="0" />
@@ -21,7 +31,7 @@
       <Setter Property="Padding" Value="10,0" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellOnDarkMutedTextBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="4" />
@@ -39,9 +49,22 @@
       <Setter Property="Padding" Value="0" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Foreground" Value="{DynamicResource ShellDisabledTextBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellOnDarkDisabledTextBrush}" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="Button.editor-tab:disabled">
+      <Setter Property="Foreground" Value="{DynamicResource ShellOnDarkMutedTextBrush}" />
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.editor-mode:disabled">
+      <Setter Property="Foreground" Value="{DynamicResource ShellOnDarkMutedTextBrush}" />
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.editor-tool:disabled">
+      <Setter Property="Foreground" Value="{DynamicResource ShellOnDarkDisabledTextBrush}" />
       <Setter Property="Opacity" Value="1" />
     </Style>
   </UserControl.Styles>
@@ -58,12 +81,13 @@
         <Button Grid.Column="0"
                 Classes="editor-tab"
                 Content="未打开文档"
-                IsEnabled="False" />
+                IsEnabled="False"
+                IsVisible="{Binding HasNoDocument}" />
         <TextBlock Grid.Column="1"
                    Text="{Binding CurrentDocumentSubtitle}"
                    VerticalAlignment="Center"
                    FontSize="10"
-                   Foreground="{DynamicResource ShellMutedTextBrush}"
+                   Foreground="{DynamicResource ShellOnDarkMutedTextBrush}"
                    TextTrimming="CharacterEllipsis"
                    Margin="10,0" />
       </Grid>
@@ -73,7 +97,7 @@
             Background="{DynamicResource ShellEditorPanelBrush}"
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto"
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto"
             ColumnSpacing="4"
             Margin="8,0">
         <Button x:Name="Heading1Button"
@@ -126,16 +150,6 @@
                 Classes.active="{Binding IsPreviewModeSelected}"
                 Content="预览"
                 Click="OnPreviewModeClick" />
-        <Button x:Name="OpenDocumentButton"
-                Grid.Column="11"
-                Classes="editor-mode"
-                Content="打开"
-                IsEnabled="False" />
-        <Button x:Name="SaveDocumentButton"
-                Grid.Column="12"
-                Classes="editor-mode"
-                Content="保存"
-                IsEnabled="False" />
       </Grid>
     </Border>
 
@@ -210,7 +224,7 @@
                    Text="{Binding ModeStatusText}"
                    VerticalAlignment="Center"
                    FontSize="10"
-                   Foreground="{DynamicResource ShellMutedTextBrush}" />
+                   Foreground="{DynamicResource ShellOnDarkMutedTextBrush}" />
         <TextBlock Grid.Column="1"
                    Text=">"
                    VerticalAlignment="Center"
@@ -220,7 +234,7 @@
                    Text="{Binding PendingCommandText}"
                    VerticalAlignment="Center"
                    FontSize="10"
-                   Foreground="{DynamicResource ShellMutedTextBrush}" />
+                   Foreground="{DynamicResource ShellOnDarkMutedTextBrush}" />
         <Button x:Name="ExportDocumentButton"
                 Grid.Column="4"
                 Classes="editor-mode"

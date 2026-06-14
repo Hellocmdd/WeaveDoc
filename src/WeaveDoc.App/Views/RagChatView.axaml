@@ -1,0 +1,132 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WeaveDoc.App.ViewModels"
+             xmlns:rag="using:WeaveDoc.Rag.Models"
+             x:Class="WeaveDoc.App.Views.RagChatView"
+             x:DataType="vm:RagTabViewModel">
+  <Grid RowDefinitions="28,*,Auto"
+        Background="{DynamicResource ShellPanelBrush}">
+
+    <!-- status header -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource ShellChromeBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="10,0">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0"
+                   Text="问答助手"
+                   VerticalAlignment="Center"
+                   FontSize="11"
+                   FontWeight="Medium"
+                   Foreground="{DynamicResource ShellTextBrush}" />
+        <StackPanel Grid.Column="1"
+                    Orientation="Horizontal"
+                    Spacing="5"
+                    VerticalAlignment="Center">
+          <Ellipse Width="7" Height="7"
+                   IsVisible="{Binding !IsBusy}"
+                   Fill="{DynamicResource ShellSuccessBrush}" />
+          <Ellipse Width="7" Height="7"
+                   IsVisible="{Binding IsBusy}"
+                   Fill="{DynamicResource ShellWarningBrush}" />
+          <TextBlock Text="{Binding StatusText}"
+                     FontSize="10"
+                     MaxWidth="170"
+                     TextTrimming="CharacterEllipsis"
+                     Foreground="{DynamicResource ShellMutedTextBrush}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- conversation -->
+    <Grid Grid.Row="1">
+      <ScrollViewer x:Name="ConversationScroll"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding Turns}"
+                      Padding="8">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="rag:ChatTurn">
+              <Grid Margin="0,3">
+                <!-- assistant / system bubble (left) -->
+                <Border IsVisible="{Binding !IsUser}"
+                        HorizontalAlignment="Left"
+                        MaxWidth="230"
+                        Background="{DynamicResource ShellCardBrush}"
+                        BorderBrush="{DynamicResource ShellAccentBrush}"
+                        BorderThickness="2,0,0,0"
+                        CornerRadius="0,4,4,0"
+                        Padding="8,5">
+                  <TextBlock Text="{Binding Content}"
+                             TextWrapping="Wrap"
+                             FontSize="11"
+                             Foreground="{DynamicResource ShellTextBrush}" />
+                </Border>
+                <!-- user bubble (right) -->
+                <Border IsVisible="{Binding IsUser}"
+                        HorizontalAlignment="Right"
+                        MaxWidth="200"
+                        Background="{DynamicResource ShellInputBrush}"
+                        BorderBrush="{DynamicResource ShellBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,5">
+                  <TextBlock Text="{Binding Content}"
+                             TextWrapping="Wrap"
+                             FontSize="11"
+                             Foreground="{DynamicResource ShellTextBrush}" />
+                </Border>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <!-- empty state -->
+      <TextBlock Text="暂无问答记录"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Center"
+                 FontSize="12"
+                 Foreground="{DynamicResource ShellMutedTextBrush}"
+                 IsVisible="{Binding HasNoTurns}" />
+    </Grid>
+
+    <!-- composer -->
+    <Border Grid.Row="2"
+            Background="{DynamicResource ShellChromeBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="8">
+      <Grid ColumnDefinitions="*,Auto,Auto"
+            ColumnSpacing="6">
+        <TextBox x:Name="PromptInput"
+                 Grid.Column="0"
+                 Text="{Binding InputText}"
+                 PlaceholderText="输入问题，Enter 发送…"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 MaxHeight="80"
+                 BorderThickness="1"
+                 BorderBrush="{DynamicResource ShellBorderBrush}"
+                 Background="{DynamicResource ShellInputBrush}"
+                 Foreground="{DynamicResource ShellTextBrush}"
+                 Padding="8,5"
+                 FontSize="11"
+                 KeyDown="OnPromptKeyDown"
+                 GotFocus="OnPromptGotFocus" />
+        <Button x:Name="ClearButton"
+                Grid.Column="1"
+                Classes="ai-command"
+                Content="清空"
+                Click="OnClearClick" />
+        <Button x:Name="SendButton"
+                Grid.Column="2"
+                Classes="ai-command primary"
+                Content="{Binding SendButtonText}"
+                IsEnabled="{Binding IsActionButtonEnabled}"
+                Click="OnSendClick" />
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

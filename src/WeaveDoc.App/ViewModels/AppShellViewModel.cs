@@ -2,6 +2,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using WeaveDoc.App.Services.Documents;
+using WeaveDoc.Converter;
+using WeaveDoc.Converter.Config;
+using WeaveDoc.Rag.Services;
 
 namespace WeaveDoc.App.ViewModels;
 
@@ -17,6 +20,12 @@ public enum EditorSurfaceMode
     Preview
 }
 
+public enum WorkspaceMode
+{
+    Markdown,
+    Pdf
+}
+
 public enum ShellThemeKind
 {
     Dark,
@@ -30,26 +39,50 @@ public enum AiPanelTabKind
     Snapshot
 }
 
-public sealed class AppShellViewModel : INotifyPropertyChanged
+public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
 {
+    private readonly ConfigManager? _configManager;
+    private readonly DocumentConversionEngine? _engine;
+
     private WorkspaceSidebarTabKind _selectedSidebarTab = WorkspaceSidebarTabKind.Documents;
     private EditorSurfaceMode _editorMode = EditorSurfaceMode.Edit;
     private ShellThemeKind _theme = ShellThemeKind.Dark;
     private AiPanelTabKind _selectedAiPanelTab = AiPanelTabKind.Chat;
     private bool _isAiPanelExpanded = true;
+    private WorkspaceMode _workspaceMode = WorkspaceMode.Markdown;
+    private string _currentPdfPath = string.Empty;
+    private string _currentPdfDisplayName = string.Empty;
 
+    /// <summary>Design-time / fallback constructor.</summary>
     public AppShellViewModel()
-        : this(new DocumentWorkspaceViewModel(new MarkdownDocumentService()))
+        : this(new DocumentWorkspaceViewModel(new MarkdownDocumentService()), null, null, null)
     {
     }
 
-    public AppShellViewModel(DocumentWorkspaceViewModel documentWorkspace)
+    /// <summary>Full DI constructor — receives all backend services.</summary>
+    public AppShellViewModel(
+        DocumentWorkspaceViewModel documentWorkspace,
+        ConfigManager? configManager,
+        DocumentConversionEngine? engine,
+        LocalAiService? aiService)
     {
+        _configManager = configManager;
+        _engine = engine;
         DocumentWorkspace = documentWorkspace ?? throw new ArgumentNullException(nameof(documentWorkspace));
         DocumentWorkspace.PropertyChanged += OnDocumentWorkspacePropertyChanged;
+        RagTabViewModel = aiService is not null ? new RagTabViewModel(aiService) : null;
     }
 
     public DocumentWorkspaceViewModel DocumentWorkspace { get; }
+
+    /// <summary>Converter service — used by ExportDialog / SettingsDialog.</summary>
+    public ConfigManager? ConfigManager => _configManager;
+
+    /// <summary>Conversion engine — used by ExportDialog.</summary>
+    public DocumentConversionEngine? ConversionEngine => _engine;
+
+    /// <summary>RAG view-model — created when <see cref="LocalAiService"/> is provided.</summary>
+    public RagTabViewModel? RagTabViewModel { get; }
 
     public ObservableCollection<string> Documents { get; } = [];
 
@@ -84,6 +117,31 @@ public sealed class AppShellViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(ModeStatusText));
             }
         }
+    }
+
+    public WorkspaceMode WorkspaceMode
+    {
+        get => _workspaceMode;
+        private set
+        {
+            if (SetProperty(ref _workspaceMode, value))
+            {
+                OnPropertyChanged(nameof(IsMarkdownWorkspaceVisible));
+                OnPropertyChanged(nameof(IsPdfWorkspaceVisible));
+            }
+        }
+    }
+
+    public string CurrentPdfPath
+    {
+        get => _currentPdfPath;
+        private set => SetProperty(ref _currentPdfPath, value);
+    }
+
+    public string CurrentPdfDisplayName
+    {
+        get => _currentPdfDisplayName;
+        private set => SetProperty(ref _currentPdfDisplayName, value);
     }
 
     public ShellThemeKind Theme
@@ -141,6 +199,11 @@ public sealed class AppShellViewModel : INotifyPropertyChanged
     public bool IsAiLiteratureTabSelected => SelectedAiPanelTab == AiPanelTabKind.Literature;
     public bool IsAiSnapshotTabSelected => SelectedAiPanelTab == AiPanelTabKind.Snapshot;
     public bool HasDocuments => DocumentWorkspace.HasDocument || Documents.Count > 0;
+    public bool HasDocument => DocumentWorkspace.HasDocument;
+    /// <summary>True when no document is open — drives the editor-tab placeholder visibility.</summary>
+    public bool HasNoDocument => !DocumentWorkspace.HasDocument;
+    public bool IsMarkdownWorkspaceVisible => WorkspaceMode == WorkspaceMode.Markdown;
+    public bool IsPdfWorkspaceVisible => WorkspaceMode == WorkspaceMode.Pdf;
 
     public string CurrentDocumentTitle => DocumentWorkspace.HasDocument
         ? DocumentWorkspace.DisplayName
@@ -177,6 +240,23 @@ public sealed class AppShellViewModel : INotifyPropertyChanged
         SelectedSidebarTab = tab;
     }
 
+    public void OpenPdfMode(string filePath, string displayName)
+    {
+        CurrentPdfPath = filePath;
+        CurrentPdfDisplayName = string.IsNullOrWhiteSpace(displayName)
+            ? System.IO.Path.GetFileName(filePath)
+            : displayName;
+        WorkspaceMode = WorkspaceMode.Pdf;
+        OnPropertyChanged(nameof(StatusText));
+    }
+
+    public void ClosePdfMode()
+    {
+        WorkspaceMode = WorkspaceMode.Markdown;
+        CurrentPdfPath = string.Empty;
+        CurrentPdfDisplayName = string.Empty;
+    }
+
     public void SelectEditorMode(EditorSurfaceMode mode)
     {
         EditorMode = mode;
@@ -203,6 +283,8 @@ public sealed class AppShellViewModel : INotifyPropertyChanged
         {
             case nameof(DocumentWorkspaceViewModel.HasDocument):
                 OnPropertyChanged(nameof(HasDocuments));
+                OnPropertyChanged(nameof(HasDocument));
+                OnPropertyChanged(nameof(HasNoDocument));
                 OnPropertyChanged(nameof(CurrentDocumentTitle));
                 OnPropertyChanged(nameof(CurrentDocumentSubtitle));
                 OnPropertyChanged(nameof(IsEditorEmptyStateVisible));
@@ -220,6 +302,12 @@ public sealed class AppShellViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(StatusText));
                 break;
         }
+    }
+
+    public void Dispose()
+    {
+        DocumentWorkspace.PropertyChanged -= OnDocumentWorkspacePropertyChanged;
+        RagTabViewModel?.Dispose();
     }
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

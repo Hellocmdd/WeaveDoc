@@ -2,29 +2,28 @@
 
 [English](README.md) | 简体中文
 
-`WeaveDoc.App` 是 WeaveDoc 的统一 Avalonia 桌面入口。它把转换器、Markdown 编辑器、模板管理和 RAG 服务模块整合成一个多页签工作区。
+`WeaveDoc.App` 是 WeaveDoc 的统一 Avalonia 桌面应用。它把 Markdown 编辑器、PDF 阅读器、转换器、模板设置和 RAG 辅助面板组合成一个三栏工作区。
 
-## 页签组成
+## 外壳布局
 
-| 页签 | 对应代码 | 职责 |
+| 界面 | 主要文件 | 职责 |
 | --- | --- | --- |
-| `RAG 问答` | `MainWindow.*`、`ViewModels/RagTabViewModel.cs`、`src/WeaveDoc.Rag/` | 文档管理、本地/云端聊天设置、检索和答案展示 |
-| `文档转换` | `Views/ConvertTab.*`、`src/WeaveDoc.Converter/` | Markdown 输入、AFD 模板选择、DOCX/PDF 输出和 PDF 版式选择 |
-| `Markdown 编辑` | `src/WeaveDoc.MarkdownEditor/Views/MarkdownEditorTab.*` | 嵌入式 Markdown 编辑、HTML 预览和 PDF 阅读界面 |
-| `模板管理` | `Views/TemplateTab.*`、`src/WeaveDoc.Converter/Config/` | 种子模板加载、模板列表、导入、刷新和删除 |
+| 顶部命令栏 | `Views/MainWindow.axaml`、`Views/MainWindow.axaml.cs` | 新建/打开/保存、导出、设置、AI 面板页签命令、主题切换 |
+| 左侧工作区 | `Views/WorkspaceSidebar.*`、`Views/PdfWorkspace.*` | 文档/侧栏区域和 PDF 阅读模式 |
+| 中间编辑区 | `Views/EditorWorkspace.*`、`ViewModels/DocumentWorkspaceViewModel.cs` | 原生 Markdown 编辑、编辑/预览切换、格式命令、预览刷新 |
+| 右侧辅助栏 | `Views/AiAssistantPanel.*`、`Views/RagChatView.*`、`Views/RagCorpusView.*`、`Views/RagSnapshotView.*` | 问答、语料/文献管理、检索快照展示 |
+| 对话框 | `Views/ExportDialog.*`、`Views/SettingsDialog.*` | AFD 导出、PDF 版式选择、云端/本地模型设置、模板管理 |
+
+旧的独立转换页和模板管理页已经被折叠进 `ExportDialog` 和 `SettingsDialog`。当前应用流程以文档为中心：先在中间工作区打开或新建 Markdown，再用周边工具导出、设置或问答。
 
 ## 启动流程
 
-`Program.cs` 负责：
+`Program.cs` 处理两种模式：
 
-- 识别 `--eval <baseline.json>`，并直接交给 `EvalRunner`，不启动 Avalonia UI
-- 注册 PDF 兜底转换使用的 Syncfusion 许可证
-- 创建应用输出目录下的 `data/weavedoc.db`
-- 通过 `ConfigManager` 导入内置 AFD 模板
-- 构造 `PandocPipeline`、`CompositePdfConverter` 和 `DocumentConversionEngine`
-- 带着配置好的服务启动 Avalonia
+- `--eval <baseline.json>` 直接运行 `WeaveDoc.Rag.Services.EvalRunner`，结束后退出，不打开 Avalonia。
+- 正常启动时注册 Syncfusion 许可证，创建 `data/weavedoc.db`，导入内置 AFD 模板，构造 `PandocPipeline`、`CompositePdfConverter`、`DocumentConversionEngine` 和 `LocalAiService`，再启动 Avalonia。
 
-`MainWindow` 使用 `RagTabViewModel` 管理 RAG 状态，把转换服务注入 `ConvertTab` 和 `TemplateTab`，并且只在选中 Markdown 页签时激活 Markdown 编辑器。
+`App.axaml.cs` 把这些服务传入 `MainWindow`。`MainWindow` 创建 `AppShellViewModel`、`DocumentWorkspaceViewModel`，并在有 AI 服务时创建 `RagTabViewModel`。
 
 ## 项目引用
 
@@ -35,7 +34,35 @@ WeaveDoc.App
 └── WeaveDoc.Rag
 ```
 
-MarkdownEditor 的静态资源会通过项目文件复制到 App 输出目录，因此统一桌面程序可以直接加载 Monaco、KaTeX 和 PDF.js 资源。
+`WeaveDoc.App.csproj` 会把 MarkdownEditor 的资源链接到 App 输出目录，因此统一桌面应用运行时可以直接使用预览和 PDF WebView 资源。
+
+## 文档工作流
+
+`DocumentWorkspaceViewModel` 维护当前 Markdown 文档状态：
+
+- 当前文件路径和展示名
+- 文本内容和未保存状态
+- 渲染后的预览 HTML
+- 保存/另存为状态和错误消息
+
+`MarkdownDocumentService` 负责 `.md`、`.markdown`、`.txt` 文件读写，并使用 MarkdownEditor 模块的 `MarkdigMarkdownRenderService` 生成预览 HTML。保存或导出前，`EditorWorkspace` 会把原生编辑器中的实时文本同步回工作区 ViewModel。
+
+PDF 文件通过 `PdfWorkspace` 打开。它封装 `WeaveDoc.MarkdownEditor` 的 `PdfViewerControl`，并管理 Avalonia 存储提供器产生的临时文件。
+
+## 导出与设置
+
+`ExportDialog` 从 `ConfigManager` 加载模板，支持 DOCX/PDF 输出、`PdfLayoutMode.SingleColumn` / `TwoColumn` 版式选择，调用 `DocumentConversionEngine` 完成转换，并可把转换后的 PDF 重新打开到工作区。
+
+`SettingsDialog` 目前包含通用设置、模型/云端提供商设置、Zotero 占位界面、模板库管理和快照策略界面。模板导入会先通过 `AfdParser` 校验 JSON，再通过 `ConfigManager` 保存。
+
+## RAG 辅助面板
+
+辅助面板由桌面外壳承载，检索和聊天实现位于 `WeaveDoc.Rag`。
+
+- `RagChatView` 流式显示答案，支持停止生成，并在输入框首次聚焦时预热服务。
+- `RagCorpusView` 可导入 Markdown/text/JSON 文件、刷新语料、筛选文件列表并删除条目。
+- `RagSnapshotView` 展示最近一次问答的候选检索块和实际上下文块。
+- 云端提供商设置通过 `RagTabViewModel` 编辑，并由 `CloudApiSettings` 持久化。
 
 ## 构建与运行
 
@@ -44,19 +71,17 @@ dotnet build src/WeaveDoc.App/WeaveDoc.App.csproj
 dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj
 ```
 
-需要本地 RAG 且希望脚本管理 `llama-server` 时：
+需要脚本管理本地 `llama-server` 时：
 
 ```bash
 ./scripts/run_weavedoc.sh
 ```
 
-## 评测模式
+离线评测模式：
 
 ```bash
 dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj -- --eval /path/to/eval-baseline.json
 ```
-
-评测模式会运行 `WeaveDoc.Rag.Services.EvalRunner`，结束后直接退出，不打开桌面 UI。
 
 ## 测试
 
@@ -64,4 +89,4 @@ dotnet run --project src/WeaveDoc.App/WeaveDoc.App.csproj -- --eval /path/to/eva
 dotnet test tests/WeaveDoc.App.Tests/WeaveDoc.App.Tests.csproj -nologo
 ```
 
-headless Avalonia 测试范围见 [../../tests/WeaveDoc.App.Tests/README.md](../../tests/WeaveDoc.App.Tests/README.md)。
+当前 headless 外壳、文档、主题和 RAG ViewModel 覆盖范围见 [../../tests/WeaveDoc.App.Tests/README.md](../../tests/WeaveDoc.App.Tests/README.md)。

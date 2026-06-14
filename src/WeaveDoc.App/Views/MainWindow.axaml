@@ -104,14 +104,14 @@
                    Text="WeaveDoc - 未打开文档"
                    VerticalAlignment="Center"
                    FontSize="11"
-                   Foreground="{DynamicResource ShellTextBrush}"
+                   Foreground="{DynamicResource ShellOnDarkTextBrush}"
                    TextTrimming="CharacterEllipsis" />
 
         <TextBlock Grid.Column="2"
                    Text="{Binding StatusText}"
                    VerticalAlignment="Center"
                    FontSize="11"
-                   Foreground="{DynamicResource ShellMutedTextBrush}"
+                   Foreground="{DynamicResource ShellOnDarkMutedTextBrush}"
                    TextTrimming="CharacterEllipsis" />
       </Grid>
     </Border>
@@ -122,46 +122,46 @@
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,0,0,1"
             Padding="8,0">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,220,Auto"
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,220,Auto"
             ColumnSpacing="4">
         <TextBlock Grid.Column="0"
                    Text="文件"
                    VerticalAlignment="Center"
                    FontSize="11"
                    Foreground="{DynamicResource ShellMutedTextBrush}" />
-        <Button x:Name="NewShellDocumentButton" Grid.Column="1" Classes="shell-tool" Content="新建" IsEnabled="False" />
-        <Button x:Name="OpenShellDocumentButton" Grid.Column="2" Classes="shell-tool" Content="打开" IsEnabled="False" />
-        <Button x:Name="SaveShellDocumentButton" Grid.Column="3" Classes="shell-tool" Content="保存" IsEnabled="False" />
-        <Border Grid.Column="4" Width="1" Height="18" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
-        <Button x:Name="ExportShellDocumentButton" Grid.Column="5" Classes="shell-tool" Content="导出" IsEnabled="False" />
-        <Border Grid.Column="6" Width="1" Height="18" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
-        <TextBlock Grid.Column="7"
+        <Button x:Name="NewShellDocumentButton" Grid.Column="1" Classes="shell-tool" Content="新建" Click="OnNewDocumentClick" />
+        <Button x:Name="OpenShellDocumentButton" Grid.Column="2" Classes="shell-tool" Content="打开" Click="OnOpenDocumentClick" />
+        <Button x:Name="SaveShellDocumentButton" Grid.Column="3" Classes="shell-tool" Content="保存" Click="OnSaveDocumentClick" />
+        <Button x:Name="SetupShellCommandButton" Grid.Column="4" Classes="shell-tool" Content="设置" Click="OnOpenSettingsClick" />
+        <Border Grid.Column="5" Width="1" Height="18" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
+        <Button x:Name="ExportShellDocumentButton" Grid.Column="6" Classes="shell-tool" Content="导出" Click="OnExportDocumentClick" />
+        <Border Grid.Column="7" Width="1" Height="18" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="8"
                    Text="辅助"
                    VerticalAlignment="Center"
                    FontSize="11"
                    Foreground="{DynamicResource ShellMutedTextBrush}" />
         <Button x:Name="AiChatCommandButton"
-                Grid.Column="8"
+                Grid.Column="9"
                 Classes="shell-tool active"
                 Content="问答"
                 Click="OnSelectAiChatTabClick" />
         <Button x:Name="AiLiteratureCommandButton"
-                Grid.Column="9"
+                Grid.Column="10"
                 Classes="shell-tool"
                 Content="文献"
                 Click="OnSelectAiLiteratureTabClick" />
         <Button x:Name="AiSnapshotCommandButton"
-                Grid.Column="10"
+                Grid.Column="11"
                 Classes="shell-tool"
                 Content="快照"
                 Click="OnSelectAiSnapshotTabClick" />
         <Button x:Name="AiShellCommandButton"
-                Grid.Column="11"
+                Grid.Column="12"
                 Classes="shell-tool active"
                 Content="{Binding AiPanelToggleText}"
                 Click="OnToggleAiPanelClick" />
-        <Border Grid.Column="12" Width="1" Height="18" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
-        <Button x:Name="SetupShellCommandButton" Grid.Column="14" Classes="shell-tool" Content="设置" IsEnabled="False" />
+        <Border Grid.Column="13" Width="1" Height="18" Background="{DynamicResource ShellBorderBrush}" VerticalAlignment="Center" />
         <TextBox x:Name="ShellSearchBox"
                  Grid.Column="15"
                  Classes="shell-search"
@@ -189,8 +189,12 @@
         <ColumnDefinition Width="300" MinWidth="280" />
       </Grid.ColumnDefinitions>
 
-      <views:WorkspaceSidebar x:Name="WorkspaceSidebarControl"
-                              Grid.Column="0" />
+      <Grid Grid.Column="0">
+        <views:WorkspaceSidebar x:Name="WorkspaceSidebarControl"
+                                IsVisible="{Binding IsMarkdownWorkspaceVisible}" />
+        <views:PdfWorkspace x:Name="PdfWorkspaceControl"
+                            IsVisible="{Binding IsPdfWorkspaceVisible}" />
+      </Grid>
 
       <GridSplitter x:Name="LeftWorkspaceSplitter"
                     Grid.Column="1"
@@ -201,8 +205,19 @@
                     ShowsPreview="False"
                     Background="{DynamicResource ShellBorderBrush}" />
 
-      <views:EditorWorkspace x:Name="EditorWorkspaceControl"
-                             Grid.Column="2" />
+      <!-- Editor column is always-dark by design. Pin it to the Dark variant so Fluent's
+           disabled-control brushes render for a dark surface: without this, the inner TextBlock
+           of a disabled button (the always-disabled editor-tab, and editor-tool when no document)
+           is rendered by the Fluent button template with the light-variant disabled brush
+           (#66000000 ≈ black @40%), which is invisible on the dark editor panels. Under the Dark
+           variant that brush resolves to white @40% (light grey) — legible. The editor's Shell
+           palette brushes are mutated directly by ApplyShellPalette, so they remain correct. -->
+      <ThemeVariantScope RequestedThemeVariant="Dark"
+                         Grid.Column="2"
+                         HorizontalAlignment="Stretch"
+                         VerticalAlignment="Stretch">
+        <views:EditorWorkspace x:Name="EditorWorkspaceControl" />
+      </ThemeVariantScope>
 
       <GridSplitter x:Name="RightWorkspaceSplitter"
                     Grid.Column="3"
