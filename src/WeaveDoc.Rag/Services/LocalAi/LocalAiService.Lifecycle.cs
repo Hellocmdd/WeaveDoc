@@ -74,7 +74,7 @@ public sealed partial class LocalAiService
         }
 
         var modelPath = ResolveChatModelPath();
-        _chatProcess = new LlamaServerProcess("server");
+        _chatProcess ??= new LlamaServerProcess("server");
         var gpuLayers = Environment.GetEnvironmentVariable("LLAMA_SERVER_GPU_LAYERS");
         if (string.IsNullOrWhiteSpace(gpuLayers))
         {

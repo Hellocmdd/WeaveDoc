@@ -561,6 +561,36 @@ public class MainWindowTests
     }
 
     [AvaloniaFact]
+    public async Task AiPanel_ShowsActiveModelProviderBadge()
+    {
+        var window = new MainWindow(null, null, new WeaveDoc.Rag.Services.LocalAiService());
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var viewModel = Assert.IsType<AppShellViewModel>(window.DataContext);
+            Assert.NotNull(viewModel.RagTabViewModel);
+            var rag = viewModel.RagTabViewModel!;
+            var aiPanel = Find<AiAssistantPanel>(window, "AiAssistantPanelControl");
+            var badgeBorder = Find<Border>(aiPanel, "ProviderBadgeBorder");
+            var badgeText = Find<TextBlock>(aiPanel, "ProviderBadgeTextBlock");
+
+            rag.ChatProvider = "cloud";
+            rag.CloudModel = "deepseek-chat";
+
+            Assert.True(badgeBorder.IsVisible);
+            Assert.Contains("模型:", badgeText.Text);
+            Assert.Contains("云端", badgeText.Text);
+            Assert.Contains("deepseek-chat", badgeText.Text);
+
+            rag.ChatProvider = "llama_server";
+
+            Assert.Contains("模型:", badgeText.Text);
+            Assert.Contains("本地", badgeText.Text);
+        });
+    }
+
+    [AvaloniaFact]
     public async Task Shell_DoesNotShowRagOrDemoState()
     {
         var window = new MainWindow();

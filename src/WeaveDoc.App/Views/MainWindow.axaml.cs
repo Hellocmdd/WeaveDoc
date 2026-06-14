@@ -25,15 +25,21 @@ public partial class MainWindow : Window
 
     private readonly AppShellViewModel _viewModel;
     private readonly LocalAiService? _aiService;
+    private readonly bool _autoInitializeRag;
     private double _lastExpandedAiPanelWidth = DefaultAiPanelWidth;
 
     public MainWindow() : this(null!, null!, null!) { }
 
-    public MainWindow(ConfigManager? configManager, DocumentConversionEngine? engine, LocalAiService? aiService)
+    public MainWindow(
+        ConfigManager? configManager,
+        DocumentConversionEngine? engine,
+        LocalAiService? aiService,
+        bool autoInitializeRag = false)
     {
         InitializeComponent();
 
         _aiService = aiService;
+        _autoInitializeRag = autoInitializeRag;
 
         var documentWorkspace = new DocumentWorkspaceViewModel(new MarkdownDocumentService());
         _viewModel = new AppShellViewModel(documentWorkspace, configManager, engine, aiService);
@@ -50,6 +56,11 @@ public partial class MainWindow : Window
     {
         // Subscribe to PDF open request from PdfWorkspace (now hosted in the left sidebar)
         PdfWorkspaceControl.OpenPdfRequested += async (_, _) => await OpenDocumentAsync();
+
+        if (_autoInitializeRag)
+        {
+            _ = _viewModel.RagTabViewModel?.InitializeAsync();
+        }
     }
 
     protected override void OnClosed(EventArgs e)
