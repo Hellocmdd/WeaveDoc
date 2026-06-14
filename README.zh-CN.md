@@ -21,9 +21,8 @@ WeaveDoc 是一个基于 .NET/Avalonia 的学术文档桌面工作区，用来�
 | 路径 | 说明 |
 | --- | --- |
 | `WeaveDoc.slnx` | 包含产品项目和测试项目的主解决方案 |
-| `WeaveDoc.csproj` | 旧的根项目占位；日常开发使用 `WeaveDoc.slnx` 或具体项目 `.csproj` |
 | `src/` | 产品项目 |
-| `tests/` | 自动化测试和少量 scratch/harness 项目 |
+| `tests/` | 自动化测试和测试文档 |
 | `scripts/` | 安装、启动、RAG、诊断和测试辅助脚本 |
 | `tools/` | Pandoc 等下载后的外部工具 |
 | `doc/` | 项目文档、任务清单、设计文档和本地语料材料 |
