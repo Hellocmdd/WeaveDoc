@@ -239,10 +239,14 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 if (_plainTextFallbackEditor == null)
                     return new NativeMarkdownSelection(0, 0, string.Empty);
 
+                var text = NormalizeContent(_plainTextFallbackEditor.Text);
                 var fallbackStart = ClampOffset(_plainTextFallbackEditor.SelectionStart);
                 var fallbackSelectionEnd = Math.Clamp(_plainTextFallbackEditor.SelectionEnd, fallbackStart, GetLiveContentLength());
                 var fallbackLength = fallbackSelectionEnd - fallbackStart;
-                return new NativeMarkdownSelection(fallbackStart, fallbackLength, _plainTextFallbackEditor.SelectedText ?? string.Empty);
+                var selectedText = fallbackLength == 0
+                    ? string.Empty
+                    : text.Substring(fallbackStart, fallbackLength);
+                return new NativeMarkdownSelection(fallbackStart, fallbackLength, selectedText);
             }
 
             if (_editor == null)
@@ -269,7 +273,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 _plainTextFallbackEditor.SelectionStart = safeStart;
                 _plainTextFallbackEditor.SelectionEnd = safeStart + safeLength;
-                _plainTextFallbackEditor.CaretIndex = safeStart + safeLength;
+                if (safeLength == 0)
+                {
+                    _plainTextFallbackEditor.CaretIndex = safeStart;
+                }
                 return;
             }
 
