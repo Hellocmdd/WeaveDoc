@@ -2,6 +2,15 @@
   <Style Selector="Button">
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
+    <!-- Smooth pointer-over/active transitions. Without these the brush swap
+         is instantaneous, which reads as a hard "flash to grey". -->
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.14" />
+        <BrushTransition Property="Foreground" Duration="0:0:0.14" />
+      </Transitions>
+    </Setter>
   </Style>
 
   <Style Selector="Button.command-button">
@@ -9,16 +18,16 @@
     <Setter Property="Height" Value="32" />
     <Setter Property="Padding" Value="12,1,12,0" />
     <Setter Property="FontSize" Value="12" />
-    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Background" Value="{DynamicResource ShellAccentHoverGhostBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
-    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentHoverGhostBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
   </Style>
   <Style Selector="Button.command-button:pointerover">
-    <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
-    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ShellAccentHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ShellAccentStrongBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentHoverBrush}" />
   </Style>
   <Style Selector="Button.command-button.active">
     <Setter Property="Background" Value="{DynamicResource ShellSelectedBrush}" />
@@ -31,6 +40,10 @@
     <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentStrongBrush}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
+  <Style Selector="Button.command-button.primary:pointerover">
+    <Setter Property="Background" Value="{DynamicResource ShellAccentHoverStrongBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentHoverStrongBrush}" />
+  </Style>
   <Style Selector="Button.command-button:disabled">
     <Setter Property="Foreground" Value="{DynamicResource ShellDisabledTextBrush}" />
     <Setter Property="Opacity" Value="0.75" />
@@ -41,16 +54,16 @@
     <Setter Property="Height" Value="30" />
     <Setter Property="Padding" Value="0,1,0,0" />
     <Setter Property="FontSize" Value="12" />
-    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Background" Value="{DynamicResource ShellAccentHoverGhostBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
-    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentHoverGhostBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
   </Style>
   <Style Selector="Button.icon-button:pointerover">
-    <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
-    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ShellAccentHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ShellAccentStrongBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentHoverBrush}" />
   </Style>
   <Style Selector="Button.icon-button:disabled">
     <Setter Property="Foreground" Value="{DynamicResource ShellDisabledTextBrush}" />
@@ -62,15 +75,15 @@
     <Setter Property="Height" Value="30" />
     <Setter Property="Padding" Value="12,1,12,0" />
     <Setter Property="FontSize" Value="12" />
-    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Background" Value="{DynamicResource ShellAccentHoverGhostBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
   </Style>
   <Style Selector="Button.segment-button:pointerover">
-    <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
-    <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ShellAccentHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ShellAccentStrongBrush}" />
   </Style>
   <Style Selector="Button.segment-button.active">
     <Setter Property="Background" Value="{DynamicResource ShellSelectedBrush}" />

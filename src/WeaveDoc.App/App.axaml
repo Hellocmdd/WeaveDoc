@@ -24,6 +24,12 @@
     <SolidColorBrush x:Key="ShellOnDarkDisabledTextBrush" Color="#6E7681" />
     <SolidColorBrush x:Key="ShellAccentBrush" Color="#58A6FF" />
     <SolidColorBrush x:Key="ShellAccentStrongBrush" Color="#1F6FEB" />
+    <!-- Accent-tinted button hover (replaces the neutral ShellHoverBrush on
+         buttons so pointer-over reads as accent, not grey). Defaults mirror the
+         dark palette; ApplyShellPalette swaps them per theme at runtime. -->
+    <SolidColorBrush x:Key="ShellAccentHoverBrush" Color="#1B2540" />
+    <SolidColorBrush x:Key="ShellAccentHoverGhostBrush" Color="#001B2540" />
+    <SolidColorBrush x:Key="ShellAccentHoverStrongBrush" Color="#82A4FF" />
     <SolidColorBrush x:Key="ShellSuccessBrush" Color="#3FB950" />
     <SolidColorBrush x:Key="ShellWarningBrush" Color="#D29922" />
     <SolidColorBrush x:Key="ShellEditorBackgroundBrush" Color="#0D1117" />
@@ -76,6 +82,10 @@
       <Setter Property="Background" Value="{DynamicResource ShellAccentStrongBrush}" />
       <Setter Property="Foreground" Value="White" />
       <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentStrongBrush}" />
+    </Style>
+    <Style Selector="Button.ai-command.primary:pointerover">
+      <Setter Property="Background" Value="{DynamicResource ShellAccentHoverStrongBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentHoverStrongBrush}" />
     </Style>
 
     <!-- dashed full-width panel action button (demo PanelAction) -->

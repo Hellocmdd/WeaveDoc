@@ -384,7 +384,17 @@ public partial class MainWindow : Window
         ["ShellMutedTextBrush"] = "#8B95A7",
         ["ShellDisabledTextBrush"] = "#5C6577",
         ["ShellAccentBrush"] = "#7C9CFF",
-        ["ShellAccentStrongBrush"] = "#5B8DEF",
+        ["ShellAccentStrongBrush"] = "#6E92FF",
+        // Accent-tinted hover background + primary hover lift. Buttons swap the
+        // neutral ShellHoverBrush (shared with cards/panels) for these so the
+        // pointer-over state reads as "alive" accent rather than flat grey.
+        ["ShellAccentHoverBrush"] = "#1B2540",
+        // Fully-transparent but RGB-matched to the hover tint. Using this as the
+        // default Background/BorderBrush lets BrushTransition animate alpha only
+        // (RGB stays put) so leaving hover never flashes through grey/white the
+        // way a true Transparent (#00FFFFFF) source would.
+        ["ShellAccentHoverGhostBrush"] = "#001B2540",
+        ["ShellAccentHoverStrongBrush"] = "#82A4FF",
         ["ShellSuccessBrush"] = "#3FB950",
         ["ShellWarningBrush"] = "#D29922",
         ["ShellEditorBackgroundBrush"] = "#0B0E14",
@@ -412,8 +422,12 @@ public partial class MainWindow : Window
         ["ShellTextBrush"] = "#322E26",
         ["ShellMutedTextBrush"] = "#968D7B",
         ["ShellDisabledTextBrush"] = "#B5AB97",
-        ["ShellAccentBrush"] = "#9A6B3E",
-        ["ShellAccentStrongBrush"] = "#8A5C32",
+        ["ShellAccentBrush"] = "#A8662C",
+        ["ShellAccentStrongBrush"] = "#8A5328",
+        // Accent-tinted hover background + primary hover lift (see dark palette).
+        ["ShellAccentHoverBrush"] = "#F0E2CB",
+        ["ShellAccentHoverGhostBrush"] = "#00F0E2CB",
+        ["ShellAccentHoverStrongBrush"] = "#9C6233",
         ["ShellSuccessBrush"] = "#4A7C4E",
         ["ShellWarningBrush"] = "#B8860B",
         ["ShellEditorBackgroundBrush"] = "#FFFFFF",

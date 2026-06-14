@@ -23,7 +23,12 @@ public class ShellPaletteTests
         Assert.Equal(Color.FromRgb(0x17, 0x1C, 0x26), Brush("ShellCardBrush"));
         Assert.Equal(Color.FromRgb(0x21, 0x28, 0x36), Brush("ShellBorderBrush"));
         Assert.Equal(Color.FromRgb(0x7C, 0x9C, 0xFF), Brush("ShellAccentBrush"));
-        Assert.Equal(Color.FromRgb(0x5B, 0x8D, 0xEF), Brush("ShellAccentStrongBrush"));
+        Assert.Equal(Color.FromRgb(0x6E, 0x92, 0xFF), Brush("ShellAccentStrongBrush"));
+        Assert.Equal(Color.FromRgb(0x1B, 0x25, 0x40), Brush("ShellAccentHoverBrush"));
+        // Ghost is fully transparent but RGB-matched to the hover tint so the
+        // leave-hover brush transition animates alpha only (no grey flash).
+        Assert.Equal(Color.FromArgb(0x00, 0x1B, 0x25, 0x40), Brush("ShellAccentHoverGhostBrush"));
+        Assert.Equal(Color.FromRgb(0x82, 0xA4, 0xFF), Brush("ShellAccentHoverStrongBrush"));
         Assert.Equal(Color.FromRgb(0xE6, 0xED, 0xF3), Brush("ShellTextBrush"));
         Assert.Equal(Color.FromRgb(0x8B, 0x95, 0xA7), Brush("ShellMutedTextBrush"));
     }
@@ -42,8 +47,11 @@ public class ShellPaletteTests
         Assert.Equal(Color.FromRgb(0xFF, 0xFF, 0xFF), Brush("ShellCardBrush"));
         Assert.Equal(Color.FromRgb(0xFF, 0xFF, 0xFF), Brush("ShellEditorBackgroundBrush"));
         Assert.Equal(Color.FromRgb(0xE2, 0xDC, 0xD0), Brush("ShellBorderBrush"));
-        Assert.Equal(Color.FromRgb(0x9A, 0x6B, 0x3E), Brush("ShellAccentBrush"));
-        Assert.Equal(Color.FromRgb(0x8A, 0x5C, 0x32), Brush("ShellAccentStrongBrush"));
+        Assert.Equal(Color.FromRgb(0xA8, 0x66, 0x2C), Brush("ShellAccentBrush"));
+        Assert.Equal(Color.FromRgb(0x8A, 0x53, 0x28), Brush("ShellAccentStrongBrush"));
+        Assert.Equal(Color.FromRgb(0xF0, 0xE2, 0xCB), Brush("ShellAccentHoverBrush"));
+        Assert.Equal(Color.FromArgb(0x00, 0xF0, 0xE2, 0xCB), Brush("ShellAccentHoverGhostBrush"));
+        Assert.Equal(Color.FromRgb(0x9C, 0x62, 0x33), Brush("ShellAccentHoverStrongBrush"));
         Assert.Equal(Color.FromRgb(0x32, 0x2E, 0x26), Brush("ShellTextBrush"));
         Assert.Equal(Color.FromRgb(0x96, 0x8D, 0x7B), Brush("ShellMutedTextBrush"));
         Assert.Equal(Color.FromRgb(0xB5, 0xAB, 0x97), Brush("ShellDisabledTextBrush"));
@@ -79,6 +87,21 @@ public class ShellPaletteTests
 
         var glow = Avalonia.Application.Current!.Resources["ShellPrimaryGlow"];
         Assert.NotNull(glow);
+    }
+
+    [AvaloniaFact]
+    public void Buttons_HaveSmoothBrushTransitions()
+    {
+        // Pointer-over used to be an instantaneous flash. The global Button style
+        // now installs BrushTransitions so Background/BorderBrush/Foreground ease.
+        var window = new MainWindow();
+        window.Show();
+
+        var btn = window.FindControl<Avalonia.Controls.Button>("ExportShellDocumentButton");
+        Assert.NotNull(btn);
+        // Global Button style installs Background/BorderBrush/Foreground brush transitions.
+        Assert.NotNull(btn!.Transitions);
+        Assert.True(btn.Transitions!.Count >= 3);
     }
 
     [AvaloniaFact]
