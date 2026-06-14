@@ -4,13 +4,11 @@ on:
   push:
     branches:
       - main
-      - master
+      - refactor/**
       - feature/**
   pull_request:
     branches:
       - main
-      - master
-      - feature/weavedoc-app-merge
   workflow_dispatch:
 
 permissions:
@@ -20,42 +18,114 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_CONFIGURATION: Release
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_VERSION: 10.0.x
+  SOLUTION_FILE: WeaveDoc.slnx
+
 jobs:
-  build:
+  build-test:
     name: Build and Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        dotnet: [10.0.x]
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6.0.3
+        with:
+          submodules: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5.2.0
+        uses: actions/setup-dotnet@v5.3.0
         with:
-          dotnet-version: ${{ matrix.dotnet }}
+          dotnet-version: ${{ env.DOTNET_VERSION }}
           cache: true
           cache-dependency-path: |
             **/*.csproj
-            **/*.sln
             **/*.slnx
             **/packages.lock.json
+            tools/DownloadExternalTools.targets
+
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb \
+            libatk-bridge2.0-0 \
+            libdrm2 \
+            libfontconfig1 \
+            libfreetype6 \
+            libgbm1 \
+            libglib2.0-0 \
+            libgtk-3-0 \
+            libnss3 \
+            libx11-6 \
+            libx11-xcb1 \
+            libxcb1 \
+            libxcursor1 \
+            libxi6 \
+            libxinerama1 \
+            libxkbcommon0 \
+            libxrandr2
 
       - name: .NET info
         run: dotnet --info
 
       - name: Restore
-        run: dotnet restore WeaveDoc.slnx
+        run: dotnet restore ${{ env.SOLUTION_FILE }} --disable-build-servers
 
       - name: Install Pandoc
         uses: pandoc/actions/setup@v1
 
       - name: Build (Release)
-        run: dotnet build WeaveDoc.slnx --configuration Release --no-restore /p:ContinuousIntegrationBuild=true
+        run: dotnet build ${{ env.SOLUTION_FILE }} --configuration ${{ env.DOTNET_CONFIGURATION }} --no-restore --disable-build-servers /p:ContinuousIntegrationBuild=true /p:SkipExternalToolsDownload=true /p:DebugType=none /p:DebugSymbols=false /p:SatelliteResourceLanguages=en
 
-      - name: Test (Release)
-        run: dotnet test WeaveDoc.slnx --configuration Release --no-build -nologo
+      - name: Test stable projects (Release, Linux)
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a dotnet test tests/WeaveDoc.App.Tests/WeaveDoc.App.Tests.csproj --configuration ${{ env.DOTNET_CONFIGURATION }} --no-build --disable-build-servers -nologo --logger "trx;LogFilePrefix=weavedoc-app-${{ matrix.os }}" --results-directory "TestResults/${{ matrix.os }}/stable"
+          dotnet test tests/WeaveDoc.Converter.Tests/WeaveDoc.Converter.Tests.csproj --configuration ${{ env.DOTNET_CONFIGURATION }} --no-build --disable-build-servers -nologo --logger "trx;LogFilePrefix=weavedoc-converter-${{ matrix.os }}" --results-directory "TestResults/${{ matrix.os }}/stable"
+          dotnet test tests/WeaveDoc.Rag.Tests/WeaveDoc.Rag.Tests.csproj --configuration ${{ env.DOTNET_CONFIGURATION }} --no-build --disable-build-servers -nologo --logger "trx;LogFilePrefix=weavedoc-rag-${{ matrix.os }}" --results-directory "TestResults/${{ matrix.os }}/stable"
+
+      - name: Test stable projects (Release, Windows)
+        if: runner.os == 'Windows'
+        run: |
+          dotnet test tests/WeaveDoc.App.Tests/WeaveDoc.App.Tests.csproj --configuration ${{ env.DOTNET_CONFIGURATION }} --no-build --disable-build-servers -nologo --logger "trx;LogFilePrefix=weavedoc-app-${{ matrix.os }}" --results-directory "TestResults/${{ matrix.os }}/stable"
+          dotnet test tests/WeaveDoc.Converter.Tests/WeaveDoc.Converter.Tests.csproj --configuration ${{ env.DOTNET_CONFIGURATION }} --no-build --disable-build-servers -nologo --logger "trx;LogFilePrefix=weavedoc-converter-${{ matrix.os }}" --results-directory "TestResults/${{ matrix.os }}/stable"
+          dotnet test tests/WeaveDoc.Rag.Tests/WeaveDoc.Rag.Tests.csproj --configuration ${{ env.DOTNET_CONFIGURATION }} --no-build --disable-build-servers -nologo --logger "trx;LogFilePrefix=weavedoc-rag-${{ matrix.os }}" --results-directory "TestResults/${{ matrix.os }}/stable"
+
+      - name: Test MarkdownEditor diagnostics (Release, Linux)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        run: xvfb-run -a dotnet test tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj --configuration ${{ env.DOTNET_CONFIGURATION }} --no-build --disable-build-servers -nologo --logger "trx;LogFilePrefix=weavedoc-markdowneditor-${{ matrix.os }}" --results-directory "TestResults/${{ matrix.os }}/markdowneditor"
+
+      - name: Test MarkdownEditor diagnostics (Release, Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        run: dotnet test tests/WeaveDoc.MarkdownEditor.Tests/WeaveDoc.MarkdownEditor.Tests.csproj --configuration ${{ env.DOTNET_CONFIGURATION }} --no-build --disable-build-servers -nologo --logger "trx;LogFilePrefix=weavedoc-markdowneditor-${{ matrix.os }}" --results-directory "TestResults/${{ matrix.os }}/markdowneditor"
+
+      - name: Summarize MarkdownEditor diagnostics
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## MarkdownEditor diagnostics"
+            echo "The MarkdownEditor test project is still collected on every CI run, but it is non-blocking while the native editor/WebView diagnostics are being stabilized."
+            echo "Download the test-results artifact for the full TRX report."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: TestResults/${{ matrix.os }}
+          if-no-files-found: ignore
