@@ -98,7 +98,9 @@ public partial class EditorWorkspace : UserControl
         if (documentWorkspace?.HasDocument != true || markdownEditor is null)
             return;
 
-        documentWorkspace.Content = markdownEditor.GetContent();
+        var content = markdownEditor.GetContent();
+        documentWorkspace.Content = content;
+        markdownEditor.AcceptCurrentContent();
     }
 
     private void SubscribeToMarkdownEditor()

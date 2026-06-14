@@ -198,6 +198,19 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         public void SetContent(string? content) => ApplyEditorContent(content, updateStyledProperty: true);
 
+        public void AcceptCurrentContent()
+        {
+            var content = GetContent();
+            ApplyEditorContent(content, updateStyledProperty: true);
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (string.Equals(GetContent(), EditorContent, StringComparison.Ordinal))
+                {
+                    HasUnsyncedContent = false;
+                }
+            }, DispatcherPriority.Background);
+        }
+
         public string GetContent() => NormalizeContent(_isUsingPlainTextFallback
             ? _plainTextFallbackEditor?.Text
             : _editor?.Text);

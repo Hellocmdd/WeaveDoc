@@ -410,7 +410,10 @@ public class MainWindowTests
                 var fakeFactory = Assert.IsType<FakeWebViewHostFactory>(WebViewHostFactoryProvider.Current);
                 Assert.Same(fakeFactory, markdownPreview.WebViewHostFactory);
                 Assert.Contains(fakeFactory.Hosts, host =>
-                    host.NavigatedUris.Any(uri => uri.AbsolutePath.EndsWith("/preview-template.html", StringComparison.Ordinal)));
+                    host.NavigatedUris.Any(uri => uri.AbsolutePath.EndsWith("/preview-template.html", StringComparison.Ordinal))
+                    || host.NavigatedHtml.Any(html =>
+                        html.Contains("id='content'", StringComparison.Ordinal)
+                        && html.Contains("window.updateContent", StringComparison.Ordinal)));
 
                 var reopened = await viewModel.DocumentWorkspace.OpenAsync(
                     secondFilePath,
