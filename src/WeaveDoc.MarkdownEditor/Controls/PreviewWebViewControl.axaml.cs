@@ -516,14 +516,45 @@ namespace WeaveDoc.MarkdownEditor.Controls
             }
 
             var theme = GetNormalizedViewerCssTheme();
+            // WebView2 (in this host) does NOT re-resolve var() when only a
+            // :root custom property flips — neither via a data-* selector nor via
+            // style.setProperty. But assigning an element's own inline style DOES
+            // repaint (verified: body.style.backgroundColor worked). So we drive
+            // the theme by walking the live DOM and writing inline styles onto
+            // every themed element directly, bypassing the variable cascade.
             var script = $$"""
                 (() => {
                     const theme = "{{theme}}";
-                    document.documentElement.dataset.weavedocTheme = theme;
-                    if (theme === "light" || theme === "dark") {
-                        document.documentElement.style.colorScheme = theme;
-                    } else {
-                        document.documentElement.style.removeProperty("color-scheme");
+                    const root = document.documentElement;
+                    root.dataset.weavedocTheme = theme;
+                    const dark = theme === 'dark';
+                    const light = theme === 'light';
+                    const pick = (d, l) => dark ? d : (light ? l : null);
+                    const set = (sel, prop, val) => document.querySelectorAll(sel).forEach(e => { e.style[prop] = val; });
+                    const bg = pick('#1e1e1e', '#ffffff');
+                    if (bg !== null) {
+                        root.style.backgroundColor = bg;
+                        document.body.style.backgroundColor = bg;
+                        document.body.style.color = pick('#d4d4d4', '#333333');
+                        root.style.colorScheme = theme;
+                        set('h1,h2,h3,h4,h5,h6', 'color', pick('#f0f0f0', '#24292e'));
+                        set('h1,h2', 'borderBottomColor', pick('#3a3a3a', '#eaecef'));
+                        set('a', 'color', pick('#58a6ff', '#4285f4'));
+                        set('code', 'backgroundColor', pick('#2d2d2d', '#f6f8fa'));
+                        set('code', 'color', pick('#ff7b72', '#e63946'));
+                        set('pre', 'backgroundColor', pick('#2d2d2d', '#f6f8fa'));
+                        set('blockquote', 'color', pick('#b7bec8', '#6a737d'));
+                        set('blockquote', 'borderLeftColor', pick('#444c56', '#dfe2e5'));
+                        set('table', 'borderColor', pick('#444c56', '#dfe2e5'));
+                        set('th', 'backgroundColor', pick('#2d2d2d', '#f6f8fa'));
+                        set('tbody tr:nth-child(even) td', 'backgroundColor', pick('#252525', '#fafbfc'));
+                        // :hover rules still read var() (e.g. table tr:hover -> var(--table-header-bg)),
+                        // which WebView2 pins to the initial dark value -> rows turn black on hover in
+                        // light mode. Inject a concrete <style> override so the hover color is exact.
+                        const hoverBg = pick('#2d2d2d', '#f6f8fa');
+                        let hs = document.getElementById('wd-hover');
+                        if (!hs) { hs = document.createElement('style'); hs.id = 'wd-hover'; document.head.appendChild(hs); }
+                        hs.textContent = 'table tr:hover td{background-color:' + hoverBg + '!important}';
                     }
                     window.dispatchEvent(new Event('resize'));
                     return theme;
@@ -558,10 +589,13 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
                 _pendingContent = content ?? string.Empty;
                 await WaitForJavaScriptReadyAsync();
-                await ApplyPreviewThemeAsync();
                 var previewHtml = ResolvePreviewImageSources(_pendingContent, SourceFilePath);
                 var script = $"window.updateContent({JsonSerializer.Serialize(previewHtml)}); window.dispatchEvent(new Event('resize'));";
                 await _webViewHost.InvokeScriptAsync(script);
+                // Re-apply the theme AFTER updateContent swaps the DOM, because the
+                // inline styles are written per-element and the new elements don't
+                // inherit them (and WebView2 won't re-resolve the CSS variables).
+                await ApplyPreviewThemeAsync();
                 
                 if (_needsRepaintTweak)
                 {
