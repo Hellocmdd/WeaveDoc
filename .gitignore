@@ -1,72 +1,9 @@
-
 # Build output
-[bB]in/
-[oO]bj/
+[Bb]in/
+[Oo]bj/
 [Dd]ebug/
 [Rr]elease/
 publish/
-
-# Logs and temp
-*.log
-*.backup
-*.bak
-[Ll]og/
-[Tt]emp/
-
-
-
-# Build output
-[Dd]ebug/
-[Rr]elease/
-# ---> Vim
-# Swap
-[._]*.s[a-v][a-z]
-!*.svg  # comment out if you don't need vector files
-[._]*.sw[a-p]
-[._]s[a-rt-v][a-z]
-[._]ss[a-gi-z]
-[._]sw[a-p]
-
-# Session
-Session.vim
-Sessionx.vim
-
-# Temporary
-.netrwhist
-*~
-# Auto-generated tag files
-tags
-# Persistent undo
-[._]*.un~
-# visual studio code
-[bB]in/
-[oO]bj/
-
-#visual studio 
-.vs/
-
-# Logs and temp
-*.log
-[Ll]og/
-[Tt]emp/
-
-
-# IDE
-.vs/
-.vscode/
-.idea/
-*.user
-*.suo
-*.csproj.lscache
-
-# OS
-Thumbs.db
-.DS_Store
-
-# NuGet
-*.nupkg
-packages/
-
 
 # Build artifacts
 *.dll
@@ -74,26 +11,64 @@ packages/
 *.pdb
 *.xml
 
+# NuGet
+*.nupkg
+packages/
+
 # Node.js
 node_modules/
 package-lock.json
 npm-debug.log
 
+# Logs and temp files
+*.log
+*.backup
+*.bak
+[Ll]og/
+[Tt]emp/
+*~
 
+# Generated document output
+doc/output/
+doc/task_doc/*.pdf
+doc/*-软件计划项目书.docx
+tests/test_doc/**/*.pdf
+tests/test_doc/**/*.docx
+tools/test_output.docx
+tools/docx_inspect/
+tests/test-output/
+
+# Test artifacts
+TestResults/
+coverage/
 
 # Tools (portable binaries, downloaded via setup-tools.ps1)
 tools/pandoc/
 tools/tectonic/
 
-# Test artifacts
-tools/test_output.docx
-tools/docx_inspect/
-tests/test-output/
-TestResults/
-coverage/
+# IDE and editor files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.csproj.lscache
 
-_debug/
-.eval/
+# Vim
+[._]*.s[a-v][a-z]
+!*.svg
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+Session.vim
+Sessionx.vim
+.netrwhist
+tags
+[._]*.un~
+
+# OS
+Thumbs.db
+.DS_Store
 
 # Local environments and caches
 .conda/
@@ -112,10 +87,10 @@ llama.cpp/
 .claude/
 .codex-tmp/
 .superpowers/
+.codegraph/
+_debug/
+.eval/
 
 # Legacy docs folder retained from converter branch history
 docs/
 out/
-
-# codegraph
-.codegraph/
