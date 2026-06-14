@@ -19,15 +19,17 @@ internal static class ConversionErrorFormatter
                 => "无法启动 Pandoc，请先构建项目以下载 tools/pandoc，或确认 pandoc.exe 可用。",
             InvalidOperationException invalidEx when invalidEx.Message.Contains("Pandoc", StringComparison.OrdinalIgnoreCase)
                 => "无法启动 Pandoc，请先构建项目以下载 tools/pandoc，或确认 pandoc.exe 可用。",
-            PandocException pandocEx => FormatPandocError(pandocEx),
+            PandocException pandocEx => FormatPandocError(pandocEx, markdownPath),
             _ => $"转换为 {outputFormat.ToUpperInvariant()} 时发生未知错误：{ex.Message}"
         };
     }
 
-    private static string FormatPandocError(PandocException ex)
+    private static string FormatPandocError(PandocException ex, string markdownPath)
     {
         var stderr = ex.Stderr ?? "";
-        if (stderr.Contains("withBinaryFile", StringComparison.OrdinalIgnoreCase)
+        if (!File.Exists(markdownPath)
+            || stderr.Contains("withBinaryFile", StringComparison.OrdinalIgnoreCase)
+            || stderr.Contains("openBinaryFile", StringComparison.OrdinalIgnoreCase)
             || stderr.Contains("does not exist", StringComparison.OrdinalIgnoreCase)
             || stderr.Contains("No such file", StringComparison.OrdinalIgnoreCase))
         {
