@@ -68,9 +68,9 @@ public class EditorChromeThemeTests
             .FirstOrDefault(t => t.Text == "本地文档打开、保存和渲染能力待接入。");
         Assert.NotNull(subtitle);
         var color = Assert.IsType<SolidColorBrush>(subtitle!.Foreground).Color;
-        Assert.Equal((byte)0x57, color.R);
-        Assert.Equal((byte)0x60, color.G);
-        Assert.Equal((byte)0x6a, color.B);
+        Assert.Equal((byte)0x96, color.R);
+        Assert.Equal((byte)0x8D, color.G);
+        Assert.Equal((byte)0x7B, color.B);
     }
 
     [AvaloniaFact]

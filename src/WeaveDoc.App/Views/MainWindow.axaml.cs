@@ -318,6 +318,31 @@ public partial class MainWindow : Window
         {
             SetBrushColor(application, key, color);
         }
+
+        // Primary glow. BoxShadow XAML literals crash the Avalonia 12 runtime
+        // resource loader, so the per-theme glows are built imperatively here.
+        // BoxShadows is a struct; box it ONCE into object so the active glow
+        // and its per-theme source share the same reference (lets Assert.Same
+        // hold and lets {DynamicResource ShellPrimaryGlow} observe the swap).
+        object darkGlow = CreatePrimaryGlowDark();
+        object lightGlow = CreatePrimaryGlowLight();
+        application.Resources["ShellPrimaryGlowDark"] = darkGlow;
+        application.Resources["ShellPrimaryGlowLight"] = lightGlow;
+        application.Resources["ShellPrimaryGlow"] = theme == ShellThemeKind.Dark ? darkGlow : lightGlow;
+    }
+
+    private static BoxShadows CreatePrimaryGlowDark()
+    {
+        var outer = BoxShadow.Parse("0 0 1 0 #7C9CFF");
+        var inner = BoxShadow.Parse("0 6 18 -4 #5B8DEF");
+        return new BoxShadows(outer, new[] { inner });
+    }
+
+    private static BoxShadows CreatePrimaryGlowLight()
+    {
+        var outer = BoxShadow.Parse("0 0 1 0 #9A6B3E");
+        var inner = BoxShadow.Parse("0 6 16 -6 #8A5C32");
+        return new BoxShadows(outer, new[] { inner });
     }
 
     private static void SetBrushColor(Application application, string key, string color)
@@ -333,59 +358,58 @@ public partial class MainWindow : Window
 
     private static readonly IReadOnlyDictionary<string, string> DarkShellPalette = new Dictionary<string, string>
     {
-        ["ShellBackgroundBrush"] = "#0D1117",
-        ["ShellChromeBrush"] = "#161B22",
-        ["ShellTitleBarBrush"] = "#0D1117",
-        ["ShellPanelBrush"] = "#161B22",
-        ["ShellCardBrush"] = "#21262D",
-        ["ShellRaisedBrush"] = "#1B222D",
-        ["ShellInputBrush"] = "#0F151D",
-        ["ShellHoverBrush"] = "#21262D",
-        ["ShellSelectedBrush"] = "#1D3557",
-        ["ShellBorderBrush"] = "#30363D",
-        ["ShellSubtleBorderBrush"] = "#21262D",
+        ["ShellBackgroundBrush"] = "#0B0E14",
+        ["ShellChromeBrush"] = "#11151E",
+        ["ShellTitleBarBrush"] = "#0B0E14",
+        ["ShellPanelBrush"] = "#0F131B",
+        ["ShellCardBrush"] = "#171C26",
+        ["ShellRaisedBrush"] = "#161B25",
+        ["ShellInputBrush"] = "#0E131C",
+        ["ShellHoverBrush"] = "#1A2030",
+        ["ShellSelectedBrush"] = "#1E2540",
+        ["ShellBorderBrush"] = "#212836",
+        ["ShellSubtleBorderBrush"] = "#1A2030",
         ["ShellTextBrush"] = "#E6EDF3",
-        ["ShellMutedTextBrush"] = "#8B949E",
-        ["ShellDisabledTextBrush"] = "#6E7681",
-        ["ShellAccentBrush"] = "#58A6FF",
-        ["ShellAccentStrongBrush"] = "#1F6FEB",
+        ["ShellMutedTextBrush"] = "#8B95A7",
+        ["ShellDisabledTextBrush"] = "#5C6577",
+        ["ShellAccentBrush"] = "#7C9CFF",
+        ["ShellAccentStrongBrush"] = "#5B8DEF",
         ["ShellSuccessBrush"] = "#3FB950",
         ["ShellWarningBrush"] = "#D29922",
-        ["ShellEditorBackgroundBrush"] = "#0D1117",
-        ["ShellEditorPanelBrush"] = "#161B22",
-        ["ShellPaperWorkspaceBrush"] = "#21262D",
+        ["ShellEditorBackgroundBrush"] = "#0B0E14",
+        ["ShellEditorPanelBrush"] = "#0F131B",
+        ["ShellPaperWorkspaceBrush"] = "#11151E",
         // Constant-light foregrounds for dark-always zones (do not flip with theme).
         ["ShellOnDarkTextBrush"] = "#E6EDF3",
-        ["ShellOnDarkMutedTextBrush"] = "#8B949E",
-        ["ShellOnDarkDisabledTextBrush"] = "#6E7681"
+        ["ShellOnDarkMutedTextBrush"] = "#8B95A7",
+        ["ShellOnDarkDisabledTextBrush"] = "#5C6577"
     };
 
     private static readonly IReadOnlyDictionary<string, string> LightShellPalette = new Dictionary<string, string>
     {
-        ["ShellBackgroundBrush"] = "#FFFFFF",
-        ["ShellChromeBrush"] = "#F8F9FA",
-        ["ShellTitleBarBrush"] = "#F8F9FA",
-        ["ShellPanelBrush"] = "#F8F9FA",
+        ["ShellBackgroundBrush"] = "#FAF8F3",
+        ["ShellChromeBrush"] = "#F1EDE4",
+        ["ShellTitleBarBrush"] = "#F4F1EA",
+        ["ShellPanelBrush"] = "#F6F3EC",
         ["ShellCardBrush"] = "#FFFFFF",
-        ["ShellRaisedBrush"] = "#F6F8FA",
+        ["ShellRaisedBrush"] = "#FFFFFF",
         ["ShellInputBrush"] = "#FFFFFF",
-        ["ShellHoverBrush"] = "#EFF3F6",
-        ["ShellSelectedBrush"] = "#DDF4FF",
-        ["ShellBorderBrush"] = "#D0D7DE",
-        ["ShellSubtleBorderBrush"] = "#EAEEF2",
-        ["ShellTextBrush"] = "#1C2128",
-        ["ShellMutedTextBrush"] = "#57606A",
-        ["ShellDisabledTextBrush"] = "#8B949E",
-        ["ShellAccentBrush"] = "#0969DA",
-        ["ShellAccentStrongBrush"] = "#0550AE",
-        ["ShellSuccessBrush"] = "#1A7F37",
-        ["ShellWarningBrush"] = "#9A6700",
-        ["ShellEditorBackgroundBrush"] = "#F6F8FA",
+        ["ShellHoverBrush"] = "#EFEAE0",
+        ["ShellSelectedBrush"] = "#F0E6D6",
+        ["ShellBorderBrush"] = "#E2DCD0",
+        ["ShellSubtleBorderBrush"] = "#EDE8DD",
+        ["ShellTextBrush"] = "#322E26",
+        ["ShellMutedTextBrush"] = "#968D7B",
+        ["ShellDisabledTextBrush"] = "#B5AB97",
+        ["ShellAccentBrush"] = "#9A6B3E",
+        ["ShellAccentStrongBrush"] = "#8A5C32",
+        ["ShellSuccessBrush"] = "#4A7C4E",
+        ["ShellWarningBrush"] = "#B8860B",
+        ["ShellEditorBackgroundBrush"] = "#FFFFFF",
         ["ShellEditorPanelBrush"] = "#FFFFFF",
-        ["ShellPaperWorkspaceBrush"] = "#F6F8FA",
-        // Compatibility aliases for views that still reference the old dark-surface names.
-        ["ShellOnDarkTextBrush"] = "#1C2128",
-        ["ShellOnDarkMutedTextBrush"] = "#57606A",
-        ["ShellOnDarkDisabledTextBrush"] = "#8B949E"
+        ["ShellPaperWorkspaceBrush"] = "#F6F3EC",
+        ["ShellOnDarkTextBrush"] = "#322E26",
+        ["ShellOnDarkMutedTextBrush"] = "#968D7B",
+        ["ShellOnDarkDisabledTextBrush"] = "#B5AB97"
     };
 }

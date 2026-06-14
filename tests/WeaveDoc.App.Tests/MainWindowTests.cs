@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using AvaloniaEdit;
 using System.Linq;
 using WeaveDoc.App.Tests.Fakes;
@@ -240,7 +241,8 @@ public class MainWindowTests
 
             Assert.Equal("0 / 0", Find<TextBlock>(preview, "DocumentPreviewPageText").Text);
             Assert.Equal("100%", Find<TextBlock>(preview, "DocumentPreviewZoomText").Text);
-            Assert.Equal("未打开 PDF 或 Markdown 文档", Find<TextBlock>(preview, "DocumentPreviewEmptyStateText").Text);
+            Assert.Equal("从“打开”或拖拽 Markdown / PDF 到此处开始",
+                Find<TextBlock>(preview, "DocumentPreviewEmptyStateText").Text);
         });
     }
 
@@ -290,7 +292,7 @@ public class MainWindowTests
             Assert.Contains("active", themeButton.Classes);
             Click(themeButton);
             Assert.Equal(ShellThemeKind.Light, viewModel.Theme);
-            Assert.Equal("深色", themeButton.Content);
+            Assert.Equal("深色", ButtonLabel(themeButton));
             Assert.DoesNotContain("active", themeButton.Classes);
             Assert.NotEqual(darkBackground, BrushColor("ShellBackgroundBrush"));
         });
@@ -488,14 +490,33 @@ public class MainWindowTests
             var darkPanel = BrushColor("ShellPanelBrush");
 
             Assert.Equal(ShellThemeKind.Dark, viewModel.Theme);
-            Assert.Equal("浅色", statusThemeButton.Content);
-            Assert.Equal("浅色", menuThemeButton.Content);
+            Assert.Equal("浅色", ButtonLabel(statusThemeButton));
+            Assert.Equal("浅色", ButtonLabel(menuThemeButton));
 
             Click(statusThemeButton);
             Assert.Equal(ShellThemeKind.Light, viewModel.Theme);
-            Assert.Equal("深色", statusThemeButton.Content);
-            Assert.Equal("深色", menuThemeButton.Content);
+            Assert.Equal("深色", ButtonLabel(statusThemeButton));
+            Assert.Equal("深色", ButtonLabel(menuThemeButton));
             Assert.NotEqual(darkPanel, BrushColor("ShellPanelBrush"));
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task CommandBar_Buttons_RenderIconAndLabel()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var export = Find<Button>(window, "ExportShellDocumentButton");
+            var icon = export.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().FirstOrDefault();
+            Assert.NotNull(icon);
+            Assert.Contains("shell-icon", icon!.Classes);
+
+            var label = export.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault();
+            Assert.NotNull(label);
+            Assert.Equal("导出", label!.Text);
         });
     }
 
@@ -561,6 +582,39 @@ public class MainWindowTests
     }
 
     [AvaloniaFact]
+    public async Task DocumentPreview_EmptyState_UsesIconBadgeAndGuidance()
+    {
+        var window = new MainWindow();
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var sidebar = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl");
+            var paper = sidebar.FindControl<Border>("DocumentPreviewPaper");
+
+            var badge = paper!.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().FirstOrDefault();
+            Assert.NotNull(badge);
+
+            var title = paper.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Text == "尚未打开文档");
+            Assert.NotNull(title);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task RagChat_UsesShellFieldInput()
+    {
+        var window = new MainWindow();
+        window.Show();
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var panel = Find<AiAssistantPanel>(window, "AiAssistantPanelControl");
+            var fields = panel.GetVisualDescendants().OfType<TextBox>()
+                .Where(t => t.Classes.Contains("shell-field"));
+            Assert.NotEmpty(fields);
+        });
+    }
+
+    [AvaloniaFact]
     public async Task Shell_DoesNotShowRagOrDemoState()
     {
         var window = new MainWindow();
@@ -598,12 +652,32 @@ public class MainWindowTests
         });
     }
 
+    [AvaloniaFact]
+    public async Task StatusBar_RendersStatusPill()
+    {
+        var window = new MainWindow();
+        window.Show();
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var bar = Find<ShellStatusBar>(window, "ShellStatusBarControl");
+            var pills = bar.GetVisualDescendants().OfType<Border>()
+                .Where(b => b.Classes.Contains("status-pill"));
+            Assert.NotEmpty(pills);
+        });
+    }
+
     private static T Find<T>(Control? root, string name) where T : Control
     {
         Assert.NotNull(root);
         var control = root!.FindControl<T>(name);
         Assert.NotNull(control);
         return control!;
+    }
+
+    private static string ButtonLabel(Button button)
+    {
+        var label = button.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault();
+        return label?.Text ?? button.Content?.ToString() ?? string.Empty;
     }
 
     private static void Click(Button button)

@@ -167,7 +167,7 @@
               <Border Background="{DynamicResource ShellInputBrush}"
                       BorderBrush="{DynamicResource ShellAccentBrush}"
                       BorderThickness="3,0,0,0"
-                      CornerRadius="4"
+                      CornerRadius="{DynamicResource ShellRadiusSm}"
                       Padding="12,8">
                 <StackPanel Spacing="3">
                   <TextBlock Text="当前生效配置"
@@ -213,7 +213,7 @@
                 <Border Background="{DynamicResource ShellInputBrush}"
                         BorderBrush="{DynamicResource ShellBorderBrush}"
                         BorderThickness="1"
-                        CornerRadius="4"
+                        CornerRadius="{DynamicResource ShellRadiusSm}"
                         Padding="12,10">
                   <StackPanel Spacing="2">
                     <TextBlock Text="该功能待接入" FontSize="11"
@@ -354,7 +354,7 @@
                     IsVisible="False" />
           </StackPanel>
 
-          <Border CornerRadius="6"
+          <Border CornerRadius="{DynamicResource ShellRadiusMd}"
                   BorderBrush="{DynamicResource ShellBorderBrush}"
                   BorderThickness="1"
                   ClipToBounds="True">

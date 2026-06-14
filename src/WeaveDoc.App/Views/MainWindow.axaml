@@ -131,12 +131,37 @@
                    FontSize="12"
                    FontWeight="SemiBold"
                    Foreground="{DynamicResource ShellMutedTextBrush}" />
-        <Button x:Name="NewShellDocumentButton" Grid.Column="1" Classes="command-button" Content="新建" Click="OnNewDocumentClick" />
-        <Button x:Name="OpenShellDocumentButton" Grid.Column="2" Classes="command-button" Content="打开" Click="OnOpenDocumentClick" />
-        <Button x:Name="SaveShellDocumentButton" Grid.Column="3" Classes="command-button" Content="保存" Click="OnSaveDocumentClick" />
-        <Button x:Name="SetupShellCommandButton" Grid.Column="4" Classes="command-button" Content="设置" Click="OnOpenSettingsClick" />
+        <Button x:Name="NewShellDocumentButton" Grid.Column="1" Classes="command-button" Click="OnNewDocumentClick">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Classes="shell-icon" Data="{StaticResource IconNew}" />
+            <TextBlock Text="新建" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="OpenShellDocumentButton" Grid.Column="2" Classes="command-button" Click="OnOpenDocumentClick">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Classes="shell-icon" Data="{StaticResource IconOpen}" />
+            <TextBlock Text="打开" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="SaveShellDocumentButton" Grid.Column="3" Classes="command-button" Click="OnSaveDocumentClick">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Classes="shell-icon" Data="{StaticResource IconSave}" />
+            <TextBlock Text="保存" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="SetupShellCommandButton" Grid.Column="4" Classes="command-button" Click="OnOpenSettingsClick">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Classes="shell-icon" Data="{StaticResource IconSettings}" />
+            <TextBlock Text="设置" />
+          </StackPanel>
+        </Button>
         <Border Grid.Column="5" Classes="panel-divider" />
-        <Button x:Name="ExportShellDocumentButton" Grid.Column="6" Classes="command-button primary" Content="导出" Click="OnExportDocumentClick" />
+        <Button x:Name="ExportShellDocumentButton" Grid.Column="6" Classes="command-button primary" Click="OnExportDocumentClick">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Classes="shell-icon" Data="{StaticResource IconExport}" />
+            <TextBlock Text="导出" />
+          </StackPanel>
+        </Button>
         <Border Grid.Column="7" Classes="panel-divider" />
         <TextBlock Grid.Column="8"
                    Text="辅助"
@@ -147,36 +172,65 @@
         <Button x:Name="AiChatCommandButton"
                 Grid.Column="9"
                 Classes="command-button active"
-                Content="问答"
-                Click="OnSelectAiChatTabClick" />
+                Click="OnSelectAiChatTabClick">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Classes="shell-icon" Data="{StaticResource IconChat}" />
+            <TextBlock Text="问答" />
+          </StackPanel>
+        </Button>
         <Button x:Name="AiLiteratureCommandButton"
                 Grid.Column="10"
                 Classes="command-button"
-                Content="文献"
-                Click="OnSelectAiLiteratureTabClick" />
+                Click="OnSelectAiLiteratureTabClick">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Classes="shell-icon" Data="{StaticResource IconLiterature}" />
+            <TextBlock Text="文献" />
+          </StackPanel>
+        </Button>
         <Button x:Name="AiSnapshotCommandButton"
                 Grid.Column="11"
                 Classes="command-button"
-                Content="快照"
-                Click="OnSelectAiSnapshotTabClick" />
+                Click="OnSelectAiSnapshotTabClick">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Classes="shell-icon" Data="{StaticResource IconSnapshot}" />
+            <TextBlock Text="快照" />
+          </StackPanel>
+        </Button>
         <Button x:Name="AiShellCommandButton"
                 Grid.Column="12"
                 Classes="command-button active"
                 Content="{Binding AiPanelToggleText}"
                 Click="OnToggleAiPanelClick" />
         <Border Grid.Column="13" Classes="panel-divider" />
-        <TextBox x:Name="ShellSearchBox"
-                 Grid.Column="15"
-                 Classes="shell-field"
-                 Text=""
-                 PlaceholderText="搜索待接入"
-                 IsEnabled="False"
-                 VerticalAlignment="Center" />
+        <Border Grid.Column="15"
+                VerticalAlignment="Center"
+                CornerRadius="{DynamicResource ShellRadiusMd}"
+                Background="{DynamicResource ShellInputBrush}"
+                BorderBrush="{DynamicResource ShellBorderBrush}"
+                BorderThickness="1">
+          <Panel>
+            <Path Classes="shell-icon" Data="{StaticResource IconSearch}" Margin="8,0,0,0" VerticalAlignment="Center"
+                  Stroke="{DynamicResource ShellMutedTextBrush}" />
+            <TextBox x:Name="ShellSearchBox"
+                     Classes="shell-field"
+                     Text=""
+                     PlaceholderText="搜索待接入"
+                     IsEnabled="False"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     Margin="26,0,8,0"
+                     VerticalAlignment="Center" />
+          </Panel>
+        </Border>
         <Button x:Name="ThemeMenuButton"
                 Grid.Column="16"
                 Classes="command-button active"
-                Content="{Binding ThemeToggleText}"
-                Click="OnToggleThemeClick" />
+                Click="OnToggleThemeClick">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Classes="shell-icon" Data="{StaticResource IconSun}" />
+            <TextBlock Text="{Binding ThemeToggleText}" />
+          </StackPanel>
+        </Button>
       </Grid>
     </Border>
 

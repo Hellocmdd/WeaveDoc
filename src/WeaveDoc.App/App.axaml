@@ -29,6 +29,30 @@
     <SolidColorBrush x:Key="ShellEditorBackgroundBrush" Color="#0D1117" />
     <SolidColorBrush x:Key="ShellEditorPanelBrush" Color="#161B22" />
     <SolidColorBrush x:Key="ShellPaperWorkspaceBrush" Color="#21262D" />
+
+    <!-- Form tokens (radii / spacing). Primary glow resources are registered
+         imperatively in MainWindow.ApplyShellPalette (BoxShadow literals crash
+         the runtime XAML loader in Avalonia 12). -->
+    <CornerRadius x:Key="ShellRadiusSm">4</CornerRadius>
+    <CornerRadius x:Key="ShellRadiusMd">7</CornerRadius>
+    <CornerRadius x:Key="ShellRadiusLg">11</CornerRadius>
+    <Thickness x:Key="ShellSpace1">5</Thickness>
+    <Thickness x:Key="ShellSpace2">8</Thickness>
+    <Thickness x:Key="ShellSpace3">12</Thickness>
+
+    <!-- Lucide thin-stroke icon geometries (open paths -> consumed via Path + Stroke). -->
+    <Geometry x:Key="IconNew">M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z M14 2v4a2 2 0 0 0 2 2h4 M9 13h6 M12 10v6</Geometry>
+    <Geometry x:Key="IconOpen">M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z</Geometry>
+    <Geometry x:Key="IconSave">M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z M17 21v-8H7v8 M7 3v5h8</Geometry>
+    <Geometry x:Key="IconSettings">M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6</Geometry>
+    <Geometry x:Key="IconExport">M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12</Geometry>
+    <Geometry x:Key="IconChat">M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z</Geometry>
+    <Geometry x:Key="IconLiterature">M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z</Geometry>
+    <Geometry x:Key="IconSnapshot">M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a3 3 0 1 0 0-6 3 3 0 0 0 0 6z</Geometry>
+    <Geometry x:Key="IconSearch">M21 21l-4.35-4.35 M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z</Geometry>
+    <Geometry x:Key="IconSun">M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M12 1v2 M12 21v2 M4.2 4.2l1.4 1.4 M18.4 18.4l1.4 1.4 M1 12h2 M21 12h2 M4.2 19.8l1.4-1.4 M18.4 5.6l1.4-1.4</Geometry>
+    <Geometry x:Key="IconMoon">M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z</Geometry>
+    <Geometry x:Key="IconCheck">M20 6L9 17l-5-5</Geometry>
   </Application.Resources>
 
   <Application.Styles>
@@ -82,6 +106,18 @@
       <Setter Property="Padding" Value="4,1" />
       <Setter Property="CornerRadius" Value="2" />
       <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Lucide open-path icon glyph (uses Stroke, not Fill, so line art is visible). -->
+    <Style Selector="Path.shell-icon">
+      <Setter Property="Width" Value="13" />
+      <Setter Property="Height" Value="13" />
+      <Setter Property="Stretch" Value="Uniform" />
+      <Setter Property="Fill" Value="Transparent" />
+      <Setter Property="StrokeThickness" Value="2" />
+      <Setter Property="StrokeLineCap" Value="Round" />
+      <Setter Property="StrokeJoin" Value="Round" />
+      <Setter Property="Stroke" Value="{Binding RelativeSource={RelativeSource AncestorType=TemplatedControl}, Path=Foreground}" />
     </Style>
   </Application.Styles>
 </Application>

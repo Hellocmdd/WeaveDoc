@@ -50,7 +50,8 @@
             <DataTemplate DataType="rag:ChatTurn">
               <Grid Margin="0,3">
                 <!-- assistant / system bubble (left) -->
-                <Border IsVisible="{Binding !IsUser}"
+                <Border Classes="ai-bubble ai"
+                        IsVisible="{Binding !IsUser}"
                         HorizontalAlignment="Left"
                         MaxWidth="230"
                         Background="{DynamicResource ShellCardBrush}"
@@ -64,7 +65,8 @@
                              Foreground="{DynamicResource ShellTextBrush}" />
                 </Border>
                 <!-- user bubble (right) -->
-                <Border IsVisible="{Binding IsUser}"
+                <Border Classes="ai-bubble user"
+                        IsVisible="{Binding IsUser}"
                         HorizontalAlignment="Right"
                         MaxWidth="200"
                         Background="{DynamicResource ShellInputBrush}"
@@ -84,7 +86,8 @@
       </ScrollViewer>
 
       <!-- empty state -->
-      <TextBlock Text="暂无问答记录"
+      <TextBlock Classes="meta-text"
+                 Text="暂无问答记录"
                  HorizontalAlignment="Center"
                  VerticalAlignment="Center"
                  FontSize="13"

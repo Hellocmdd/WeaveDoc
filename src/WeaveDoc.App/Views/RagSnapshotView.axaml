@@ -38,7 +38,7 @@
                       Background="{DynamicResource ShellCardBrush}"
                       BorderBrush="{DynamicResource ShellBorderBrush}"
                       BorderThickness="1"
-                      CornerRadius="6"
+                      CornerRadius="{DynamicResource ShellRadiusMd}"
                       Padding="10,8">
                 <StackPanel Spacing="3">
                   <Grid ColumnDefinitions="Auto,*">

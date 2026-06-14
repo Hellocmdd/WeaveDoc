@@ -244,7 +244,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Border x:Name="StatusDot"
                           Width="8" Height="8"
-                          CornerRadius="4"
+                          CornerRadius="{DynamicResource ShellRadiusSm}"
                           Background="{DynamicResource ShellMutedTextBrush}" />
                   <TextBlock x:Name="StatusLabel"
                              Text="待导出"

@@ -122,22 +122,25 @@
               BorderBrush="{DynamicResource ShellBorderBrush}"
               BorderThickness="1"
               CornerRadius="8">
-        <Grid RowDefinitions="*,Auto,Auto,*"
+        <Grid RowDefinitions="*,Auto,Auto,Auto,*"
               RowSpacing="8"
-              Margin="16">
-          <TextBlock Grid.Row="1"
-                     Text="文档预览"
+              Margin="{StaticResource ShellSpace3}">
+          <Border Grid.Row="1" Classes="empty-state-icon">
+            <Path Classes="shell-icon" Data="{StaticResource IconOpen}" Width="17" Height="17"
+                  Stroke="{DynamicResource ShellAccentBrush}" />
+          </Border>
+          <TextBlock Grid.Row="2"
+                     Text="尚未打开文档"
                      HorizontalAlignment="Center"
-                     FontSize="15"
+                     FontSize="14"
                      FontWeight="SemiBold"
-                     Foreground="{DynamicResource ShellTextBrush}"
-                     TextTrimming="CharacterEllipsis" />
+                     Foreground="{DynamicResource ShellTextBrush}" />
           <TextBlock x:Name="DocumentPreviewEmptyStateText"
-                     Grid.Row="2"
-                     Text="未打开 PDF 或 Markdown 文档"
+                     Grid.Row="3"
+                     Text="从“打开”或拖拽 Markdown / PDF 到此处开始"
                      HorizontalAlignment="Center"
-                     MaxWidth="260"
-                     FontSize="13"
+                     MaxWidth="240"
+                     FontSize="12"
                      Foreground="{DynamicResource ShellMutedTextBrush}"
                      TextAlignment="Center"
                      TextWrapping="Wrap" />

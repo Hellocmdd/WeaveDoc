@@ -13,7 +13,7 @@
     <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
   </Style>
   <Style Selector="Button.command-button:pointerover">
     <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
@@ -45,7 +45,7 @@
     <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
   </Style>
   <Style Selector="Button.icon-button:pointerover">
     <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
@@ -66,7 +66,7 @@
     <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
   </Style>
   <Style Selector="Button.segment-button:pointerover">
     <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
@@ -106,7 +106,7 @@
     <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
   </Style>
   <Style Selector="TextBox.shell-field:focus">
     <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentBrush}" />
@@ -131,6 +131,46 @@
     <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusLg}" />
+  </Style>
+
+  <Style Selector="Border.empty-state-card">
+    <Setter Property="Background" Value="{DynamicResource ShellCardBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusLg}" />
+    <Setter Property="Padding" Value="{StaticResource ShellSpace3}" />
+  </Style>
+  <Style Selector="Border.empty-state-icon">
+    <Setter Property="Width" Value="36" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
+    <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.ai-bubble">
+    <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
+    <Setter Property="Padding" Value="8,6" />
+  </Style>
+  <Style Selector="Border.ai-bubble.user">
+    <Setter Property="Background" Value="{DynamicResource ShellCardBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="HorizontalAlignment" Value="Right" />
+  </Style>
+  <Style Selector="Border.ai-bubble.ai">
+    <Setter Property="Background" Value="{DynamicResource ShellSelectedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+  </Style>
+  <Style Selector="Border.status-pill">
+    <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusSm}" />
+    <Setter Property="Padding" Value="6,2" />
   </Style>
 </Styles>

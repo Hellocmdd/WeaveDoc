@@ -28,12 +28,21 @@
                  FontSize="11"
                  Foreground="{DynamicResource ShellMutedTextBrush}"
                  TextTrimming="CharacterEllipsis" />
-      <TextBlock Grid.Column="4"
-                 Text="{Binding StatusText}"
-                 VerticalAlignment="Center"
-                 FontSize="11"
-                 Foreground="{DynamicResource ShellMutedTextBrush}"
-                 TextTrimming="CharacterEllipsis" />
+      <Border Grid.Column="4"
+              Classes="status-pill"
+              VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <Path Classes="shell-icon"
+                Data="{StaticResource IconCheck}"
+                VerticalAlignment="Center"
+                Stroke="{DynamicResource ShellSuccessBrush}" />
+          <TextBlock Text="{Binding StatusText}"
+                     VerticalAlignment="Center"
+                     FontSize="11"
+                     Foreground="{DynamicResource ShellMutedTextBrush}"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Border>
       <TextBlock Grid.Column="5"
                  Text="{Binding CurrentDocumentTitle}"
                  VerticalAlignment="Center"
