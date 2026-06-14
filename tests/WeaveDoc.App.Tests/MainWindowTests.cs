@@ -15,6 +15,7 @@ using WeaveDoc.App.ViewModels;
 using WeaveDoc.App.Views;
 using WeaveDoc.MarkdownEditor.Controls;
 using WeaveDoc.MarkdownEditor.Controls.Web;
+using WeaveDoc.Rag.Models;
 using Xunit;
 
 namespace WeaveDoc.App.Tests;
@@ -611,6 +612,40 @@ public class MainWindowTests
             var fields = panel.GetVisualDescendants().OfType<TextBox>()
                 .Where(t => t.Classes.Contains("shell-field"));
             Assert.NotEmpty(fields);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task RagChatView_RendersAssistantMarkdownButKeepsUserTextPlain()
+    {
+        var rag = new RagTabViewModel(new WeaveDoc.Rag.Services.LocalAiService());
+        rag.Turns.Add(new ChatTurn("用户", "**不要渲染**", true));
+        rag.Turns.Add(new ChatTurn("助手", "## 标题\n\n- 要点\n\n```txt\nhello\n```", false));
+
+        var chatView = new RagChatView
+        {
+            DataContext = rag
+        };
+        var window = new Window
+        {
+            Width = 640,
+            Height = 480,
+            Content = chatView
+        };
+        window.Show();
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            ArrangeWindow(window);
+
+            var markdownViews = chatView.GetVisualDescendants().OfType<ChatMarkdownView>()
+                .Where(view => view.IsEffectivelyVisible)
+                .ToList();
+            var textBlocks = chatView.GetVisualDescendants().OfType<TextBlock>().ToList();
+
+            Assert.Single(markdownViews);
+            Assert.Equal("## 标题\n\n- 要点\n\n```txt\nhello\n```", markdownViews[0].Markdown);
+            Assert.Contains(textBlocks, textBlock => textBlock.Text == "**不要渲染**");
         });
     }
 

@@ -8,56 +8,47 @@
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         SystemDecorations="None"
-        Background="{DynamicResource ShellCardBrush}">
+        Background="{DynamicResource ShellBackgroundBrush}">
   <Window.Styles>
-    <Style Selector="Button.settings-tab">
-      <Setter Property="Height" Value="32" />
-      <Setter Property="Padding" Value="12,1,12,0" />
-      <Setter Property="FontSize" Value="11" />
+    <Style Selector="Button.command-button.danger">
       <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Foreground" Value="{DynamicResource ShellMutedTextBrush}" />
-      <Setter Property="BorderThickness" Value="0,0,0,2" />
-      <Setter Property="BorderBrush" Value="Transparent" />
-    </Style>
-    <Style Selector="Button.settings-tab.active">
-      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentBrush}" />
-    </Style>
-    <Style Selector="Button.settings-tab:pointerover">
-      <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
-    </Style>
-
-    <Style Selector="Button.dlg">
-      <Setter Property="Height" Value="32" />
-      <Setter Property="Padding" Value="16,1,16,0" />
-      <Setter Property="FontSize" Value="11" />
-      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="4" />
-    </Style>
-    <Style Selector="Button.dlg.primary">
-      <Setter Property="Background" Value="{DynamicResource ShellAccentStrongBrush}" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentStrongBrush}" />
-    </Style>
-    <Style Selector="Button.dlg-chip">
-      <Setter Property="Height" Value="28" />
-      <Setter Property="Padding" Value="12,1,12,0" />
-      <Setter Property="FontSize" Value="11" />
-      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="4" />
-    </Style>
-    <Style Selector="Button.dlg.danger">
       <Setter Property="Foreground" Value="{DynamicResource ShellWarningBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource ShellWarningBrush}" />
-      <Setter Property="Background" Value="Transparent" />
     </Style>
-
+    <Style Selector="Button.command-button.danger:pointerover">
+      <Setter Property="Background" Value="{DynamicResource ShellAccentHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellWarningBrush}" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
+    </Style>
+    <Style Selector="TextBox:focus">
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentBrush}" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource ShellRadiusMd}" />
+    </Style>
+    <Style Selector="ComboBox:focus">
+      <Setter Property="BorderBrush" Value="{DynamicResource ShellAccentBrush}" />
+    </Style>
+    <Style Selector="CheckBox, RadioButton">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+    </Style>
     <Style Selector="DataGrid">
       <Setter Property="Background" Value="{DynamicResource ShellCardBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
@@ -72,25 +63,37 @@
       <!-- Title bar -->
       <Border DockPanel.Dock="Top"
               Height="36"
-              Background="{DynamicResource ShellChromeBrush}"
-              BorderBrush="{DynamicResource ShellBorderBrush}"
+              Background="{DynamicResource ShellTitleBarBrush}"
+              BorderBrush="{DynamicResource ShellSubtleBorderBrush}"
               BorderThickness="0,0,0,1"
               Padding="14,0">
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Grid.Column="0"
-                     Text="设置"
+        <Grid ColumnDefinitions="Auto,*,Auto"
+              ColumnSpacing="10">
+          <Grid Grid.Column="0"
+                Width="18"
+                Height="18"
+                VerticalAlignment="Center"
+                RowDefinitions="*,*"
+                ColumnDefinitions="*,*"
+                RowSpacing="2"
+                ColumnSpacing="2">
+            <Border Grid.Row="0" Grid.Column="0" CornerRadius="1" Background="{DynamicResource ShellAccentStrongBrush}" />
+            <Border Grid.Row="0" Grid.Column="1" CornerRadius="1" Background="{DynamicResource ShellAccentBrush}" Opacity="0.75" />
+            <Border Grid.Row="1" Grid.Column="0" CornerRadius="1" Background="{DynamicResource ShellAccentBrush}" Opacity="0.6" />
+            <Border Grid.Row="1" Grid.Column="1" CornerRadius="1" Background="{DynamicResource ShellAccentStrongBrush}" Opacity="0.45" />
+          </Grid>
+          <TextBlock Grid.Column="1"
+                     Text="WeaveDoc - 设置"
                      VerticalAlignment="Center"
                      FontSize="12"
-                     FontWeight="Medium"
+                     FontWeight="SemiBold"
                      Foreground="{DynamicResource ShellTextBrush}" />
-          <Button Grid.Column="1"
+          <Button Grid.Column="2"
                   x:Name="CloseButton"
                   VerticalAlignment="Center"
+                  Classes="icon-button"
                   Width="24" Height="24"
                   Padding="0"
-                  Background="Transparent"
-                  BorderThickness="0"
-                  Foreground="{DynamicResource ShellMutedTextBrush}"
                   Content="✕"
                   Click="OnCloseClick" />
         </Grid>
@@ -107,8 +110,8 @@
                     HorizontalAlignment="Right"
                     Spacing="8"
                     VerticalAlignment="Center">
-          <Button Classes="dlg" Content="恢复默认" Click="OnCloseClick" />
-          <Button Classes="dlg primary" Content="应用" Click="OnCloseClick" />
+          <Button Classes="command-button" Content="恢复默认" Click="OnCloseClick" />
+          <Button Classes="command-button primary" Content="应用" Click="OnCloseClick" />
         </StackPanel>
       </Border>
 
@@ -124,7 +127,7 @@
       </Border>
 
       <!-- Body -->
-      <Grid Background="{DynamicResource ShellCardBrush}">
+      <Grid Background="{DynamicResource ShellBackgroundBrush}">
 
         <!-- 通用 -->
         <ScrollViewer x:Name="GeneralPanel"
@@ -141,10 +144,7 @@
                          VerticalAlignment="Center"
                          Foreground="{DynamicResource ShellMutedTextBrush}" />
               <ComboBox Grid.Row="0" Grid.Column="1"
-                        SelectedIndex="0"
-                        FontSize="11"
-                        Background="{DynamicResource ShellInputBrush}"
-                        Foreground="{DynamicResource ShellTextBrush}">
+                        SelectedIndex="0">
                 <ComboBoxItem Content="中文简体" />
               </ComboBox>
 
@@ -155,15 +155,9 @@
                          Foreground="{DynamicResource ShellMutedTextBrush}" />
               <TextBox Grid.Row="1" Grid.Column="1"
                        x:Name="DefaultWorkspaceTextBox"
-                       IsReadOnly="True"
-                       FontSize="11"
-                       BorderThickness="1"
-                       BorderBrush="{DynamicResource ShellBorderBrush}"
-                       Background="{DynamicResource ShellInputBrush}"
-                       Foreground="{DynamicResource ShellTextBrush}"
-                       Padding="6,4" />
+                       IsReadOnly="True" />
               <Button Grid.Row="1" Grid.Column="2"
-                      Classes="dlg-chip"
+                      Classes="command-button"
                       Content="浏览" />
 
               <TextBlock Grid.Row="2" Grid.Column="0"
@@ -172,13 +166,7 @@
                          VerticalAlignment="Center"
                          Foreground="{DynamicResource ShellMutedTextBrush}" />
               <TextBox Grid.Row="2" Grid.Column="1"
-                       Text="JetBrains Mono"
-                       FontSize="11"
-                       BorderThickness="1"
-                       BorderBrush="{DynamicResource ShellBorderBrush}"
-                       Background="{DynamicResource ShellInputBrush}"
-                       Foreground="{DynamicResource ShellTextBrush}"
-                       Padding="6,4" />
+                       Text="JetBrains Mono" />
 
               <TextBlock Grid.Row="3" Grid.Column="0"
                          Text="编辑器字号"
@@ -186,13 +174,7 @@
                          VerticalAlignment="Center"
                          Foreground="{DynamicResource ShellMutedTextBrush}" />
               <TextBox Grid.Row="3" Grid.Column="1"
-                       Text="14 px"
-                       FontSize="11"
-                       BorderThickness="1"
-                       BorderBrush="{DynamicResource ShellBorderBrush}"
-                       Background="{DynamicResource ShellInputBrush}"
-                       Foreground="{DynamicResource ShellTextBrush}"
-                       Padding="6,4" />
+                       Text="14 px" />
 
               <CheckBox Grid.Row="4" Grid.Column="1"
                         Content="启动时恢复上次工作区"
@@ -226,7 +208,7 @@
                         Padding="16">
             <StackPanel Spacing="12">
 
-              <Border Background="{DynamicResource ShellInputBrush}"
+              <Border Background="{DynamicResource ShellCardBrush}"
                       BorderBrush="{DynamicResource ShellAccentBrush}"
                       BorderThickness="3,0,0,0"
                       CornerRadius="{DynamicResource ShellRadiusSm}"
@@ -270,13 +252,7 @@
                              Foreground="{DynamicResource ShellMutedTextBrush}" />
                   <TextBox Grid.Row="0" Grid.Column="1"
                            Text="{Binding LocalEmbeddingModelSummary}"
-                           IsReadOnly="True"
-                           FontSize="11"
-                           BorderThickness="1"
-                           BorderBrush="{DynamicResource ShellBorderBrush}"
-                           Background="{DynamicResource ShellInputBrush}"
-                           Foreground="{DynamicResource ShellTextBrush}"
-                           Padding="6,4" />
+                           IsReadOnly="True" />
                   <TextBlock Grid.Row="1" Grid.Column="0"
                              Text="Reranker"
                              FontSize="11"
@@ -284,13 +260,7 @@
                              Foreground="{DynamicResource ShellMutedTextBrush}" />
                   <TextBox Grid.Row="1" Grid.Column="1"
                            Text="{Binding LocalRerankerModelSummary}"
-                           IsReadOnly="True"
-                           FontSize="11"
-                           BorderThickness="1"
-                           BorderBrush="{DynamicResource ShellBorderBrush}"
-                           Background="{DynamicResource ShellInputBrush}"
-                           Foreground="{DynamicResource ShellTextBrush}"
-                           Padding="6,4" />
+                           IsReadOnly="True" />
                 </Grid>
                 <Border Background="{DynamicResource ShellInputBrush}"
                         BorderBrush="{DynamicResource ShellWarningBrush}"
@@ -329,9 +299,9 @@
                            FontSize="13" FontWeight="SemiBold"
                            Foreground="{DynamicResource ShellTextBrush}" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button Classes="dlg primary" Content="加载" Click="OnLoadModelsClick" />
-                  <Button Classes="dlg" Content="卸载" Click="OnUnloadModelsClick" />
-                  <Button Classes="dlg" Content="刷新" Click="OnRefreshLocalModelsClick" />
+                  <Button Classes="command-button primary" Content="加载" Click="OnLoadModelsClick" />
+                  <Button Classes="command-button" Content="卸载" Click="OnUnloadModelsClick" />
+                  <Button Classes="command-button" Content="刷新" Click="OnRefreshLocalModelsClick" />
                 </StackPanel>
               </StackPanel>
 
@@ -394,8 +364,8 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button Classes="dlg danger" Content="删除" IsEnabled="{Binding CanDeleteSelectedLocalLlamaModel}" Click="OnDeleteLocalModelClick" />
-                  <Button Classes="dlg" Content="导入模型" Click="OnImportLocalModelClick" />
+                  <Button Classes="command-button danger" Content="删除" IsEnabled="{Binding CanDeleteSelectedLocalLlamaModel}" Click="OnDeleteLocalModelClick" />
+                  <Button Classes="command-button" Content="导入模型" Click="OnImportLocalModelClick" />
                 </StackPanel>
 
                 <Grid ColumnDefinitions="112,*,Auto"
@@ -409,13 +379,7 @@
                              Foreground="{DynamicResource ShellMutedTextBrush}" />
                   <TextBox Grid.Row="0" Grid.Column="1"
                            Text="{Binding LocalLlamaServerEndpoint}"
-                           IsReadOnly="True"
-                           FontSize="11"
-                           BorderThickness="1"
-                           BorderBrush="{DynamicResource ShellBorderBrush}"
-                           Background="{DynamicResource ShellInputBrush}"
-                           Foreground="{DynamicResource ShellTextBrush}"
-                           Padding="6,4" />
+                           IsReadOnly="True" />
 
                   <TextBlock Grid.Row="1" Grid.Column="0"
                              Text="模型路径"
@@ -424,15 +388,9 @@
                              Foreground="{DynamicResource ShellMutedTextBrush}" />
                   <TextBox Grid.Row="1" Grid.Column="1"
                            Text="{Binding LocalModelStoragePath}"
-                           IsReadOnly="True"
-                           FontSize="11"
-                           BorderThickness="1"
-                           BorderBrush="{DynamicResource ShellBorderBrush}"
-                           Background="{DynamicResource ShellInputBrush}"
-                           Foreground="{DynamicResource ShellTextBrush}"
-                           Padding="6,4" />
+                           IsReadOnly="True" />
                   <Button Grid.Row="1" Grid.Column="2"
-                          Classes="dlg-chip"
+                          Classes="command-button"
                           Content="浏览"
                           Click="OnBrowseModelDirectoryClick" />
 
@@ -443,13 +401,7 @@
                              Foreground="{DynamicResource ShellMutedTextBrush}" />
                   <TextBox Grid.Row="2" Grid.Column="1"
                            Text="{Binding LocalLlamaServerModel}"
-                           IsReadOnly="True"
-                           FontSize="11"
-                           BorderThickness="1"
-                           BorderBrush="{DynamicResource ShellBorderBrush}"
-                           Background="{DynamicResource ShellInputBrush}"
-                           Foreground="{DynamicResource ShellTextBrush}"
-                           Padding="6,4" />
+                           IsReadOnly="True" />
                 </Grid>
               </StackPanel>
 
@@ -467,45 +419,27 @@
                                FontSize="11" VerticalAlignment="Center"
                                Foreground="{DynamicResource ShellMutedTextBrush}" />
                     <TextBox Grid.Row="0" Grid.Column="1"
-                             Text="{Binding CloudBaseUrl}"
-                             FontSize="11" BorderThickness="1"
-                             BorderBrush="{DynamicResource ShellBorderBrush}"
-                             Background="{DynamicResource ShellInputBrush}"
-                             Foreground="{DynamicResource ShellTextBrush}"
-                             Padding="6,4" />
+                             Text="{Binding CloudBaseUrl}" />
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="API Key"
                                FontSize="11" VerticalAlignment="Center"
                                Foreground="{DynamicResource ShellMutedTextBrush}" />
                     <TextBox Grid.Row="1" Grid.Column="1"
                              Text="{Binding CloudApiKey}"
-                             PasswordChar="●"
-                             FontSize="11" BorderThickness="1"
-                             BorderBrush="{DynamicResource ShellBorderBrush}"
-                             Background="{DynamicResource ShellInputBrush}"
-                             Foreground="{DynamicResource ShellTextBrush}"
-                             Padding="6,4" />
+                             PasswordChar="●" />
 
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="模型"
                                FontSize="11" VerticalAlignment="Center"
                                Foreground="{DynamicResource ShellMutedTextBrush}" />
                     <TextBox Grid.Row="2" Grid.Column="1"
-                             Text="{Binding CloudModel}"
-                             FontSize="11" BorderThickness="1"
-                             BorderBrush="{DynamicResource ShellBorderBrush}"
-                             Background="{DynamicResource ShellInputBrush}"
-                             Foreground="{DynamicResource ShellTextBrush}"
-                             Padding="6,4" />
+                             Text="{Binding CloudModel}" />
 
                     <TextBlock Grid.Row="3" Grid.Column="0" Text="思考强度"
                                FontSize="11" VerticalAlignment="Center"
                                Foreground="{DynamicResource ShellMutedTextBrush}" />
                     <ComboBox Grid.Row="3" Grid.Column="1"
                               ItemsSource="{Binding ReasoningEffortOptions}"
-                              SelectedItem="{Binding CloudReasoningEffort}"
-                              FontSize="11"
-                              Background="{DynamicResource ShellInputBrush}"
-                              Foreground="{DynamicResource ShellTextBrush}" />
+                              SelectedItem="{Binding CloudReasoningEffort}" />
 
                     <CheckBox Grid.Row="4" Grid.Column="1"
                               Content="启用思考（thinking）"
@@ -516,7 +450,7 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="10">
-                  <Button Classes="dlg primary" Content="保存"
+                  <Button Classes="command-button primary" Content="保存"
                           Click="OnSaveCloudClick" />
                   <TextBlock Text="{Binding StatusText}"
                              VerticalAlignment="Center" FontSize="10"
@@ -562,9 +496,9 @@
                         Orientation="Horizontal"
                         Spacing="8"
                         VerticalAlignment="Center">
-              <Button Classes="dlg-chip" Content="刷新" Click="OnRefreshClick" />
-              <Button Classes="dlg-chip" Content="导入" Click="OnImportClick" />
-              <Button Classes="dlg-chip primary" Content="+ 种子模板" Click="OnSeedClick" />
+              <Button Classes="command-button" Content="刷新" Click="OnRefreshClick" />
+              <Button Classes="command-button" Content="导入" Click="OnImportClick" />
+              <Button Classes="command-button primary" Content="+ 种子模板" Click="OnSeedClick" />
             </StackPanel>
           </Grid>
 
@@ -576,7 +510,7 @@
                        Foreground="{DynamicResource ShellMutedTextBrush}"
                        VerticalAlignment="Center" />
             <Button x:Name="DeleteButton"
-                    Classes="dlg danger"
+                    Classes="command-button danger"
                     Content="删除选中模板"
                     Click="OnDeleteClick"
                     IsVisible="False" />

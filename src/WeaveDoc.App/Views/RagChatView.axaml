@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:WeaveDoc.App.ViewModels"
              xmlns:rag="using:WeaveDoc.Rag.Models"
+             xmlns:views="using:WeaveDoc.App.Views"
              x:Class="WeaveDoc.App.Views.RagChatView"
              x:DataType="vm:RagTabViewModel">
   <Grid RowDefinitions="34,*,Auto"
@@ -53,16 +54,13 @@
                 <Border Classes="ai-bubble ai"
                         IsVisible="{Binding !IsUser}"
                         HorizontalAlignment="Left"
-                        MaxWidth="230"
+                        MaxWidth="520"
                         Background="{DynamicResource ShellCardBrush}"
                         BorderBrush="{DynamicResource ShellAccentBrush}"
                         BorderThickness="2,0,0,0"
                         CornerRadius="0,4,4,0"
                         Padding="10,7">
-                  <TextBlock Text="{Binding Content}"
-                             TextWrapping="Wrap"
-                             FontSize="12"
-                             Foreground="{DynamicResource ShellTextBrush}" />
+                  <views:ChatMarkdownView Markdown="{Binding Content}" />
                 </Border>
                 <!-- user bubble (right) -->
                 <Border Classes="ai-bubble user"

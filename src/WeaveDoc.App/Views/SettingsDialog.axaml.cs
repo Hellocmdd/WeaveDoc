@@ -64,7 +64,7 @@ public partial class SettingsDialog : Window
         {
             var button = new Button
             {
-                Classes = { "settings-tab" },
+                Classes = { "panel-tab" },
                 Content = label,
                 Tag = tab,
             };
