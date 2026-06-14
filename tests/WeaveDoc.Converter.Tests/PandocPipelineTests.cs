@@ -1585,6 +1585,17 @@ public class PandocPipelineTests
             var tableProperties = table.GetFirstChild<TableProperties>();
             Assert.NotNull(tableProperties);
             Assert.Equal(TableRowAlignmentValues.Center, tableProperties!.TableJustification?.Val?.Value);
+            Assert.Equal(TableLayoutValues.Fixed, tableProperties.GetFirstChild<TableLayout>()?.Type?.Value);
+
+            var tableWidth = tableProperties.GetFirstChild<TableWidth>();
+            Assert.NotNull(tableWidth);
+            Assert.Equal(TableWidthUnitValues.Dxa, tableWidth!.Type?.Value);
+            Assert.True(int.Parse(tableWidth.Width!.Value!) > 0);
+
+            var gridColumns = table.GetFirstChild<TableGrid>()?.Elements<GridColumn>().ToList();
+            Assert.NotNull(gridColumns);
+            Assert.Equal(3, gridColumns!.Count);
+            Assert.All(gridColumns, column => Assert.True(int.Parse(column.Width!.Value!) > 0));
 
             var marginDefault = tableProperties.GetFirstChild<TableCellMarginDefault>();
             Assert.NotNull(marginDefault);
@@ -1594,10 +1605,13 @@ public class PandocPipelineTests
             var firstCell = table.Descendants<TableCell>().First();
             var cellProperties = firstCell.GetFirstChild<TableCellProperties>();
             Assert.NotNull(cellProperties);
+            Assert.Equal(TableWidthUnitValues.Dxa, cellProperties!.TableCellWidth?.Type?.Value);
+            Assert.True(int.Parse(cellProperties.TableCellWidth!.Width!.Value!) > 0);
             Assert.Equal(TableVerticalAlignmentValues.Center, cellProperties!.TableCellVerticalAlignment?.Val?.Value);
 
             var paragraphProperties = firstCell.Descendants<Paragraph>().First().GetFirstChild<ParagraphProperties>();
             Assert.NotNull(paragraphProperties);
+            Assert.Null(paragraphProperties!.ParagraphStyleId);
             var indentation = paragraphProperties!.GetFirstChild<Indentation>();
             Assert.NotNull(indentation);
             Assert.Equal("0", indentation!.FirstLine?.Value);
@@ -1609,6 +1623,15 @@ public class PandocPipelineTests
             Assert.NotNull(spacing);
             Assert.Equal("0", spacing!.Before?.Value);
             Assert.Equal("0", spacing.After?.Value);
+
+            Assert.All(table.Descendants<TableCell>(), cell =>
+            {
+                Assert.NotNull(cell.GetFirstChild<TableCellProperties>()?.TableCellWidth);
+                Assert.All(cell.Descendants<Paragraph>(), paragraph =>
+                {
+                    Assert.Null(paragraph.GetFirstChild<ParagraphProperties>()?.ParagraphStyleId);
+                });
+            });
         }
         finally
         {

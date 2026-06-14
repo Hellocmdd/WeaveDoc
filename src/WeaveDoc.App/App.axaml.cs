@@ -32,7 +32,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow(_configManager, _engine, _aiService);
+            desktop.MainWindow = new MainWindow(_configManager, _engine, _aiService, autoInitializeRag: true);
         }
 
         base.OnFrameworkInitializationCompleted();

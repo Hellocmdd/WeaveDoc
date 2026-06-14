@@ -85,6 +85,9 @@ public sealed partial class LocalAiService : IDisposable
     private readonly SemaphoreSlim _corpusLock = new(1, 1);
     private LlamaServerProcess? _chatProcess;
     private LlamaServerProcess? _rerankerProcess;
+    private string? _readyChatProvider;
+    private string? _readyChatEndpoint;
+    private string? _readyChatModel;
 
     public CloudApiSettings CloudSettings
     {
@@ -150,10 +153,7 @@ public sealed partial class LocalAiService : IDisposable
             await LoadEmbeddingModelAsync(cancellationToken).ConfigureAwait(false);
             await ReloadCorpusInternalAsync(cancellationToken).ConfigureAwait(false);
 
-            await StartChatServerIfNeededAsync(cancellationToken).ConfigureAwait(false);
-
-            var chatClient = new LlamaServerChatClient(_httpClient, _options, _cloudSettings);
-            await chatClient.EnsureServerAvailableAsync(cancellationToken).ConfigureAwait(false);
+            await EnsureChatBackendAvailableCoreAsync(cancellationToken).ConfigureAwait(false);
 
             await StartRerankerIfNeededAsync(cancellationToken).ConfigureAwait(false);
 
@@ -168,6 +168,7 @@ public sealed partial class LocalAiService : IDisposable
     public async Task<string> AskAsync(string question, IReadOnlyList<ChatTurn> history, CancellationToken cancellationToken = default)
     {
         await InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureChatBackendAvailableAsync(cancellationToken).ConfigureAwait(false);
 
         ArgumentException.ThrowIfNullOrWhiteSpace(question);
         var retrievalQuestion = NormalizeQuestionForRetrieval(question, history);
@@ -277,6 +278,7 @@ public sealed partial class LocalAiService : IDisposable
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureChatBackendAvailableAsync(cancellationToken).ConfigureAwait(false);
 
         ArgumentException.ThrowIfNullOrWhiteSpace(question);
         var retrievalQuestion = NormalizeQuestionForRetrieval(question, history);
@@ -470,6 +472,46 @@ public sealed partial class LocalAiService : IDisposable
         }
 
         await ReloadCorpusInternalAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private bool IsChatBackendReadyForCurrentSettings =>
+        string.Equals(_readyChatProvider, _cloudSettings.ChatProvider, StringComparison.Ordinal)
+        && string.Equals(_readyChatEndpoint, LlamaServerEndpoint, StringComparison.Ordinal)
+        && string.Equals(_readyChatModel, LlamaServerModel, StringComparison.Ordinal);
+
+    private async Task EnsureChatBackendAvailableAsync(CancellationToken cancellationToken)
+    {
+        if (IsChatBackendReadyForCurrentSettings)
+        {
+            return;
+        }
+
+        await _initializationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (IsChatBackendReadyForCurrentSettings)
+            {
+                return;
+            }
+
+            await EnsureChatBackendAvailableCoreAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _initializationLock.Release();
+        }
+    }
+
+    private async Task EnsureChatBackendAvailableCoreAsync(CancellationToken cancellationToken)
+    {
+        await StartChatServerIfNeededAsync(cancellationToken).ConfigureAwait(false);
+
+        var chatClient = new LlamaServerChatClient(_httpClient, _options, _cloudSettings);
+        await chatClient.EnsureServerAvailableAsync(cancellationToken).ConfigureAwait(false);
+
+        _readyChatProvider = _cloudSettings.ChatProvider;
+        _readyChatEndpoint = LlamaServerEndpoint;
+        _readyChatModel = LlamaServerModel;
     }
 
     public void Dispose()

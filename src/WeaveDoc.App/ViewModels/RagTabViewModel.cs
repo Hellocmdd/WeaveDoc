@@ -24,9 +24,11 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
     private string _inputText = string.Empty;
     private string _newDocumentPath = string.Empty;
     private string? _selectedDocument;
-    private string _statusText = "准备加载本地模型...";
+    private string _statusText = "知识库待初始化，应用启动后会自动准备。";
     private bool _isBusy;
     private bool _isInitialized;
+    private Task<bool>? _initializationTask;
+    private readonly object _initializationGate = new();
     private bool _isDocumentPanelExpanded = true;
     private IReadOnlyList<RetrievalChunkItem> _lastRankedChunks = [];
     private IReadOnlyList<RetrievalChunkItem> _lastContextChunks = [];
@@ -36,6 +38,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
     public RagTabViewModel(LocalAiService service)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
+        _service.CloudSettings = _cloudSettings;
         Turns.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(HasTurns));
@@ -169,9 +172,11 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
     public bool IsSendEnabled => !IsBusy && !string.IsNullOrWhiteSpace(InputText);
 
     /// <summary>True when the action button should be clickable — to send, or to stop an in-flight stream.</summary>
-    public bool IsActionButtonEnabled => IsBusy || !string.IsNullOrWhiteSpace(InputText);
+    public bool IsActionButtonEnabled => IsGenerating || (!IsBusy && !string.IsNullOrWhiteSpace(InputText));
 
-    public string SendButtonText => IsBusy ? "停止" : "发送";
+    public string SendButtonText => IsGenerating ? "停止" : "发送";
+
+    public bool IsGenerating => _sendCts is not null;
 
     public int SelectedPanelTab
     {
@@ -198,10 +203,13 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
             if (_cloudSettings.ChatProvider != value)
             {
                 _cloudSettings.ChatProvider = value;
+                _service.CloudSettings = _cloudSettings;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChatProvider)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCloudProviderSelected)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsLocalProviderSelected)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveProviderSummary)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProviderBadgeText)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProviderBadgeToolTip)));
             }
         }
     }
@@ -212,8 +220,10 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         set
         {
             _cloudSettings.CloudBaseUrl = value;
+            _service.CloudSettings = _cloudSettings;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudBaseUrl)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveProviderSummary)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProviderBadgeToolTip)));
         }
     }
 
@@ -223,6 +233,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         set
         {
             _cloudSettings.CloudApiKey = value;
+            _service.CloudSettings = _cloudSettings;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudApiKey)));
         }
     }
@@ -233,8 +244,11 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         set
         {
             _cloudSettings.CloudModel = value;
+            _service.CloudSettings = _cloudSettings;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudModel)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveProviderSummary)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProviderBadgeText)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProviderBadgeToolTip)));
         }
     }
 
@@ -244,6 +258,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         set
         {
             _cloudSettings.CloudEnableThinking = value;
+            _service.CloudSettings = _cloudSettings;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudEnableThinking)));
         }
     }
@@ -254,6 +269,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         set
         {
             _cloudSettings.CloudReasoningEffort = value;
+            _service.CloudSettings = _cloudSettings;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CloudReasoningEffort)));
         }
     }
@@ -276,20 +292,67 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
                 var url = string.IsNullOrWhiteSpace(CloudBaseUrl) ? "未配置地址" : CloudBaseUrl;
                 return $"云 API（OpenAI 兼容）· {model} · {url}";
             }
-            return "本地 llama-server（已启动的本地推理进程）";
+
+            return $"本地 llama-server · {_service.LlamaServerModel} · {_service.LlamaServerEndpoint}";
         }
     }
+
+    public string ProviderBadgeText
+    {
+        get
+        {
+            if (IsCloudProviderSelected)
+            {
+                var model = string.IsNullOrWhiteSpace(CloudModel) ? "未配置模型" : CloudModel;
+                return $"模型: 云端 · {model}";
+            }
+
+            return $"模型: 本地 · {_service.LlamaServerModel}";
+        }
+    }
+
+    public string ProviderBadgeToolTip => IsCloudProviderSelected
+        ? $"当前回答由云 API 提供：{ActiveProviderSummary}"
+        : $"当前回答由本地 llama-server 提供：{_service.LlamaServerModel} ({_service.LlamaServerEndpoint})";
 
     /// <summary>Allowed values for <see cref="CloudReasoningEffort"/> (cloud thinking models).</summary>
     public string[] ReasoningEffortOptions { get; } = ["low", "medium", "high"];
 
     public async Task InitializeAsync()
     {
+        await EnsureInitializedAsync();
+    }
+
+    private async Task<bool> EnsureInitializedAsync()
+    {
         if (_isInitialized)
         {
-            return;
+            return true;
         }
 
+        Task<bool> initializationTask;
+        lock (_initializationGate)
+        {
+            initializationTask = _initializationTask ??= InitializeCoreAsync();
+        }
+
+        var initialized = await initializationTask;
+        if (!initialized)
+        {
+            lock (_initializationGate)
+            {
+                if (ReferenceEquals(_initializationTask, initializationTask))
+                {
+                    _initializationTask = null;
+                }
+            }
+        }
+
+        return initialized;
+    }
+
+    private async Task<bool> InitializeCoreAsync()
+    {
         IsBusy = true;
         StatusText = "正在准备 RAG：加载 embedding 模型、扫描语料并连接聊天服务...";
         try
@@ -300,11 +363,13 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
             StatusText = $"已就绪：{_service.CorpusChunkCount} 个知识块，聊天模型: {_service.LlamaServerModel} ({_service.LlamaServerEndpoint})。";
             Turns.Add(new ChatTurn("系统", "模型已就绪，可以开始提问。", false));
             _isInitialized = true;
+            return true;
         }
         catch (Exception exception)
         {
             StatusText = $"加载失败: {exception.Message}";
             Turns.Add(new ChatTurn("系统", $"初始化失败: {exception.Message}", false));
+            return false;
         }
         finally
         {
@@ -329,6 +394,11 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
             }
 
             var question = InputText.Trim();
+            if (!await EnsureInitializedAsync())
+            {
+                return;
+            }
+
             InputText = string.Empty;
 
             Turns.Add(new ChatTurn("用户", question, true));
@@ -338,7 +408,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
 
             IsBusy = true;
             StatusText = "正在检索上下文并生成回答...";
-            _sendCts = new CancellationTokenSource();
+            SetSendCancellationTokenSource(new CancellationTokenSource());
 
             var builder = new StringBuilder();
             var lastFlush = Stopwatch.GetTimestamp();
@@ -346,7 +416,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
 
             try
             {
-                await foreach (var chunk in _service.AskStreamAsync(question, history, _sendCts.Token))
+                await foreach (var chunk in _service.AskStreamAsync(question, history, _sendCts!.Token))
                 {
                     if (chunk.Replace)
                     {
@@ -394,8 +464,7 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
             finally
             {
                 IsBusy = false;
-                _sendCts?.Dispose();
-                _sendCts = null;
+                SetSendCancellationTokenSource(null);
             }
         }
         finally
@@ -553,6 +622,21 @@ public sealed class RagTabViewModel : INotifyPropertyChanged, IDisposable
         _sendCts?.Cancel();
         _sendCts?.Dispose();
         _sendLock.Dispose();
+    }
+
+    private void SetSendCancellationTokenSource(CancellationTokenSource? value)
+    {
+        if (ReferenceEquals(_sendCts, value))
+        {
+            return;
+        }
+
+        var previous = _sendCts;
+        _sendCts = value;
+        previous?.Dispose();
+        OnPropertyChanged(nameof(IsGenerating));
+        OnPropertyChanged(nameof(IsActionButtonEnabled));
+        OnPropertyChanged(nameof(SendButtonText));
     }
 
     private void SetAssistantTurn(int index, string content)

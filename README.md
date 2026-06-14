@@ -21,9 +21,8 @@ WeaveDoc is a .NET/Avalonia desktop workspace for writing, previewing, convertin
 | Path | Description |
 | --- | --- |
 | `WeaveDoc.slnx` | Main solution containing product and test projects |
-| `WeaveDoc.csproj` | Legacy root project stub; normal development uses `WeaveDoc.slnx` or project-specific `.csproj` files |
 | `src/` | Product projects |
-| `tests/` | Automated tests and small scratch/harness projects |
+| `tests/` | Automated tests and test documents |
 | `scripts/` | Setup, launch, RAG, diagnostics, and test helper scripts |
 | `tools/` | Downloaded external tools, including Pandoc |
 | `doc/` | Project documents, task docs, design docs, and local corpus material |

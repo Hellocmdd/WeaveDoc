@@ -48,6 +48,25 @@
                 Classes="panel-tab"
                 Content="快照"
                 Click="OnSelectAiSnapshotTabClick" />
+        <Border x:Name="ProviderBadgeBorder"
+                Grid.Column="3"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Margin="6,0,8,0"
+                Padding="8,2"
+                Background="{DynamicResource ShellCardBrush}"
+                BorderBrush="{DynamicResource ShellBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                ToolTip.Tip="{Binding RagTabViewModel.ProviderBadgeToolTip}">
+          <TextBlock x:Name="ProviderBadgeTextBlock"
+                     Text="{Binding RagTabViewModel.ProviderBadgeText}"
+                     FontSize="10"
+                     FontWeight="SemiBold"
+                     MaxWidth="150"
+                     TextTrimming="CharacterEllipsis"
+                     Foreground="{DynamicResource ShellTextBrush}" />
+        </Border>
       </Grid>
     </Border>
 

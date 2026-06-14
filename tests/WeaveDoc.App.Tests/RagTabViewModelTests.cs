@@ -20,6 +20,7 @@ public sealed class RagTabViewModelTests
         Assert.Equal("发送", vm.SendButtonText);
         Assert.Empty(vm.LastRankedChunks);
         Assert.False(vm.HasRankedChunks);
+        Assert.Equal("知识库待初始化，应用启动后会自动准备。", vm.StatusText);
     }
 
     [Fact]
@@ -97,21 +98,50 @@ public sealed class RagTabViewModelTests
         vm.ChatProvider = "llama_server";
         Assert.True(vm.IsLocalProviderSelected);
         Assert.Contains("本地", vm.ActiveProviderSummary);
+        Assert.Contains("模型: 本地", vm.ProviderBadgeText);
 
         vm.ChatProvider = "cloud";
         Assert.True(vm.IsCloudProviderSelected);
         Assert.Contains("云 API", vm.ActiveProviderSummary);
+        Assert.Contains("模型: 云端", vm.ProviderBadgeText);
 
         // The summary must be re-raised whenever the provider (or the cloud fields it shows) change,
         // so the model-management banner stays in sync with the active backend.
         Assert.Contains(nameof(RagTabViewModel.ActiveProviderSummary), changes);
+        Assert.Contains(nameof(RagTabViewModel.ProviderBadgeText), changes);
 
         changes.Clear();
         vm.CloudModel = "deepseek-chat";
         vm.CloudBaseUrl = "https://api.example.com/v1";
         Assert.Contains(nameof(RagTabViewModel.ActiveProviderSummary), changes);
+        Assert.Contains(nameof(RagTabViewModel.ProviderBadgeText), changes);
         Assert.Contains("deepseek-chat", vm.ActiveProviderSummary);
+        Assert.Contains("deepseek-chat", vm.ProviderBadgeText);
         Assert.Contains("api.example.com", vm.ActiveProviderSummary);
+        Assert.Contains("api.example.com", vm.ProviderBadgeToolTip);
+    }
+
+    [Fact]
+    public void ProviderSettings_UpdateInjectedAiServiceImmediately()
+    {
+        using var service = new LocalAiService();
+        var vm = new RagTabViewModel(service);
+
+        vm.ChatProvider = "llama_server";
+        var localModel = service.LlamaServerModel;
+        var localEndpoint = service.LlamaServerEndpoint;
+
+        vm.ChatProvider = "cloud";
+        vm.CloudModel = "deepseek-chat";
+        vm.CloudBaseUrl = "https://api.example.com/v1";
+
+        Assert.Equal("deepseek-chat", service.LlamaServerModel);
+        Assert.Equal("https://api.example.com/v1", service.LlamaServerEndpoint);
+
+        vm.ChatProvider = "llama_server";
+
+        Assert.Equal(localModel, service.LlamaServerModel);
+        Assert.Equal(localEndpoint, service.LlamaServerEndpoint);
     }
 
     private static RagTabViewModel NewViewModel() => new(new LocalAiService());
