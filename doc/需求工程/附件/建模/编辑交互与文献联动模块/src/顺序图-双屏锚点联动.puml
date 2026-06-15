@@ -1,0 +1,24 @@
+@startuml
+actor "用户" as User
+
+boundary "PDF 面板界面" as PdfPaneUI
+boundary "Markdown 编辑器界面" as MdEditorUI
+
+control "锚点联 动控制器" as AnchorLinkController
+
+entity "PDF 实体" as PdfEntity
+entity "锚点实体" as AnchorEntity
+entity "文档实体" as DocumentEntity
+
+User -> PdfPaneUI : 点击 PDF 对象(obj)
+PdfPaneUI -> AnchorLinkController : 创建锚点(pdfId, obj)
+
+AnchorLinkController -> PdfEntity : 解析对象位置(obj)
+PdfEntity --> AnchorLinkController : page,pos
+
+AnchorLinkController -> AnchorEntity : 构建深链接(page,pos)
+AnchorEntity --> AnchorLinkController : anchorLink
+
+AnchorLinkController -> DocumentEntity : 在光标处插入(anchorLink)
+AnchorLinkController -> MdEditorUI : 渲染插入的锚点(anchorLink)
+@enduml

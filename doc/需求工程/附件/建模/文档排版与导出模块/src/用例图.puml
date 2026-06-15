@@ -1,0 +1,24 @@
+@startuml
+left to right direction
+
+actor User as user
+actor Zotero as zotero
+
+rectangle "排版与导出模块" {
+  usecase "编辑Markdown   文稿" as UC1
+  usecase "插入引用标签" as UC2
+  usecase "动态引文重构\n(GB/T 7714)" as UC3
+  usecase "导出Word/PDF\n(AFD转换)" as UC4
+  usecase "校验参考文献著录完整性\n(CON-01)" as UC5
+}
+
+user --> UC1
+user --> UC2
+user --> UC4
+
+UC2 --> UC3
+UC3 --> UC5
+UC4 --> UC5
+
+zotero --> UC3 : 提供元数据
+@enduml

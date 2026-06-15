@@ -1,0 +1,67 @@
+@startuml
+' [代码注释] 编码声明，确保中文字符在各编辑器中兼容
+!pragma encoding utf-8
+
+header WeaveDoc 项目需求工程
+title 用例图 - 智能学术工作台核心功能
+
+' [代码注释] 设置从左至右的布局，使包结构展示更清晰
+left to right direction
+
+' [代码注释] 参与者：高校本科生、研究生及初级科研人员 [cite: 293]
+actor "研究者 / 学生" as User
+
+rectangle "WeaveDoc 系统" {
+    package "双核编辑引擎" {
+        ' [代码注释] 核心交互：实现 Markdown 与 PDF 的同步联动 [cite: 268]
+        usecase "编写 Markdown" as UC_Edit
+        usecase "语法高亮与公式渲染" as UC_Render
+        usecase "阅读 PDF 文献" as UC_Read
+        usecase "双屏同步滚动" as UC_Sync
+        
+        ' [代码注释] 编写用例强制包含渲染过程，确保所见即所得
+        UC_Edit ..> UC_Render : <<include>>
+        ' [代码注释] 对应需求：FR-04 (双屏联动) [cite: 329]
+        UC_Sync -- UC_Edit
+        UC_Sync -- UC_Read
+    }
+
+    package "语义转换系统" {
+        ' [代码注释] 对应需求：FR-01 (AFD 样式转换) [cite: 314]
+        usecase "导出学术文档" as UC_Export
+        ' [代码注释] 核心理念：格式即代码 (Format as Code)，强制应用 JSON 模板 [cite: 275, 276]
+        usecase "应用 AFD 样式模板" as UC_Template
+        
+        UC_Export ..> UC_Template : <<include>>
+    }
+
+    package "端侧 AI 助手" {
+        ' [代码注释] 对应需求：FR-02 (离线 RAG 问答) [cite: 328]
+        usecase "文献智能问答 (RAG)" as UC_QA
+        usecase "自动生成摘要" as UC_Summary
+        ' [代码注释] 技术约束：问答与摘要均依赖本地向量库的构建 [cite: 332]
+        usecase "构建本地向量库" as UC_Vector
+        
+        UC_QA ..> UC_Vector : <<include>>
+        UC_Summary ..> UC_Vector : <<include>>
+    }
+
+    package "配置管理" {
+        ' [代码注释] 对应需求：FR-06 (Zotero 数据联动) [cite: 341]
+        usecase "管理 BibTeX 文献" as UC_Bib
+    }
+}
+
+' [代码注释] 用户与系统功能的直接交互关系映射 [cite: 380, 381, 384]
+User --> UC_Edit
+User --> UC_Read
+User --> UC_Export
+User --> UC_QA
+User --> UC_Bib
+
+' [代码注释] 该 Note 是 UML 规范元素，会显示在图片中以强调模板的可扩展性 [cite: 373]
+note right of UC_Template
+    可扩展支持多种高校
+    论文格式模板
+end note
+@enduml

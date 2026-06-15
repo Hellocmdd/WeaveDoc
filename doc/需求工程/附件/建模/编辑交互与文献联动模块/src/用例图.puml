@@ -1,0 +1,26 @@
+@startuml
+left to right direction
+
+actor User as user
+actor Zotero as zotero
+
+rectangle "编辑交互  与文献联动模块  " {
+  usecase "双屏阅读(PDF/MD)" as UC1
+  usecase "点击PDF对象生成锚点" as UC2
+  usecase "插入锚点到Markdown光标" as UC3
+  usecase "自动版本快照保存" as UC4
+  usecase "时间轴回滚版本" as UC5
+  usecase "同步Zotero题录\n(BetterBibTeX JSON)" as UC6
+  usecase "本地PDF与题录匹配链接" as UC7
+}
+
+user --> UC1
+user --> UC2
+user --> UC5
+
+UC2 --> UC3
+UC4 --> UC5
+
+zotero --> UC6
+UC6 --> UC7
+@enduml
