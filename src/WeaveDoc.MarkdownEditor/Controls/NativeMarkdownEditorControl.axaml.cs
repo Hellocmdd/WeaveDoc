@@ -60,7 +60,6 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private static RegistryOptions? _cachedRegistryOptions;
         private static readonly object _registryOptionsLock = new();
 
-        private const bool DefaultWordWrap = false;
         private const int DebugSelectionSampleIntervalMilliseconds = 250;
         private const string DebugPrefix = "[DEBUG-avedit-freeze]";
         private const string DebugSelectionProbeEnvironmentVariable = "WEAVEDOC_DEBUG_AVEDIT_SELECTION";
@@ -82,6 +81,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
         public static readonly StyledProperty<bool> IsReadOnlyProperty =
             AvaloniaProperty.Register<NativeMarkdownEditorControl, bool>(nameof(IsReadOnly));
 
+        public static readonly StyledProperty<bool> WordWrapEnabledProperty =
+            AvaloniaProperty.Register<NativeMarkdownEditorControl, bool>(
+                nameof(WordWrapEnabled),
+                defaultValue: false,
+                defaultBindingMode: BindingMode.OneWay);
+
         public string EditorContent
         {
             get => GetValue(EditorContentProperty);
@@ -99,6 +104,15 @@ namespace WeaveDoc.MarkdownEditor.Controls
             get => GetValue(IsReadOnlyProperty);
             set => SetValue(IsReadOnlyProperty, value);
         }
+
+        public bool WordWrapEnabled
+        {
+            get => GetValue(WordWrapEnabledProperty);
+            set => SetValue(WordWrapEnabledProperty, value);
+        }
+
+        /// <summary>切换自动换行；立即对主编辑器与纯文本回退编辑器生效。</summary>
+        public void SetWordWrap(bool enabled) => WordWrapEnabled = enabled;
 
         public bool IsMarkdownGrammarLoaded { get; private set; }
 
@@ -193,6 +207,12 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 var isReadOnly = change.NewValue is bool value && value;
                 _editor.IsReadOnly = isReadOnly;
                 _plainTextFallbackEditor.IsReadOnly = isReadOnly;
+            }
+
+            if (change.Property == WordWrapEnabledProperty)
+            {
+                ApplyWordWrap();
+                return;
             }
         }
 
@@ -384,12 +404,11 @@ namespace WeaveDoc.MarkdownEditor.Controls
             _editor.Options.ConvertTabsToSpaces = true;
             _editor.Options.IndentationSize = 4;
             _editor.IsReadOnly = IsReadOnly;
-            _editor.WordWrap = DefaultWordWrap;
+            ApplyWordWrap();
 
             if (_plainTextFallbackEditor != null)
             {
                 _plainTextFallbackEditor.IsReadOnly = IsReadOnly;
-                _plainTextFallbackEditor.TextWrapping = Avalonia.Media.TextWrapping.NoWrap;
             }
 
             // Fix for AvaloniaEdit infinite layout loop (confirmed by diagnostic logs):
@@ -398,6 +417,24 @@ namespace WeaveDoc.MarkdownEditor.Controls
             // again — all with scrollX staying constant. We detect N identical-scrollX consecutive events
             // and temporarily zero out SelectionMouseHandler._mode via reflection to break the cycle.
             _editor.TextArea.TextView.ScrollOffsetChanged += OnTextViewScrollOffsetChanged;
+        }
+
+        private void ApplyWordWrap()
+        {
+            if (_editor == null || _plainTextFallbackEditor == null)
+                return;
+
+            var enabled = WordWrapEnabled;
+            _editor.WordWrap = enabled;
+            _editor.HorizontalScrollBarVisibility = enabled
+                ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+                : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
+            _plainTextFallbackEditor.TextWrapping = enabled
+                ? Avalonia.Media.TextWrapping.Wrap
+                : Avalonia.Media.TextWrapping.NoWrap;
+            ScrollViewer.SetHorizontalScrollBarVisibility(
+                _plainTextFallbackEditor,
+                enabled ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
         }
 
         // Breaks the SelectionMouseHandler ↔ VisualLines ↔ ArrangeOverride infinite loop.
@@ -501,7 +538,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             if (_editor == null || _plainTextFallbackEditor == null)
                 return;
 
-            _editor.WordWrap = DefaultWordWrap;
+            ApplyWordWrap();
             if (_debugForceAvaloniaEdit && needsPlainTextFallback)
             {
                 DebugLogState("fallback-suppressed", "reason=apply-performance-mode");

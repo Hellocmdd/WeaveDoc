@@ -335,6 +335,50 @@ public class NativeMarkdownEditorControlTests
         Assert.That(control.MarkdownGrammarStatusText, Does.Contain("已释放"));
     }
 
+    [AvaloniaTest]
+    public void SetWordWrap_True_EnablesWordWrapOnBothEditors()
+    {
+        var control = new NativeMarkdownEditorControl();
+        var textEditor = FindInnerEditor(control);
+        var fallbackEditor = FindPlainTextFallbackEditor(control);
+
+        control.SetWordWrap(true);
+
+        Assert.That(textEditor.WordWrap, Is.True);
+        Assert.That(textEditor.HorizontalScrollBarVisibility.ToString(), Is.EqualTo("Disabled"));
+        Assert.That(fallbackEditor.TextWrapping, Is.EqualTo(TextWrapping.Wrap));
+        Assert.That(ScrollViewer.GetHorizontalScrollBarVisibility(fallbackEditor).ToString(), Is.EqualTo("Disabled"));
+    }
+
+    [AvaloniaTest]
+    public void SetWordWrap_False_RestoresHorizontalScroll()
+    {
+        var control = new NativeMarkdownEditorControl();
+        var textEditor = FindInnerEditor(control);
+        var fallbackEditor = FindPlainTextFallbackEditor(control);
+
+        control.SetWordWrap(true);
+        control.SetWordWrap(false);
+
+        Assert.That(textEditor.WordWrap, Is.False);
+        Assert.That(textEditor.HorizontalScrollBarVisibility.ToString(), Is.EqualTo("Auto"));
+        Assert.That(fallbackEditor.TextWrapping, Is.EqualTo(TextWrapping.NoWrap));
+        Assert.That(ScrollViewer.GetHorizontalScrollBarVisibility(fallbackEditor).ToString(), Is.EqualTo("Auto"));
+    }
+
+    [AvaloniaTest]
+    public void SetWordWrap_True_PreservesWrapAcrossContentRefresh()
+    {
+        var control = new NativeMarkdownEditorControl();
+        var textEditor = FindInnerEditor(control);
+
+        control.SetWordWrap(true);
+        control.SetContent("# Heading\n\n" + new string('x', 5_000));
+
+        Assert.That(textEditor.WordWrap, Is.True);
+        Assert.That(control.GetContent().Length, Is.GreaterThan(0));
+    }
+
     private static TextEditor FindInnerEditor(NativeMarkdownEditorControl control)
     {
         return control.FindControl<TextEditor>("Editor")

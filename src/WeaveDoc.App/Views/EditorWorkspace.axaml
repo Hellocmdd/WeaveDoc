@@ -98,7 +98,7 @@
             Background="{DynamicResource ShellEditorPanelBrush}"
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto"
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto"
             ColumnSpacing="6"
             Margin="10,0">
         <Button x:Name="Heading1Button"
@@ -139,7 +139,15 @@
                 Content="[]"
                 IsEnabled="{Binding IsMarkdownEditorVisible}"
                 Click="OnTaskListClick" />
-        <Border Grid.Column="9"
+        <Button x:Name="WordWrapToggleButton"
+                Grid.Column="9"
+                Classes="segment-button"
+                Classes.active="{Binding IsWordWrapEnabled}"
+                Content="自动换行"
+                ToolTip.Tip="自动换行 (Alt+Z)"
+                IsEnabled="{Binding IsMarkdownEditorVisible}"
+                Click="OnWordWrapToggleClick" />
+        <Border Grid.Column="10"
                 Background="{DynamicResource ShellInputBrush}"
                 BorderBrush="{DynamicResource ShellBorderBrush}"
                 BorderThickness="1"
@@ -151,11 +159,13 @@
                     Classes="segment-button"
                     Classes.active="{Binding IsEditModeSelected}"
                     Content="编辑"
+                    ToolTip.Tip="编辑 (Ctrl+Shift+V)"
                     Click="OnEditModeClick" />
             <Button x:Name="PreviewModeButton"
                     Classes="segment-button"
                     Classes.active="{Binding IsPreviewModeSelected}"
                     Content="预览"
+                    ToolTip.Tip="预览 (Ctrl+Shift+V)"
                     Click="OnPreviewModeClick" />
           </StackPanel>
         </Border>

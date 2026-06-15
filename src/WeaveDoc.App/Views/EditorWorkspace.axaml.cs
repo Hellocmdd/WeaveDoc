@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using WeaveDoc.App.ViewModels;
 using WeaveDoc.MarkdownEditor.Controls;
@@ -11,6 +12,9 @@ public partial class EditorWorkspace : UserControl
 {
     private AppShellViewModel? _subscribedViewModel;
     private NativeMarkdownEditorControl? _subscribedMarkdownEditor;
+
+    private static readonly KeyGesture ToggleWordWrapGesture = new(Key.Z, KeyModifiers.Alt);
+    private static readonly KeyGesture ToggleEditorModeGesture = new(Key.V, KeyModifiers.Control | KeyModifiers.Shift);
 
     public EditorWorkspace()
     {
@@ -28,12 +32,14 @@ public partial class EditorWorkspace : UserControl
         base.OnAttachedToVisualTree(e);
         SubscribeToMarkdownEditor();
         SubscribeToViewModel(ViewModel);
+        KeyDown += OnWorkspaceKeyDown;
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         UnsubscribeFromMarkdownEditor();
         UnsubscribeFromViewModel();
+        KeyDown -= OnWorkspaceKeyDown;
         base.OnDetachedFromVisualTree(e);
     }
 
@@ -57,6 +63,7 @@ public partial class EditorWorkspace : UserControl
 
         _subscribedViewModel.DocumentWorkspace.PropertyChanged += OnDocumentWorkspacePropertyChanged;
         SyncDocumentSnapshotToEditor();
+        MarkdownEditor?.SetWordWrap(_subscribedViewModel.IsWordWrapEnabled);
     }
 
     private void UnsubscribeFromViewModel()
@@ -116,6 +123,7 @@ public partial class EditorWorkspace : UserControl
         if (_subscribedMarkdownEditor is not null)
         {
             _subscribedMarkdownEditor.ContentEdited += OnMarkdownEditorContentEdited;
+            _subscribedMarkdownEditor.SetWordWrap(_subscribedViewModel?.IsWordWrapEnabled ?? false);
         }
     }
 
@@ -135,17 +143,29 @@ public partial class EditorWorkspace : UserControl
         _subscribedViewModel?.DocumentWorkspace.MarkEdited();
     }
 
-    private void OnEditModeClick(object? sender, RoutedEventArgs e)
-    {
-        ViewModel?.SelectEditorMode(EditorSurfaceMode.Edit);
-    }
+    private void OnEditModeClick(object? sender, RoutedEventArgs e) => SelectEditorMode(EditorSurfaceMode.Edit);
 
-    private void OnPreviewModeClick(object? sender, RoutedEventArgs e)
+    private void OnPreviewModeClick(object? sender, RoutedEventArgs e) => SelectEditorMode(EditorSurfaceMode.Preview);
+
+    private void SelectEditorMode(EditorSurfaceMode mode)
     {
         var viewModel = ViewModel;
-        SyncEditorContentToWorkspace();
-        viewModel?.DocumentWorkspace.RefreshPreview();
-        viewModel?.SelectEditorMode(EditorSurfaceMode.Preview);
+        if (mode == EditorSurfaceMode.Preview)
+        {
+            SyncEditorContentToWorkspace();
+            viewModel?.DocumentWorkspace.RefreshPreview();
+        }
+
+        viewModel?.SelectEditorMode(mode);
+    }
+
+    private void ToggleEditorMode()
+    {
+        var viewModel = ViewModel;
+        if (viewModel is null)
+            return;
+
+        SelectEditorMode(viewModel.IsEditModeSelected ? EditorSurfaceMode.Preview : EditorSurfaceMode.Edit);
     }
 
     private void OnHeading1Click(object? sender, RoutedEventArgs e)
@@ -176,6 +196,32 @@ public partial class EditorWorkspace : UserControl
     private void OnTaskListClick(object? sender, RoutedEventArgs e)
     {
         ApplyEditorWrap("- [ ] ", string.Empty);
+    }
+
+    private void OnWordWrapToggleClick(object? sender, RoutedEventArgs e) => ToggleWordWrap();
+
+    private void OnWorkspaceKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (ToggleWordWrapGesture.Matches(e))
+        {
+            ToggleWordWrap();
+            e.Handled = true;
+        }
+        else if (ToggleEditorModeGesture.Matches(e))
+        {
+            ToggleEditorMode();
+            e.Handled = true;
+        }
+    }
+
+    private void ToggleWordWrap()
+    {
+        var viewModel = ViewModel;
+        if (viewModel?.IsMarkdownEditorVisible != true)
+            return;
+
+        viewModel.IsWordWrapEnabled = !viewModel.IsWordWrapEnabled;
+        MarkdownEditor?.SetWordWrap(viewModel.IsWordWrapEnabled);
     }
 
     private void ApplyEditorWrap(string prefix, string suffix)

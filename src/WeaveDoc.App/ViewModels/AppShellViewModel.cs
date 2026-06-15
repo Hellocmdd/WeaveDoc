@@ -52,6 +52,7 @@ public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
     private WorkspaceMode _workspaceMode = WorkspaceMode.Markdown;
     private string _currentPdfPath = string.Empty;
     private string _currentPdfDisplayName = string.Empty;
+    private bool _isWordWrapEnabled;
 
     /// <summary>Design-time / fallback constructor.</summary>
     public AppShellViewModel()
@@ -71,6 +72,7 @@ public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
         DocumentWorkspace = documentWorkspace ?? throw new ArgumentNullException(nameof(documentWorkspace));
         DocumentWorkspace.PropertyChanged += OnDocumentWorkspacePropertyChanged;
         RagTabViewModel = aiService is not null ? new RagTabViewModel(aiService) : null;
+        _isWordWrapEnabled = EditorPreferences.Current.WordWrapEnabled;
     }
 
     public DocumentWorkspaceViewModel DocumentWorkspace { get; }
@@ -115,6 +117,18 @@ public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
                 OnPropertyChanged(nameof(IsPreviewEmptyStateVisible));
                 OnPropertyChanged(nameof(IsMarkdownPreviewVisible));
                 OnPropertyChanged(nameof(ModeStatusText));
+            }
+        }
+    }
+
+    public bool IsWordWrapEnabled
+    {
+        get => _isWordWrapEnabled;
+        set
+        {
+            if (SetProperty(ref _isWordWrapEnabled, value))
+            {
+                EditorPreferences.Current.SetWordWrap(value);
             }
         }
     }
