@@ -1,0 +1,25 @@
+@startuml
+start
+
+if (用户选择PDF问答?) then (问答)
+  :检查离线环境;
+  :PDF切片;
+  :生成Embedding向量;
+  :写入本地向量库;
+
+  :用户输入问题;
+  :向量检索TopK片段;
+  :组装Prompt;
+  :本地LLM推理生成;
+  :流式输出回答;
+  :显示引用来源片段;
+else (公式OCR)
+  :用户框选公式区域;
+  :OCR视觉模型推理;
+  :生成LaTeX代码;
+  :展示LaTeX;
+  :复制到剪贴板;
+endif
+
+stop
+@enduml

@@ -1,0 +1,19 @@
+@startuml
+left to right direction
+
+actor User as user
+
+rectangle "AI智能辅助模块  " {
+  usecase "离线PDF问答\n(本地RAG)" as UC1
+  usecase "PDF切片向量化\n(本地向量库)" as UC2
+  usecase "本地LLM推理回答" as UC3
+  usecase "框选公式OCR识别\n输出LaTeX" as UC4
+  usecase "复制LaTeX到剪贴板" as UC5
+}
+
+user --> UC1
+user --> UC4
+UC1 --> UC2
+UC1 --> UC3
+UC4 --> UC5
+@enduml

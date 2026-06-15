@@ -1,0 +1,93 @@
+@startuml
+' 这里的注释是绝对不会出现在图片里的
+!pragma encoding utf-8
+
+header WeaveDoc 系统架构分析
+title 分析类图 - 核心模块结构
+
+skinparam classAttributeIconSize 0
+
+' ==========================================
+' 1. 边界类 (Boundary Classes)
+' ==========================================
+
+class MainUI <<Boundary>> {
+    ' [代码注释] 对应用户主窗体
+    + currentProject: String
+    + openFile(path: String): void
+    + onExportClick(): void
+}
+
+class EditorView <<Boundary>> {
+    ' [代码注释] 对应 Monaco Editor 编辑区
+    + mdContent: String
+    + refreshPreview(): void
+}
+
+' ==========================================
+' 2. 控制类 (Control Classes)
+' ==========================================
+
+class ProjectManager <<Control>> {
+    ' [代码注释] 负责同步滚动等业务逻辑
+    - isDirty: Boolean
+    + saveAll(): void
+    + syncScrolling(ratio: Float): void
+}
+
+class ConverterController <<Control>> {
+    ' [代码注释] 驱动 FR-01 转换流程
+    + convertToDocx(ir: DocumentIR, template: AFDStyle): File
+}
+
+class AIEngine <<Control>> {
+    ' [代码注释] 驱动 FR-02 离线 AI 问答
+    - modelStatus: String
+    + generateResponse(query: String): String
+    + buildIndex(pdfPath: String): void
+}
+
+' ==========================================
+' 3. 实体类 (Entity Classes)
+' ==========================================
+
+class DocumentIR <<Entity>> {
+    - nodes: List<ASTNode>
+    + addNode(node: ASTNode): void
+    + getMetadata(): Map
+}
+
+class AFDStyle <<Entity>> {
+    ' [代码注释] 对应 AFD 协议 JSON 映射
+    + fontName: String
+    + fontSize: Int
+    + lineSpacing: Float
+    + marginConfig: JSON
+}
+
+class VectorEntry <<Entity>> {
+    + content: String
+    + embedding: Float[]
+    + sourcePage: Int
+}
+
+' ==========================================
+' 4. 关系定义 (Relationships)
+' 冒号后面的文字是“连线标签”，会显示在图片里辅助理解
+' ==========================================
+
+MainUI "1" *-- "1" EditorView : 组合
+MainUI ..> ProjectManager : 触发
+ProjectManager "1" o-- "1" DocumentIR : 聚合
+ConverterController ..> DocumentIR : 依赖(输入)
+ConverterController ..> AFDStyle : 依赖(配置)
+AIEngine "1" *-- "many" VectorEntry : 管理
+AIEngine ..> DocumentIR : 语义增强
+
+' 这里的 note 是 UML 规范的一部分，会出现在图片里作为重点强调
+note bottom of AFDStyle
+    符合 AFD 协议的 JSON 样式定义
+    实现“格式即代码”的核心
+end note
+
+@enduml

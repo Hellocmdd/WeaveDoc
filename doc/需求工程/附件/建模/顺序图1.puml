@@ -1,0 +1,68 @@
+@startuml
+' 设置 UTF-8 编码确保中文注释在代码中可见且不乱码
+!pragma encoding utf-8
+
+header WeaveDoc 业务流程分析
+title 顺序图 - 学术文档高保真导出流程
+
+' ==========================================
+' 对象定义：严格遵循分析建模规范
+' ==========================================
+
+' 参与者：直接操作系统的用户
+actor "用户" as User
+
+' 边界类：系统与用户交互的界面接口 [cite: 391]
+boundary "ExportDialog (边界类)" as UI
+
+' 控制类：负责业务逻辑调度与协调 [cite: 392]
+control "ConverterController (控制类)" as Ctrl
+
+' 实体类：存储文档 AST 结构的中间表示 [cite: 277, 393]
+entity "DocumentIR (实体类)" as IR
+
+' 实体类：存储 JSON 格式的样式模板规范 [cite: 276, 393]
+entity "AFDTemplate (实体类)" as Template
+
+' 实体类：封装 Pandoc 第三方转换内核 [cite: 302]
+entity "PandocEngine (实体类)" as Engine
+
+' ==========================================
+' 交互流程：展现 FR-01 的实现逻辑 
+' ==========================================
+
+User -> UI : 点击“导出”并选择模板
+activate UI
+    ' [代码注释] 界面接收导出参数（模板ID与目标路径）并转发至控制器
+    UI -> Ctrl : 请求转换(Markdown内容, 模板ID)
+    activate Ctrl
+        
+        ' [代码注释] 第一步：将 MD 源码解析为系统可识别的中间表示层 (IR)
+        Ctrl -> IR : 解析 Markdown 为中间表示
+        activate IR
+        IR --> Ctrl : 返回 IR 数据结构
+        deactivate IR
+        
+        ' [代码注释] 第二步：加载用户选定的 AFD 样式配置文件
+        Ctrl -> Template : 获取 AFD 样式定义
+        activate Template
+        Template --> Ctrl : 返回样式配置(JSON)
+        deactivate Template
+        
+        ' [代码注释] 第三步：调用底层引擎执行高保真转换
+        Ctrl -> Engine : 调用 Pandoc 转换管线
+        activate Engine
+            ' [代码注释] 核心业务：在内存中完成 AST 到 OpenXML/LaTeX 的样式映射
+            note over Engine : 执行样式映射与 AST 转换
+            Engine --> Ctrl : 生成 .docx / .pdf 文件流
+        deactivate Engine
+        
+        ' [代码注释] 完成导出：返回生成文件的本地物理路径
+        Ctrl --> UI : 转换完成，返回文件路径
+    deactivate Ctrl
+    
+    ' [代码注释] 交互结束：提示用户结果并打开文件资源管理器
+    UI -> User : 提示保存成功并打开文件夹
+deactivate UI
+
+@enduml

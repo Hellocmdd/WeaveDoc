@@ -1,0 +1,38 @@
+@startuml
+actor "用户" as User
+
+boundary "编辑器界面" as EditorUI
+boundary "导出界面" as ExportUI
+
+control "文献重构控制器" as CitationRebuildController
+control "导出控制器" as ExportController
+
+entity "文档实体  " as DocumentEntity
+entity "引文实体" as CitationEntity
+entity "AFD 模型实体" as AFDModelEntity
+entity "输出文件实体" as OutputFileEntity
+
+User -> EditorUI : 编辑 Markdown / 插入 [@key]
+EditorUI -> CitationRebuildController : 引文变更通知(docId)
+
+CitationRebuildController -> DocumentEntity : 加载文档(docId)
+CitationRebuildController -> CitationEntity : 从缓存加载元数据()
+CitationRebuildController -> CitationEntity : 按 GB/T 7714 重建索引()
+CitationRebuildController -> DocumentEntity : 更新引文编号()
+CitationRebuildController -> DocumentEntity : 更新参考文献列表()
+
+User -> ExportUI : 点击导出 Word/PDF
+ExportUI -> ExportController : 执行导出(docId, format)
+
+ExportController -> DocumentEntity : 加载文档(docId)
+ExportController -> CitationEntity : 校验参考文献著录完整性()
+
+alt 完整性通过
+  ExportController -> AFDModelEntity : 构建 AFD JSON(document)
+  ExportController -> OutputFileEntity : 生成(format, afdModel)
+  ExportController -> OutputFileEntity : 保存到磁盘(path)
+  ExportController -> ExportUI : 显示导出成功(path)
+else 完整性失败
+  ExportController -> ExportUI : 显示错误(missingFields)
+end
+@enduml

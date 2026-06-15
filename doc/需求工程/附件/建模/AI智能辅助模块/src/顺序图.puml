@@ -1,0 +1,51 @@
+@startuml
+actor "用户" as User
+
+boundary "聊天界面" as ChatUI
+boundary "PDF 预览界面" as PdfViewerUI
+boundary "剪贴板界面" as ClipboardUI
+
+control "RAG 控制器" as RagController
+control "OCR 控制器" as OcrController
+
+entity "PDF 实体" as PdfEntity
+entity "向量库实体" as VectorStoreEntity
+entity "嵌入模型实体" as EmbeddingEntity
+entity "LLM 实体" as LLMEntity
+entity "OCR 模型实体" as OcrModelEntity
+entity "LaTeX 处理实体" as LatexEntity
+
+== 离线RAG问答 ==
+User -> ChatUI : 输入问题(question)
+ChatUI -> RagController : 提问(question, pdfId)
+
+RagController -> PdfEntity : 加载 PDF(pdfId)
+
+alt 向量索引不存在
+  RagController -> PdfEntity : 切分为文本块()
+  RagController -> EmbeddingEntity : 生成向量(chunks)
+  RagController -> VectorStoreEntity : 存储向量(vectors)
+end
+
+RagController -> EmbeddingEntity : 生成问题向量(question)
+RagController -> VectorStoreEntity : 检索 TopK(queryVector)
+RagController -> LLMEntity : 生成回答(promptWithContext)
+LLMEntity --> RagController : 流式返回答案(tokens)
+RagController -> ChatUI : 流式输出到界面(tokens)
+RagController -> ChatUI : 展示来源(chunks)
+
+== OCR公式提取 ==
+User -> PdfViewerUI : 框选公式区域(rect)
+PdfViewerUI -> OcrController : 识别公式(pdfId, rect)
+
+OcrController -> PdfEntity : 提取图像(rect)
+OcrController -> OcrModelEntity : 推理识别(image)
+OcrModelEntity --> OcrController : latexText
+
+OcrController -> LatexEntity : 规范化(latexText)
+OcrController -> PdfViewerUI : 显示 LaTeX(latex)
+
+User -> PdfViewerUI : 点击复制
+PdfViewerUI -> ClipboardUI : 复制(latex)
+
+@enduml

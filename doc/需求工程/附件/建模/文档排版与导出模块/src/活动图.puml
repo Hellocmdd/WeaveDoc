@@ -1,0 +1,27 @@
+@startuml
+start
+
+:用户编辑Markdown内容;
+:插入或移动引用标签;
+
+if (引用顺序发生变化?) then (是)
+  :触发引文重构逻辑;
+  :按GB/T 7714重新编号;
+  :更新文末参考文献列表;
+endif
+
+:用户点击导出;
+
+:解析Markdown + 公式;
+:生成AFD JSON结构;
+:加载排版模板;
+
+if (著录完整性校验通过?) then (是)
+  :生成Word/PDF文件;
+  :写入目标目录;
+else (否)
+  :提示缺失字段\n(卷期页码等);
+endif
+
+stop
+@enduml

@@ -1,0 +1,28 @@
+@startuml
+start
+
+:加载工作区;
+:启动Zotero同步服务;
+:解析BetterBibTeX JSON;
+
+:匹配本地PDF与题录;
+:建立软/硬链接;
+
+fork
+  :用户双屏阅读;
+  :点击PDF段落/图表;
+  :生成深层锚点(link);
+  :插入到Markdown光标处;
+fork again
+  :监听编辑器修改事件;
+  :每5分钟增量快照持久化;
+end fork
+
+if (用户打开时间轴?) then (是)
+  :展示快照列表;
+  :用户选择历史版本;
+  :恢复对应文稿状态;
+endif
+
+stop
+@enduml

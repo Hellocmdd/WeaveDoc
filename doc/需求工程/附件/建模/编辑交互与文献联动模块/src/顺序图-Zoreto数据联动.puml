@@ -1,0 +1,26 @@
+@startuml
+actor "Zotero" as Zotero
+
+boundary "同步服务界面" as SyncServiceUI
+
+control "Zotero 同步控制器" as ZoteroSyncController
+
+entity "文献数据库实体" as BibDatabaseEntity
+entity "PDF 库实体" as PdfLibraryEntity
+entity "引文实体" as CitationEntity
+
+Zotero -> SyncServiceUI : 导出 BetterBibTeX JSON 更新
+SyncServiceUI -> ZoteroSyncController : 通知数据库变更(path)
+
+ZoteroSyncController -> BibDatabaseEntity : 加载 JSON(path)
+BibDatabaseEntity --> ZoteroSyncController : bibRecords
+
+ZoteroSyncController -> PdfLibraryEntity : 扫描工作区 PDF()
+PdfLibraryEntity --> ZoteroSyncController : pdfList
+
+ZoteroSyncController -> CitationEntity : 匹配(pdfList, bibRecords)
+CitationEntity --> ZoteroSyncController : mappingResult
+
+ZoteroSyncController -> CitationEntity : 更新本地缓存(mappingResult)
+ZoteroSyncController -> SyncServiceUI : 显示同步状态(成功)
+@enduml
