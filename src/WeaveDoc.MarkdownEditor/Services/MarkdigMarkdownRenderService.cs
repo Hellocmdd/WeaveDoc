@@ -263,7 +263,7 @@ public sealed class MarkdigMarkdownRenderService : IMarkdownRenderService
         }
     }
 
-    private static string GetColumnAlignment(Table table, int columnIndex)
+    internal static string GetColumnAlignment(Table table, int columnIndex)
     {
         if (columnIndex < 0 || columnIndex >= table.ColumnDefinitions.Count)
             return string.Empty;
@@ -447,7 +447,7 @@ public sealed class MarkdigMarkdownRenderService : IMarkdownRenderService
         return offsets.ToArray();
     }
 
-    private static string EscapeChar(char c)
+    internal static string EscapeChar(char c)
     {
         return c switch
         {
