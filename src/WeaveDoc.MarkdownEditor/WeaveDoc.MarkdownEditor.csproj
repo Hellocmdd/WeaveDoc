@@ -33,4 +33,8 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="WeaveDoc.MarkdownEditor.Tests" />
+  </ItemGroup>
 </Project>

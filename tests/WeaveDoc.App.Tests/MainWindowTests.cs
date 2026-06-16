@@ -922,6 +922,7 @@ public class MainWindowTests
         Assert.Null(window.FindControl<Control>("HelpMenuButton"));
         Assert.Null(window.FindControl<Control>("ConvertButton"));
         Assert.Null(window.FindControl<Control>("TemplateGrid"));
+        Assert.Null(window.FindControl<Control>("ShellSearchBox"));
         Assert.DoesNotContain("# Hello WeaveDoc!", CollectText(window));
 
         // 工作线 4: the AI panel chat input (清空/发送/输入框) moved into RagChatView and is no
@@ -939,12 +940,11 @@ public class MainWindowTests
             Find<Button>(sidebar, "DocumentZoomInButton"),
             Find<Button>(sidebar, "DocumentPreviewTabButton"),
             Find<Button>(sidebar, "DocumentPreviewCloseTabButton"),
-            Find<Button>(sidebar, "DocumentPreviewAddTabButton"),
-            Find<Button>(editor, "ExportDocumentButton")
+            Find<Button>(sidebar, "DocumentPreviewAddTabButton")
         };
 
         Assert.All(disabledButtons, button => Assert.False(button.IsEnabled));
-        Assert.False(Find<TextBox>(window, "ShellSearchBox").IsEnabled);
+        Assert.Null(editor.FindControl<Button>("ExportDocumentButton"));
     }
 
     private static void AssertBrushResource(string key)

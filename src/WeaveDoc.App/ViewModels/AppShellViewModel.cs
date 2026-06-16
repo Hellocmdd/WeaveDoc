@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using WeaveDoc.App.Services.Documents;
@@ -242,14 +242,14 @@ public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
     {
         AiPanelTabKind.Literature => "文献辅助",
         AiPanelTabKind.Corpus => "语料辅助",
-        AiPanelTabKind.Snapshot => "快照辅助",
+        AiPanelTabKind.Snapshot => "检索辅助",
         _ => "问答辅助"
     };
     public string AiPanelEmptyStateText => SelectedAiPanelTab switch
     {
         AiPanelTabKind.Literature => "暂无文献，点击下方导入 .bib",
         AiPanelTabKind.Corpus => "暂无语料文件",
-        AiPanelTabKind.Snapshot => "暂无快照",
+        AiPanelTabKind.Snapshot => "暂无检索结果",
         _ => EmptyAiConversationText
     };
     public string PendingCommandText => "待接入";

@@ -33,17 +33,6 @@
       <Setter Property="Opacity" Value="1" />
     </Style>
 
-    <Style Selector="TextBox.shell-search">
-      <Setter Property="Height" Value="26" />
-      <Setter Property="FontSize" Value="11" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="Background" Value="{DynamicResource ShellInputBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="4" />
-    </Style>
-
     <Style Selector="Button:pointerover">
       <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
     </Style>
@@ -152,7 +141,7 @@
         <Button x:Name="VersionHistoryCommandButton" Grid.Column="4" Classes="command-button" Click="OnOpenVersionHistoryClick">
           <StackPanel Orientation="Horizontal" Spacing="5">
             <Path Classes="shell-icon" Data="{StaticResource IconSnapshot}" />
-            <TextBlock Text="历史" />
+            <TextBlock Text="快照" />
           </StackPanel>
         </Button>
         <Button x:Name="SetupShellCommandButton" Grid.Column="5" Classes="command-button" Click="OnOpenSettingsClick">
@@ -207,8 +196,8 @@
                 Classes="command-button"
                 Click="OnSelectAiSnapshotTabClick">
           <StackPanel Orientation="Horizontal" Spacing="5">
-            <Path Classes="shell-icon" Data="{StaticResource IconSnapshot}" />
-            <TextBlock Text="快照" />
+            <Path Classes="shell-icon" Data="{StaticResource IconSearch}" />
+            <TextBlock Text="检索" />
           </StackPanel>
         </Button>
         <Button x:Name="AiShellCommandButton"
@@ -217,26 +206,6 @@
                 Content="{Binding AiPanelToggleText}"
                 Click="OnToggleAiPanelClick" />
         <Border Grid.Column="15" Classes="panel-divider" />
-        <Border Grid.Column="17"
-                VerticalAlignment="Center"
-                CornerRadius="{DynamicResource ShellRadiusMd}"
-                Background="{DynamicResource ShellInputBrush}"
-                BorderBrush="{DynamicResource ShellBorderBrush}"
-                BorderThickness="1">
-          <Panel>
-            <Path Classes="shell-icon" Data="{StaticResource IconSearch}" Margin="8,0,0,0" VerticalAlignment="Center"
-                  Stroke="{DynamicResource ShellMutedTextBrush}" />
-            <TextBox x:Name="ShellSearchBox"
-                     Classes="shell-field"
-                     Text=""
-                     PlaceholderText="搜索待接入"
-                     IsEnabled="False"
-                     BorderThickness="0"
-                     Background="Transparent"
-                     Margin="26,0,8,0"
-                     VerticalAlignment="Center" />
-          </Panel>
-        </Border>
         <Button x:Name="ThemeMenuButton"
                 Grid.Column="18"
                 Classes="command-button active"

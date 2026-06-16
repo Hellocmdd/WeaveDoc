@@ -25,7 +25,7 @@ public partial class VersionHistoryDialog : Window
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
-        TitleText.Text = $"版本历史 - {_workspace?.DisplayName ?? "未打开文档"}";
+        TitleText.Text = $"文档快照 - {_workspace?.DisplayName ?? "未打开文档"}";
         SubtitleText.Text = _workspace?.CurrentFilePath ?? string.Empty;
         await LoadSnapshotsAsync();
     }
@@ -57,7 +57,7 @@ public partial class VersionHistoryDialog : Window
         catch (Exception ex)
         {
             SnapshotList.ItemsSource = Array.Empty<SnapshotListItem>();
-            StatusText.Text = $"加载版本历史失败：{ex.Message}";
+            StatusText.Text = $"加载文档快照失败：{ex.Message}";
         }
     }
 
