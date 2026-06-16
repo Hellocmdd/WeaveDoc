@@ -32,7 +32,6 @@ public class DocumentConversionEngine
         string markdownPath,
         string templateId,
         string outputFormat,
-        PdfLayoutMode pdfLayoutMode = PdfLayoutMode.SingleColumn,
         CancellationToken ct = default)
     {
         var template = await _configManager.GetTemplateAsync(templateId);
@@ -126,7 +125,7 @@ public class DocumentConversionEngine
             }
             else if (string.Equals(outputFormat, "pdf", StringComparison.OrdinalIgnoreCase))
             {
-                OpenXmlStyleCorrector.ApplyPdfLayout(rawDocxPath, pdfLayoutMode, _pdfConverter);
+                OpenXmlStyleCorrector.ApplyPdfLayout(rawDocxPath);
                 _pdfConverter.ConvertToPdf(rawDocxPath, outputPath);
             }
             else

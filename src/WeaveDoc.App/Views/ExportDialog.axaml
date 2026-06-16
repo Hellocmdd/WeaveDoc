@@ -185,30 +185,6 @@
               </StackPanel>
             </Grid>
 
-            <!-- PDF layout (only when PDF selected) -->
-            <Grid x:Name="PdfLayoutPanel"
-                  IsVisible="False"
-                  ColumnDefinitions="68,*"
-                  Margin="0,2,0,0">
-              <TextBlock Grid.Column="0"
-                         Text="PDF 版式"
-                         VerticalAlignment="Center"
-                         FontSize="11"
-                         Foreground="{DynamicResource ShellMutedTextBrush}" />
-              <StackPanel Grid.Column="1"
-                          Orientation="Horizontal"
-                          Spacing="8">
-                <Button x:Name="PdfSingleButton"
-                        Classes="dlg-chip active"
-                        Content="单栏"
-                        Click="OnPdfSingleClick" />
-                <Button x:Name="PdfTwoButton"
-                        Classes="dlg-chip"
-                        Content="双栏"
-                        Click="OnPdfTwoClick" />
-              </StackPanel>
-            </Grid>
-
             <Grid ColumnDefinitions="68,*,Auto"
                   Margin="0,2,0,0">
               <TextBlock Grid.Column="0"

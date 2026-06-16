@@ -13,7 +13,6 @@ using Avalonia.Platform.Storage;
 using WeaveDoc.Converter;
 using WeaveDoc.Converter.Afd.Models;
 using WeaveDoc.Converter.Config;
-using WeaveDoc.Converter.Pandoc;
 using WeaveDoc.App.ViewModels;
 
 namespace WeaveDoc.App.Views;
@@ -27,7 +26,6 @@ public partial class ExportDialog : Window
 
     private AfdMeta? _selectedTemplate;
     private bool _isDocx = true;
-    private PdfLayoutMode _pdfLayoutMode = PdfLayoutMode.SingleColumn;
     private bool _isConverting;
 
     /// <summary>
@@ -183,14 +181,13 @@ public partial class ExportDialog : Window
         UpdateExportEnabled();
     }
 
-    // ── Format / layout toggles ──
+    // ── Format toggle ──
 
     private void OnFormatDocxClick(object? sender, RoutedEventArgs e)
     {
         _isDocx = true;
         FormatDocxButton.Classes.Add("active");
         FormatPdfButton.Classes.Remove("active");
-        PdfLayoutPanel.IsVisible = false;
     }
 
     private void OnFormatPdfClick(object? sender, RoutedEventArgs e)
@@ -198,21 +195,6 @@ public partial class ExportDialog : Window
         _isDocx = false;
         FormatPdfButton.Classes.Add("active");
         FormatDocxButton.Classes.Remove("active");
-        PdfLayoutPanel.IsVisible = true;
-    }
-
-    private void OnPdfSingleClick(object? sender, RoutedEventArgs e)
-    {
-        _pdfLayoutMode = PdfLayoutMode.SingleColumn;
-        PdfSingleButton.Classes.Add("active");
-        PdfTwoButton.Classes.Remove("active");
-    }
-
-    private void OnPdfTwoClick(object? sender, RoutedEventArgs e)
-    {
-        _pdfLayoutMode = PdfLayoutMode.TwoColumn;
-        PdfTwoButton.Classes.Add("active");
-        PdfSingleButton.Classes.Remove("active");
     }
 
     // ── Output path ──
@@ -305,7 +287,7 @@ public partial class ExportDialog : Window
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             var result = await _engine.ConvertAsync(
-                _sourceMdPath, _selectedTemplate.TemplateId, format, _pdfLayoutMode, cts.Token);
+                _sourceMdPath, _selectedTemplate.TemplateId, format, cts.Token);
 
             if (result.Success)
             {

@@ -183,7 +183,7 @@ public class PdfConverterSelectionTests
     }
 
     [Fact]
-    public async Task DocumentConversionEngine_ConvertAsync_Pdf_TwoColumn_PassesPaperLayoutDocxToConverter()
+    public async Task DocumentConversionEngine_ConvertAsync_Pdf_PassesSingleColumnDocxToConverter()
     {
         var dbPath = Path.Combine(Path.GetTempPath(), $"layout-pdf-{Guid.NewGuid():N}.db");
 
@@ -200,10 +200,10 @@ public class PdfConverterSelectionTests
 
             try
             {
-                var result = await engine.ConvertAsync(mdPath, "default-thesis", "pdf", PdfLayoutMode.TwoColumn);
+                var result = await engine.ConvertAsync(mdPath, "default-thesis", "pdf");
 
                 Assert.True(result.Success, result.ErrorMessage);
-                Assert.True(converter.SawPaperTwoColumnLayout, converter.InspectionFailure);
+                Assert.True(converter.SawSingleColumnLayout, converter.InspectionFailure);
             }
             finally
             {
@@ -302,7 +302,7 @@ public class PdfConverterSelectionTests
     private sealed class InspectingPdfConverter : IPdfConverter
     {
         public string Name => "inspecting";
-        public bool SawPaperTwoColumnLayout { get; private set; }
+        public bool SawSingleColumnLayout { get; private set; }
         public string InspectionFailure { get; private set; } = "";
 
         public void ConvertToPdf(string docxPath, string pdfPath)
@@ -310,45 +310,23 @@ public class PdfConverterSelectionTests
             using var doc = WordprocessingDocument.Open(docxPath, false);
             var body = doc.MainDocumentPart!.Document.Body!;
             var paragraphs = body.Elements<Paragraph>().ToList();
-            var titleSection = paragraphs[0]
-                .GetFirstChild<ParagraphProperties>()?
-                .GetFirstChild<SectionProperties>();
-            var authorSection = paragraphs[1]
-                .GetFirstChild<ParagraphProperties>()?
-                .GetFirstChild<SectionProperties>();
             var finalSection = body.Elements<SectionProperties>().Last();
 
-            if (titleSection != null)
+            if (paragraphs.Any(p => p.GetFirstChild<ParagraphProperties>()?.GetFirstChild<SectionProperties>() != null))
             {
-                InspectionFailure = "标题段不应带分节栏设置。";
-            }
-            else if (authorSection == null)
-            {
-                InspectionFailure = "作者段后缺少单列分节。";
-            }
-            else if (authorSection.GetFirstChild<SectionType>()?.Val?.Value != SectionMarkValues.Continuous)
-            {
-                InspectionFailure = "作者段后的分节必须是 continuous，不能另起一页。";
-            }
-            else if (authorSection.GetFirstChild<Columns>()?.ColumnCount?.Value != 1)
-            {
-                InspectionFailure = "作者段后的分节必须保持单列。";
-            }
-            else if (!authorSection.Elements<HeaderReference>().Any() && !authorSection.Elements<FooterReference>().Any())
-            {
-                InspectionFailure = "作者段后的单列分节必须复制最终节的页眉页脚引用。";
+                InspectionFailure = "PDF 导出前不应保留段落级分节栏设置。";
             }
             else if (finalSection.GetFirstChild<SectionType>()?.Val?.Value != SectionMarkValues.Continuous)
             {
-                InspectionFailure = "正文双列分节必须是 continuous。";
+                InspectionFailure = "PDF 最终分节必须是 continuous。";
             }
-            else if (finalSection.GetFirstChild<Columns>()?.ColumnCount?.Value != 2)
+            else if (finalSection.GetFirstChild<Columns>()?.ColumnCount?.Value != 1)
             {
-                InspectionFailure = "正文最终分节必须是双列。";
+                InspectionFailure = "PDF 最终分节必须是单栏。";
             }
             else
             {
-                SawPaperTwoColumnLayout = true;
+                SawSingleColumnLayout = true;
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(pdfPath)!);
