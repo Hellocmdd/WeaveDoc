@@ -46,7 +46,7 @@
         <Button x:Name="AiSnapshotTabButton"
                 Grid.Column="2"
                 Classes="panel-tab"
-                Content="快照"
+                Content="检索"
                 Click="OnSelectAiSnapshotTabClick" />
         <Border x:Name="ProviderBadgeBorder"
                 Grid.Column="3"

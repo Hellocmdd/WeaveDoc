@@ -11,7 +11,7 @@
 | 顶部命令栏 | `Views/MainWindow.axaml`、`Views/MainWindow.axaml.cs` | 新建/打开/保存、导出、设置、AI 面板页签命令、主题切换 |
 | 左侧工作区 | `Views/WorkspaceSidebar.*`、`Views/PdfWorkspace.*` | 文档/侧栏区域和 PDF 阅读模式 |
 | 中间编辑区 | `Views/EditorWorkspace.*`、`ViewModels/DocumentWorkspaceViewModel.cs` | 原生 Markdown 编辑、编辑/预览切换、格式命令、预览刷新 |
-| 右侧辅助栏 | `Views/AiAssistantPanel.*`、`Views/RagChatView.*`、`Views/RagCorpusView.*`、`Views/RagSnapshotView.*` | 问答、语料/文献管理、检索快照展示 |
+| 右侧辅助栏 | `Views/AiAssistantPanel.*`、`Views/RagChatView.*`、`Views/RagCorpusView.*`、`Views/RagSnapshotView.*` | 问答、语料/文献管理、检索依据展示 |
 | 对话框 | `Views/ExportDialog.*`、`Views/SettingsDialog.*` | AFD 导出、PDF 版式选择、云端/本地模型设置、模板管理 |
 
 旧的独立转换页和模板管理页已经被折叠进 `ExportDialog` 和 `SettingsDialog`。当前应用流程以文档为中心：先在中间工作区打开或新建 Markdown，再用周边工具导出、设置或问答。

@@ -13,7 +13,7 @@
             BorderThickness="0,0,0,1"
             Padding="12,7">
       <StackPanel Spacing="2">
-        <TextBlock Text="检索快照"
+        <TextBlock Text="检索依据"
                    FontSize="12"
                    FontWeight="Medium"
                    Foreground="{DynamicResource ShellTextBrush}" />

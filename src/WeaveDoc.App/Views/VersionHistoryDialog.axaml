@@ -7,7 +7,7 @@
         Height="560"
         MinWidth="720"
         MinHeight="460"
-        Title="版本历史"
+        Title="文档快照"
         Background="{DynamicResource ShellBackgroundBrush}">
   <Border Background="{DynamicResource ShellPanelBrush}"
           BorderBrush="{DynamicResource ShellBorderBrush}"
@@ -21,7 +21,7 @@
                   Grid.ColumnSpan="2"
                   Spacing="4">
         <TextBlock x:Name="TitleText"
-                   Text="版本历史"
+                   Text="文档快照"
                    FontSize="18"
                    FontWeight="SemiBold"
                    Foreground="{DynamicResource ShellTextBrush}" />
