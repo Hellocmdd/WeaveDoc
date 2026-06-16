@@ -46,9 +46,6 @@
         <Button x:Name="AiCorpusTabButton"
                 Grid.Column="2"
                 Classes="panel-tab"
-        <Button x:Name="AiCorpusTabButton"
-                Grid.Column="2"
-                Classes="panel-tab"
                 Content="语料"
                 Click="OnSelectAiCorpusTabClick" />
         <Button x:Name="AiSnapshotTabButton"
