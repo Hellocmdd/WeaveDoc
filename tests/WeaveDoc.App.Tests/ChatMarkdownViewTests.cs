@@ -146,6 +146,123 @@ public sealed class ChatMarkdownViewTests
     }
 
     [AvaloniaFact]
+    public async Task ExtractsCompactThreePartCitationFromBody()
+    {
+        var view = new ChatMarkdownView
+        {
+            Markdown = "控制模块负责状态显示。[doc/a.md|方法设计|c3]"
+        };
+        var host = ShowInHost(view);
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            Arrange(host);
+
+            var text = CollectText(view);
+            Assert.Contains("控制模块负责状态显示。", text);
+            Assert.DoesNotContain("[doc/a.md|方法设计|c3]", text);
+            Assert.Contains(CollectRuns(view), run =>
+                run.Text == "1" && run.BaselineAlignment == Avalonia.Media.BaselineAlignment.Superscript);
+
+            Click(Find<Button>(view, "MarkdownSourcesToggleButton"));
+            Arrange(host);
+
+            text = CollectText(view);
+            Assert.Contains("a.md", text);
+            Assert.Contains("方法设计 · c3", text);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task ExtractsTwoPartCitationAndDefaultsSectionToBody()
+    {
+        var view = new ChatMarkdownView
+        {
+            Markdown = "控制模块负责状态显示。[doc/a.md|c3]"
+        };
+        var host = ShowInHost(view);
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            Arrange(host);
+
+            var text = CollectText(view);
+            Assert.Contains("控制模块负责状态显示。", text);
+            Assert.DoesNotContain("[doc/a.md|c3]", text);
+            Assert.Contains(CollectRuns(view), run =>
+                run.Text == "1" && run.BaselineAlignment == Avalonia.Media.BaselineAlignment.Superscript);
+
+            Click(Find<Button>(view, "MarkdownSourcesToggleButton"));
+            Arrange(host);
+
+            text = CollectText(view);
+            Assert.Contains("a.md", text);
+            Assert.Contains("正文 · c3", text);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task ExtractsBareChunkCitationWithoutLeakingMarkerText()
+    {
+        var view = new ChatMarkdownView
+        {
+            Markdown = "控制模块负责状态显示 [c3]。"
+        };
+        var host = ShowInHost(view);
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            Arrange(host);
+
+            var text = CollectText(view);
+            Assert.Contains("控制模块负责状态显示", text);
+            Assert.DoesNotContain("[c3]", text);
+            Assert.Contains(CollectRuns(view), run =>
+                run.Text == "1" && run.BaselineAlignment == Avalonia.Media.BaselineAlignment.Superscript);
+
+            Click(Find<Button>(view, "MarkdownSourcesToggleButton"));
+            Arrange(host);
+
+            text = CollectText(view);
+            Assert.Contains("当前检索上下文", text);
+            Assert.Contains("正文 · c3", text);
+        });
+    }
+
+    [AvaloniaFact]
+    public async Task DeduplicatesEquivalentCitationSpacingVariants()
+    {
+        var view = new ChatMarkdownView
+        {
+            Markdown = """
+                       第一段。[doc/a.md | 方法设计 | c3]
+                       第二段复用紧凑格式。[doc/a.md|方法设计|c3]
+                       """
+        };
+        var host = ShowInHost(view);
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            Arrange(host);
+
+            Click(Find<Button>(view, "MarkdownSourcesToggleButton"));
+            Arrange(host);
+
+            Assert.Equal("来源 1 ▲", Find<Button>(view, "MarkdownSourcesToggleButton").Content);
+            var rows = view.GetVisualDescendants().OfType<Border>()
+                .Where(border => border.Name == "MarkdownSourceRow")
+                .ToList();
+            Assert.Single(rows);
+
+            var superscripts = CollectRuns(view)
+                .Where(run => run.BaselineAlignment == Avalonia.Media.BaselineAlignment.Superscript)
+                .Select(run => run.Text)
+                .ToList();
+            Assert.Equal(["1", "1"], superscripts);
+        });
+    }
+
+    [AvaloniaFact]
     public async Task KeepsCitationLikeTextInsideCodeBlock()
     {
         var view = new ChatMarkdownView
@@ -153,6 +270,8 @@ public sealed class ChatMarkdownViewTests
             Markdown = """
                        ```text
                        [doc/a.md | 方法设计 | c3]
+                       [doc/a.md|c3]
+                       [c3]
                        ```
                        """
         };
@@ -164,6 +283,8 @@ public sealed class ChatMarkdownViewTests
 
             var codeTextBox = Find<TextBox>(view, "MarkdownCodeBlockTextBox");
             Assert.Contains("[doc/a.md | 方法设计 | c3]", codeTextBox.Text);
+            Assert.Contains("[doc/a.md|c3]", codeTextBox.Text);
+            Assert.Contains("[c3]", codeTextBox.Text);
             Assert.Null(view.GetVisualDescendants()
                 .OfType<Button>()
                 .FirstOrDefault(button => button.Name == "MarkdownSourcesToggleButton"));

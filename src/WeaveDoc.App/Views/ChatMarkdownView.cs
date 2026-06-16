@@ -23,7 +23,7 @@ public sealed class ChatMarkdownView : UserControl
     private const string CitationMarkerSuffix = "\uE001";
 
     private static readonly Regex StableCitationRegex = new(
-        @"\[(?<file>[^\]\r\n|]+)\s*\|\s*(?<section>[^\]\r\n|]+)\s*\|\s*(?<chunk>c\d+)\]",
+        @"\[(?:(?<bare>c\d+)|(?<file>[^\]\r\n|]+?)\s*\|\s*(?:(?<section>[^\]\r\n|]+?)\s*\|\s*)?(?<chunk>c\d+))\]",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Regex FencedCodeBlockRegex = new(
@@ -115,16 +115,27 @@ public sealed class ChatMarkdownView : UserControl
         var body = StableCitationRegex.Replace(protectedMarkdown, match =>
         {
             var fullCitation = match.Value;
-            if (!sourceIndex.TryGetValue(fullCitation, out var index))
+            var chunkId = match.Groups["bare"].Success
+                ? match.Groups["bare"].Value.Trim()
+                : match.Groups["chunk"].Value.Trim();
+            var filePath = match.Groups["file"].Success
+                ? match.Groups["file"].Value.Trim()
+                : "当前检索上下文";
+            var section = match.Groups["section"].Success
+                ? match.Groups["section"].Value.Trim()
+                : "正文";
+            var citationKey = $"{filePath}\u001F{section}\u001F{chunkId}";
+
+            if (!sourceIndex.TryGetValue(citationKey, out var index))
             {
                 index = sources.Count + 1;
-                sourceIndex[fullCitation] = index;
+                sourceIndex[citationKey] = index;
                 sources.Add(new CitationSource(
                     index,
                     fullCitation,
-                    match.Groups["file"].Value.Trim(),
-                    match.Groups["section"].Value.Trim(),
-                    match.Groups["chunk"].Value.Trim()));
+                    filePath,
+                    section,
+                    chunkId));
             }
 
             return $" {CitationMarkerPrefix}{index}{CitationMarkerSuffix}";
