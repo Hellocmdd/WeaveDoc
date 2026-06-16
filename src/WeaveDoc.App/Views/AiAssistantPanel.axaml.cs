@@ -39,6 +39,12 @@ public partial class AiAssistantPanel : UserControl
             SnapshotView.DataContext = rag;
         }
 
+        var literature = shell.LiteratureViewModel;
+        if (literature is not null)
+        {
+            LiteratureView.DataContext = literature;
+        }
+
         shell.PropertyChanged -= OnShellPropertyChanged;
         shell.PropertyChanged += OnShellPropertyChanged;
         UpdateSubViewVisibility();
@@ -61,7 +67,8 @@ public partial class AiAssistantPanel : UserControl
         }
 
         ChatView.IsVisible = shell.IsAiChatTabSelected;
-        CorpusView.IsVisible = shell.IsAiLiteratureTabSelected;
+        LiteratureView.IsVisible = shell.IsAiLiteratureTabSelected;
+        CorpusView.IsVisible = shell.IsAiCorpusTabSelected;
         SnapshotView.IsVisible = shell.IsAiSnapshotTabSelected;
     }
 
@@ -73,6 +80,11 @@ public partial class AiAssistantPanel : UserControl
     private void OnSelectAiLiteratureTabClick(object? sender, RoutedEventArgs e)
     {
         ViewModel?.SelectAiPanelTab(AiPanelTabKind.Literature);
+    }
+
+    private void OnSelectAiCorpusTabClick(object? sender, RoutedEventArgs e)
+    {
+        ViewModel?.SelectAiPanelTab(AiPanelTabKind.Corpus);
     }
 
     private void OnSelectAiSnapshotTabClick(object? sender, RoutedEventArgs e)

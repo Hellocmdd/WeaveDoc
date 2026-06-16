@@ -1,0 +1,148 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WeaveDoc.App.ViewModels"
+             x:Class="WeaveDoc.App.Views.LiteratureView"
+             x:DataType="vm:LiteratureViewModel">
+  <Grid RowDefinitions="Auto,Auto,*,Auto"
+        Background="{DynamicResource ShellPanelBrush}">
+
+    <!-- header -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource ShellChromeBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="12,7">
+      <TextBlock Text="文献库（BibTeX）"
+                 FontSize="12"
+                 FontWeight="Medium"
+                 Foreground="{DynamicResource ShellTextBrush}" />
+    </Border>
+
+    <!-- count + search -->
+    <Border Grid.Row="1"
+            Background="{DynamicResource ShellChromeBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="10,7">
+      <Grid ColumnDefinitions="*,Auto"
+            ColumnSpacing="8">
+        <TextBlock Grid.Column="0"
+                   VerticalAlignment="Center"
+                   FontSize="11"
+                   Text="{Binding StatusText}"
+                   Foreground="{DynamicResource ShellMutedTextBrush}"
+                   TextTrimming="CharacterEllipsis" />
+        <TextBox x:Name="SearchBox"
+                 Grid.Column="1"
+                 Width="130"
+                 Classes="shell-field"
+                 PlaceholderText="搜索…"
+                 TextChanged="OnSearchTextChanged"
+                 MinHeight="28"
+                 Padding="8,4"
+                 FontSize="11" />
+      </Grid>
+    </Border>
+
+    <!-- list -->
+    <Grid Grid.Row="2">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <ItemsControl x:Name="LiteratureList"
+                      ItemsSource="{Binding Entries}"
+                      Padding="2">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:LiteratureEntryViewModel">
+              <Border BorderBrush="{DynamicResource ShellBorderBrush}"
+                      BorderThickness="0,0,0,1"
+                      Padding="10,7">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="6">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Text="{Binding CitationKey}"
+                                 FontSize="12"
+                                 FontWeight="SemiBold"
+                                 TextTrimming="CharacterEllipsis"
+                                 Foreground="{DynamicResource ShellTextBrush}" />
+                      <TextBlock Text="{Binding EntryType}"
+                                 FontSize="10"
+                                 Foreground="{DynamicResource ShellMutedTextBrush}" />
+                      <TextBlock Text="{Binding Year}"
+                                 FontSize="10"
+                                 Foreground="{DynamicResource ShellMutedTextBrush}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Title}"
+                               FontSize="12"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource ShellTextBrush}" />
+                    <TextBlock Text="{Binding Authors}"
+                               FontSize="10"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource ShellMutedTextBrush}" />
+                    <Border Classes="rag-badge"
+                            Background="{DynamicResource ShellWarningBrush}"
+                            IsVisible="{Binding HasMissingFields}"
+                            HorizontalAlignment="Left">
+                      <TextBlock Text="⚠ 缺著录项"
+                                 FontSize="10"
+                                 Foreground="{DynamicResource ShellOnDarkTextBrush}" />
+                    </Border>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1"
+                              Orientation="Vertical"
+                              Spacing="3">
+                    <Button Classes="command-button"
+                            Content="插入引用"
+                            Click="OnInsertCitationClick" />
+                    <Button Classes="command-button"
+                            Content="删除"
+                            Click="OnDeleteClick" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <!-- empty state -->
+      <StackPanel x:Name="EmptyState"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  Spacing="4">
+        <TextBlock Text="暂无文献"
+                   FontSize="13"
+                   Foreground="{DynamicResource ShellMutedTextBrush}"
+                   HorizontalAlignment="Center" />
+        <TextBlock Text="点击下方「导入 .bib」从 Zotero 导出的文件加载"
+                   FontSize="10"
+                   Foreground="{DynamicResource ShellDisabledTextBrush}"
+                   HorizontalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+
+    <!-- actions -->
+    <Border Grid.Row="3"
+            Background="{DynamicResource ShellChromeBrush}"
+            BorderBrush="{DynamicResource ShellBorderBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="8,6">
+      <Grid ColumnDefinitions="*,Auto"
+            ColumnSpacing="6">
+        <Button Grid.Column="0"
+                Classes="panel-action"
+                MinHeight="32"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Content="+ 导入 .bib"
+                Click="OnImportClick" />
+        <Button Grid.Column="1"
+                Classes="command-button"
+                Content="刷新"
+                Click="OnRefreshClick" />
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

@@ -296,6 +296,8 @@ public partial class ExportDialog : Window
         ProgressBar.IsVisible = true;
         LogBox.IsVisible = false;
         OpenInViewerButton.IsVisible = false;
+        CitationWarningsPanel.IsVisible = false;
+        CitationWarningsList.ItemsSource = null;
         PendingOpenPdfPath = null;
         SetStatus("转换中…");
 
@@ -332,6 +334,9 @@ public partial class ExportDialog : Window
                 LogBox.Text = BuildFailureLog(_selectedTemplate, format, _sourceMdPath, result);
                 LogBox.IsVisible = true;
             }
+
+            // 引文校验回显：不阻断导出，仅在 result.Warnings 非空时提示。
+            ShowCitationWarnings(result.Warnings);
         }
         catch (OperationCanceledException)
         {
@@ -357,6 +362,23 @@ public partial class ExportDialog : Window
             && _engine is not null
             && _configManager is not null
             && _selectedTemplate is not null;
+    }
+
+    /// <summary>
+    /// 引文校验回显：仅当 result.Warnings 非空时显示，不阻断导出。
+    /// 每条 warning 渲染为 ⚠ + Message；标题汇总条数与提示"不阻断导出"。
+    /// </summary>
+    private void ShowCitationWarnings(IReadOnlyList<ConversionWarning>? warnings)
+    {
+        if (warnings is null || warnings.Count == 0)
+        {
+            CitationWarningsPanel.IsVisible = false;
+            return;
+        }
+
+        CitationWarningsList.ItemsSource = warnings;
+        CitationWarningsSummary.Text = $"共 {warnings.Count} 条提示（不阻断导出）";
+        CitationWarningsPanel.IsVisible = true;
     }
 
     private void SetStatus(string text, bool isError = false, bool isSuccess = false)

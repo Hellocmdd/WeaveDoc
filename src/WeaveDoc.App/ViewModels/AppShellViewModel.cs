@@ -36,6 +36,7 @@ public enum AiPanelTabKind
 {
     Chat,
     Literature,
+    Corpus,
     Snapshot
 }
 
@@ -56,7 +57,7 @@ public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
 
     /// <summary>Design-time / fallback constructor.</summary>
     public AppShellViewModel()
-        : this(new DocumentWorkspaceViewModel(new MarkdownDocumentService()), null, null, null)
+        : this(new DocumentWorkspaceViewModel(new MarkdownDocumentService()), null, null, null, null)
     {
     }
 
@@ -65,13 +66,15 @@ public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
         DocumentWorkspaceViewModel documentWorkspace,
         ConfigManager? configManager,
         DocumentConversionEngine? engine,
-        LocalAiService? aiService)
+        LocalAiService? aiService,
+        ILiteratureRepository? literatureRepository = null)
     {
         _configManager = configManager;
         _engine = engine;
         DocumentWorkspace = documentWorkspace ?? throw new ArgumentNullException(nameof(documentWorkspace));
         DocumentWorkspace.PropertyChanged += OnDocumentWorkspacePropertyChanged;
         RagTabViewModel = aiService is not null ? new RagTabViewModel(aiService) : null;
+        LiteratureViewModel = literatureRepository is not null ? new LiteratureViewModel(literatureRepository) : null;
         _isWordWrapEnabled = EditorPreferences.Current.WordWrapEnabled;
     }
 
@@ -85,6 +88,9 @@ public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
 
     /// <summary>RAG view-model — created when <see cref="LocalAiService"/> is provided.</summary>
     public RagTabViewModel? RagTabViewModel { get; }
+
+    /// <summary>BibTeX 文献库 view-model — created when <see cref="ILiteratureRepository"/> is provided.</summary>
+    public LiteratureViewModel? LiteratureViewModel { get; }
 
     public ObservableCollection<string> Documents { get; } = [];
 
@@ -193,6 +199,7 @@ public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
             {
                 OnPropertyChanged(nameof(IsAiChatTabSelected));
                 OnPropertyChanged(nameof(IsAiLiteratureTabSelected));
+                OnPropertyChanged(nameof(IsAiCorpusTabSelected));
                 OnPropertyChanged(nameof(IsAiSnapshotTabSelected));
                 OnPropertyChanged(nameof(AiPanelTitleText));
                 OnPropertyChanged(nameof(AiPanelEmptyStateText));
@@ -211,6 +218,7 @@ public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
     public bool IsMarkdownPreviewVisible => IsPreviewModeSelected && DocumentWorkspace.HasDocument;
     public bool IsAiChatTabSelected => SelectedAiPanelTab == AiPanelTabKind.Chat;
     public bool IsAiLiteratureTabSelected => SelectedAiPanelTab == AiPanelTabKind.Literature;
+    public bool IsAiCorpusTabSelected => SelectedAiPanelTab == AiPanelTabKind.Corpus;
     public bool IsAiSnapshotTabSelected => SelectedAiPanelTab == AiPanelTabKind.Snapshot;
     public bool HasDocuments => DocumentWorkspace.HasDocument || Documents.Count > 0;
     public bool HasDocument => DocumentWorkspace.HasDocument;
@@ -233,12 +241,14 @@ public sealed class AppShellViewModel : INotifyPropertyChanged, IDisposable
     public string AiPanelTitleText => SelectedAiPanelTab switch
     {
         AiPanelTabKind.Literature => "文献辅助",
+        AiPanelTabKind.Corpus => "语料辅助",
         AiPanelTabKind.Snapshot => "快照辅助",
         _ => "问答辅助"
     };
     public string AiPanelEmptyStateText => SelectedAiPanelTab switch
     {
-        AiPanelTabKind.Literature => "暂无文献信息",
+        AiPanelTabKind.Literature => "暂无文献，点击下方导入 .bib",
+        AiPanelTabKind.Corpus => "暂无语料文件",
         AiPanelTabKind.Snapshot => "暂无快照",
         _ => EmptyAiConversationText
     };

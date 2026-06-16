@@ -13,6 +13,7 @@
 | `MarkdownDocumentServiceTests` | Markdown file validation, read/save behavior, preview generation, and unsupported extension handling |
 | `MarkdownDocumentContractsTests` | Result/contract objects used by the app document service |
 | `RagTabViewModelTests` | Chat-provider selection, cloud setting state, send/stop button state, and panel state |
+| `LiteratureViewModelTests` | BibTeX library VM: import `.bib`, list/search/delete entries, missing-field flagging (GB/T 7714), IsBusy/status text, via `FakeLiteratureRepository` |
 
 The project focuses on shell behavior and view-model contracts. It avoids starting local model loading or long-running RAG initialization.
 
@@ -51,6 +52,7 @@ WeaveDoc.App.Tests/
 ├── DocumentWorkspaceViewModelTests.cs
 ├── DocumentSnapshotServiceTests.cs
 ├── EditorChromeThemeTests.cs
+├── LiteratureViewModelTests.cs
 ├── MainWindowTests.cs
 ├── MarkdownDocumentContractsTests.cs
 ├── MarkdownDocumentServiceTests.cs

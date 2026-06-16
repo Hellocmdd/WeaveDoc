@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Config\TemplateSchemas\**\*.json" />
+    <EmbeddedResource Include="Config\Csl\**\*.csl" />
   </ItemGroup>
 
   <Import Project="..\..\tools\DownloadExternalTools.targets" />

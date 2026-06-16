@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="using:WeaveDoc.Converter"
         x:Class="WeaveDoc.App.Views.ExportDialog"
         Width="540"
         Height="620"
@@ -227,7 +228,43 @@
             </Grid>
           </StackPanel>
 
-          <!-- ③ 引文校验：后端无此能力，省略（见计划已知缺口） -->
+          <!-- ③ 引文校验：仅当 ConversionResult.Warnings 非空时显示，不阻断导出 -->
+          <StackPanel x:Name="CitationWarningsPanel"
+                      Spacing="4"
+                      IsVisible="False">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Classes="section-index" Text="3." />
+              <TextBlock Classes="section-title" Text="引文校验" />
+              <TextBlock x:Name="CitationWarningsSummary"
+                         FontSize="11"
+                         VerticalAlignment="Bottom"
+                         Foreground="{DynamicResource ShellWarningBrush}" />
+            </StackPanel>
+            <Border Background="{DynamicResource ShellInputBrush}"
+                    BorderBrush="{DynamicResource ShellBorderBrush}"
+                    BorderThickness="1"
+                    Padding="10,8"
+                    MaxHeight="120">
+              <ScrollViewer VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="CitationWarningsList">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="conv:ConversionWarning">
+                      <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1">
+                        <TextBlock Text="⚠"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource ShellWarningBrush}" />
+                        <TextBlock Text="{Binding Message}"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource ShellTextBrush}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Border>
+          </StackPanel>
 
           <!-- ④ 进度 -->
           <StackPanel Spacing="8">

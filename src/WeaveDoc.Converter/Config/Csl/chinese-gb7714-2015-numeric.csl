@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" demote-non-dropping-particle="sort-only" default-locale="zh-CN" page-range-format="minimal-two">
+  <info>
+    <title>China National Standard GB/T 7714-2015 (numeric, alphabetical)</title>
+    <id>http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-numeric</id>
+    <link href="http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-numeric" rel="self"/>
+    <link href="https://github.com/citation-style-language/styles/blob/master/china-national-standard-gb-t-7714-2015-numeric.csl" rel="documentation"/>
+    <author>
+      <name>Zhitao Fu</name>
+    </author>
+    <category citation-format="numeric"/>
+    <category field="generic-base"/>
+    <summary>GB/T 7714-2015 numeric citation style for WeaveDoc (顺序编码制).</summary>
+    <updated>2024-01-01T00:00:00+00:00</updated>
+    <rights license="http://creativecommons.org/licenses/by-sa/3.0/">This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 License</rights>
+  </info>
+
+  <locale xml:lang="zh-CN">
+    <terms>
+      <term name="anonymous">佚名</term>
+      <term name="no date">[出版年份不详]</term>
+    </terms>
+  </locale>
+
+  <macro name="author">
+    <names variable="author">
+      <name and="text" delimiter-precedes-last="always" et-al-min="4" et-al-use-first="3" name-as-sort-order="all"/>
+      <substitute>
+        <names variable="editor"/>
+        <names variable="translator"/>
+        <text macro="title-substitute"/>
+      </substitute>
+    </names>
+  </macro>
+
+  <macro name="title-substitute">
+    <text variable="title"/>
+  </macro>
+
+  <macro name="title">
+    <choose>
+      <if type="book thesis" match="any">
+        <text variable="title" font-style="italic"/>
+      </if>
+      <else>
+        <text variable="title"/>
+      </else>
+    </choose>
+  </macro>
+
+  <macro name="container-title">
+    <choose>
+      <if type="chapter paper-conference" match="any">
+        <text term="in" text-case="capitalize-first" suffix=": "/>
+        <text variable="container-title" font-style="italic"/>
+      </if>
+      <else-if type="article-journal article-magazine article-newspaper" match="any">
+        <text variable="container-title" font-style="italic"/>
+      </else-if>
+      <else-if type="report">
+        <text variable="collection-title"/>
+      </else-if>
+      <else>
+        <text variable="container-title"/>
+      </else>
+    </choose>
+  </macro>
+
+  <macro name="publisher">
+    <choose>
+      <if type="book chapter report paper-conference thesis" match="any">
+        <group delimiter=", ">
+          <text variable="publisher"/>
+          <text variable="publisher-place"/>
+        </group>
+      </if>
+    </choose>
+  </macro>
+
+  <macro name="year-date">
+    <choose>
+      <if variable="issued">
+        <date variable="issued">
+          <date-part name="year"/>
+        </date>
+      </if>
+      <else>
+        <text term="no date"/>
+      </else>
+    </choose>
+  </macro>
+
+  <macro name="edition">
+    <choose>
+      <if is-numeric="edition">
+        <group delimiter=" ">
+          <number variable="edition" form="ordinal"/>
+          <text term="edition" form="short"/>
+        </group>
+      </if>
+      <else>
+        <text variable="edition"/>
+      </else>
+    </choose>
+  </macro>
+
+  <macro name="locators">
+    <choose>
+      <if type="article-journal article-magazine" match="any">
+        <group prefix=", " delimiter="">
+          <text variable="volume"/>
+          <text variable="issue" prefix="(" suffix=")"/>
+        </group>
+      </if>
+    </choose>
+  </macro>
+
+  <macro name="page">
+    <choose>
+      <if type="article-journal article-magazine chapter paper-conference" match="any">
+        <group prefix=": ">
+          <text variable="page"/>
+        </group>
+      </if>
+    </choose>
+  </macro>
+
+  <macro name="access">
+    <choose>
+      <if variable="DOI">
+        <text variable="DOI" prefix="DOI: "/>
+      </if>
+      <else-if variable="URL">
+        <group prefix="[" suffix="]">
+          <text variable="URL"/>
+        </group>
+      </else-if>
+    </choose>
+  </macro>
+
+  <citation collapse="citation-number" after-collapse-delimiter=",">
+    <sort>
+      <key variable="citation-number"/>
+    </sort>
+    <layout prefix="[" suffix="]" delimiter=", ">
+      <text variable="citation-number"/>
+    </layout>
+  </citation>
+
+  <bibliography entry-spacing="0" second-field-align="flush">
+    <layout suffix=".">
+      <text variable="citation-number" prefix="[" suffix="]"/>
+      <text macro="author" suffix=". "/>
+      <text macro="year-date" suffix=". "/>
+      <text macro="title"/>
+      <text macro="container-title" prefix=". "/>
+      <text macro="locators"/>
+      <text macro="edition" prefix=", "/>
+      <group prefix=", " delimiter=", ">
+        <text macro="publisher"/>
+      </group>
+      <text macro="page"/>
+      <text macro="access" prefix=". "/>
+    </layout>
+  </bibliography>
+</style>

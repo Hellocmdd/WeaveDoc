@@ -28,12 +28,13 @@ public partial class MainWindow : Window
     private readonly bool _autoInitializeRag;
     private double _lastExpandedAiPanelWidth = DefaultAiPanelWidth;
 
-    public MainWindow() : this(null!, null!, null!) { }
+    public MainWindow() : this(null!, null!, null!, null!) { }
 
     public MainWindow(
         ConfigManager? configManager,
         DocumentConversionEngine? engine,
         LocalAiService? aiService,
+        ILiteratureRepository? literatureRepository = null,
         bool autoInitializeRag = false)
     {
         InitializeComponent();
@@ -42,7 +43,7 @@ public partial class MainWindow : Window
         _autoInitializeRag = autoInitializeRag;
 
         var documentWorkspace = new DocumentWorkspaceViewModel(new MarkdownDocumentService());
-        _viewModel = new AppShellViewModel(documentWorkspace, configManager, engine, aiService);
+        _viewModel = new AppShellViewModel(documentWorkspace, configManager, engine, aiService, literatureRepository);
         DataContext = _viewModel;
 
         _viewModel.PropertyChanged += OnShellPropertyChanged;
@@ -57,14 +58,32 @@ public partial class MainWindow : Window
         // Subscribe to PDF open request from PdfWorkspace (now hosted in the left sidebar)
         PdfWorkspaceControl.OpenPdfRequested += async (_, _) => await OpenDocumentAsync();
 
+        // Bridge the Literature tab's "insert citation" request to the editor.
+        // MainWindow is the only component holding named references to both the
+        // AI panel (right) and the editor (center); there is no AI-panel→editor
+        // channel, so we route the citation key here.
+        if (_viewModel.LiteratureViewModel is { } literatureVm)
+        {
+            literatureVm.CitationInsertRequested += OnCitationInsertRequested;
+        }
+
         if (_autoInitializeRag)
         {
             _ = _viewModel.RagTabViewModel?.InitializeAsync();
         }
     }
 
+    private void OnCitationInsertRequested(string citationKey)
+    {
+        EditorWorkspaceControl.InsertCitation(citationKey);
+    }
+
     protected override void OnClosed(EventArgs e)
     {
+        if (_viewModel.LiteratureViewModel is { } literatureVm)
+        {
+            literatureVm.CitationInsertRequested -= OnCitationInsertRequested;
+        }
         _viewModel.PropertyChanged -= OnShellPropertyChanged;
         _viewModel.Dispose();
         _aiService?.Dispose();
@@ -222,6 +241,11 @@ public partial class MainWindow : Window
         _viewModel.SelectAiPanelTab(AiPanelTabKind.Literature);
     }
 
+    private void OnSelectAiCorpusTabClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.SelectAiPanelTab(AiPanelTabKind.Corpus);
+    }
+
     private void OnSelectAiSnapshotTabClick(object? sender, RoutedEventArgs e)
     {
         _viewModel.SelectAiPanelTab(AiPanelTabKind.Snapshot);
@@ -291,6 +315,7 @@ public partial class MainWindow : Window
         SetActive(AiShellCommandButton, _viewModel.IsAiPanelExpanded);
         SetActive(AiChatCommandButton, _viewModel.IsAiChatTabSelected);
         SetActive(AiLiteratureCommandButton, _viewModel.IsAiLiteratureTabSelected);
+        SetActive(AiCorpusCommandButton, _viewModel.IsAiCorpusTabSelected);
         SetActive(AiSnapshotCommandButton, _viewModel.IsAiSnapshotTabSelected);
         SetActive(ThemeMenuButton, _viewModel.Theme == ShellThemeKind.Dark);
 
@@ -301,6 +326,7 @@ public partial class MainWindow : Window
 
         SetActive(AiAssistantPanelControl.FindControl<Button>("AiChatTabButton"), _viewModel.IsAiChatTabSelected);
         SetActive(AiAssistantPanelControl.FindControl<Button>("AiLiteratureTabButton"), _viewModel.IsAiLiteratureTabSelected);
+        SetActive(AiAssistantPanelControl.FindControl<Button>("AiCorpusTabButton"), _viewModel.IsAiCorpusTabSelected);
         SetActive(AiAssistantPanelControl.FindControl<Button>("AiSnapshotTabButton"), _viewModel.IsAiSnapshotTabSelected);
     }
 

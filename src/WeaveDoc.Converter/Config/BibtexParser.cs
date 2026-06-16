@@ -235,4 +235,10 @@ public record BibtexEntry
     public string EntryType { get; init; } = "";     // article, book, inproceedings 等
     public string CitationKey { get; init; } = "";    // @article{this_part,
     public Dictionary<string, string> Fields { get; init; } = new();
+
+    // 派生便捷访问（不参与解析；由 Fields 字典读取，键大小写不敏感因 Fields 已用 OrdinalIgnoreCase）
+    public string Title   => Fields.TryGetValue("title", out var t) ? t : "";
+    public string Authors => Fields.TryGetValue("author", out var a) ? a : "";
+    public string Year    => Fields.TryGetValue("year", out var y) ? y : "";
+    public string Journal => Fields.TryGetValue("journal", out var j) ? j : "";
 }

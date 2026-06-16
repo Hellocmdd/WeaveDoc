@@ -3,6 +3,9 @@ using System.Text;
 
 namespace WeaveDoc.Converter.Pandoc;
 
+/// <summary>Pandoc citeproc 引用上下文。null 表示无引用，走原流程。</summary>
+public sealed record CitationContext(string BibliographyPath, string CslPath);
+
 /// <summary>
 /// Pandoc CLI 封装：Markdown → DOCX / AST JSON
 /// </summary>
@@ -67,6 +70,7 @@ public class PandocPipeline
     public async Task<string> ToDocxAsync(
         string inputPath, string outputPath,
         string? referenceDoc = null, string? luaFilter = null,
+        CitationContext? citations = null,
         CancellationToken ct = default)
     {
         var normalizedInputPath = await PrepareMarkdownInputAsync(inputPath, ct);
@@ -90,6 +94,17 @@ public class PandocPipeline
         foreach (var filter in DiscoverLuaFilters())
         {
             args.AddRange(new[] { "--lua-filter", Quote(filter) });
+        }
+
+        // 引用上下文（Pandoc citeproc）
+        if (citations != null)
+        {
+            args.AddRange(new[]
+            {
+                "--bibliography", Quote(citations.BibliographyPath),
+                "--csl", Quote(citations.CslPath),
+                "--citeproc"
+            });
         }
 
         try

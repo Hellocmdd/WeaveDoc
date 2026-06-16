@@ -298,4 +298,17 @@ public partial class EditorWorkspace : UserControl
 
         MarkdownEditor?.WrapSelection(prefix, suffix);
     }
+
+    /// <summary>
+    /// 在当前光标处插入 Pandoc 引用 [@key]，供文献库 Tab 的"插入引用"调用。
+    /// 经 MainWindow 转发（AI 面板与编辑器无直接通道）。
+    /// </summary>
+    public void InsertCitation(string citationKey)
+    {
+        var viewModel = ViewModel;
+        if (viewModel?.IsMarkdownEditorVisible != true || string.IsNullOrEmpty(citationKey))
+            return;
+
+        MarkdownEditor?.InsertText($"[@{citationKey}]");
+    }
 }

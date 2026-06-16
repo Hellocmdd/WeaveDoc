@@ -13,14 +13,16 @@ public partial class App : Application
     private readonly ConfigManager _configManager;
     private readonly DocumentConversionEngine _engine;
     private readonly LocalAiService _aiService;
+    private readonly ILiteratureRepository _literatureRepository;
 
-    public App() : this(null!, null!, null!) { }
+    public App() : this(null!, null!, null!, null!) { }
 
-    public App(ConfigManager configManager, DocumentConversionEngine engine, LocalAiService aiService)
+    public App(ConfigManager configManager, DocumentConversionEngine engine, LocalAiService aiService, ILiteratureRepository literatureRepository)
     {
         _configManager = configManager;
         _engine = engine;
         _aiService = aiService;
+        _literatureRepository = literatureRepository;
     }
 
     public override void Initialize()
@@ -32,7 +34,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow(_configManager, _engine, _aiService, autoInitializeRag: true);
+            desktop.MainWindow = new MainWindow(_configManager, _engine, _aiService, _literatureRepository, autoInitializeRag: true);
         }
 
         base.OnFrameworkInitializationCompleted();

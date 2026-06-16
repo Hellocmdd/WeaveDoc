@@ -123,7 +123,7 @@
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,0,0,1"
             Padding="12,0">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,220,Auto"
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,220,Auto"
             ColumnSpacing="6">
         <TextBlock Grid.Column="0"
                    Text="文件"
@@ -193,8 +193,17 @@
             <TextBlock Text="文献" />
           </StackPanel>
         </Button>
-        <Button x:Name="AiSnapshotCommandButton"
+        <Button x:Name="AiCorpusCommandButton"
                 Grid.Column="12"
+                Classes="command-button"
+                Click="OnSelectAiCorpusTabClick">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Classes="shell-icon" Data="{StaticResource IconLiterature}" />
+            <TextBlock Text="语料" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="AiSnapshotCommandButton"
+                Grid.Column="13"
                 Classes="command-button"
                 Click="OnSelectAiSnapshotTabClick">
           <StackPanel Orientation="Horizontal" Spacing="5">
@@ -203,12 +212,12 @@
           </StackPanel>
         </Button>
         <Button x:Name="AiShellCommandButton"
-                Grid.Column="13"
+                Grid.Column="14"
                 Classes="command-button active"
                 Content="{Binding AiPanelToggleText}"
                 Click="OnToggleAiPanelClick" />
-        <Border Grid.Column="14" Classes="panel-divider" />
-        <Border Grid.Column="16"
+        <Border Grid.Column="15" Classes="panel-divider" />
+        <Border Grid.Column="17"
                 VerticalAlignment="Center"
                 CornerRadius="{DynamicResource ShellRadiusMd}"
                 Background="{DynamicResource ShellInputBrush}"
@@ -229,7 +238,7 @@
           </Panel>
         </Border>
         <Button x:Name="ThemeMenuButton"
-                Grid.Column="17"
+                Grid.Column="18"
                 Classes="command-button active"
                 Click="OnToggleThemeClick">
           <StackPanel Orientation="Horizontal" Spacing="5">

@@ -1776,4 +1776,30 @@ public class PandocPipelineTests
         Assert.Equal("%PDF-", magic);
     }
 
+    [Fact]
+    public async Task ToDocxAsync_WithCitationContext_PassesBibliographyAndCsl()
+    {
+        var pandoc = CreatePipeline();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"pandoc-cite-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var mdPath = Path.Combine(tempDir, "in.md");
+        var outPath = Path.Combine(tempDir, "out.docx");
+        var bibPath = Path.Combine(tempDir, "refs.bib");
+        var cslPath = Path.Combine(tempDir, "gbt.csl");
+        await File.WriteAllTextAsync(mdPath, "Cite [@k]." + Environment.NewLine + Environment.NewLine + "# References");
+        await File.WriteAllTextAsync(bibPath, "@article{k, author = {Smith}, title = {T}, journal = {J}, year = {2024}, volume = {1}, pages = {1-2}}" + Environment.NewLine);
+        await File.WriteAllTextAsync(cslPath, "<style xmlns=\"http://purl.org/net/xbiblio/csl\" version=\"1.0\" class=\"in-text\"><citation><layout><text variable=\"citation-number\"/></layout></citation><bibliography><layout><text variable=\"title\"/></layout></bibliography></style>");
+
+        try
+        {
+            await pandoc.ToDocxAsync(mdPath, outPath, citations: new CitationContext(bibPath, cslPath));
+            Assert.True(File.Exists(outPath));
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, true); } catch { }
+        }
+    }
+
 }

@@ -32,7 +32,7 @@
             Background="{DynamicResource ShellChromeBrush}"
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*">
         <Button x:Name="AiChatTabButton"
                 Grid.Column="0"
                 Classes="panel-tab active"
@@ -43,13 +43,18 @@
                 Classes="panel-tab"
                 Content="文献"
                 Click="OnSelectAiLiteratureTabClick" />
-        <Button x:Name="AiSnapshotTabButton"
+        <Button x:Name="AiCorpusTabButton"
                 Grid.Column="2"
+                Classes="panel-tab"
+                Content="语料"
+                Click="OnSelectAiCorpusTabClick" />
+        <Button x:Name="AiSnapshotTabButton"
+                Grid.Column="3"
                 Classes="panel-tab"
                 Content="快照"
                 Click="OnSelectAiSnapshotTabClick" />
         <Border x:Name="ProviderBadgeBorder"
-                Grid.Column="3"
+                Grid.Column="4"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Center"
                 Margin="6,0,8,0"
@@ -72,6 +77,8 @@
 
     <Grid Grid.Row="1">
       <views:RagChatView x:Name="ChatView" />
+      <views:LiteratureView x:Name="LiteratureView"
+                            IsVisible="False" />
       <views:RagCorpusView x:Name="CorpusView"
                            IsVisible="False" />
       <views:RagSnapshotView x:Name="SnapshotView"

@@ -237,6 +237,21 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
         public void InsertAtCursor(string prefix, string suffix) => WrapSelection(prefix, suffix);
 
+        /// <summary>
+        /// 在当前光标处插入字面文本（无选中时纯插入；有选中时替换为该文本）。
+        /// 与 <see cref="InsertAtCursor"/> 的包裹语义不同：本方法不附加前/后缀，适合插入 [@key] 这类完整字面量。
+        /// </summary>
+        public void InsertText(string text)
+        {
+            if (IsActiveEditorReadOnly() || string.IsNullOrEmpty(text))
+                return;
+
+            var selection = GetSelection();
+            ReplaceActiveSelection(selection.Start, selection.Length, text);
+            SetSelection(selection.Start + text.Length, 0);
+            FocusEditor();
+        }
+
         public void WrapSelection(string prefix, string suffix)
         {
             if (IsActiveEditorReadOnly())

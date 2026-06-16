@@ -153,4 +153,41 @@ public class BibtexParserTests
         Assert.Single(entries);
         Assert.Equal("valid", entries[0].CitationKey);
     }
+
+    [Fact]
+    public void BibtexEntry_DerivedProperties_ReadFromFieldsDictionary()
+    {
+        var entry = new BibtexEntry
+        {
+            EntryType = "article",
+            CitationKey = "smith2024",
+            Fields = new()
+            {
+                ["title"] = "A Study on AI",
+                ["author"] = "John Smith and Jane Doe",
+                ["year"] = "2024",
+                ["journal"] = "Nature"
+            }
+        };
+
+        Assert.Equal("A Study on AI", entry.Title);
+        Assert.Equal("John Smith and Jane Doe", entry.Authors);
+        Assert.Equal("2024", entry.Year);
+        Assert.Equal("Nature", entry.Journal);
+    }
+
+    [Fact]
+    public void BibtexEntry_DerivedProperties_EmptyWhenFieldsMissing()
+    {
+        var entry = new BibtexEntry
+        {
+            EntryType = "misc",
+            CitationKey = "empty"
+        };
+
+        Assert.Equal("", entry.Title);
+        Assert.Equal("", entry.Authors);
+        Assert.Equal("", entry.Year);
+        Assert.Equal("", entry.Journal);
+    }
 }
