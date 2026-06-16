@@ -15,6 +15,12 @@ namespace WeaveDoc.MarkdownEditor.Tests
         [AvaloniaTest]
         public async Task AppInit_WithNoPermissionFile_ShouldNotCrash()
         {
+            // File.SetUnixFileMode 仅在 Unix 平台可用；Windows 上无法模拟“无权限”场景，跳过本测试。
+            if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            {
+                Assert.Ignore("File.SetUnixFileMode requires a Unix platform; skipped on Windows.");
+            }
+
             var tempFile = Path.GetTempFileName();
             File.SetUnixFileMode(tempFile, UnixFileMode.None); // No permissions
 

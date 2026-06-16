@@ -24,7 +24,8 @@ public class MainWindowViewModelTests
             Assert.That(viewModel.DisplayName, Is.EqualTo(Path.GetFileName(filePath)));
             Assert.That(viewModel.StatusText, Does.Contain("已打开"));
             Assert.That(viewModel.IsStatusError, Is.False);
-            Assert.That(viewModel.PreviewHtml, Is.Empty);
+            // OpenFile 通过 ApplyOpenedMarkdown 立即 RefreshPreview，故 PreviewHtml 已渲染。
+            Assert.That(viewModel.PreviewHtml, Does.Contain("<h1 data-line=\"1\">"));
 
             viewModel.RefreshPreview();
 
@@ -127,9 +128,8 @@ public class MainWindowViewModelTests
 
         await System.Threading.Tasks.Task.WhenAll(t1, t2);
 
-        // Latest content wins — check the S character from "Second" starts at data-pos 1-3
-        // (after "# " which is positions 1-1 and 1-2)
-        Assert.That(viewModel.PreviewHtml, Does.Contain("data-pos=\"1-3\">S</span>"));
-        Assert.That(viewModel.PreviewHtml, Does.Not.Contain("data-pos=\"1-3\">F</span>"));
+            // Latest content wins — text run 一个 span，data-pos 锚定 run 起始列（1-3，跳过 "# "）。
+            Assert.That(viewModel.PreviewHtml, Does.Contain("data-pos=\"1-3\">Second</span>"));
+            Assert.That(viewModel.PreviewHtml, Does.Not.Contain("First"));
     }
 }

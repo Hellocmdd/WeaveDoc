@@ -137,6 +137,17 @@ public partial class MainWindow : Window
         await dialog.ShowDialog(this);
     }
 
+    private async void OnOpenVersionHistoryClick(object? sender, RoutedEventArgs e)
+    {
+        EditorWorkspaceControl.SyncEditorContentToWorkspace();
+        var dialog = new VersionHistoryDialog(_viewModel.DocumentWorkspace);
+        var restored = await dialog.ShowDialog<bool>(this);
+        if (restored)
+        {
+            _viewModel.DocumentWorkspace.RefreshPreview();
+        }
+    }
+
     private async Task SaveAsAsync()
     {
         var workspace = _viewModel.DocumentWorkspace;

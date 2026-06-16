@@ -14,8 +14,10 @@ namespace WeaveDoc.MarkdownEditor.Tests;
 [TestFixture]
 public sealed class StandaloneLatexPerformanceProbeTests
 {
-    [AvaloniaTest]
-    public async Task Probe_StandaloneMainWindowAfterPreviewPaneCollapse()
+        // 本测试是性能探针：通过 Assert.Fail 输出 Open/Scroll/Input 等耗时与预览面板状态，
+        // 供本地手动诊断，不属于回归断言。标记为 Explicit，避免在常规 CI 中持续报红。
+        [AvaloniaTest, Explicit]
+        public async Task Probe_StandaloneMainWindowAfterPreviewPaneCollapse()
     {
         var filePath = ResolveMarkdownFixture("test-latex.md");
         var factory = new FakeWebViewHostFactory();

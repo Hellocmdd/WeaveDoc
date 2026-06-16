@@ -84,14 +84,34 @@ public class NativeMarkdownEditorControlTests
         Assert.That(metadata.DefaultBindingMode, Is.EqualTo(BindingMode.OneWay));
     }
 
+    // App.axaml 当前仅定义了一套（亮色）ShellInputBrush/ShellTextBrush 资源，没有暗色变体；
+    // 故此处验证挂载到可视树后画刷被正确应用为资源中定义的值（白底深字，保证可读对比度）。
     [AvaloniaTest]
-    public void EditorChrome_UsesReadableDarkThemeColors()
+    public void EditorChrome_UsesReadableThemeColors()
     {
         var control = new NativeMarkdownEditorControl();
-        var textEditor = FindInnerEditor(control);
+        // 主题画刷（Background/Foreground）只有在控件挂载到可视树后才会被样式应用，
+        // 因此放进 Window 并 Show，与真实运行环境一致。
+        var window = new Window
+        {
+            Content = control,
+            Width = 640,
+            Height = 480
+        };
+        window.Show();
 
-        Assert.That((textEditor.Background as ISolidColorBrush)?.Color, Is.EqualTo(Color.Parse("#1E1E1E")));
-        Assert.That((textEditor.Foreground as ISolidColorBrush)?.Color, Is.EqualTo(Color.Parse("#D4D4D4")));
+        try
+        {
+            var textEditor = FindInnerEditor(control);
+
+            // 画刷取自 App.axaml 的 ShellInputBrush(#FFFFFF)/ShellTextBrush(#1C2128)。
+            Assert.That((textEditor.Background as ISolidColorBrush)?.Color, Is.EqualTo(Color.Parse("#FFFFFF")));
+            Assert.That((textEditor.Foreground as ISolidColorBrush)?.Color, Is.EqualTo(Color.Parse("#1C2128")));
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     [AvaloniaTest]

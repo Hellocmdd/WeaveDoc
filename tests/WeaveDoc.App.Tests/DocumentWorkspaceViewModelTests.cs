@@ -1,4 +1,5 @@
 using WeaveDoc.App.Services.Documents;
+using WeaveDoc.App.Tests.Fakes;
 using WeaveDoc.App.ViewModels;
 using Xunit;
 
@@ -169,6 +170,58 @@ public sealed class DocumentWorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task SaveAsync_WhenDirtyDocumentSaves_CreatesManualSnapshotBeforeOverwrite()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var snapshots = new FakeDocumentSnapshotService();
+        service.QueueRead(MarkdownDocumentResult.Success("# 旧标题", "/workspace/demo.md", "<h1>旧标题</h1>"));
+        service.QueueSave(MarkdownDocumentResult.Success("# 新标题", "/workspace/demo.md", "<h1>新标题</h1>"));
+        var viewModel = new DocumentWorkspaceViewModel(service, snapshots);
+        await viewModel.OpenAsync("/workspace/demo.md", TestContext.Current.CancellationToken);
+        viewModel.UpdateContent("# 新标题");
+
+        var saved = await viewModel.SaveAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(saved);
+        var snapshot = Assert.Single(snapshots.CreateSnapshotRequests);
+        Assert.Equal("/workspace/demo.md", snapshot.FilePath);
+        Assert.Equal(SnapshotTrigger.ManualSave, snapshot.Trigger);
+        Assert.Equal("# 新标题", snapshot.PendingContent);
+        Assert.True(snapshot.Force);
+        Assert.Equal("# 新标题", Assert.Single(service.Saves).Content);
+        Assert.False(viewModel.IsDirty);
+    }
+
+    [Fact]
+    public async Task AutoSaveAsync_WhenDirtyDocumentSaves_CreatesAutoSnapshotAndResetsDirtyState()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var snapshots = new FakeDocumentSnapshotService();
+        service.QueueRead(MarkdownDocumentResult.Success("# 旧标题", "/workspace/demo.md", "<h1>旧标题</h1>"));
+        service.QueueSave(MarkdownDocumentResult.Success("# 自动保存", "/workspace/demo.md", "<h1>自动保存</h1>"));
+        var viewModel = new DocumentWorkspaceViewModel(service, snapshots);
+        await viewModel.OpenAsync("/workspace/demo.md", TestContext.Current.CancellationToken);
+        viewModel.UpdateContent("# 自动保存");
+
+        var saved = await viewModel.AutoSaveAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(saved);
+        var snapshot = Assert.Single(snapshots.CreateSnapshotRequests);
+        Assert.Equal("/workspace/demo.md", snapshot.FilePath);
+        Assert.Equal(SnapshotTrigger.AutoSave, snapshot.Trigger);
+        Assert.Equal("# 自动保存", snapshot.PendingContent);
+        Assert.False(snapshot.Force);
+        var save = Assert.Single(service.Saves);
+        Assert.Equal("/workspace/demo.md", save.FilePath);
+        Assert.Equal("# 自动保存", save.Content);
+        Assert.False(viewModel.IsDirty);
+        Assert.False(viewModel.CanSave);
+        Assert.False(viewModel.HasError);
+        Assert.StartsWith("已自动保存 ", viewModel.StatusText, StringComparison.Ordinal);
+        Assert.Matches(@"^已自动保存 \d{2}:\d{2}$", viewModel.StatusText);
+    }
+
+    [Fact]
     public async Task OpenAsync_WhenReadFails_PreservesCurrentDocumentAndShowsError()
     {
         var service = new FakeMarkdownDocumentService();
@@ -214,6 +267,99 @@ public sealed class DocumentWorkspaceViewModelTests
         Assert.True(viewModel.HasError);
         Assert.Equal("保存失败", viewModel.ErrorMessage);
         Assert.Equal("保存失败", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task AutoSaveAsync_WhenSaveFails_PreservesDirtyDocumentAndShowsError()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var snapshots = new FakeDocumentSnapshotService();
+        service.QueueRead(MarkdownDocumentResult.Success("# 当前", "/workspace/current.md", "<h1>当前</h1>"));
+        service.QueueSave(MarkdownDocumentResult.Failure(
+            "自动保存失败",
+            "# 已修改",
+            "/workspace/current.md",
+            "<h1>已修改</h1>"));
+        var viewModel = new DocumentWorkspaceViewModel(service, snapshots);
+        await viewModel.OpenAsync("/workspace/current.md", TestContext.Current.CancellationToken);
+        viewModel.UpdateContent("# 已修改");
+
+        var saved = await viewModel.AutoSaveAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(saved);
+        Assert.Equal("# 已修改", viewModel.Content);
+        Assert.True(viewModel.IsDirty);
+        Assert.True(viewModel.CanSave);
+        Assert.True(viewModel.HasError);
+        Assert.Equal("自动保存失败", viewModel.ErrorMessage);
+        Assert.Equal("自动保存失败", viewModel.StatusText);
+        Assert.Equal(SnapshotTrigger.AutoSave, Assert.Single(snapshots.CreateSnapshotRequests).Trigger);
+    }
+
+    [Fact]
+    public async Task RestoreSnapshotAsync_WhenRestoreSucceeds_ReadsRestoredDocumentAndClearsDirtyState()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var snapshots = new FakeDocumentSnapshotService();
+        service.QueueRead(MarkdownDocumentResult.Success("# 当前", "/workspace/current.md", "<h1>当前</h1>"));
+        service.QueueRead(MarkdownDocumentResult.Success("# 恢复后", "/workspace/current.md", "<h1>恢复后</h1>"));
+        var viewModel = new DocumentWorkspaceViewModel(service, snapshots);
+        await viewModel.OpenAsync("/workspace/current.md", TestContext.Current.CancellationToken);
+        viewModel.UpdateContent("# 未保存当前内容");
+
+        var restored = await viewModel.RestoreSnapshotAsync("snapshot-1", TestContext.Current.CancellationToken);
+
+        Assert.True(restored);
+        Assert.Equal(("/workspace/current.md", "snapshot-1"), Assert.Single(snapshots.RestoreSnapshotRequests));
+        Assert.Equal(["/workspace/current.md", "/workspace/current.md"], service.ReadPaths);
+        Assert.Equal("# 恢复后", viewModel.Content);
+        Assert.False(viewModel.IsDirty);
+        Assert.False(viewModel.CanSave);
+        Assert.False(viewModel.HasError);
+        Assert.Equal("已恢复快照 current.md", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task RestoreSnapshotAsync_WhenRestoreFails_PreservesDirtyDocument()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var snapshots = new FakeDocumentSnapshotService
+        {
+            RestoreException = new IOException("磁盘不可写")
+        };
+        service.QueueRead(MarkdownDocumentResult.Success("# 当前", "/workspace/current.md", "<h1>当前</h1>"));
+        var viewModel = new DocumentWorkspaceViewModel(service, snapshots);
+        await viewModel.OpenAsync("/workspace/current.md", TestContext.Current.CancellationToken);
+        viewModel.UpdateContent("# 未保存当前内容");
+
+        var restored = await viewModel.RestoreSnapshotAsync("snapshot-1", TestContext.Current.CancellationToken);
+
+        Assert.False(restored);
+        Assert.Equal("# 未保存当前内容", viewModel.Content);
+        Assert.True(viewModel.IsDirty);
+        Assert.True(viewModel.CanSave);
+        Assert.True(viewModel.HasError);
+        Assert.Contains("恢复快照失败", viewModel.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(("/workspace/current.md", "snapshot-1"), Assert.Single(snapshots.RestoreSnapshotRequests));
+    }
+
+    [Fact]
+    public async Task AutoSaveAsync_WhenUntitledNewDocumentIsDirty_SkipsSaveAndKeepsDirtyState()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var snapshots = new FakeDocumentSnapshotService();
+        var viewModel = new DocumentWorkspaceViewModel(service, snapshots);
+        await viewModel.NewAsync(TestContext.Current.CancellationToken);
+        viewModel.UpdateContent("# 未命名");
+
+        var saved = await viewModel.AutoSaveAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(saved);
+        Assert.Empty(service.Saves);
+        Assert.Empty(snapshots.CreateSnapshotRequests);
+        Assert.True(viewModel.IsDirty);
+        Assert.True(viewModel.CanSave);
+        Assert.Equal("已修改 未命名文档", viewModel.StatusText);
     }
 
     [Fact]
@@ -317,4 +463,5 @@ public sealed class DocumentWorkspaceViewModelTests
             return PreviewFactory(content, filePath);
         }
     }
+
 }

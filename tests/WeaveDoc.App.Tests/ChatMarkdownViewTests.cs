@@ -67,7 +67,7 @@ public sealed class ChatMarkdownViewTests
             var codeTextBox = Find<TextBox>(view, "MarkdownCodeBlockTextBox");
             var copyButton = Find<Button>(view, "MarkdownCodeCopyButton");
 
-            Assert.Contains("var x = 1;\nreturn x;", codeTextBox.Text);
+            Assert.Contains("var x = 1;\nreturn x;", NormalizeLineEndings(codeTextBox.Text));
             Assert.Equal("复制", copyButton.Content);
         });
     }
@@ -359,5 +359,10 @@ public sealed class ChatMarkdownViewTests
         return root.GetVisualDescendants()
             .OfType<TextBlock>()
             .SelectMany(textBlock => textBlock.Inlines?.OfType<Run>() ?? []);
+    }
+
+    private static string NormalizeLineEndings(string? value)
+    {
+        return (value ?? string.Empty).Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 }

@@ -537,19 +537,121 @@
           </Border>
         </DockPanel>
 
-        <!-- 快照策略 (placeholder) -->
-        <StackPanel x:Name="SnapshotPanel"
-                    IsVisible="False"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Spacing="6">
-          <TextBlock Text="快照策略" FontSize="13" FontWeight="SemiBold"
-                     Foreground="{DynamicResource ShellTextBrush}"
-                     HorizontalAlignment="Center" />
-          <TextBlock Text="该功能待接入" FontSize="11"
-                     Foreground="{DynamicResource ShellMutedTextBrush}"
-                     HorizontalAlignment="Center" />
-        </StackPanel>
+        <!-- 快照策略 -->
+        <ScrollViewer x:Name="SnapshotPanel"
+                      IsVisible="False"
+                      Padding="16">
+          <StackPanel Spacing="14">
+            <StackPanel Spacing="3">
+              <TextBlock Text="快照策略"
+                         FontSize="14"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource ShellTextBrush}" />
+              <TextBlock Text="配置入口已预留；当前界面展示默认策略，等待后端持久化接口接入"
+                         FontSize="11"
+                         Foreground="{DynamicResource ShellMutedTextBrush}" />
+            </StackPanel>
+
+            <Border Background="{DynamicResource ShellCardBrush}"
+                    BorderBrush="{DynamicResource ShellBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{DynamicResource ShellRadiusMd}"
+                    Padding="14">
+              <Grid ColumnDefinitions="150,*"
+                    RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                    RowSpacing="10"
+                    ColumnSpacing="12">
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="自动保存"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <CheckBox x:Name="SnapshotAutoSaveCheckBox"
+                          Grid.Row="0" Grid.Column="1"
+                          Content="启用编辑后自动保存"
+                          IsChecked="True" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           Text="自动保存延迟"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <Grid Grid.Row="1" Grid.Column="1"
+                      ColumnDefinitions="140,Auto,*"
+                      ColumnSpacing="8">
+                  <TextBox x:Name="SnapshotAutoSaveDelayTextBox"
+                           Grid.Column="0"
+                           Text="2000" />
+                  <TextBlock Grid.Column="1"
+                             Text="毫秒"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                </Grid>
+
+                <TextBlock Grid.Row="2" Grid.Column="0"
+                           Text="快照最小间隔"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <Grid Grid.Row="2" Grid.Column="1"
+                      ColumnDefinitions="140,Auto,*"
+                      ColumnSpacing="8">
+                  <TextBox x:Name="SnapshotIntervalTextBox"
+                           Grid.Column="0" />
+                  <TextBlock Grid.Column="1"
+                             Text="分钟"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                </Grid>
+
+                <TextBlock Grid.Row="3" Grid.Column="0"
+                           Text="保留数量"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <Grid Grid.Row="3" Grid.Column="1"
+                      ColumnDefinitions="140,Auto,*"
+                      ColumnSpacing="8">
+                  <TextBox x:Name="SnapshotRetentionCountTextBox"
+                           Grid.Column="0" />
+                  <TextBlock Grid.Column="1"
+                             Text="个/文档"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                </Grid>
+
+                <TextBlock Grid.Row="4" Grid.Column="0"
+                           Text="保留天数"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <Grid Grid.Row="4" Grid.Column="1"
+                      ColumnDefinitions="140,Auto,*"
+                      ColumnSpacing="8">
+                  <TextBox x:Name="SnapshotRetentionDaysTextBox"
+                           Grid.Column="0" />
+                  <TextBlock Grid.Column="1"
+                             Text="天"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                </Grid>
+
+                <TextBlock Grid.Row="5" Grid.Column="0"
+                           Text="快照目录"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <TextBox x:Name="SnapshotDirectoryTextBox"
+                         Grid.Row="5" Grid.Column="1"
+                         IsReadOnly="True" />
+              </Grid>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
 
       </Grid>
     </DockPanel>

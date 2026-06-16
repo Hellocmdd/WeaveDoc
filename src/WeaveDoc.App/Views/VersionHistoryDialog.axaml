@@ -1,0 +1,114 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:WeaveDoc.MarkdownEditor.Controls"
+        x:CompileBindings="False"
+        x:Class="WeaveDoc.App.Views.VersionHistoryDialog"
+        Width="860"
+        Height="560"
+        MinWidth="720"
+        MinHeight="460"
+        Title="版本历史"
+        Background="{DynamicResource ShellBackgroundBrush}">
+  <Border Background="{DynamicResource ShellPanelBrush}"
+          BorderBrush="{DynamicResource ShellBorderBrush}"
+          BorderThickness="1"
+          Padding="14">
+    <Grid RowDefinitions="Auto,*,Auto"
+          ColumnDefinitions="300,*"
+          RowSpacing="12"
+          ColumnSpacing="12">
+      <StackPanel Grid.Row="0"
+                  Grid.ColumnSpan="2"
+                  Spacing="4">
+        <TextBlock x:Name="TitleText"
+                   Text="版本历史"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Foreground="{DynamicResource ShellTextBrush}" />
+        <TextBlock x:Name="SubtitleText"
+                   FontSize="12"
+                   TextTrimming="CharacterEllipsis"
+                   Foreground="{DynamicResource ShellMutedTextBrush}" />
+      </StackPanel>
+
+      <Border Grid.Row="1"
+              Grid.Column="0"
+              Background="{DynamicResource ShellCardBrush}"
+              BorderBrush="{DynamicResource ShellBorderBrush}"
+              BorderThickness="1"
+              CornerRadius="{DynamicResource ShellRadiusMd}">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0"
+                     Text="快照"
+                     Padding="10,8"
+                     FontSize="12"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource ShellTextBrush}" />
+          <ListBox x:Name="SnapshotList"
+                   Grid.Row="1"
+                   SelectionChanged="OnSnapshotSelectionChanged"
+                   Background="Transparent"
+                   BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="8,5"
+                            Spacing="3">
+                  <TextBlock Text="{Binding CreatedAtText}"
+                             FontWeight="SemiBold"
+                             FontSize="12"
+                             Foreground="{DynamicResource ShellTextBrush}" />
+                  <TextBlock Text="{Binding DetailText}"
+                             FontSize="11"
+                             TextTrimming="CharacterEllipsis"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="1"
+              Grid.Column="1"
+              Background="{DynamicResource ShellCardBrush}"
+              BorderBrush="{DynamicResource ShellBorderBrush}"
+              BorderThickness="1"
+              CornerRadius="{DynamicResource ShellRadiusMd}">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0"
+                     Text="内容预览"
+                     Padding="10,8"
+                     FontSize="12"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource ShellTextBrush}" />
+          <controls:PreviewWebViewControl x:Name="SnapshotPreviewControl"
+                                          Grid.Row="1"
+                                          ViewerCssTheme="Auto" />
+        </Grid>
+      </Border>
+
+      <TextBlock x:Name="StatusText"
+                 Grid.Row="2"
+                 Grid.Column="0"
+                 VerticalAlignment="Center"
+                 FontSize="12"
+                 Foreground="{DynamicResource ShellMutedTextBrush}" />
+      <StackPanel Grid.Row="2"
+                  Grid.Column="1"
+                  Orientation="Horizontal"
+                  HorizontalAlignment="Right"
+                  Spacing="8">
+        <Button Classes="command-button"
+                Content="刷新"
+                Click="OnRefreshClick" />
+        <Button x:Name="RestoreButton"
+                Classes="command-button primary"
+                Content="恢复此版本"
+                Click="OnRestoreClick" />
+        <Button Classes="command-button"
+                Content="关闭"
+                Click="OnCloseClick" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>

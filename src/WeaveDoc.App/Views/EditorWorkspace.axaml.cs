@@ -10,8 +10,13 @@ namespace WeaveDoc.App.Views;
 
 public partial class EditorWorkspace : UserControl
 {
+    private const int AutoSaveDebounceMilliseconds = 2000;
+    private const int AutoSaveMaxIntervalMilliseconds = 30000;
+
     private AppShellViewModel? _subscribedViewModel;
     private NativeMarkdownEditorControl? _subscribedMarkdownEditor;
+    private CancellationTokenSource? _autoSaveCts;
+    private DateTimeOffset _lastAutoSaveAt = DateTimeOffset.UtcNow;
 
     private static readonly KeyGesture ToggleWordWrapGesture = new(Key.Z, KeyModifiers.Alt);
     private static readonly KeyGesture ToggleEditorModeGesture = new(Key.V, KeyModifiers.Control | KeyModifiers.Shift);
@@ -37,6 +42,7 @@ public partial class EditorWorkspace : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        CancelPendingAutoSave();
         UnsubscribeFromMarkdownEditor();
         UnsubscribeFromViewModel();
         KeyDown -= OnWorkspaceKeyDown;
@@ -57,6 +63,7 @@ public partial class EditorWorkspace : UserControl
         }
 
         UnsubscribeFromViewModel();
+        CancelPendingAutoSave();
         _subscribedViewModel = viewModel;
         if (_subscribedViewModel is null)
             return;
@@ -141,6 +148,65 @@ public partial class EditorWorkspace : UserControl
     private void OnMarkdownEditorContentEdited(object? sender, EventArgs e)
     {
         _subscribedViewModel?.DocumentWorkspace.MarkEdited();
+        ScheduleAutoSave();
+    }
+
+    private void ScheduleAutoSave()
+    {
+        var documentWorkspace = _subscribedViewModel?.DocumentWorkspace;
+        if (documentWorkspace?.HasDocument != true
+            || string.IsNullOrWhiteSpace(documentWorkspace.CurrentFilePath))
+        {
+            return;
+        }
+
+        CancelPendingAutoSave();
+        _autoSaveCts = new CancellationTokenSource();
+        var token = _autoSaveCts.Token;
+        var elapsed = DateTimeOffset.UtcNow - _lastAutoSaveAt;
+        var delay = elapsed >= TimeSpan.FromMilliseconds(AutoSaveMaxIntervalMilliseconds)
+            ? TimeSpan.Zero
+            : TimeSpan.FromMilliseconds(AutoSaveDebounceMilliseconds);
+
+        _ = RunAutoSaveAsync(delay, token);
+    }
+
+    private async Task RunAutoSaveAsync(TimeSpan delay, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (delay > TimeSpan.Zero)
+            {
+                await Task.Delay(delay, cancellationToken);
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            SyncEditorContentToWorkspace();
+            var documentWorkspace = _subscribedViewModel?.DocumentWorkspace;
+            if (documentWorkspace is null)
+            {
+                return;
+            }
+
+            if (await documentWorkspace.AutoSaveAsync(cancellationToken))
+            {
+                _lastAutoSaveAt = DateTimeOffset.UtcNow;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private void CancelPendingAutoSave()
+    {
+        _autoSaveCts?.Cancel();
+        _autoSaveCts?.Dispose();
+        _autoSaveCts = null;
     }
 
     private void OnEditModeClick(object? sender, RoutedEventArgs e) => SelectEditorMode(EditorSurfaceMode.Edit);

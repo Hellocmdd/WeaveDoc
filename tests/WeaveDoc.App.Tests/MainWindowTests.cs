@@ -9,7 +9,9 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
+using System.Reflection;
 using System.Linq;
+using WeaveDoc.App.Services.Documents;
 using WeaveDoc.App.Tests.Fakes;
 using WeaveDoc.App.ViewModels;
 using WeaveDoc.App.Views;
@@ -437,6 +439,79 @@ public class MainWindowTests
             File.Delete(filePath);
             File.Delete(secondFilePath);
         }
+    }
+
+    [AvaloniaFact]
+    public async Task EditorWorkspace_AutoSaveSyncsUnsyncedEditorContentBeforeSaving()
+    {
+        var service = new TrackingMarkdownDocumentService();
+        var snapshots = new FakeDocumentSnapshotService();
+        var markdown = "# 标题\n\n正文内容";
+        var editedMarkdown = "# 自动保存标题\n\n正文内容";
+        service.QueueRead(MarkdownDocumentResult.Success(markdown, "/workspace/auto-save.md", "<h1>标题</h1>"));
+        service.QueueSave(MarkdownDocumentResult.Success(editedMarkdown, "/workspace/auto-save.md", "<h1>自动保存标题</h1>"));
+        var documentWorkspace = new DocumentWorkspaceViewModel(service, snapshots);
+        var shell = new AppShellViewModel(documentWorkspace, null, null, null);
+        var editor = new EditorWorkspace
+        {
+            DataContext = shell
+        };
+        var window = new Window
+        {
+            Width = 900,
+            Height = 600,
+            Content = editor
+        };
+        window.Show();
+
+        await RunOnUiThreadAsync(async () =>
+        {
+            Assert.True(await documentWorkspace.OpenAsync("/workspace/auto-save.md", TestContext.Current.CancellationToken));
+            var markdownEditor = Find<NativeMarkdownEditorControl>(editor, "MarkdownEditorControl");
+            var textEditor = Find<TextEditor>(markdownEditor, "Editor");
+
+            Assert.Equal(markdown, documentWorkspace.Content);
+            Assert.Equal(markdown, markdownEditor.EditorContent);
+            textEditor.Text = editedMarkdown;
+
+            Assert.Equal(markdown, documentWorkspace.Content);
+            Assert.Equal(editedMarkdown, markdownEditor.GetContent());
+            Assert.True(markdownEditor.HasUnsyncedContent);
+            Assert.True(documentWorkspace.IsDirty);
+
+            var runAutoSave = typeof(EditorWorkspace).GetMethod(
+                "RunAutoSaveAsync",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(runAutoSave);
+            var task = Assert.IsAssignableFrom<Task>(runAutoSave!.Invoke(
+                editor,
+                [TimeSpan.Zero, TestContext.Current.CancellationToken]));
+            await task;
+
+            Assert.Equal(editedMarkdown, documentWorkspace.Content);
+            Assert.Equal(editedMarkdown, markdownEditor.EditorContent);
+            Assert.Equal(editedMarkdown, markdownEditor.GetContent());
+            Assert.False(markdownEditor.HasUnsyncedContent);
+            var save = Assert.Single(service.Saves);
+            Assert.Equal("/workspace/auto-save.md", save.FilePath);
+            Assert.Equal(editedMarkdown, save.Content);
+            var snapshot = Assert.Single(snapshots.CreateSnapshotRequests);
+            Assert.Equal(SnapshotTrigger.AutoSave, snapshot.Trigger);
+            Assert.Equal(editedMarkdown, snapshot.PendingContent);
+            Assert.False(documentWorkspace.IsDirty);
+        });
+    }
+
+    [AvaloniaFact]
+    public void VersionHistoryDialog_UsesMarkdownPreviewControlForSnapshotPreview()
+    {
+        var dialog = new VersionHistoryDialog();
+
+        var preview = dialog.FindControl<PreviewWebViewControl>("SnapshotPreviewControl");
+        var sourceTextPreview = dialog.FindControl<TextBox>("PreviewTextBox");
+
+        Assert.NotNull(preview);
+        Assert.Null(sourceTextPreview);
     }
 
     [AvaloniaFact]
@@ -910,6 +985,51 @@ public class MainWindowTests
             {
                 yield return descendant;
             }
+        }
+    }
+
+    private sealed class TrackingMarkdownDocumentService : IMarkdownDocumentService
+    {
+        private readonly Queue<MarkdownDocumentResult> _readResults = [];
+        private readonly Queue<MarkdownDocumentResult> _saveResults = [];
+
+        public List<(string FilePath, string Content)> Saves { get; } = [];
+
+        public void QueueRead(MarkdownDocumentResult result)
+        {
+            _readResults.Enqueue(result);
+        }
+
+        public void QueueSave(MarkdownDocumentResult result)
+        {
+            _saveResults.Enqueue(result);
+        }
+
+        public Task<MarkdownDocumentResult> ReadAsync(
+            string filePath,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_readResults.Count == 0
+                ? MarkdownDocumentResult.Failure("读取失败", filePath: filePath)
+                : _readResults.Dequeue());
+        }
+
+        public Task<MarkdownDocumentResult> SaveAsync(
+            string filePath,
+            string content,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Saves.Add((filePath, content));
+            return Task.FromResult(_saveResults.Count == 0
+                ? MarkdownDocumentResult.Success(content, filePath, $"<preview>{content}</preview>")
+                : _saveResults.Dequeue());
+        }
+
+        public MarkdownDocumentResult CreatePreview(string content, string? filePath = null)
+        {
+            return MarkdownDocumentResult.Success(content, filePath, $"<preview>{content}</preview>");
         }
     }
 }

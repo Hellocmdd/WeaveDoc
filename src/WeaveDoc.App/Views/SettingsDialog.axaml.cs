@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using WeaveDoc.App.Services.Documents;
 using WeaveDoc.App.ViewModels;
 using WeaveDoc.Converter.Afd;
 using WeaveDoc.Converter.Afd.Models;
@@ -104,8 +105,20 @@ public partial class SettingsDialog : Window
     {
         DefaultWorkspaceTextBox.Text = WorkspacePaths.FindWorkspaceRoot();
         SelectTab(_initialTab);
+        LoadSnapshotPolicySettings();
         await LoadTemplatesAsync();
         WireCloudApi();
+    }
+
+    private void LoadSnapshotPolicySettings()
+    {
+        var policy = SnapshotRetentionPolicy.Default;
+        SnapshotAutoSaveCheckBox.IsChecked = true;
+        SnapshotAutoSaveDelayTextBox.Text = "2000";
+        SnapshotIntervalTextBox.Text = policy.AutoSnapshotMinIntervalMinutes.ToString();
+        SnapshotRetentionCountTextBox.Text = policy.MaxSnapshotsPerDocument.ToString();
+        SnapshotRetentionDaysTextBox.Text = policy.MaxRetentionDays.ToString();
+        SnapshotDirectoryTextBox.Text = new WeaveDocUserDataPathProvider().GetSnapshotsRoot();
     }
 
     // ── Cloud API (模型管理 → 云 API 栏目) ──

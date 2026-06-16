@@ -10,6 +10,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
     private const string EmptyStatusText = "未打开文档";
 
     private readonly IMarkdownDocumentService _documentService;
+    private readonly IDocumentSnapshotService _snapshotService;
     private string? _currentFilePath;
     private string _displayName = EmptyDisplayName;
     private string _content = string.Empty;
@@ -20,8 +21,16 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
     private string? _errorMessage;
 
     public DocumentWorkspaceViewModel(IMarkdownDocumentService documentService)
+        : this(documentService, new DocumentSnapshotService())
+    {
+    }
+
+    public DocumentWorkspaceViewModel(
+        IMarkdownDocumentService documentService,
+        IDocumentSnapshotService snapshotService)
     {
         _documentService = documentService ?? throw new ArgumentNullException(nameof(documentService));
+        _snapshotService = snapshotService ?? throw new ArgumentNullException(nameof(snapshotService));
     }
 
     public string? CurrentFilePath
@@ -188,6 +197,13 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
             return false;
         }
 
+        await _snapshotService.CreateSnapshotAsync(
+            CurrentFilePath,
+            SnapshotTrigger.ManualSave,
+            Content,
+            force: true,
+            cancellationToken: cancellationToken);
+
         var result = await _documentService.SaveAsync(CurrentFilePath, Content, cancellationToken);
         if (!result.Succeeded)
         {
@@ -203,6 +219,13 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
 
     public async Task<bool> SaveAsAsync(string filePath, CancellationToken cancellationToken = default)
     {
+        await _snapshotService.CreateSnapshotAsync(
+            filePath,
+            SnapshotTrigger.ManualSave,
+            Content,
+            force: true,
+            cancellationToken: cancellationToken);
+
         var result = await _documentService.SaveAsync(filePath, Content, cancellationToken);
         if (!result.Succeeded)
         {
@@ -214,6 +237,113 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
         ClearError();
         StatusText = $"已保存 {DisplayName}";
         return true;
+    }
+
+    public async Task<bool> AutoSaveAsync(CancellationToken cancellationToken = default)
+    {
+        if (!HasDocument || !IsDirty || string.IsNullOrWhiteSpace(CurrentFilePath))
+        {
+            return false;
+        }
+
+        StatusText = "自动保存中...";
+
+        try
+        {
+            await _snapshotService.CreateSnapshotAsync(
+                CurrentFilePath,
+                SnapshotTrigger.AutoSave,
+                Content,
+                force: false,
+                cancellationToken: cancellationToken);
+
+            var result = await _documentService.SaveAsync(CurrentFilePath, Content, cancellationToken);
+            if (!result.Succeeded)
+            {
+                SetFailure(result.ErrorMessage);
+                return false;
+            }
+
+            ApplyDocument(result, isDirty: false);
+            ClearError();
+            StatusText = $"已自动保存 {DateTime.Now:HH:mm}";
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            SetFailure($"自动保存失败：{ex.Message}");
+            return false;
+        }
+    }
+
+    public Task<IReadOnlyList<DocumentSnapshotEntry>> ListSnapshotsAsync(CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(CurrentFilePath))
+        {
+            return Task.FromResult<IReadOnlyList<DocumentSnapshotEntry>>([]);
+        }
+
+        return _snapshotService.ListSnapshotsAsync(CurrentFilePath, cancellationToken);
+    }
+
+    public async Task<string> ReadSnapshotContentAsync(
+        string snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(CurrentFilePath))
+        {
+            return string.Empty;
+        }
+
+        return await _snapshotService.ReadSnapshotContentAsync(
+            CurrentFilePath,
+            snapshotId,
+            cancellationToken);
+    }
+
+    public async Task<bool> RestoreSnapshotAsync(
+        string snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(CurrentFilePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (IsDirty)
+            {
+                var saveResult = await _documentService.SaveAsync(CurrentFilePath, Content, cancellationToken);
+                if (!saveResult.Succeeded)
+                {
+                    SetFailure(saveResult.ErrorMessage);
+                    return false;
+                }
+            }
+
+            await _snapshotService.RestoreSnapshotFileAsync(CurrentFilePath, snapshotId, cancellationToken);
+            var result = await _documentService.ReadAsync(CurrentFilePath, cancellationToken);
+            if (!result.Succeeded)
+            {
+                SetFailure(result.ErrorMessage);
+                return false;
+            }
+
+            ApplyDocument(result, isDirty: false);
+            ClearError();
+            StatusText = $"已恢复快照 {DisplayName}";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetFailure($"恢复快照失败：{ex.Message}");
+            return false;
+        }
     }
 
     private void ApplyDocument(MarkdownDocumentResult result, bool isDirty)
