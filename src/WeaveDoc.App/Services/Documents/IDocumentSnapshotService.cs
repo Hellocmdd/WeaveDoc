@@ -24,6 +24,11 @@ public interface IDocumentSnapshotService
         string snapshotId,
         CancellationToken cancellationToken = default);
 
+    Task DeleteSnapshotAsync(
+        string filePath,
+        string snapshotId,
+        CancellationToken cancellationToken = default);
+
     Task CleanupSnapshotsAsync(
         string filePath,
         SnapshotRetentionPolicy? policy = null,

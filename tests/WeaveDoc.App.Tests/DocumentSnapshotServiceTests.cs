@@ -172,6 +172,82 @@ public sealed class DocumentSnapshotServiceTests
         }
     }
 
+    [Fact]
+    public async Task DeleteSnapshotAsync_RemovesFileAndMetadataEntry()
+    {
+        var root = CreateTestRoot();
+        try
+        {
+            var snapshotsRoot = Path.Combine(root, "snapshots-root");
+            var documentPath = Path.Combine(root, "docs", "deletable.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(documentPath)!);
+            await File.WriteAllTextAsync(documentPath, "# v1", TestContext.Current.CancellationToken);
+            var service = new DocumentSnapshotService(new FakeWeaveDocUserDataPathProvider(snapshotsRoot));
+
+            var first = await service.CreateSnapshotAsync(
+                documentPath,
+                SnapshotTrigger.ManualSave,
+                pendingContent: "# v2",
+                force: true,
+                cancellationToken: TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(documentPath, "# v2", TestContext.Current.CancellationToken);
+            var second = await service.CreateSnapshotAsync(
+                documentPath,
+                SnapshotTrigger.ManualSave,
+                pendingContent: "# v3",
+                force: true,
+                cancellationToken: TestContext.Current.CancellationToken);
+            Assert.NotNull(first);
+            Assert.NotNull(second);
+
+            await service.DeleteSnapshotAsync(documentPath, first!.SnapshotId, TestContext.Current.CancellationToken);
+
+            var remaining = await service.ListSnapshotsAsync(documentPath, TestContext.Current.CancellationToken);
+            Assert.Single(remaining);
+            Assert.Equal(second!.SnapshotId, remaining[0].SnapshotId);
+
+            var versionsDirectory = Path.Combine(snapshotsRoot, "documents");
+            Assert.False(File.Exists(Path.Combine(
+                Directory.GetDirectories(versionsDirectory)[0], "versions", first.FileName)));
+        }
+        finally
+        {
+            DeleteTestRoot(root);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteSnapshotAsync_ForUnknownSnapshotId_IsIdempotent()
+    {
+        var root = CreateTestRoot();
+        try
+        {
+            var snapshotsRoot = Path.Combine(root, "snapshots-root");
+            var documentPath = Path.Combine(root, "docs", "keep.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(documentPath)!);
+            await File.WriteAllTextAsync(documentPath, "# v1", TestContext.Current.CancellationToken);
+            var service = new DocumentSnapshotService(new FakeWeaveDocUserDataPathProvider(snapshotsRoot));
+
+            var kept = await service.CreateSnapshotAsync(
+                documentPath,
+                SnapshotTrigger.ManualSave,
+                pendingContent: "# v2",
+                force: true,
+                cancellationToken: TestContext.Current.CancellationToken);
+            Assert.NotNull(kept);
+
+            await service.DeleteSnapshotAsync(documentPath, "does-not-exist", TestContext.Current.CancellationToken);
+
+            var remaining = await service.ListSnapshotsAsync(documentPath, TestContext.Current.CancellationToken);
+            Assert.Single(remaining);
+            Assert.Equal(kept!.SnapshotId, remaining[0].SnapshotId);
+        }
+        finally
+        {
+            DeleteTestRoot(root);
+        }
+    }
+
     private static string CreateTestRoot()
     {
         var root = Path.GetFullPath(Path.Combine(

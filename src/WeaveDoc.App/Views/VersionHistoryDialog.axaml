@@ -98,6 +98,11 @@
                   Orientation="Horizontal"
                   HorizontalAlignment="Right"
                   Spacing="8">
+        <Button x:Name="DeleteButton"
+                Classes="command-button"
+                Content="删除"
+                IsEnabled="False"
+                Click="OnDeleteClick" />
         <Button Classes="command-button"
                 Content="刷新"
                 Click="OnRefreshClick" />

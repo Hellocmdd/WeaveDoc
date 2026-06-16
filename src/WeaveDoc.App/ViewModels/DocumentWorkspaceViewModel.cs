@@ -346,6 +346,29 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
         }
     }
 
+    public async Task<bool> DeleteSnapshotAsync(
+        string snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(CurrentFilePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            await _snapshotService.DeleteSnapshotAsync(CurrentFilePath, snapshotId, cancellationToken);
+            ClearError();
+            StatusText = $"已删除快照 {DisplayName}";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetFailure($"删除快照失败：{ex.Message}");
+            return false;
+        }
+    }
+
     private void ApplyDocument(MarkdownDocumentResult result, bool isDirty)
     {
         CurrentFilePath = result.FilePath;

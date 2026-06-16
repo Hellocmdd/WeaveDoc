@@ -151,6 +151,49 @@ public sealed class DocumentSnapshotService : IDocumentSnapshotService
         await File.WriteAllTextAsync(fullPath, content, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task DeleteSnapshotAsync(
+        string filePath,
+        string snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var fullPath = Path.GetFullPath(filePath);
+        var metadata = await ReadMetadataAsync(fullPath, cancellationToken).ConfigureAwait(false);
+        var versionsDirectory = Path.Combine(GetDocumentDirectory(fullPath), "versions");
+
+        var entry = metadata.Versions.FirstOrDefault(
+            version => string.Equals(version.SnapshotId, snapshotId, StringComparison.Ordinal));
+
+        // 幂等：metadata 中无此 id 视为已删除，不抛异常（对齐 CleanupSnapshotsAsync 的容错风格）。
+        if (entry is null)
+        {
+            return;
+        }
+
+        var snapshotPath = Path.Combine(versionsDirectory, entry.FileName);
+        try
+        {
+            if (File.Exists(snapshotPath))
+            {
+                File.Delete(snapshotPath);
+            }
+        }
+        catch
+        {
+            // 文件删除是 best-effort：即使删不掉（占用/权限），仍更新 metadata 避免幽灵条目。
+            // 下一次 ListSnapshotsAsync 也会用 File.Exists 过滤掉文件不存在的条目。
+        }
+
+        var remaining = metadata.Versions
+            .Where(version => !string.Equals(version.SnapshotId, snapshotId, StringComparison.Ordinal))
+            .ToArray();
+
+        await WriteMetadataAsync(
+            fullPath,
+            metadata with { UpdatedAt = DateTimeOffset.UtcNow, Versions = remaining },
+            cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task CleanupSnapshotsAsync(
         string filePath,
         SnapshotRetentionPolicy? policy = null,

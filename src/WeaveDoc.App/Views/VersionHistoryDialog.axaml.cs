@@ -10,6 +10,8 @@ public partial class VersionHistoryDialog : Window
     private readonly DocumentWorkspaceViewModel? _workspace;
     private readonly MarkdownDocumentService _markdownDocumentService = new();
 
+    private string? _pendingDeleteSnapshotId;
+
     public VersionHistoryDialog() : this(null)
     {
     }
@@ -31,6 +33,9 @@ public partial class VersionHistoryDialog : Window
     private async Task LoadSnapshotsAsync()
     {
         RestoreButton.IsEnabled = false;
+        DeleteButton.IsEnabled = false;
+        _pendingDeleteSnapshotId = null;
+        DeleteButton.Content = "删除";
         SnapshotPreviewControl.HtmlContent = string.Empty;
         SnapshotPreviewControl.SourceFilePath = _workspace?.CurrentFilePath;
 
@@ -58,7 +63,12 @@ public partial class VersionHistoryDialog : Window
 
     private async void OnSnapshotSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        RestoreButton.IsEnabled = SnapshotList.SelectedItem is SnapshotListItem;
+        var hasSelection = SnapshotList.SelectedItem is SnapshotListItem;
+        RestoreButton.IsEnabled = hasSelection;
+        DeleteButton.IsEnabled = hasSelection;
+        // 切换选中项时撤销待删除武装态，避免误删新选中的快照。
+        _pendingDeleteSnapshotId = null;
+        DeleteButton.Content = "删除";
         if (SnapshotList.SelectedItem is not SnapshotListItem item || _workspace is null)
         {
             SnapshotPreviewControl.HtmlContent = string.Empty;
@@ -85,6 +95,38 @@ public partial class VersionHistoryDialog : Window
     private async void OnRefreshClick(object? sender, RoutedEventArgs e)
     {
         await LoadSnapshotsAsync();
+    }
+
+    private async void OnDeleteClick(object? sender, RoutedEventArgs e)
+    {
+        if (SnapshotList.SelectedItem is not SnapshotListItem item || _workspace is null)
+        {
+            return;
+        }
+
+        // 两段式确认（对齐 SettingsDialog.OnDeleteClick）：
+        // 第一次点击仅武装，改文案提示需再次确认；第二次点击才真正删除。
+        if (_pendingDeleteSnapshotId != item.SnapshotId)
+        {
+            _pendingDeleteSnapshotId = item.SnapshotId;
+            DeleteButton.Content = "确认删除此快照？";
+            return;
+        }
+
+        _pendingDeleteSnapshotId = null;
+        DeleteButton.IsEnabled = false;
+        StatusText.Text = "正在删除快照...";
+
+        var deleted = await _workspace.DeleteSnapshotAsync(item.SnapshotId);
+        if (deleted)
+        {
+            await LoadSnapshotsAsync();
+            return;
+        }
+
+        DeleteButton.IsEnabled = true;
+        DeleteButton.Content = "删除";
+        StatusText.Text = _workspace.ErrorMessage ?? "删除快照失败";
     }
 
     private async void OnRestoreClick(object? sender, RoutedEventArgs e)

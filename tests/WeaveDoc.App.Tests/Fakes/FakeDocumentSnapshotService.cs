@@ -12,11 +12,15 @@ internal sealed class FakeDocumentSnapshotService : IDocumentSnapshotService
 
     public List<(string FilePath, string SnapshotId)> RestoreSnapshotRequests { get; } = [];
 
+    public List<(string FilePath, string SnapshotId)> DeleteSnapshotRequests { get; } = [];
+
     public List<string> ListSnapshotPaths { get; } = [];
 
     public IReadOnlyList<DocumentSnapshotEntry> Snapshots { get; set; } = [];
 
     public Exception? RestoreException { get; set; }
+
+    public Exception? DeleteException { get; set; }
 
     public void QueueSnapshotContent(string content)
     {
@@ -75,6 +79,21 @@ internal sealed class FakeDocumentSnapshotService : IDocumentSnapshotService
         if (RestoreException is not null)
         {
             throw RestoreException;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteSnapshotAsync(
+        string filePath,
+        string snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        DeleteSnapshotRequests.Add((filePath, snapshotId));
+        if (DeleteException is not null)
+        {
+            throw DeleteException;
         }
 
         return Task.CompletedTask;

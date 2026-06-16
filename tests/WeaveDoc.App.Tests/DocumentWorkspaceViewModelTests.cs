@@ -344,6 +344,56 @@ public sealed class DocumentWorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task DeleteSnapshotAsync_WhenNoDocument_ReturnsFalse()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var snapshots = new FakeDocumentSnapshotService();
+        var viewModel = new DocumentWorkspaceViewModel(service, snapshots);
+
+        var deleted = await viewModel.DeleteSnapshotAsync("snapshot-1", TestContext.Current.CancellationToken);
+
+        Assert.False(deleted);
+        Assert.Empty(snapshots.DeleteSnapshotRequests);
+    }
+
+    [Fact]
+    public async Task DeleteSnapshotAsync_OnSuccess_ReturnsTrueAndUpdatesStatus()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var snapshots = new FakeDocumentSnapshotService();
+        service.QueueRead(MarkdownDocumentResult.Success("# 当前", "/workspace/current.md", "<h1>当前</h1>"));
+        var viewModel = new DocumentWorkspaceViewModel(service, snapshots);
+        await viewModel.OpenAsync("/workspace/current.md", TestContext.Current.CancellationToken);
+
+        var deleted = await viewModel.DeleteSnapshotAsync("snapshot-1", TestContext.Current.CancellationToken);
+
+        Assert.True(deleted);
+        Assert.Equal(("/workspace/current.md", "snapshot-1"), Assert.Single(snapshots.DeleteSnapshotRequests));
+        Assert.False(viewModel.HasError);
+        Assert.Equal("已删除快照 current.md", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task DeleteSnapshotAsync_OnException_ReturnsFalseAndSetsError()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var snapshots = new FakeDocumentSnapshotService
+        {
+            DeleteException = new IOException("文件被占用")
+        };
+        service.QueueRead(MarkdownDocumentResult.Success("# 当前", "/workspace/current.md", "<h1>当前</h1>"));
+        var viewModel = new DocumentWorkspaceViewModel(service, snapshots);
+        await viewModel.OpenAsync("/workspace/current.md", TestContext.Current.CancellationToken);
+
+        var deleted = await viewModel.DeleteSnapshotAsync("snapshot-1", TestContext.Current.CancellationToken);
+
+        Assert.False(deleted);
+        Assert.True(viewModel.HasError);
+        Assert.Contains("删除快照失败", viewModel.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(("/workspace/current.md", "snapshot-1"), Assert.Single(snapshots.DeleteSnapshotRequests));
+    }
+
+    [Fact]
     public async Task AutoSaveAsync_WhenUntitledNewDocumentIsDirty_SkipsSaveAndKeepsDirtyState()
     {
         var service = new FakeMarkdownDocumentService();
