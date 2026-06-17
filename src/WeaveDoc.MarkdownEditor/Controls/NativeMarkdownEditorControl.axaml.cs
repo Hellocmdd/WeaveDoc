@@ -10,7 +10,11 @@ using AvaloniaEdit;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.TextMate;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using TextMateSharp.Grammars;
 
 namespace WeaveDoc.MarkdownEditor.Controls
@@ -22,6 +26,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private readonly Func<RegistryOptions, string?> _markdownScopeResolver;
         private TextEditor? _editor;
         private TextBox? _plainTextFallbackEditor;
+        private Border? _citationCompletionPanel;
+        private ListBox? _citationCompletionList;
         private TextMate.Installation? _textMateInstallation;
         private bool _isApplyingEditorContent;
         private bool _isDisposed;
@@ -48,6 +54,10 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private int _debugSampleLayoutUpdatedCount;
         private long _debugLastPointerMoveLogMilliseconds;
         private int _debugLastPointerMoveLogCount;
+        private CancellationTokenSource? _citationCompletionCts;
+        private List<MarkdownCitationCompletionItem> _citationCompletionItems = [];
+        private int _citationReplacementStart = -1;
+        private int _citationReplacementLength;
 
         // Scroll-freeze loop guard (fixes AvaloniaEdit SelectionMouseHandler infinite loop)
         private double _lastScrollX = double.NaN;
@@ -66,6 +76,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
         private const string DebugForceAvaloniaEditEnvironmentVariable = "WEAVEDOC_DEBUG_FORCE_AVALONIAEDIT";
 
         public event EventHandler? ContentEdited;
+
+        public Func<string, CancellationToken, Task<IReadOnlyList<MarkdownCitationCompletionItem>>>? CitationCompletionProvider { get; set; }
 
         public static readonly StyledProperty<string> EditorContentProperty =
             AvaloniaProperty.Register<NativeMarkdownEditorControl, string>(
@@ -133,9 +145,18 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 ?? throw new InvalidOperationException("Native Markdown editor TextEditor was not found.");
             _plainTextFallbackEditor = this.FindControl<TextBox>("PlainTextFallbackEditor")
                 ?? throw new InvalidOperationException("Native Markdown editor plain text fallback was not found.");
+            _citationCompletionPanel = this.FindControl<Border>("CitationCompletionPanel")
+                ?? throw new InvalidOperationException("Citation completion panel was not found.");
+            _citationCompletionList = this.FindControl<ListBox>("CitationCompletionList")
+                ?? throw new InvalidOperationException("Citation completion list was not found.");
             ConfigureEditor();
             _editor.Document.Changed += EditorDocument_Changed;
             _plainTextFallbackEditor.TextChanged += PlainTextFallbackEditor_TextChanged;
+            AddHandler(
+                InputElement.KeyDownEvent,
+                OnCitationCompletionKeyDown,
+                RoutingStrategies.Tunnel,
+                handledEventsToo: true);
             ConfigureDebugSelectionProbe();
         }
 
@@ -163,6 +184,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             SuppressFallbackWhenDebugForcingAvaloniaEdit("document-change");
             ApplyPerformanceModeForState(contentLength, _liveContentNeedsPlainTextFallback);
             ContentEdited?.Invoke(this, EventArgs.Empty);
+            ScheduleCitationCompletionRefresh();
         }
 
         private void PlainTextFallbackEditor_TextChanged(object? sender, TextChangedEventArgs e)
@@ -172,6 +194,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
             HasUnsyncedContent = true;
             ContentEdited?.Invoke(this, EventArgs.Empty);
+            ScheduleCitationCompletionRefresh();
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -312,6 +335,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 {
                     _plainTextFallbackEditor.CaretIndex = safeStart;
                 }
+                ScheduleCitationCompletionRefresh();
                 return;
             }
 
@@ -320,6 +344,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
 
             _editor.Select(safeStart, safeLength);
             _editor.CaretOffset = safeStart + safeLength;
+            ScheduleCitationCompletionRefresh();
         }
 
         public void SetCaretOffset(int offset)
@@ -336,6 +361,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _plainTextFallbackEditor.SelectionStart = safeOffset;
                 _plainTextFallbackEditor.SelectionEnd = safeOffset;
                 _plainTextFallbackEditor.CaretIndex = safeOffset;
+                ScheduleCitationCompletionRefresh();
                 return;
             }
 
@@ -345,6 +371,7 @@ namespace WeaveDoc.MarkdownEditor.Controls
             _editor.Select(safeOffset, 0);
             _editor.CaretOffset = safeOffset;
             _editor.TextArea.Caret.BringCaretToView();
+            ScheduleCitationCompletionRefresh();
         }
 
         public void SetCaretPosition(int lineNumber, int column)
@@ -401,6 +428,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
                 _editor.Document.Changed -= EditorDocument_Changed;
             if (_plainTextFallbackEditor != null)
                 _plainTextFallbackEditor.TextChanged -= PlainTextFallbackEditor_TextChanged;
+            _citationCompletionCts?.Cancel();
+            _citationCompletionCts?.Dispose();
             if (_editor != null)
                 _editor.TextArea.TextView.ScrollOffsetChanged -= OnTextViewScrollOffsetChanged;
 
@@ -432,6 +461,236 @@ namespace WeaveDoc.MarkdownEditor.Controls
             // again — all with scrollX staying constant. We detect N identical-scrollX consecutive events
             // and temporarily zero out SelectionMouseHandler._mode via reflection to break the cycle.
             _editor.TextArea.TextView.ScrollOffsetChanged += OnTextViewScrollOffsetChanged;
+            _editor.TextArea.Caret.PositionChanged += (_, _) => ScheduleCitationCompletionRefresh();
+            if (_plainTextFallbackEditor != null)
+            {
+                _plainTextFallbackEditor.PropertyChanged += (_, e) =>
+                {
+                    if (e.Property.Name is nameof(TextBox.CaretIndex) or nameof(TextBox.SelectionStart) or nameof(TextBox.SelectionEnd))
+                    {
+                        ScheduleCitationCompletionRefresh();
+                    }
+                };
+            }
+        }
+
+        private void OnCitationCompletionKeyDown(object? sender, KeyEventArgs e)
+        {
+            if (_citationCompletionPanel?.IsVisible != true || _citationCompletionList == null)
+                return;
+
+            switch (e.Key)
+            {
+                case Key.Escape:
+                    HideCitationCompletion();
+                    e.Handled = true;
+                    break;
+                case Key.Enter:
+                case Key.Tab:
+                    CommitSelectedCitationCompletion();
+                    e.Handled = true;
+                    break;
+                case Key.Down:
+                    MoveCitationCompletionSelection(1);
+                    e.Handled = true;
+                    break;
+                case Key.Up:
+                    MoveCitationCompletionSelection(-1);
+                    e.Handled = true;
+                    break;
+            }
+        }
+
+        private void CitationCompletionList_DoubleTapped(object? sender, RoutedEventArgs e)
+        {
+            CommitSelectedCitationCompletion();
+        }
+
+        private void ScheduleCitationCompletionRefresh()
+        {
+            if (CitationCompletionProvider is null || IsReadOnly)
+            {
+                HideCitationCompletion();
+                return;
+            }
+
+            _citationCompletionCts?.Cancel();
+            _citationCompletionCts?.Dispose();
+            _citationCompletionCts = new CancellationTokenSource();
+            var token = _citationCompletionCts.Token;
+            _ = RefreshCitationCompletionAsync(token);
+        }
+
+        private async Task RefreshCitationCompletionAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await Task.Delay(120, cancellationToken);
+                var context = GetCitationCompletionContext();
+                if (context is null)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(HideCitationCompletion);
+                    return;
+                }
+
+                var provider = CitationCompletionProvider;
+                if (provider is null)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(HideCitationCompletion);
+                    return;
+                }
+
+                var suggestions = await provider(context.Value.Prefix, cancellationToken);
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        ShowCitationCompletion(context.Value.Start, context.Value.Length, suggestions);
+                    }
+                });
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch
+            {
+                await Dispatcher.UIThread.InvokeAsync(HideCitationCompletion);
+            }
+        }
+
+        private CitationCompletionContext? GetCitationCompletionContext()
+        {
+            var selection = GetSelection();
+            if (selection.Length != 0)
+                return null;
+
+            var content = GetContent();
+            var caret = Math.Clamp(selection.Start, 0, content.Length);
+            if (caret < 2)
+                return null;
+
+            var lineStart = content.LastIndexOfAny(['\r', '\n'], Math.Max(0, caret - 1));
+            lineStart = lineStart < 0 ? 0 : lineStart + 1;
+            var searchLength = caret - lineStart;
+            var start = content.LastIndexOf("[@", Math.Max(0, caret - 1), searchLength, StringComparison.Ordinal);
+            if (start < lineStart)
+                return null;
+
+            var prefixStart = start + 2;
+            var prefix = content[prefixStart..caret];
+            if (prefix.Contains(']') || prefix.Contains('[') || prefix.Any(char.IsWhiteSpace))
+                return null;
+
+            var length = caret - start;
+            if (caret < content.Length && content[caret] == ']')
+            {
+                length++;
+            }
+
+            return new CitationCompletionContext(start, length, prefix);
+        }
+
+        private void ShowCitationCompletion(
+            int replacementStart,
+            int replacementLength,
+            IReadOnlyList<MarkdownCitationCompletionItem> suggestions)
+        {
+            if (_citationCompletionPanel == null || _citationCompletionList == null || suggestions.Count == 0)
+            {
+                HideCitationCompletion();
+                return;
+            }
+
+            _citationReplacementStart = replacementStart;
+            _citationReplacementLength = replacementLength;
+            _citationCompletionItems = suggestions.ToList();
+            _citationCompletionList.ItemsSource = _citationCompletionItems
+                .Select(CreateCitationCompletionItem)
+                .ToList();
+            _citationCompletionList.SelectedIndex = 0;
+            _citationCompletionPanel.IsVisible = true;
+        }
+
+        private static Control CreateCitationCompletionItem(MarkdownCitationCompletionItem suggestion)
+        {
+            var title = string.IsNullOrWhiteSpace(suggestion.Title)
+                ? "未命名文献"
+                : suggestion.Title;
+            var meta = string.Join(" · ", new[] { suggestion.Authors, suggestion.Year }
+                .Where(part => !string.IsNullOrWhiteSpace(part)));
+
+            return new StackPanel
+            {
+                Spacing = 2,
+                Margin = new Thickness(6, 4),
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = suggestion.CitationKey,
+                        FontWeight = Avalonia.Media.FontWeight.SemiBold,
+                        Foreground = Avalonia.Media.Brushes.DodgerBlue,
+                        TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis
+                    },
+                    new TextBlock
+                    {
+                        Text = title,
+                        Foreground = Avalonia.Media.Brushes.Gray,
+                        TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis
+                    },
+                    new TextBlock
+                    {
+                        Text = meta,
+                        Foreground = Avalonia.Media.Brushes.DarkGray,
+                        FontSize = 11,
+                        TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis
+                    }
+                }
+            };
+        }
+
+        private void MoveCitationCompletionSelection(int delta)
+        {
+            if (_citationCompletionList == null || _citationCompletionItems.Count == 0)
+                return;
+
+            var current = _citationCompletionList.SelectedIndex;
+            if (current < 0)
+                current = 0;
+
+            _citationCompletionList.SelectedIndex = Math.Clamp(current + delta, 0, _citationCompletionItems.Count - 1);
+        }
+
+        private void CommitSelectedCitationCompletion()
+        {
+            if (_citationCompletionItems.Count == 0 || _citationReplacementStart < 0)
+                return;
+
+            var selectedIndex = _citationCompletionList?.SelectedIndex ?? 0;
+            var index = Math.Clamp(selectedIndex, 0, _citationCompletionItems.Count - 1);
+            var item = _citationCompletionItems[index];
+            var replacement = $"[@{item.CitationKey}]";
+            ReplaceActiveSelection(_citationReplacementStart, _citationReplacementLength, replacement);
+            SetSelection(_citationReplacementStart + replacement.Length, 0);
+            HideCitationCompletion();
+            FocusEditor();
+        }
+
+        private void HideCitationCompletion()
+        {
+            if (_citationCompletionPanel != null)
+            {
+                _citationCompletionPanel.IsVisible = false;
+            }
+
+            if (_citationCompletionList != null)
+            {
+                _citationCompletionList.ItemsSource = null;
+            }
+
+            _citationCompletionItems = [];
+            _citationReplacementStart = -1;
+            _citationReplacementLength = 0;
         }
 
         private void ApplyWordWrap()
@@ -1027,6 +1286,8 @@ namespace WeaveDoc.MarkdownEditor.Controls
             var markdown = registryOptions.GetLanguageByExtension(".md");
             return registryOptions.GetScopeByLanguageId(markdown.Id);
         }
+
+        private readonly record struct CitationCompletionContext(int Start, int Length, string Prefix);
 
         private sealed class ProgrammaticEditorUpdateScope : IDisposable
         {

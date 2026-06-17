@@ -236,7 +236,7 @@
             BorderBrush="{DynamicResource ShellBorderBrush}"
             BorderThickness="0,1,0,0"
             Padding="10,0">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,*"
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*"
             ColumnSpacing="8">
         <TextBlock Grid.Column="0"
                    Text="{Binding ModeStatusText}"
@@ -253,6 +253,13 @@
                    VerticalAlignment="Center"
                    FontSize="11"
                    Foreground="{DynamicResource ShellMutedTextBrush}" />
+        <TextBlock Grid.Column="3"
+                   Text="{Binding DocumentWorkspace.CitationDiagnosticText}"
+                   IsVisible="{Binding DocumentWorkspace.HasCitationDiagnostics}"
+                   VerticalAlignment="Center"
+                   FontSize="11"
+                   Foreground="{DynamicResource ShellWarningBrush}"
+                   TextTrimming="CharacterEllipsis" />
       </Grid>
     </Border>
   </Grid>

@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using WeaveDoc.App.Services.Documents;
 using WeaveDoc.App.ViewModels;
 using WeaveDoc.MarkdownEditor.Controls;
 
@@ -115,6 +116,17 @@ public partial class EditorWorkspace : UserControl
         var content = markdownEditor.GetContent();
         documentWorkspace.Content = content;
         markdownEditor.AcceptCurrentContent();
+    }
+
+    public void ConfigureCitationCompletion(CitationCompletionService? completionService)
+    {
+        var markdownEditor = MarkdownEditor;
+        if (markdownEditor is null)
+            return;
+
+        markdownEditor.CitationCompletionProvider = completionService is null
+            ? null
+            : completionService.GetSuggestionsAsync;
     }
 
     private void SubscribeToMarkdownEditor()

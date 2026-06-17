@@ -20,6 +20,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
     private bool _isDirty;
     private string _statusText = EmptyStatusText;
     private string? _errorMessage;
+    private string _citationDiagnosticText = string.Empty;
 
     public DocumentWorkspaceViewModel(IMarkdownDocumentService documentService)
         : this(documentService, new DocumentSnapshotService())
@@ -113,12 +114,27 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
+    public string CitationDiagnosticText
+    {
+        get => _citationDiagnosticText;
+        private set
+        {
+            if (SetProperty(ref _citationDiagnosticText, value))
+            {
+                OnPropertyChanged(nameof(HasCitationDiagnostics));
+            }
+        }
+    }
+
+    public bool HasCitationDiagnostics => !string.IsNullOrWhiteSpace(CitationDiagnosticText);
+
     public Task<bool> NewAsync(CancellationToken cancellationToken = default)
     {
         CurrentFilePath = null;
         DisplayName = NewDisplayName;
         SetProperty(ref _content, string.Empty, nameof(Content));
         PreviewHtml = string.Empty;
+        CitationDiagnosticText = string.Empty;
         HasDocument = true;
         IsDirty = false;
         ClearError();
@@ -398,13 +414,13 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
 
         try
         {
-            var previewContent = _citationPreviewService
+            var citationPreview = _citationPreviewService
                 .CreatePreviewMarkdownAsync(content)
                 .GetAwaiter()
-                .GetResult()
-                .Markdown;
+                .GetResult();
+            ApplyCitationDiagnostics(citationPreview);
 
-            return _documentService.CreatePreview(previewContent, filePath);
+            return _documentService.CreatePreview(citationPreview.Markdown, filePath);
         }
         catch (OperationCanceledException)
         {
@@ -412,6 +428,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
         }
         catch
         {
+            CitationDiagnosticText = string.Empty;
             return _documentService.CreatePreview(content, filePath);
         }
     }
@@ -428,11 +445,12 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
 
         try
         {
-            var previewContent = (await _citationPreviewService
+            var citationPreview = await _citationPreviewService
                 .CreatePreviewMarkdownAsync(content, cancellationToken)
-                .ConfigureAwait(false)).Markdown;
+                .ConfigureAwait(false);
+            ApplyCitationDiagnostics(citationPreview);
 
-            return _documentService.CreatePreview(previewContent, filePath);
+            return _documentService.CreatePreview(citationPreview.Markdown, filePath);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -440,6 +458,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
         }
         catch
         {
+            CitationDiagnosticText = string.Empty;
             return _documentService.CreatePreview(content, filePath);
         }
     }
@@ -479,5 +498,12 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
     private void ClearError()
     {
         ErrorMessage = null;
+    }
+
+    private void ApplyCitationDiagnostics(CitationPreviewResult citationPreview)
+    {
+        CitationDiagnosticText = citationPreview.MissingKeys.Count == 0
+            ? string.Empty
+            : $"未找到引用：{string.Join(", ", citationPreview.MissingKeys)}";
     }
 }

@@ -23,5 +23,45 @@
                  BorderThickness="0"
                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
                  ScrollViewer.VerticalScrollBarVisibility="Auto" />
+        <Border x:Name="CitationCompletionPanel"
+                IsVisible="False"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Width="360"
+                MaxHeight="220"
+                Margin="44,36,0,0"
+                Background="{DynamicResource ShellRaisedBrush}"
+                BorderBrush="{DynamicResource ShellBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="4"
+                ZIndex="20">
+            <ListBox x:Name="CitationCompletionList"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     FontFamily="Noto Sans CJK SC, Segoe UI, sans-serif"
+                     FontSize="12"
+                     DoubleTapped="CitationCompletionList_DoubleTapped">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Margin" Value="0,1" />
+                        <Setter Property="CornerRadius" Value="5" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+                    </Style>
+                    <Style Selector="ListBoxItem:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource ShellHoverBrush}" />
+                    </Style>
+                    <Style Selector="ListBoxItem:selected">
+                        <Setter Property="Background" Value="{DynamicResource ShellSelectedBrush}" />
+                        <Setter Property="Foreground" Value="{DynamicResource ShellTextBrush}" />
+                    </Style>
+                    <Style Selector="ListBoxItem:selected:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource ShellAccentHoverBrush}" />
+                    </Style>
+                </ListBox.Styles>
+            </ListBox>
+        </Border>
     </Grid>
 </UserControl>

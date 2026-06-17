@@ -25,6 +25,7 @@ public partial class MainWindow : Window
 
     private readonly AppShellViewModel _viewModel;
     private readonly LocalAiService? _aiService;
+    private readonly CitationCompletionService? _citationCompletionService;
     private readonly bool _autoInitializeRag;
     private double _lastExpandedAiPanelWidth = DefaultAiPanelWidth;
 
@@ -45,6 +46,9 @@ public partial class MainWindow : Window
         var citationPreviewService = literatureRepository is not null
             ? new CitationPreviewService(literatureRepository)
             : null;
+        _citationCompletionService = literatureRepository is not null
+            ? new CitationCompletionService(literatureRepository)
+            : null;
         var documentWorkspace = new DocumentWorkspaceViewModel(
             new MarkdownDocumentService(),
             new DocumentSnapshotService(),
@@ -54,6 +58,7 @@ public partial class MainWindow : Window
 
         _viewModel.PropertyChanged += OnShellPropertyChanged;
         ApplyShellPalette(_viewModel.Theme);
+        EditorWorkspaceControl.ConfigureCitationCompletion(_citationCompletionService);
         ApplyAiPanelLayout();
         UpdateStateClasses();
         Loaded += OnMainWindowLoaded;

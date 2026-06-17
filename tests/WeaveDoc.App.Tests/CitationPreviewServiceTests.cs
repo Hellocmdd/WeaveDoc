@@ -52,6 +52,7 @@ public sealed class CitationPreviewServiceTests
         Assert.Contains("无法解析 [? missing2026]。", result.Markdown);
         Assert.Contains("## 参考文献", result.Markdown);
         Assert.Contains("[?] missing2026：文献库中未找到。", result.Markdown);
+        Assert.Equal(["missing2026"], result.MissingKeys);
     }
 
     [Fact]

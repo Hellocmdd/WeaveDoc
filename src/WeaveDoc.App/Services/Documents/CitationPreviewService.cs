@@ -40,11 +40,14 @@ public sealed class CitationPreviewService : ICitationPreviewService
 
         var body = ReplaceCitations(normalizedMarkdown, scan.Occurrences, numberByKey, entriesByKey);
         var references = BuildReferenceSection(scan.Keys, numberByKey, entriesByKey);
+        var missingKeys = scan.Keys
+            .Where(key => !entriesByKey.TryGetValue(key, out var entry) || entry is null)
+            .ToList();
         var previewMarkdown = string.IsNullOrWhiteSpace(references)
             ? body
             : $"{body}\n\n## 参考文献\n\n{references}";
 
-        return new CitationPreviewResult(previewMarkdown, HasCitations: true);
+        return new CitationPreviewResult(previewMarkdown, HasCitations: true, missingKeys);
     }
 
     private static string ReplaceCitations(
