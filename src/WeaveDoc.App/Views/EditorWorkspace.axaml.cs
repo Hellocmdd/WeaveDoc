@@ -11,7 +11,7 @@ namespace WeaveDoc.App.Views;
 
 public partial class EditorWorkspace : UserControl
 {
-    private const int AutoSaveDebounceMilliseconds = 2000;
+    internal const int AutoSaveDebounceMilliseconds = 2000;
     private const int AutoSaveMaxIntervalMilliseconds = 30000;
 
     private AppShellViewModel? _subscribedViewModel;

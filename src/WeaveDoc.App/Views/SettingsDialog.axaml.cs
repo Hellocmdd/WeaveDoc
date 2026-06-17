@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using WeaveDoc.App.Services.ExportTemplates;
 using Avalonia.Platform.Storage;
 using WeaveDoc.App.Services.Documents;
 using WeaveDoc.App.ViewModels;
@@ -55,6 +56,7 @@ public partial class SettingsDialog : Window
 
         InitializeComponent();
         BuildTabStrip();
+        InitializeCustomTemplateOptions();
         Loaded += OnLoaded;
     }
 
@@ -113,9 +115,9 @@ public partial class SettingsDialog : Window
     private void LoadSnapshotPolicySettings()
     {
         var policy = SnapshotRetentionPolicy.Default;
-        SnapshotAutoSaveCheckBox.IsChecked = true;
-        SnapshotAutoSaveDelayTextBox.Text = "2000";
+        SnapshotAutoSaveDelayTextBox.Text = EditorWorkspace.AutoSaveDebounceMilliseconds.ToString();
         SnapshotIntervalTextBox.Text = policy.AutoSnapshotMinIntervalMinutes.ToString();
+        SnapshotContentChangeThresholdTextBox.Text = policy.AutoSnapshotContentChangeThreshold.ToString();
         SnapshotRetentionCountTextBox.Text = policy.MaxSnapshotsPerDocument.ToString();
         SnapshotRetentionDaysTextBox.Text = policy.MaxRetentionDays.ToString();
         SnapshotDirectoryTextBox.Text = new WeaveDocUserDataPathProvider().GetSnapshotsRoot();
@@ -253,6 +255,7 @@ public partial class SettingsDialog : Window
         TemplateGrid.ItemsSource = templates;
         StatusBar.Text = $"共 {templates.Count} 个模板";
         DeleteButton.IsVisible = false;
+        DeleteButton.Content = "删除选中模板";
     }
 
     private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -269,6 +272,111 @@ public partial class SettingsDialog : Window
         if (_configManager is null) return;
         await _configManager.EnsureSeedTemplatesAsync();
         await LoadTemplatesAsync();
+    }
+
+    private void InitializeCustomTemplateOptions()
+    {
+        TemplateBaseFontComboBox.ItemsSource = CustomExportTemplateOptionsCatalog.FontFamilies;
+        TemplateBaseFontSizeComboBox.ItemsSource = CustomExportTemplateOptionsCatalog.FontSizes;
+        TemplateLineSpacingComboBox.ItemsSource = CustomExportTemplateOptionsCatalog.LineSpacings;
+        TemplateFirstLineIndentComboBox.ItemsSource = new OptionItem<TemplateFirstLineIndentPreset>[]
+        {
+            new OptionItem<TemplateFirstLineIndentPreset>("无", TemplateFirstLineIndentPreset.None),
+            new OptionItem<TemplateFirstLineIndentPreset>("首行缩进 2 字符", TemplateFirstLineIndentPreset.TwoCharacters),
+        };
+        TemplatePagePresetComboBox.ItemsSource = new OptionItem<TemplatePagePreset>[]
+        {
+            new OptionItem<TemplatePagePreset>("A4（210 × 297 mm）", TemplatePagePreset.A4),
+            new OptionItem<TemplatePagePreset>("A5（148 × 210 mm）", TemplatePagePreset.A5),
+            new OptionItem<TemplatePagePreset>("Letter（216 × 279 mm）", TemplatePagePreset.Letter),
+        };
+        TemplateMarginPresetComboBox.ItemsSource = new OptionItem<TemplateMarginPreset>[]
+        {
+            new OptionItem<TemplateMarginPreset>("标准边距", TemplateMarginPreset.Standard),
+            new OptionItem<TemplateMarginPreset>("窄边距", TemplateMarginPreset.Narrow),
+            new OptionItem<TemplateMarginPreset>("宽边距", TemplateMarginPreset.Wide),
+            new OptionItem<TemplateMarginPreset>("论文边距", TemplateMarginPreset.Thesis),
+        };
+        TemplateHeadingPresetComboBox.ItemsSource = new OptionItem<TemplateHeadingPreset>[]
+        {
+            new OptionItem<TemplateHeadingPreset>("学术论文", TemplateHeadingPreset.Academic),
+            new OptionItem<TemplateHeadingPreset>("报告文档", TemplateHeadingPreset.Report),
+            new OptionItem<TemplateHeadingPreset>("紧凑排版", TemplateHeadingPreset.Compact),
+        };
+        TemplateCodeFontComboBox.ItemsSource = CustomExportTemplateOptionsCatalog.CodeFontFamilies;
+        TemplateCodeFontSizeComboBox.ItemsSource = CustomExportTemplateOptionsCatalog.CodeFontSizes;
+
+        ResetCustomTemplateForm();
+    }
+
+    private void ResetCustomTemplateForm()
+    {
+        CustomTemplateNameTextBox.Text = "自定义导出模板";
+        CustomTemplateDescriptionTextBox.Text = "用户自定义 DOCX/PDF 导出模板";
+        TemplateBaseFontComboBox.SelectedIndex = 0;
+        TemplateBaseFontSizeComboBox.SelectedItem = 12.0;
+        TemplateLineSpacingComboBox.SelectedItem = 1.5;
+        TemplateFirstLineIndentComboBox.SelectedIndex = 1;
+        TemplatePagePresetComboBox.SelectedIndex = 0;
+        TemplateMarginPresetComboBox.SelectedIndex = 0;
+        TemplateHeadingPresetComboBox.SelectedIndex = 0;
+        TemplateCodeFontComboBox.SelectedIndex = 0;
+        TemplateCodeFontSizeComboBox.SelectedItem = 10.0;
+    }
+
+    private void OnCreateCustomTemplateClick(object? sender, RoutedEventArgs e)
+    {
+        ResetCustomTemplateForm();
+        CustomTemplateEditorPanel.IsVisible = true;
+        StatusBar.Text = "正在创建自定义模板";
+    }
+
+    private void OnCancelCustomTemplateClick(object? sender, RoutedEventArgs e)
+    {
+        CustomTemplateEditorPanel.IsVisible = false;
+        StatusBar.Text = "已取消自定义模板";
+    }
+
+    private async void OnSaveCustomTemplateClick(object? sender, RoutedEventArgs e)
+    {
+        if (_configManager is null)
+        {
+            StatusBar.Text = "Converter 服务未初始化，无法保存模板";
+            return;
+        }
+
+        try
+        {
+            var options = new CustomExportTemplateOptions
+            {
+                TemplateName = string.IsNullOrWhiteSpace(CustomTemplateNameTextBox.Text)
+                    ? "自定义导出模板"
+                    : CustomTemplateNameTextBox.Text.Trim(),
+                Description = string.IsNullOrWhiteSpace(CustomTemplateDescriptionTextBox.Text)
+                    ? "用户自定义 DOCX/PDF 导出模板"
+                    : CustomTemplateDescriptionTextBox.Text.Trim(),
+                BaseFontFamily = GetSelectedString(TemplateBaseFontComboBox, "宋体"),
+                BaseFontSize = GetSelectedDouble(TemplateBaseFontSizeComboBox, 12),
+                LineSpacing = GetSelectedDouble(TemplateLineSpacingComboBox, 1.5),
+                FirstLineIndentPreset = GetSelectedOption(TemplateFirstLineIndentComboBox, TemplateFirstLineIndentPreset.TwoCharacters),
+                PagePreset = GetSelectedOption(TemplatePagePresetComboBox, TemplatePagePreset.A4),
+                MarginPreset = GetSelectedOption(TemplateMarginPresetComboBox, TemplateMarginPreset.Standard),
+                HeadingPreset = GetSelectedOption(TemplateHeadingPresetComboBox, TemplateHeadingPreset.Academic),
+                CodeFontFamily = GetSelectedString(TemplateCodeFontComboBox, "Consolas"),
+                CodeFontSize = GetSelectedDouble(TemplateCodeFontSizeComboBox, 10),
+            };
+
+            var template = CustomExportTemplateBuilder.Create(options);
+            var templateId = CustomExportTemplateBuilder.CreateTemplateId(options.TemplateName);
+            await _configManager.SaveTemplateAsync(templateId, template);
+            CustomTemplateEditorPanel.IsVisible = false;
+            await LoadTemplatesAsync();
+            StatusBar.Text = $"已保存自定义模板：{options.TemplateName}";
+        }
+        catch (Exception ex)
+        {
+            StatusBar.Text = $"保存失败: {ex.Message}";
+        }
     }
 
     private async void OnImportClick(object? sender, RoutedEventArgs e)
@@ -329,4 +437,18 @@ public partial class SettingsDialog : Window
     }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
+
+    private static string GetSelectedString(ComboBox comboBox, string fallback) =>
+        comboBox.SelectedItem?.ToString() ?? fallback;
+
+    private static double GetSelectedDouble(ComboBox comboBox, double fallback) =>
+        comboBox.SelectedItem is double value ? value : fallback;
+
+    private static T GetSelectedOption<T>(ComboBox comboBox, T fallback) =>
+        comboBox.SelectedItem is OptionItem<T> item ? item.Value : fallback;
+
+    private sealed record OptionItem<T>(string Label, T Value)
+    {
+        public override string ToString() => Label;
+    }
 }

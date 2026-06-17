@@ -498,9 +498,146 @@
                         VerticalAlignment="Center">
               <Button Classes="command-button" Content="刷新" Click="OnRefreshClick" />
               <Button Classes="command-button" Content="导入" Click="OnImportClick" />
+              <Button x:Name="CreateCustomTemplateButton"
+                      Classes="command-button primary"
+                      Content="自定义模板"
+                      Click="OnCreateCustomTemplateClick" />
               <Button Classes="command-button primary" Content="+ 种子模板" Click="OnSeedClick" />
             </StackPanel>
           </Grid>
+
+          <Border x:Name="CustomTemplateEditorPanel"
+                  DockPanel.Dock="Top"
+                  IsVisible="False"
+                  Background="{DynamicResource ShellCardBrush}"
+                  BorderBrush="{DynamicResource ShellBorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="{DynamicResource ShellRadiusMd}"
+                  Padding="12"
+                  Margin="0,0,0,12">
+            <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="*,Auto"
+                    ColumnSpacing="10">
+                <StackPanel Grid.Column="0" Spacing="2">
+                  <TextBlock Text="自定义导出模板"
+                             FontSize="13"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource ShellTextBrush}" />
+                  <TextBlock Text="基于受控选项生成 DOCX/PDF 共用 AFD 模板"
+                             FontSize="11"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Classes="icon-button"
+                        Width="28"
+                        Height="28"
+                        Content="✕"
+                        Click="OnCancelCustomTemplateClick" />
+              </Grid>
+
+              <Grid ColumnDefinitions="92,*,92,*"
+                    RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                    ColumnSpacing="8"
+                    RowSpacing="8">
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="模板名称"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <TextBox x:Name="CustomTemplateNameTextBox"
+                         Grid.Row="0" Grid.Column="1"
+                         PlaceholderText="例如：课程报告模板" />
+                <TextBlock Grid.Row="0" Grid.Column="2"
+                           Text="模板说明"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <TextBox x:Name="CustomTemplateDescriptionTextBox"
+                         Grid.Row="0" Grid.Column="3"
+                         PlaceholderText="用于导出说明" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           Text="正文字体"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <ComboBox x:Name="TemplateBaseFontComboBox"
+                          Grid.Row="1" Grid.Column="1" />
+                <TextBlock Grid.Row="1" Grid.Column="2"
+                           Text="正文字号"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <ComboBox x:Name="TemplateBaseFontSizeComboBox"
+                          Grid.Row="1" Grid.Column="3" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0"
+                           Text="行距"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <ComboBox x:Name="TemplateLineSpacingComboBox"
+                          Grid.Row="2" Grid.Column="1" />
+                <TextBlock Grid.Row="2" Grid.Column="2"
+                           Text="首行缩进"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <ComboBox x:Name="TemplateFirstLineIndentComboBox"
+                          Grid.Row="2" Grid.Column="3" />
+
+                <TextBlock Grid.Row="3" Grid.Column="0"
+                           Text="页面"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <ComboBox x:Name="TemplatePagePresetComboBox"
+                          Grid.Row="3" Grid.Column="1" />
+                <TextBlock Grid.Row="3" Grid.Column="2"
+                           Text="页边距"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <ComboBox x:Name="TemplateMarginPresetComboBox"
+                          Grid.Row="3" Grid.Column="3" />
+
+                <TextBlock Grid.Row="4" Grid.Column="0"
+                           Text="标题风格"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <ComboBox x:Name="TemplateHeadingPresetComboBox"
+                          Grid.Row="4" Grid.Column="1" />
+                <TextBlock Grid.Row="4" Grid.Column="2"
+                           Text="代码字体"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <ComboBox x:Name="TemplateCodeFontComboBox"
+                          Grid.Row="4" Grid.Column="3" />
+
+                <TextBlock Grid.Row="5" Grid.Column="2"
+                           Text="代码字号"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource ShellMutedTextBrush}" />
+                <ComboBox x:Name="TemplateCodeFontSizeComboBox"
+                          Grid.Row="5" Grid.Column="3" />
+              </Grid>
+
+              <StackPanel Orientation="Horizontal"
+                          HorizontalAlignment="Right"
+                          Spacing="8">
+                <Button Classes="command-button"
+                        Content="取消"
+                        Click="OnCancelCustomTemplateClick" />
+                <Button x:Name="SaveCustomTemplateButton"
+                        Classes="command-button primary"
+                        Content="保存自定义模板"
+                        Click="OnSaveCustomTemplateClick" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
 
           <StackPanel DockPanel.Dock="Bottom"
                       Orientation="Horizontal"
@@ -547,7 +684,7 @@
                          FontSize="14"
                          FontWeight="SemiBold"
                          Foreground="{DynamicResource ShellTextBrush}" />
-              <TextBlock Text="配置入口已预留；当前界面展示默认策略，等待后端持久化接口接入"
+              <TextBlock Text="文档在保存与自动保存时生成历史快照；超期或超量的版本按下列策略自动清理"
                          FontSize="11"
                          Foreground="{DynamicResource ShellMutedTextBrush}" />
             </StackPanel>
@@ -562,45 +699,54 @@
                     RowSpacing="10"
                     ColumnSpacing="12">
                 <TextBlock Grid.Row="0" Grid.Column="0"
-                           Text="自动保存"
+                           Text="自动保存延迟"
                            FontSize="11"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource ShellMutedTextBrush}" />
-                <CheckBox x:Name="SnapshotAutoSaveCheckBox"
-                          Grid.Row="0" Grid.Column="1"
-                          Content="启用编辑后自动保存"
-                          IsChecked="True" />
+                <Grid Grid.Row="0" Grid.Column="1"
+                      ColumnDefinitions="140,Auto,*"
+                      ColumnSpacing="8">
+                  <TextBox x:Name="SnapshotAutoSaveDelayTextBox"
+                           Grid.Column="0"
+                           IsReadOnly="True" />
+                  <TextBlock Grid.Column="1"
+                             Text="毫秒（防抖，编辑静止后触发）"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource ShellMutedTextBrush}" />
+                </Grid>
 
                 <TextBlock Grid.Row="1" Grid.Column="0"
-                           Text="自动保存延迟"
+                           Text="自动快照最小间隔"
                            FontSize="11"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource ShellMutedTextBrush}" />
                 <Grid Grid.Row="1" Grid.Column="1"
                       ColumnDefinitions="140,Auto,*"
                       ColumnSpacing="8">
-                  <TextBox x:Name="SnapshotAutoSaveDelayTextBox"
+                  <TextBox x:Name="SnapshotIntervalTextBox"
                            Grid.Column="0"
-                           Text="2000" />
+                           IsReadOnly="True" />
                   <TextBlock Grid.Column="1"
-                             Text="毫秒"
+                             Text="分钟（自动保存版本的最小时间间隔）"
                              FontSize="11"
                              VerticalAlignment="Center"
                              Foreground="{DynamicResource ShellMutedTextBrush}" />
                 </Grid>
 
                 <TextBlock Grid.Row="2" Grid.Column="0"
-                           Text="快照最小间隔"
+                           Text="自动快照变更阈值"
                            FontSize="11"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource ShellMutedTextBrush}" />
                 <Grid Grid.Row="2" Grid.Column="1"
                       ColumnDefinitions="140,Auto,*"
                       ColumnSpacing="8">
-                  <TextBox x:Name="SnapshotIntervalTextBox"
-                           Grid.Column="0" />
+                  <TextBox x:Name="SnapshotContentChangeThresholdTextBox"
+                           Grid.Column="0"
+                           IsReadOnly="True" />
                   <TextBlock Grid.Column="1"
-                             Text="分钟"
+                             Text="字符（不足间隔时仍触发保存的最小改动量）"
                              FontSize="11"
                              VerticalAlignment="Center"
                              Foreground="{DynamicResource ShellMutedTextBrush}" />
@@ -615,7 +761,8 @@
                       ColumnDefinitions="140,Auto,*"
                       ColumnSpacing="8">
                   <TextBox x:Name="SnapshotRetentionCountTextBox"
-                           Grid.Column="0" />
+                           Grid.Column="0"
+                           IsReadOnly="True" />
                   <TextBlock Grid.Column="1"
                              Text="个/文档"
                              FontSize="11"
@@ -632,7 +779,8 @@
                       ColumnDefinitions="140,Auto,*"
                       ColumnSpacing="8">
                   <TextBox x:Name="SnapshotRetentionDaysTextBox"
-                           Grid.Column="0" />
+                           Grid.Column="0"
+                           IsReadOnly="True" />
                   <TextBlock Grid.Column="1"
                              Text="天"
                              FontSize="11"
