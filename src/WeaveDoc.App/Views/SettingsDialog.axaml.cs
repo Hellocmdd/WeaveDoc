@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using WeaveDoc.App.Services.ExportTemplates;
@@ -434,6 +435,16 @@ public partial class SettingsDialog : Window
         _pendingDeleteId = null;
         await _configManager.DeleteTemplateAsync(selected.TemplateId);
         await LoadTemplatesAsync();
+    }
+
+    // 无边框窗口（SystemDecorations=None）需手动提供标题栏拖拽，
+    // 否则对话框只能停在 CenterOwner 初始位置无法移动。
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            BeginMoveDrag(e);
+        }
     }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
