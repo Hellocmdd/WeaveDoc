@@ -73,6 +73,20 @@ namespace WeaveDoc.MarkdownEditor.Tests
         }
 
         [Test]
+        public void RenderPreviewHtml_MultiLineCodeBlock_KeepsNewlinesBetweenLines()
+        {
+            // Regression: each code line was wrapped in <span> with no separator, so the
+            // adjacent inline spans collapsed onto one line in the <pre> (no real newline
+            // char for white-space:pre to preserve). One span per line must be followed by
+            // a real '\n' so the preview shows the original line breaks.
+            var result = _service.RenderPreviewHtml("```\nline1\nline2\nline3\n```");
+            Assert.That(result, Does.Contain("<pre>"));
+            Assert.That(result, Does.Contain("data-line=\"1\">line1</span>\n"), "line1 span must be followed by a newline");
+            Assert.That(result, Does.Contain("data-line=\"2\">line2</span>\n"), "line2 span must be followed by a newline");
+            Assert.That(result, Does.Contain("data-line=\"3\">line3</span>\n"), "line3 span must be followed by a newline");
+        }
+
+        [Test]
         public void RenderPreviewHtml_Link_ReturnsAnchor()
         {
             var result = _service.RenderPreviewHtml("[link](https://example.com)");

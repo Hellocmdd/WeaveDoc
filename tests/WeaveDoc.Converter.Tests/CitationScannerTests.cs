@@ -36,6 +36,15 @@ public class CitationScannerTests
     }
 
     [Fact]
+    public void Scan_DuplicateKeys_RecordsEveryOccurrence()
+    {
+        var result = _scanner.Scan("[@b] then [@a] then [@b] again [@a]");
+
+        Assert.Equal(new[] { "b", "a" }, result.Keys);
+        Assert.Equal(new[] { "b", "a", "b", "a" }, result.Occurrences.Select(o => o.Key));
+    }
+
+    [Fact]
     public void Scan_FencedCodeBlock_Ignored()
     {
         var md = """

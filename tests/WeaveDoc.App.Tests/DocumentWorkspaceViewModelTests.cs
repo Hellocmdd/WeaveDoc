@@ -146,6 +146,74 @@ public sealed class DocumentWorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task RefreshPreview_WhenCitationPreviewServiceConfigured_RendersEnrichedMarkdown()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var citationPreview = new FakeCitationPreviewService();
+        service.QueueRead(MarkdownDocumentResult.Success("正文 [@smith2024]", "/workspace/demo.md", "<p>正文 [@smith2024]</p>"));
+        service.PreviewFactory = (content, filePath) =>
+            MarkdownDocumentResult.Success(content, filePath, $"<preview>{content}</preview>");
+        citationPreview.NextResult = new CitationPreviewResult("正文 [1]\n\n## 参考文献\n\n[1] Smith. Title.", HasCitations: true);
+        var viewModel = new DocumentWorkspaceViewModel(service, new FakeDocumentSnapshotService(), citationPreview);
+        await viewModel.OpenAsync("/workspace/demo.md", TestContext.Current.CancellationToken);
+        viewModel.Content = "正文 [@smith2024]";
+        service.PreviewRequests.Clear();
+        citationPreview.Requests.Clear();
+
+        var refreshed = viewModel.RefreshPreview();
+
+        Assert.True(refreshed);
+        Assert.Equal("正文 [@smith2024]", Assert.Single(citationPreview.Requests));
+        Assert.Equal("正文 [1]\n\n## 参考文献\n\n[1] Smith. Title.", Assert.Single(service.PreviewRequests).Content);
+        Assert.Contains("[1] Smith. Title.", viewModel.PreviewHtml);
+    }
+
+    [Fact]
+    public async Task RefreshPreview_WhenCitationPreviewFails_FallsBackToPlainMarkdownPreview()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var citationPreview = new FakeCitationPreviewService
+        {
+            Exception = new InvalidOperationException("文献库不可用")
+        };
+        service.QueueRead(MarkdownDocumentResult.Success("正文 [@smith2024]", "/workspace/demo.md", "<p>正文 [@smith2024]</p>"));
+        service.PreviewFactory = (content, filePath) =>
+            MarkdownDocumentResult.Success(content, filePath, $"<preview>{content}</preview>");
+        var viewModel = new DocumentWorkspaceViewModel(service, new FakeDocumentSnapshotService(), citationPreview);
+        await viewModel.OpenAsync("/workspace/demo.md", TestContext.Current.CancellationToken);
+        viewModel.Content = "正文 [@smith2024]";
+        service.PreviewRequests.Clear();
+
+        var refreshed = viewModel.RefreshPreview();
+
+        Assert.True(refreshed);
+        Assert.Equal("正文 [@smith2024]", Assert.Single(service.PreviewRequests).Content);
+        Assert.Equal("<preview>正文 [@smith2024]</preview>", viewModel.PreviewHtml);
+        Assert.False(viewModel.HasError);
+    }
+
+    [Fact]
+    public async Task OpenAsync_WhenCitationPreviewServiceConfigured_RendersInitialPreviewWithReferences()
+    {
+        var service = new FakeMarkdownDocumentService();
+        var citationPreview = new FakeCitationPreviewService
+        {
+            NextResult = new CitationPreviewResult("正文 [1]\n\n## 参考文献\n\n[1] Smith. Title.", HasCitations: true)
+        };
+        service.QueueRead(MarkdownDocumentResult.Success("正文 [@smith2024]", "/workspace/demo.md", "<p>正文 [@smith2024]</p>"));
+        service.PreviewFactory = (content, filePath) =>
+            MarkdownDocumentResult.Success(content, filePath, $"<preview>{content}</preview>");
+        var viewModel = new DocumentWorkspaceViewModel(service, new FakeDocumentSnapshotService(), citationPreview);
+
+        var opened = await viewModel.OpenAsync("/workspace/demo.md", TestContext.Current.CancellationToken);
+
+        Assert.True(opened);
+        Assert.Equal("正文 [@smith2024]", Assert.Single(citationPreview.Requests));
+        Assert.Equal("正文 [1]\n\n## 参考文献\n\n[1] Smith. Title.", Assert.Single(service.PreviewRequests).Content);
+        Assert.Contains("[1] Smith. Title.", viewModel.PreviewHtml);
+    }
+
+    [Fact]
     public async Task SaveAsync_WhenDirtyDocumentSaves_ResetsDirtyState()
     {
         var service = new FakeMarkdownDocumentService();
@@ -511,6 +579,33 @@ public sealed class DocumentWorkspaceViewModelTests
         {
             PreviewRequests.Add((content, filePath));
             return PreviewFactory(content, filePath);
+        }
+    }
+
+    private sealed class FakeCitationPreviewService : ICitationPreviewService
+    {
+        public List<string> Requests { get; } = [];
+
+        public CitationPreviewResult NextResult { get; set; } =
+            new(string.Empty, HasCitations: false);
+
+        public Exception? Exception { get; set; }
+
+        public Task<CitationPreviewResult> CreatePreviewMarkdownAsync(
+            string markdown,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Requests.Add(markdown);
+            if (Exception is not null)
+            {
+                throw Exception;
+            }
+
+            return Task.FromResult(NextResult with
+            {
+                Markdown = string.IsNullOrEmpty(NextResult.Markdown) ? markdown : NextResult.Markdown
+            });
         }
     }
 

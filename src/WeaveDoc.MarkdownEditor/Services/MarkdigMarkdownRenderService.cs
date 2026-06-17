@@ -140,7 +140,9 @@ public sealed class MarkdigMarkdownRenderService : IMarkdownRenderService
         {
             var line = lines.Lines[i].Slice.ToString();
             var lineNumber = codeBlock.Line + 1 + i;
-            _html.Append($"<span data-line=\"{lineNumber}\">{EscapeHtml(line)}</span>");
+            // 每行 span 后补一个真实换行：<pre> 的 white-space:pre 会保留它，
+            // 否则相邻 inline <span> 之间没有空白字符，多行代码会被渲染到同一行。
+            _html.Append($"<span data-line=\"{lineNumber}\">{EscapeHtml(line)}</span>\n");
         }
 
         _html.Append("</code></pre>\n");

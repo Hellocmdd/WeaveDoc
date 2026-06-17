@@ -42,7 +42,13 @@ public partial class MainWindow : Window
         _aiService = aiService;
         _autoInitializeRag = autoInitializeRag;
 
-        var documentWorkspace = new DocumentWorkspaceViewModel(new MarkdownDocumentService());
+        var citationPreviewService = literatureRepository is not null
+            ? new CitationPreviewService(literatureRepository)
+            : null;
+        var documentWorkspace = new DocumentWorkspaceViewModel(
+            new MarkdownDocumentService(),
+            new DocumentSnapshotService(),
+            citationPreviewService);
         _viewModel = new AppShellViewModel(documentWorkspace, configManager, engine, aiService, literatureRepository);
         DataContext = _viewModel;
 

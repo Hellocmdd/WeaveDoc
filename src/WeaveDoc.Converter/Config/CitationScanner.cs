@@ -40,11 +40,14 @@ public class CitationScanner
         foreach (Match match in CitationRegex.Matches(masked))
         {
             var key = match.Groups[1].Value;
+            var keyIndex = keys.FindIndex(existing => string.Equals(existing, key, StringComparison.OrdinalIgnoreCase));
             if (seen.Add(key))
             {
-                occurrences.Add(new CitationOccurrence(keys.Count, key, match.Index));
+                keyIndex = keys.Count;
                 keys.Add(key);
             }
+
+            occurrences.Add(new CitationOccurrence(keyIndex, key, match.Index));
         }
 
         return new CitationScanResult(keys, occurrences);

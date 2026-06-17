@@ -11,6 +11,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
 
     private readonly IMarkdownDocumentService _documentService;
     private readonly IDocumentSnapshotService _snapshotService;
+    private readonly ICitationPreviewService? _citationPreviewService;
     private string? _currentFilePath;
     private string _displayName = EmptyDisplayName;
     private string _content = string.Empty;
@@ -28,9 +29,18 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
     public DocumentWorkspaceViewModel(
         IMarkdownDocumentService documentService,
         IDocumentSnapshotService snapshotService)
+        : this(documentService, snapshotService, null)
+    {
+    }
+
+    public DocumentWorkspaceViewModel(
+        IMarkdownDocumentService documentService,
+        IDocumentSnapshotService snapshotService,
+        ICitationPreviewService? citationPreviewService)
     {
         _documentService = documentService ?? throw new ArgumentNullException(nameof(documentService));
         _snapshotService = snapshotService ?? throw new ArgumentNullException(nameof(snapshotService));
+        _citationPreviewService = citationPreviewService;
     }
 
     public string? CurrentFilePath
@@ -125,7 +135,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
             return false;
         }
 
-        ApplyDocument(result, isDirty: false);
+        ApplyDocument(await EnrichPreviewAsync(result, cancellationToken), isDirty: false);
         ClearError();
         StatusText = $"已打开 {DisplayName}";
         return true;
@@ -155,7 +165,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
 
     public bool RefreshPreview()
     {
-        var previewResult = _documentService.CreatePreview(Content, CurrentFilePath);
+        var previewResult = CreatePreviewResult(Content, CurrentFilePath);
         if (!previewResult.Succeeded)
         {
             SetFailure(previewResult.ErrorMessage);
@@ -211,7 +221,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
             return false;
         }
 
-        ApplyDocument(result, isDirty: false);
+        ApplyDocument(await EnrichPreviewAsync(result, cancellationToken), isDirty: false);
         ClearError();
         StatusText = $"已保存 {DisplayName}";
         return true;
@@ -233,7 +243,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
             return false;
         }
 
-        ApplyDocument(result, isDirty: false);
+        ApplyDocument(await EnrichPreviewAsync(result, cancellationToken), isDirty: false);
         ClearError();
         StatusText = $"已保存 {DisplayName}";
         return true;
@@ -264,7 +274,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
                 return false;
             }
 
-            ApplyDocument(result, isDirty: false);
+            ApplyDocument(await EnrichPreviewAsync(result, cancellationToken), isDirty: false);
             ClearError();
             StatusText = $"已自动保存 {DateTime.Now:HH:mm}";
             return true;
@@ -334,7 +344,7 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
                 return false;
             }
 
-            ApplyDocument(result, isDirty: false);
+            ApplyDocument(await EnrichPreviewAsync(result, cancellationToken), isDirty: false);
             ClearError();
             StatusText = $"已恢复快照 {DisplayName}";
             return true;
@@ -377,6 +387,83 @@ public sealed class DocumentWorkspaceViewModel : ObservableObject
         PreviewHtml = result.PreviewHtml ?? string.Empty;
         HasDocument = true;
         IsDirty = isDirty;
+    }
+
+    private MarkdownDocumentResult CreatePreviewResult(string content, string? filePath)
+    {
+        if (_citationPreviewService is null)
+        {
+            return _documentService.CreatePreview(content, filePath);
+        }
+
+        try
+        {
+            var previewContent = _citationPreviewService
+                .CreatePreviewMarkdownAsync(content)
+                .GetAwaiter()
+                .GetResult()
+                .Markdown;
+
+            return _documentService.CreatePreview(previewContent, filePath);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return _documentService.CreatePreview(content, filePath);
+        }
+    }
+
+    private async Task<MarkdownDocumentResult> CreatePreviewResultAsync(
+        string content,
+        string? filePath,
+        CancellationToken cancellationToken)
+    {
+        if (_citationPreviewService is null)
+        {
+            return _documentService.CreatePreview(content, filePath);
+        }
+
+        try
+        {
+            var previewContent = (await _citationPreviewService
+                .CreatePreviewMarkdownAsync(content, cancellationToken)
+                .ConfigureAwait(false)).Markdown;
+
+            return _documentService.CreatePreview(previewContent, filePath);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return _documentService.CreatePreview(content, filePath);
+        }
+    }
+
+    private async Task<MarkdownDocumentResult> EnrichPreviewAsync(
+        MarkdownDocumentResult source,
+        CancellationToken cancellationToken)
+    {
+        if (_citationPreviewService is null)
+        {
+            return source;
+        }
+
+        var previewResult = await CreatePreviewResultAsync(source.Content, source.FilePath, cancellationToken);
+        return WithPreviewHtml(source, previewResult);
+    }
+
+    private static MarkdownDocumentResult WithPreviewHtml(
+        MarkdownDocumentResult source,
+        MarkdownDocumentResult previewResult)
+    {
+        return previewResult.Succeeded
+            ? MarkdownDocumentResult.Success(source.Content, source.FilePath, previewResult.PreviewHtml)
+            : source;
     }
 
     private void SetFailure(string? errorMessage)
