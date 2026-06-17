@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -235,6 +236,38 @@ public partial class MainWindow : Window
         var localPath = file.TryGetLocalPath();
         if (!string.IsNullOrWhiteSpace(localPath))
             await _viewModel.DocumentWorkspace.OpenAsync(localPath);
+    }
+
+    // 拖拽进入左栏：仅当拖入的是本地 .pdf 文件时，光标显示「可放置」，否则静默拒绝。
+    private void OnLeftDragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = PickPdfFile(e) is null ? DragDropEffects.None : DragDropEffects.Copy;
+    }
+
+    // 拖拽释放在左栏：把第一个 .pdf 文件喂给与「打开」按钮相同的预览流水线。
+    // 非 .pdf / 无文件 → 静默忽略；多文件 → 只取第一个。
+    private async void OnLeftDrop(object? sender, DragEventArgs e)
+    {
+        var file = PickPdfFile(e);
+        if (file is null)
+            return;
+
+        var result = await StorageFileOpenService.PreparePdfAsync(file).ConfigureAwait(true);
+        if (!result.Succeeded)
+            return;
+
+        await PdfWorkspaceControl.ShowPdfAsync(result.FilePath, result.DisplayName, result.IsTemporary);
+    }
+
+    // 从拖拽数据里取第一个 .pdf 文件；不是 .pdf（或没有文件）则返回 null。
+    // Avalonia 12 拖拽走 e.DataTransfer.TryGetFile()（返回 IStorageItem）。
+    private static IStorageFile? PickPdfFile(DragEventArgs e)
+    {
+        if (e.DataTransfer.TryGetFile() is not IStorageFile file)
+            return null;
+
+        var name = file.Name ?? string.Empty;
+        return name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? file : null;
     }
 
     private void OnToggleAiPanelClick(object? sender, RoutedEventArgs e)

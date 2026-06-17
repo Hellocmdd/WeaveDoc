@@ -230,7 +230,11 @@
         <ColumnDefinition Width="300" MinWidth="280" />
       </Grid.ColumnDefinitions>
 
-      <Grid Grid.Column="0">
+      <Grid Grid.Column="0"
+            x:Name="LeftDropZone"
+            DragDrop.AllowDrop="True"
+            DragDrop.DragOver="OnLeftDragOver"
+            DragDrop.Drop="OnLeftDrop">
         <views:WorkspaceSidebar x:Name="WorkspaceSidebarControl"
                                 IsVisible="{Binding IsMarkdownWorkspaceVisible}" />
         <views:PdfWorkspace x:Name="PdfWorkspaceControl"

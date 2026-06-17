@@ -89,8 +89,6 @@ public class MainWindowTests
             Assert.NotNull(workspace.Background);
             Assert.Null(window.FindControl<Control>("ShellNavigationRailControl"));
             Assert.NotNull(sidebar.FindControl<Grid>("WorkspaceSidebarRoot")?.Background);
-            Assert.NotNull(sidebar.FindControl<Border>("DocumentPreviewToolbar")?.Background);
-            Assert.NotNull(sidebar.FindControl<Border>("DocumentPreviewTabStrip")?.Background);
             Assert.NotNull(sidebar.FindControl<Border>("DocumentPreviewCanvas")?.Background);
             Assert.NotNull(sidebar.FindControl<Border>("DocumentPreviewPaper")?.Background);
             Assert.NotNull(sidebar.FindControl<TextBlock>("DocumentPreviewEmptyStateText"));
@@ -237,13 +235,13 @@ public class MainWindowTests
         {
             var preview = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl");
 
-            Assert.NotNull(preview.FindControl<Border>("DocumentPreviewToolbar"));
-            Assert.NotNull(preview.FindControl<Border>("DocumentPreviewTabStrip"));
+            // 翻页/缩放工具栏（DocumentPreviewToolbar）与多标签栏（DocumentPreviewTabStrip）
+            // 是早期占位、从未接线，已移除；这里只校验保留下来的空状态画布。
+            Assert.Null(preview.FindControl<Border>("DocumentPreviewToolbar"));
+            Assert.Null(preview.FindControl<Border>("DocumentPreviewTabStrip"));
             Assert.NotNull(preview.FindControl<Border>("DocumentPreviewCanvas"));
             Assert.NotNull(preview.FindControl<Border>("DocumentPreviewPaper"));
 
-            Assert.Equal("0 / 0", Find<TextBlock>(preview, "DocumentPreviewPageText").Text);
-            Assert.Equal("100%", Find<TextBlock>(preview, "DocumentPreviewZoomText").Text);
             Assert.Equal("从“打开”或拖拽 Markdown / PDF 到此处开始",
                 Find<TextBlock>(preview, "DocumentPreviewEmptyStateText").Text);
         });
@@ -910,7 +908,6 @@ public class MainWindowTests
 
     private static void AssertDeferredShellEntrypointsUnavailable(Window window)
     {
-        var sidebar = Find<WorkspaceSidebar>(window, "WorkspaceSidebarControl");
         var editor = Find<EditorWorkspace>(window, "EditorWorkspaceControl");
 
         Assert.Null(window.FindControl<Control>("FileMenuButton"));
@@ -927,23 +924,10 @@ public class MainWindowTests
 
         // 工作线 4: the AI panel chat input (清空/发送/输入框) moved into RagChatView and is no
         // longer a "deferred" entrypoint, so they are dropped from this disabled list.
-        var disabledButtons = new[]
-        {
-            // NewShellDocumentButton was enabled in 工作线 2 (task 2.3) — no longer deferred
-            // OpenShellDocumentButton was enabled in 工作线 0 (task 0.2) — no longer deferred
-            // OpenDocumentButton / SaveDocumentButton removed from EditorWorkspace toolbar in 工作线 2 (task 2.4)
-            // SetupShellCommandButton was enabled in 工作线 3 — opens SettingsDialog, no longer deferred
-            Find<Button>(sidebar, "DocumentPreviousPageButton"),
-            Find<Button>(sidebar, "DocumentPreviousPageButton"),
-            Find<Button>(sidebar, "DocumentNextPageButton"),
-            Find<Button>(sidebar, "DocumentZoomOutButton"),
-            Find<Button>(sidebar, "DocumentZoomInButton"),
-            Find<Button>(sidebar, "DocumentPreviewTabButton"),
-            Find<Button>(sidebar, "DocumentPreviewCloseTabButton"),
-            Find<Button>(sidebar, "DocumentPreviewAddTabButton")
-        };
+        // The sidebar's page/zoom/tab buttons (DocumentPreviousPageButton, DocumentZoomInButton,
+        // DocumentPreviewTabButton, etc.) were placeholder-only and have been removed entirely,
+        // so they no longer appear here either.
 
-        Assert.All(disabledButtons, button => Assert.False(button.IsEnabled));
         Assert.Null(editor.FindControl<Button>("ExportDocumentButton"));
     }
 
