@@ -171,7 +171,7 @@ public partial class MainWindow : Window
     private async void OnOpenVersionHistoryClick(object? sender, RoutedEventArgs e)
     {
         EditorWorkspaceControl.SyncEditorContentToWorkspace();
-        var dialog = new VersionHistoryDialog(_viewModel.DocumentWorkspace);
+        var dialog = new VersionHistoryDialog(_viewModel.DocumentWorkspace, _viewModel.Theme);
         var restored = await dialog.ShowDialog<bool>(this);
         if (restored)
         {

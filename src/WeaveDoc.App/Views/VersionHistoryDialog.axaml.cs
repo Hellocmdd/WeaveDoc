@@ -12,14 +12,22 @@ public partial class VersionHistoryDialog : Window
 
     private string? _pendingDeleteSnapshotId;
 
-    public VersionHistoryDialog() : this(null)
+    public VersionHistoryDialog() : this(null, ShellThemeKind.Dark)
     {
     }
 
     public VersionHistoryDialog(DocumentWorkspaceViewModel? workspace)
+        : this(workspace, ShellThemeKind.Dark)
+    {
+    }
+
+    public VersionHistoryDialog(DocumentWorkspaceViewModel? workspace, ShellThemeKind theme)
     {
         _workspace = workspace;
         InitializeComponent();
+        // 对齐主页面 Markdown 预览：把 WebView 的浅/深色随应用主题切换。
+        // ShellThemeKind.ToString() -> "Dark"/"Light"，PreviewWebViewControl 据此切换配色。
+        SnapshotPreviewControl.ViewerCssTheme = theme.ToString();
         Loaded += OnLoaded;
     }
 
