@@ -51,7 +51,7 @@ PDF 文件通过 `PdfWorkspace` 打开。它封装 `WeaveDoc.MarkdownEditor` 的
 
 ## 导出与设置
 
-`ExportDialog` 从 `ConfigManager` 加载模板，支持 DOCX/PDF 输出、`PdfLayoutMode.SingleColumn` / `TwoColumn` 版式选择，调用 `DocumentConversionEngine` 完成转换，并可把转换后的 PDF 重新打开到工作区。当文档含 Pandoc `[@key]` 引用时，引擎通过 Pandoc `citeproc` 按 GB/T 7714-2015 渲染；未解析的 key 或缺失的著录项会记录到 `ConversionResult.Warnings`，不阻断导出。
+`ExportDialog` 从 `ConfigManager` 加载模板，支持 DOCX/PDF 输出，调用 `DocumentConversionEngine` 完成转换，并可把转换后的 PDF 重新打开到工作区。PDF 导出会统一规范为单栏版式。当文档含 Pandoc `[@key]` 引用时，引擎通过 Pandoc `citeproc` 按 GB/T 7714-2015 渲染；未解析的 key 或缺失的著录项会记录到 `ConversionResult.Warnings`，不阻断导出。
 
 `SettingsDialog` 目前包含通用设置、模型/云端提供商设置、Zotero 占位界面、模板库管理和快照策略界面。模板导入会先通过 `AfdParser` 校验 JSON，再通过 `ConfigManager` 保存。
 

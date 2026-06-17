@@ -51,7 +51,7 @@ PDF files are opened through `PdfWorkspace`, which wraps `PdfViewerControl` from
 
 ## Export And Settings
 
-`ExportDialog` loads templates from `ConfigManager`, lets the user choose DOCX or PDF, supports `PdfLayoutMode.SingleColumn` / `TwoColumn`, calls `DocumentConversionEngine`, and can open a converted PDF back into the workspace. When the document contains Pandoc `[@key]` citations, the engine renders them per GB/T 7714-2015 via Pandoc `citeproc`; any unresolved keys or missing bibliography fields are reported in `ConversionResult.Warnings` without blocking the export.
+`ExportDialog` loads templates from `ConfigManager`, lets the user choose DOCX or PDF, calls `DocumentConversionEngine`, and can open a converted PDF back into the workspace. PDF export is normalized to a single-column layout. When the document contains Pandoc `[@key]` citations, the engine renders them per GB/T 7714-2015 via Pandoc `citeproc`; any unresolved keys or missing bibliography fields are reported in `ConversionResult.Warnings` without blocking the export.
 
 `SettingsDialog` currently groups general settings, model/cloud-provider settings, Zotero placeholder UI, template library management, and snapshot policy UI. Template import validates JSON through `AfdParser` before saving through `ConfigManager`.
 

@@ -401,53 +401,18 @@ public static class OpenXmlStyleCorrector
     }
 
     /// <summary>
-    /// 为 PDF 导出应用栏版式。双列模式优先保持 Heading1 到首个 Heading2 之前的前置区单列。
-    /// 没有 Heading2 时，降级为只把 Heading1 后第一个非空段识别为作者段。
+    /// 为 PDF 导出清理栏版式，固定使用单栏输出。
     /// </summary>
-    public static void ApplyPdfLayout(string docxPath, PdfLayoutMode mode, IPdfConverter? probePdfConverter = null)
+    public static void ApplyPdfLayout(string docxPath)
     {
         using var doc = WordprocessingDocument.Open(docxPath, true);
         var body = doc.MainDocumentPart!.Document.Body!;
         var finalSection = body.Elements<SectionProperties>().LastOrDefault()
                            ?? body.AppendChild(new SectionProperties());
 
-        if (mode == PdfLayoutMode.SingleColumn)
-        {
-            ClearParagraphSectionProperties(body);
-            SetColumns(finalSection, 1);
-            SetContinuousSection(finalSection);
-            doc.MainDocumentPart.Document.Save();
-            return;
-        }
-
-        var paragraphs = body.Elements<Paragraph>().ToList();
         ClearParagraphSectionProperties(body);
-        var singleColumnEndIndex = FindPdfFrontMatterEndIndex(paragraphs);
-        if (singleColumnEndIndex == null)
-        {
-            SetColumns(finalSection, 2);
-            SetContinuousSection(finalSection);
-            SpanWidePdfTables(body, finalSection, 0);
-            doc.MainDocumentPart.Document.Save();
-            return;
-        }
-
-        var breakParagraph = paragraphs[singleColumnEndIndex.Value];
-        var paragraphProperties = breakParagraph.GetFirstChild<ParagraphProperties>()
-                                  ?? breakParagraph.PrependChild(new ParagraphProperties());
-
-        CenterPdfAuthorBlock(paragraphs, singleColumnEndIndex.Value);
-        paragraphProperties.RemoveAllChildren<SectionProperties>();
-        var firstSection = new SectionProperties();
-        CopySectionSettingsForPdfLayout(finalSection, firstSection);
-        SetColumns(firstSection, 1);
-        SetContinuousSection(firstSection);
-        paragraphProperties.AppendChild(firstSection);
-
-        SetColumns(finalSection, 2);
+        SetColumns(finalSection, 1);
         SetContinuousSection(finalSection);
-        var objectStartIndex = body.ChildElements.ToList().IndexOf(breakParagraph) + 1;
-        SpanWidePdfTables(body, finalSection, objectStartIndex);
         doc.MainDocumentPart.Document.Save();
     }
 
@@ -549,95 +514,6 @@ public static class OpenXmlStyleCorrector
 
     #region Private helpers
 
-    private static int? FindPdfFrontMatterEndIndex(IReadOnlyList<Paragraph> paragraphs)
-    {
-        var headingIndex = paragraphs.ToList().FindIndex(IsHeading1Paragraph);
-        if (headingIndex < 0)
-            return null;
-
-        for (var i = headingIndex + 1; i < paragraphs.Count; i++)
-        {
-            if (IsFrontMatterMetadataParagraph(paragraphs[i].InnerText.Trim()))
-                return FindPreviousNonEmptyParagraphIndex(paragraphs, i - 1);
-
-            if (IsHeading2Paragraph(paragraphs[i]))
-                return FindPreviousNonEmptyParagraphIndex(paragraphs, i - 1);
-        }
-
-        return FindFirstNonEmptyParagraphIndex(paragraphs, headingIndex + 1);
-    }
-
-    private static void CenterPdfAuthorBlock(IReadOnlyList<Paragraph> paragraphs, int singleColumnEndIndex)
-    {
-        var headingIndex = paragraphs.ToList().FindIndex(IsHeading1Paragraph);
-        if (headingIndex < 0)
-            return;
-
-        for (var i = headingIndex + 1; i <= singleColumnEndIndex; i++)
-        {
-            var paragraphText = paragraphs[i].InnerText.Trim();
-            if (string.IsNullOrWhiteSpace(paragraphText))
-                continue;
-
-            if (IsFrontMatterMetadataParagraph(paragraphText))
-                break;
-
-            var paragraphProperties = paragraphs[i].GetFirstChild<ParagraphProperties>()
-                                      ?? paragraphs[i].PrependChild(new ParagraphProperties());
-            paragraphProperties.RemoveAllChildren<Justification>();
-            paragraphProperties.AppendChild(new Justification { Val = JustificationValues.Center });
-        }
-    }
-
-    private static bool IsFrontMatterMetadataParagraph(string text)
-    {
-        return text.StartsWith("摘要", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("【摘要】", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("Abstract", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("内容提要", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("关键词", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("【关键词】", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("Key words", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("Keywords", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("DOI", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("doi", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("中图分类号", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("文献标识码", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("文献标志码", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("文章编号", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static int? FindFirstNonEmptyParagraphIndex(IReadOnlyList<Paragraph> paragraphs, int startIndex)
-    {
-        for (var i = startIndex; i < paragraphs.Count; i++)
-        {
-            if (!string.IsNullOrWhiteSpace(paragraphs[i].InnerText))
-                return i;
-        }
-
-        return null;
-    }
-
-    private static int? FindPreviousNonEmptyParagraphIndex(IReadOnlyList<Paragraph> paragraphs, int startIndex)
-    {
-        for (var i = startIndex; i >= 0; i--)
-        {
-            if (!string.IsNullOrWhiteSpace(paragraphs[i].InnerText))
-                return i;
-        }
-
-        return null;
-    }
-
-    private static bool IsHeading2Paragraph(Paragraph paragraph)
-    {
-        var styleId = paragraph.GetFirstChild<ParagraphProperties>()?
-            .ParagraphStyleId?
-            .Val?
-            .Value;
-        return string.Equals(styleId, "Heading2", StringComparison.OrdinalIgnoreCase);
-    }
-
     private static void ClearParagraphSectionProperties(Body body)
     {
         foreach (var paragraph in body.Elements<Paragraph>())
@@ -645,15 +521,6 @@ public static class OpenXmlStyleCorrector
             paragraph.GetFirstChild<ParagraphProperties>()?
                 .RemoveAllChildren<SectionProperties>();
         }
-    }
-
-    private static bool IsHeading1Paragraph(Paragraph paragraph)
-    {
-        var styleId = paragraph.GetFirstChild<ParagraphProperties>()?
-            .ParagraphStyleId?
-            .Val?
-            .Value;
-        return string.Equals(styleId, "Heading1", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void SetColumns(SectionProperties sectionProperties, short count)
@@ -684,198 +551,6 @@ public static class OpenXmlStyleCorrector
         }
 
         sectionType.Val = sectionMark;
-    }
-
-    private static void CopySectionSettingsForPdfLayout(SectionProperties source, SectionProperties target)
-    {
-        var pageSize = source.GetFirstChild<PageSize>();
-        if (pageSize != null)
-            target.AppendChild((PageSize)pageSize.CloneNode(true));
-
-        var pageMargin = source.GetFirstChild<PageMargin>();
-        if (pageMargin != null)
-            target.AppendChild((PageMargin)pageMargin.CloneNode(true));
-
-        foreach (var headerReference in source.Elements<HeaderReference>())
-            target.AppendChild((HeaderReference)headerReference.CloneNode(true));
-
-        foreach (var footerReference in source.Elements<FooterReference>())
-            target.AppendChild((FooterReference)footerReference.CloneNode(true));
-
-        var pageNumberType = source.GetFirstChild<PageNumberType>();
-        if (pageNumberType != null)
-            target.AppendChild((PageNumberType)pageNumberType.CloneNode(true));
-    }
-
-    private static void SpanWidePdfTables(Body body, SectionProperties finalSection, int startElementIndex)
-    {
-        ApplyTablePagination(body);
-
-        var elements = body.ChildElements.ToList();
-        for (var i = Math.Max(0, startElementIndex); i < elements.Count; i++)
-        {
-            if (elements[i] is SectionProperties)
-                break;
-
-            if (elements[i] is not Table table || !IsWideTable(table))
-                continue;
-
-            BindTableCaption(elements, i);
-            var blockStart = FindTableBlockStart(elements, i, Math.Max(0, startElementIndex));
-            var blockEnd = FindTableBlockEnd(elements, i);
-            SpanPdfBlockAcrossColumns(body, elements, blockStart, blockEnd, finalSection);
-            elements = body.ChildElements.ToList();
-            i = Math.Min(elements.Count - 1, blockEnd + 1);
-        }
-    }
-
-    private static void ApplyTablePagination(Body body)
-    {
-        foreach (var table in body.Elements<Table>())
-        {
-            foreach (var row in table.Elements<TableRow>())
-            {
-                var rowProperties = row.GetFirstChild<TableRowProperties>()
-                                    ?? row.PrependChild(new TableRowProperties());
-                if (rowProperties.GetFirstChild<CantSplit>() == null)
-                    rowProperties.AppendChild(new CantSplit());
-            }
-        }
-    }
-
-    private static void BindTableCaption(IReadOnlyList<OpenXmlElement> elements, int tableIndex)
-    {
-        if (tableIndex > 0 && elements[tableIndex - 1] is Paragraph previous && IsTableCaptionParagraph(previous))
-        {
-            AddKeepNext(previous);
-            AddKeepLines(previous);
-        }
-
-        if (tableIndex + 1 < elements.Count && elements[tableIndex + 1] is Paragraph next && IsTableCaptionParagraph(next))
-            AddKeepLines(next);
-    }
-
-    private static int FindTableBlockStart(IReadOnlyList<OpenXmlElement> elements, int tableIndex, int minIndex)
-    {
-        if (tableIndex > minIndex
-            && elements[tableIndex - 1] is Paragraph previous
-            && IsTableCaptionParagraph(previous))
-        {
-            return tableIndex - 1;
-        }
-
-        return tableIndex;
-    }
-
-    private static int FindTableBlockEnd(IReadOnlyList<OpenXmlElement> elements, int tableIndex)
-    {
-        if (tableIndex + 1 < elements.Count
-            && elements[tableIndex + 1] is Paragraph next
-            && IsTableCaptionParagraph(next))
-        {
-            return tableIndex + 1;
-        }
-
-        return tableIndex;
-    }
-
-    private static void SpanPdfBlockAcrossColumns(
-        Body body,
-        IReadOnlyList<OpenXmlElement> elements,
-        int blockStart,
-        int blockEnd,
-        SectionProperties finalSection)
-    {
-        EnsureSectionBeforePdfBlock(body, elements, blockStart, finalSection);
-
-        var endElement = elements[blockEnd];
-        var endSectionParagraph = new Paragraph(
-            new ParagraphProperties(
-                new SpacingBetweenLines { Before = "120" },
-                CreatePdfSection(finalSection, 1, SectionMarkValues.Continuous)));
-        body.InsertAfter(endSectionParagraph, endElement);
-    }
-
-    private static void EnsureSectionBeforePdfBlock(
-        Body body,
-        IReadOnlyList<OpenXmlElement> elements,
-        int blockStart,
-        SectionProperties finalSection)
-    {
-        var previousParagraph = FindPreviousParagraph(elements, blockStart);
-        if (previousParagraph == null)
-        {
-            var sectionParagraph = new Paragraph(
-                new ParagraphProperties(CreatePdfSection(finalSection, 2, SectionMarkValues.Continuous)));
-            body.InsertBefore(sectionParagraph, elements[blockStart]);
-            return;
-        }
-
-        var paragraphProperties = previousParagraph.GetFirstChild<ParagraphProperties>()
-                                  ?? previousParagraph.PrependChild(new ParagraphProperties());
-        if (paragraphProperties.GetFirstChild<SectionProperties>() != null)
-            return;
-
-        paragraphProperties.AppendChild(CreatePdfSection(finalSection, 2, SectionMarkValues.Continuous));
-    }
-
-    private static Paragraph? FindPreviousParagraph(IReadOnlyList<OpenXmlElement> elements, int beforeIndex)
-    {
-        for (var i = beforeIndex - 1; i >= 0; i--)
-        {
-            if (elements[i] is Paragraph paragraph)
-                return paragraph;
-        }
-
-        return null;
-    }
-
-    private static SectionProperties CreatePdfSection(
-        SectionProperties finalSection,
-        short columnCount,
-        SectionMarkValues sectionMark)
-    {
-        var section = new SectionProperties();
-        CopySectionSettingsForPdfLayout(finalSection, section);
-        SetColumns(section, columnCount);
-        SetSectionType(section, sectionMark);
-        return section;
-    }
-
-    private static bool IsWideTable(Table table)
-    {
-        var maxCellCount = table.Elements<TableRow>()
-            .Select(row => row.Elements<TableCell>().Count())
-            .DefaultIfEmpty(0)
-            .Max();
-        if (maxCellCount >= 4)
-            return true;
-
-        var textLength = table.Descendants<Text>().Sum(text => text.Text.Length);
-        return textLength >= 120;
-    }
-
-    private static bool IsTableCaptionParagraph(Paragraph paragraph)
-    {
-        var text = paragraph.InnerText.Trim();
-        return text.StartsWith("表", StringComparison.OrdinalIgnoreCase)
-               || text.StartsWith("Table", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static void AddKeepNext(Paragraph paragraph)
-    {
-        var paragraphProperties = paragraph.GetFirstChild<ParagraphProperties>()
-                                  ?? paragraph.PrependChild(new ParagraphProperties());
-        if (paragraphProperties.GetFirstChild<KeepNext>() == null)
-            paragraphProperties.AppendChild(new KeepNext { Val = OnOffValue.FromBoolean(true) });
-    }
-
-    private static void AddKeepLines(Paragraph paragraph)
-    {
-        var paragraphProperties = paragraph.GetFirstChild<ParagraphProperties>()
-                                  ?? paragraph.PrependChild(new ParagraphProperties());
-        if (paragraphProperties.GetFirstChild<KeepLines>() == null)
-            paragraphProperties.AppendChild(new KeepLines { Val = OnOffValue.FromBoolean(true) });
     }
 
     private static Justification CreateJustification(string alignment) => alignment switch

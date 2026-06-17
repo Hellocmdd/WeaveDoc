@@ -120,12 +120,7 @@ All `.lua` files in `Pandoc/LuaFilters/` are discovered and passed to Pandoc. Th
 
 ## OpenXML Correction
 
-`OpenXmlStyleCorrector` is the final authority for DOCX shape after Pandoc output. It writes styles into `StyleDefinitionsPart`, normalizes Pandoc block styles, applies page settings/header/footer, handles table layout rules, and applies `PdfLayoutMode` before PDF export.
-
-PDF layout options are:
-
-- `PdfLayoutMode.SingleColumn`
-- `PdfLayoutMode.TwoColumn`
+`OpenXmlStyleCorrector` is the final authority for DOCX shape after Pandoc output. It writes styles into `StyleDefinitionsPart`, normalizes Pandoc block styles, applies page settings/header/footer, handles table layout rules, and normalizes PDF exports to a single-column layout.
 
 ## PDF Renderers
 
@@ -175,11 +170,7 @@ await literature.ImportAsync(new BibtexParser().Parse(File.ReadAllText("refs.bib
 var engine = new DocumentConversionEngine(pandoc, pdfConverter, config, literature);
 
 var docx = await engine.ConvertAsync("input.md", "default-thesis", "docx");
-var pdf = await engine.ConvertAsync(
-    "input.md",
-    "software-plan-report",
-    "pdf",
-    PdfLayoutMode.TwoColumn);
+var pdf = await engine.ConvertAsync("input.md", "software-plan-report", "pdf");
 ```
 
 `ConversionResult.Warnings` carries any citation issues (unresolved keys, missing GB/T 7714 fields) so callers can surface them without the export itself failing.
